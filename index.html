@@ -1919,7 +1919,7 @@
         <h1 class="login-headline">Welcome back, <em>kabayan</em>.</h1>
         <p class="login-blurb">A workspace for the team behind every meal. Manage orders, schedules, your branch, and your own progress — all in one place.</p>
       </div>
-      <div class="login-foot">SECURE STAFF ACCESS • PROTECTED BY 2-FACTOR AUTHENTICATION</div>
+      <div class="login-foot">SECURE STAFF ACCESS</div>
     </div>
     <div class="login-form-side">
       <button class="login-back" onclick="exitStaffPortal()">← Back to Site</button>
@@ -1932,60 +1932,22 @@
           <button class="lang-btn" onclick="setLang('tl')">Tagalog</button>
         </div>
         <div style="margin-bottom: 14px;">
-          <label class="form-label">Username</label>
-          <input type="text" class="form-input" id="loginUser" placeholder="firstname.lastinitial.branch">
+          <label class="form-label">Email</label>
+          <input type="email" class="form-input" id="loginUser" placeholder="you@tyopaengnyo.com" autocomplete="username">
         </div>
         <div style="margin-bottom: 8px;">
           <label class="form-label">Password</label>
           <div class="password-wrap">
-            <input type="password" class="form-input" id="loginPass" placeholder="Your password" style="padding-right: 44px;">
+            <input type="password" class="form-input" id="loginPass" placeholder="Your password" style="padding-right: 44px;" autocomplete="current-password">
             <button class="password-eye" onclick="togglePassword()" id="eyeBtn">👁</button>
           </div>
         </div>
         <div class="login-extra-row">
           <label class="remember-wrap"><input type="checkbox" id="rememberDevice"> Remember this device</label>
-          <a class="forgot-link" onclick="toast('SMS code sent to your phone on file')">Forgot password?</a>
+          <a class="forgot-link" onclick="toast('Contact your administrator to reset your password.')">Forgot password?</a>
         </div>
         <button class="login-submit" onclick="attemptLogin()">Sign In</button>
-        <div class="demo-accounts">
-          <div class="demo-accounts-title">Demo Accounts — Click Any to Try</div>
-          <div class="demo-account-row" onclick="quickLogin('director')">
-            <div class="demo-account-info">
-              <div><div class="demo-account-name">Direktor Cruz</div><div class="demo-account-meta">director.cruz • Full system access</div></div>
-            </div>
-            <div style="display:flex;gap:6px;align-items:center;"><span class="demo-account-tier tier-director">Director</span><button class="demo-try-btn" onclick="event.stopPropagation();quickLogin('director')">Try</button></div>
-          </div>
-          <div class="demo-account-row" onclick="quickLogin('ceo')">
-            <div class="demo-account-info">
-              <div><div class="demo-account-name">CEO Reyes</div><div class="demo-account-meta">ceo.reyes • All branches</div></div>
-            </div>
-            <div style="display:flex;gap:6px;align-items:center;"><span class="demo-account-tier tier-ceo">CEO</span><button class="demo-try-btn" onclick="event.stopPropagation();quickLogin('ceo')">Try</button></div>
-          </div>
-          <div class="demo-account-row" onclick="quickLogin('operator')">
-            <div class="demo-account-info">
-              <div><div class="demo-account-name">Operator Santos</div><div class="demo-account-meta">operator.santos • Operations lead</div></div>
-            </div>
-            <div style="display:flex;gap:6px;align-items:center;"><span class="demo-account-tier tier-operator">Operator</span><button class="demo-try-btn" onclick="event.stopPropagation();quickLogin('operator')">Try</button></div>
-          </div>
-          <div class="demo-account-row" onclick="quickLogin('manager')">
-            <div class="demo-account-info">
-              <div><div class="demo-account-name">Manager Marl</div><div class="demo-account-meta">marl.j.lp • Las Piñas Manager</div></div>
-            </div>
-            <div style="display:flex;gap:6px;align-items:center;"><span class="demo-account-tier tier-manager">Manager</span><button class="demo-try-btn" onclick="event.stopPropagation();quickLogin('manager')">Try</button></div>
-          </div>
-          <div class="demo-account-row" onclick="quickLogin('dining')">
-            <div class="demo-account-info">
-              <div><div class="demo-account-name">Janelle Cruz</div><div class="demo-account-meta">janelle.c.lp • Dining Staff</div></div>
-            </div>
-            <div style="display:flex;gap:6px;align-items:center;"><span class="demo-account-tier tier-staff">Dining</span><button class="demo-try-btn" onclick="event.stopPropagation();quickLogin('dining')">Try</button></div>
-          </div>
-          <div class="demo-account-row" onclick="quickLogin('kitchen')">
-            <div class="demo-account-info">
-              <div><div class="demo-account-name">Ryan Mendoza</div><div class="demo-account-meta">ryan.m.lp • Kitchen Staff</div></div>
-            </div>
-            <div style="display:flex;gap:6px;align-items:center;"><span class="demo-account-tier tier-staff">Kitchen</span><button class="demo-try-btn" onclick="event.stopPropagation();quickLogin('kitchen')">Try</button></div>
-          </div>
-        </div>
+        <div id="loginError" style="display:none;margin-top:14px;padding:10px 14px;background:rgba(200,40,40,0.08);border:1px solid rgba(200,40,40,0.25);border-radius:8px;color:#c02828;font-size:13px;"></div>
       </div>
     </div>
   </div>
@@ -2776,59 +2738,12 @@ const portalState = {
     { id: 'bacoor',   name: 'Bacoor',    isPublic: false, code: 'BC' },
     { id: 'tgt',      name: 'TGT Concession', isPublic: false, code: 'TGT' }
   ],
-  users: [
-    { username: 'director.cruz', name: 'Direktor Cruz', tier: 'director', branch: null, phoneMask: '••67' },
-    { username: 'ceo.reyes',     name: 'CEO Reyes',     tier: 'ceo',      branch: null, phoneMask: '••12' },
-    { username: 'operator.santos', name: 'Operator Santos', tier: 'operator', branch: null, phoneMask: '••34' },
-    { username: 'marl.j.lp',     name: 'Marl J.',       tier: 'manager',  branch: 'laspinas', phoneMask: '••89' },
-    { username: 'janelle.c.lp',  name: 'Janelle Cruz',  tier: 'dining',   branch: 'laspinas' },
-    { username: 'ryan.m.lp',     name: 'Ryan Mendoza',  tier: 'kitchen',  branch: 'laspinas' },
-  ],
-  staff: [
-    // Las Piñas
-    { id: 's1', name: 'Marl Jimenez',     role: 'manager', branch: 'laspinas', stars: 5, attendance: 98, accountState: 'active' },
-    { id: 's2', name: 'Janelle Cruz',     role: 'service', branch: 'laspinas', stars: 5, attendance: 100, accountState: 'active' },
-    { id: 's3', name: 'Ryan Mendoza',     role: 'kitchen', branch: 'laspinas', stars: 4, attendance: 96, accountState: 'active' },
-    { id: 's4', name: 'Mika Reyes',       role: 'cashier', branch: 'laspinas', stars: 4, attendance: 92, accountState: 'active' },
-    { id: 's5', name: 'Joel Bautista',    role: 'kitchen', branch: 'laspinas', stars: 5, attendance: 99, accountState: 'active' },
-    { id: 's6', name: 'Ana Villanueva',   role: 'service', branch: 'laspinas', stars: 3, attendance: 85, accountState: 'active' },
-    // Bacoor
-    { id: 's7', name: 'Roel Mariano',     role: 'manager', branch: 'bacoor',   stars: 4, attendance: 94, accountState: 'active' },
-    { id: 's8', name: 'Karla Domingo',    role: 'kitchen', branch: 'bacoor',   stars: 4, attendance: 91, accountState: 'active' },
-    { id: 's9', name: 'Lito Santos',      role: 'service', branch: 'bacoor',   stars: 3, attendance: 88, accountState: 'active' },
-    // TGT
-    { id: 's10', name: 'Bea Aguilar',     role: 'manager', branch: 'tgt',      stars: 5, attendance: 97, accountState: 'active' },
-    { id: 's11', name: 'Miguel Ortiz',    role: 'kitchen', branch: 'tgt',      stars: 4, attendance: 93, accountState: 'active' },
-    // Pending activation (in CEO queue)
-    { id: 's12', name: 'Patricia Lim',    role: 'service', branch: 'laspinas', stars: 0, attendance: 0,  accountState: 'pending' },
-    // Recommended for disable (in Director queue)
-    { id: 's13', name: 'Bert Aquino',     role: 'kitchen', branch: 'bacoor',   stars: 1, attendance: 42, accountState: 'recommended', reason: 'Repeated no-shows. Recommended by CEO Reyes on 2026-05-10.' },
-  ],
-  inquiries: [
-    { id: 'TPN-B2B-845192', type: 'b2b', name: 'Maria Bautista', company: 'Acme Logistics PH', role: 'HR Director', email: 'maria.b@acmelogistics.ph', phone: '09175551234', industry: 'BPO', headcount: '100 – 250', serviceType: 'Office Catering', timing: 'This month', pref: 'Either — call or email', notes: 'Looking for daily lunch service for our new BGC office. About 180 headcount. We\'ve heard great things from a friend who used your team for an event. Can we schedule a tasting next week?', status: 'new', time: '2h ago' },
-    { id: 'TPN-E-845098', type: 'event', name: 'Carlos Mendoza', phone: '09182223344', eventType: 'Debut', pax: 80, date: '2026-06-15', venue: 'BF Resort Las Piñas', notes: 'Daughter\'s 18th birthday. Looking for a Filipino spread with some European touches. Budget around 80k.', status: 'in-progress', time: 'yesterday' },
-    { id: 'TPN-B2B-844871', type: 'b2b', name: 'Engr. Robert Tan', company: 'Las Piñas City Hall', role: 'Building Admin', email: 'rtan@laspinas.gov.ph', phone: '09171239876', industry: 'Government / NGO', headcount: '250 – 500', serviceType: 'On-Site Concession', timing: 'Next 1–3 months', pref: 'Call me', notes: 'Cafeteria concession at the new annex building. RFP coming, but wanted to start a conversation early since we\'ve worked with you before for events.', status: 'in-progress', time: '3d ago' },
-  ],
-  orders: [
-    { id: 'TPN-1234567', customer: 'Joel Reyes', phone: '09171234567', type: 'dinein', items: '2× Sisig, 1× Crispy Pata, 4× Rice', total: 1450, status: 'preparing', time: '5 min ago', placedAt: Date.now()-300000, branch: 'laspinas' },
-    { id: 'TPN-1234566', customer: 'Maria Cruz', phone: '09182223344', type: 'takeout', items: '1× Kare-Kare (4-6 pax), 1× Lumpiang Shanghai 20pc', total: 1078, status: 'ready', time: '12 min ago', placedAt: Date.now()-720000, branch: 'laspinas' },
-    { id: 'TPN-1234565', customer: 'Ben Santos', phone: '09173334455', type: 'delivery', items: '1× Tapsilog, 1× Buffalo Wings 12pc, 2× Soft Drinks', total: 568, status: 'received', time: '2 min ago', placedAt: Date.now()-120000, branch: 'laspinas' },
-    { id: 'TPN-1234564', customer: 'Lisa Tan', phone: '09174445566', type: 'dinein', items: '2× Sinigang na Hipon (2-3 pax)', total: 718, status: 'preparing', time: '8 min ago', placedAt: Date.now()-480000, branch: 'laspinas' },
-    { id: 'TPN-1234563', customer: 'Carlo Lim', phone: '09175556677', type: 'takeout', items: '1× Pancit Palabok (4-6), 1× Laing (2-3)', total: 668, status: 'done', time: '1h ago', branch: 'laspinas' },
-    { id: 'TPN-1234562', customer: 'Anna De Vera', phone: '09176667788', type: 'delivery', items: '3× Tapsilog, 1× Buffalo Wings 6pc', total: 606, status: 'done', time: '2h ago', branch: 'laspinas' },
-  ],
-  recognitions: [
-    { id: 'r1', staffName: 'Janelle Cruz', staffId: 's2', achievement: '14 days perfect attendance', branch: 'laspinas', surfaced: true, acknowledged: false },
-    { id: 'r2', staffName: 'Joel Bautista', staffId: 's5', achievement: '30 days no late, no absent', branch: 'laspinas', surfaced: true, acknowledged: false },
-    { id: 'r3', staffName: 'Bea Aguilar', staffId: 's10', achievement: '5-star rating across last 20 shifts', branch: 'tgt', surfaced: true, acknowledged: false },
-  ],
-  auditLog: [
-    { time: '2026-05-12 09:14', actor: 'CEO Reyes', action: 'Recommended account disable for Bert Aquino (Bacoor)', tier: 'ceo', branch: 'bacoor' },
-    { time: '2026-05-12 08:30', actor: 'Manager Marl', action: 'Approved Patricia Lim hire — pending CEO validation', tier: 'manager', branch: 'laspinas' },
-    { time: '2026-05-11 17:45', actor: 'Operator Santos', action: 'Reviewed sales report for week of May 5', tier: 'operator', branch: 'all' },
-    { time: '2026-05-11 14:22', actor: 'Direktor Cruz', action: 'System policy review — no changes', tier: 'director', branch: 'all' },
-    { time: '2026-05-10 11:05', actor: 'Manager Marl', action: 'Acknowledged recognition for Janelle Cruz', tier: 'manager', branch: 'laspinas' },
-  ],
+  users: [],
+  staff: [],
+  inquiries: [],
+  orders: [],
+  recognitions: [],
+  auditLog: [],
   lang: 'en'
 };
 
@@ -2839,11 +2754,70 @@ function openStaffLogin() {
   showPortalPage('portal-login');
   document.body.style.overflow = 'hidden';
 }
-function exitStaffPortal() {
+async function exitStaffPortal() {
+  try { await TPN.logout(); } catch(e) {}
   document.querySelectorAll('.portal-page').forEach(p => p.classList.remove('active'));
   document.body.style.overflow = '';
   currentUser = null;
+  portalState.orders = [];
+  portalState.inquiries = [];
+  portalState.staff = [];
+  if (typeof _supaOrdersUnsub === 'function') { _supaOrdersUnsub(); }
+  if (typeof _supaTablesChan !== 'undefined' && _supaTablesChan) { sb.removeChannel(_supaTablesChan); _supaTablesChan = null; }
   navigate('home');
+}
+
+async function loadInquiriesFromSupabase() {
+  try {
+    const rows = await TPN.listInquiries();
+    portalState.inquiries = rows.map(r => ({
+      id:      'TPN-' + (r.inquiry_type === 'events' ? 'E' : r.inquiry_type === 'concession' ? 'B2B' : 'INQ') + '-' + r.id.slice(0, 6).toUpperCase(),
+      dbId:    r.id,
+      type:    r.inquiry_type === 'events' ? 'event' : (r.inquiry_type === 'concession' ? 'b2b' : r.inquiry_type),
+      name:    r.contact_name,
+      phone:   r.contact_phone || '—',
+      email:   r.contact_email || '—',
+      company: r.organization || '—',
+      notes:   r.message || '',
+      pax:     r.expected_pax,
+      date:    r.event_date,
+      status:  r.status === 'pending' ? 'new' : r.status,
+      time:    timeAgo(new Date(r.created_at))
+    }));
+    renderAdminSidebar?.();
+    if (currentRoute === 'inquiries' || currentRoute === 'dashboard') route(currentRoute);
+  } catch(e) { console.error('loadInquiriesFromSupabase:', e); }
+}
+
+async function loadStaffFromSupabase() {
+  try {
+    if (!TPN.hasRole('manager')) return;   // dining/kitchen/supervisor can't list all staff (RLS)
+    const rows = await TPN.listStaff();
+    portalState.staff = rows.map(r => ({
+      id:            r.id,
+      name:          r.full_name,
+      role:          r.role,
+      branch:        r.branches?.name?.toLowerCase().includes('las') ? 'laspinas'
+                    : r.branches?.name?.toLowerCase().includes('bacoor') ? 'bacoor'
+                    : r.branches?.name?.toLowerCase().includes('tgt') ? 'tgt' : null,
+      stars:         5,
+      attendance:    100,
+      accountState:  r.employment_status === 'active' ? 'active' : r.employment_status,
+      email:         r.email,
+      phone:         r.phone
+    }));
+    renderAdminSidebar?.();
+    if (currentRoute === 'staff' || currentRoute === 'accounts' || currentRoute === 'dashboard') route(currentRoute);
+  } catch(e) { console.error('loadStaffFromSupabase:', e); }
+}
+
+function timeAgo(d) {
+  const s = Math.floor((Date.now() - d.getTime()) / 1000);
+  if (s < 60) return 'just now';
+  if (s < 3600) return Math.floor(s/60) + 'm ago';
+  if (s < 86400) return Math.floor(s/3600) + 'h ago';
+  if (s < 604800) return Math.floor(s/86400) + 'd ago';
+  return d.toLocaleDateString();
 }
 function showPortalPage(id) {
   document.querySelectorAll('.portal-page').forEach(p => p.classList.remove('active'));
@@ -2864,43 +2838,55 @@ function togglePassword() {
   else { inp.type = 'password'; btn.textContent = '👁'; }
 }
 
-function quickLogin(role) {
-  const map = {
-    director: 'director.cruz',
-    ceo: 'ceo.reyes',
-    operator: 'operator.santos',
-    manager: 'marl.j.lp',
-    dining: 'janelle.c.lp',
-    kitchen: 'ryan.m.lp'
-  };
-  document.getElementById('loginUser').value = map[role];
-  document.getElementById('loginPass').value = 'demo123';
-  attemptLogin();
-}
+function quickLogin() { /* demo removed */ }
 
-function attemptLogin() {
-  const u = document.getElementById('loginUser').value.trim();
-  const p = document.getElementById('loginPass').value.trim();
-  if (!u || !p) { toast('Please enter username and password'); return; }
-  const user = portalState.users.find(usr => usr.username === u);
-  if (!user) { toast('Account not found. Try a demo account.'); return; }
-  currentUser = user;
-  // Tier check: Manager+ needs 2FA
-  const needs2FA = ['director', 'ceo', 'operator', 'manager'].includes(user.tier);
-  if (needs2FA) {
-    showPortalPage('portal-2fa');
-    document.getElementById('twofaCode').value = '';
-    setTimeout(() => document.getElementById('twofaCode').focus(), 100);
-  } else {
+async function attemptLogin() {
+  const email = document.getElementById('loginUser').value.trim();
+  const pass  = document.getElementById('loginPass').value;
+  const err   = document.getElementById('loginError');
+  const btn   = document.querySelector('.login-submit');
+  const showErr = m => { if (err) { err.textContent = m; err.style.display = 'block'; } };
+  const hideErr = () => { if (err) err.style.display = 'none'; };
+  if (!email || !pass) { showErr('Please enter your email and password.'); return; }
+  if (btn) { btn.disabled = true; btn.textContent = 'Signing in…'; }
+  hideErr();
+  try {
+    const staff = await TPN.login(email, pass);
+    if (!staff) {
+      showErr('Signed in, but no staff profile exists for this account. Contact your administrator.');
+      await TPN.logout();
+      return;
+    }
+    currentUser = staffToPortalUser(staff);
     enterPortal();
+  } catch(e) {
+    console.error('login error:', e);
+    const msg = e?.message || 'Login failed';
+    if (/invalid/i.test(msg) || /credentials/i.test(msg)) showErr('Invalid email or password.');
+    else showErr(msg);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Sign In'; }
   }
 }
+
+// Map DB staff row → UI user object
+function staffToPortalUser(staff) {
+  // DB roles: dining, kitchen, supervisor, manager, admin, director, ceo
+  return {
+    id:       staff.id,
+    name:     staff.full_name,
+    tier:     staff.role,   // matches DB enum
+    branch:   staff.branches?.code || null,  // e.g. 'laspinas'
+    email:    staff.email || null,
+    phone:    staff.phone || null
+  };
+}
+
 function verifyTwoFA() {
-  const code = document.getElementById('twofaCode').value.trim();
-  if (code.length !== 6 || !/^\d{6}$/.test(code)) { toast('Enter a valid 6-digit code'); return; }
-  // accept any 6 digits for demo
+  // 2FA not wired to a real SMS provider yet. Skip for MVP.
   enterPortal();
 }
+
 function enterPortal() {
   if (!currentUser) return;
   if (['dining', 'kitchen'].includes(currentUser.tier)) {
@@ -2912,8 +2898,10 @@ function enterPortal() {
     renderAdminSidebar();
     route('dashboard');
   }
-  // Start live sync with Supabase (orders + table signals)
+  // Kick off live data (orders realtime + initial fetches)
   startSupabaseSync().catch(e => console.error('sync start:', e));
+  loadInquiriesFromSupabase().catch(e => console.error('inquiries load:', e));
+  loadStaffFromSupabase().catch(e => console.error('staff load:', e));
 }
 
 function togglePortalSidebar() {
@@ -2927,7 +2915,7 @@ function togglePortalSidebar() {
 function renderAdminSidebar() {
   const u = currentUser;
   const tier = u.tier;
-  const tierLabel = { director: 'Director', ceo: 'CEO', operator: 'Operator', manager: 'Manager' }[tier];
+  const tierLabel = { director: 'Director', ceo: 'CEO', admin: 'Admin', manager: 'Manager', supervisor: 'Supervisor' }[tier] || (tier.charAt(0).toUpperCase() + tier.slice(1));
   const tierClass = 'tier-' + tier;
   const initials = u.name.split(' ').map(s => s[0]).join('').slice(0, 2).toUpperCase();
 
@@ -2944,7 +2932,7 @@ function renderAdminSidebar() {
   navItems.push({ id: 'staff-board', label: 'Staff Board', icon: '🎯' });
   navItems.push({ id: 'table-qr', label: 'Table QR Codes', icon: '📲' });
   navItems.push({ id: 'accounts', label: 'Accounts', icon: '👤', badge: portalState.staff.filter(s => s.accountState === 'pending' || s.accountState === 'recommended').length || null });
-  if (tier === 'director' || tier === 'ceo' || tier === 'operator') {
+  if (tier === 'director' || tier === 'ceo' || tier === 'admin') {
     navItems.push({ section: 'OPERATIONS' });
     navItems.push({ id: 'audit', label: 'Audit Log', icon: '📜' });
   }
@@ -2962,7 +2950,7 @@ function renderAdminSidebar() {
     <div class="portal-user-avatar">${initials}</div>
     <div class="portal-user-info">
       <div class="portal-user-name">${u.name}</div>
-      <div class="portal-user-tier">${tierLabel}${u.branch ? ' • ' + portalState.branches.find(b => b.id === u.branch).name : ''}</div>
+      <div class="portal-user-tier">${tierLabel}${u.branch ? ' • ' + (portalState.branches.find(b => b.id === u.branch)?.name || u.branch) : ''}</div>
     </div>
     <button class="portal-logout" onclick="exitStaffPortal()">Out</button>`;
 }
@@ -2992,23 +2980,23 @@ function route(r) {
 
 function renderDashboard(main) {
   const u = currentUser;
-  const tierGreeting = { director: 'Direktor', ceo: 'CEO', operator: 'Operator', manager: 'Manager' }[u.tier];
+  const tierGreeting = { director: 'Direktor', ceo: 'CEO', admin: 'Admin', manager: 'Manager' }[u.tier];
   const isBranchScoped = u.tier === 'manager';
-  const scope = isBranchScoped ? portalState.branches.find(b => b.id === u.branch).name : 'All Branches';
+  const scope = isBranchScoped ? (portalState.branches.find(b => b.id === u.branch)?.name || 'Your branch') : 'All Branches';
 
   // Tier-specific tiles
   let tiles = '';
   if (u.tier === 'director' || u.tier === 'ceo') {
-    const totalRevToday = 47820;
+    const totalRevToday = portalState.orders.reduce((n, o) => n + (Number(o.total) || 0), 0);
     const ordersToday = portalState.orders.length;
     const activeStaff = portalState.staff.filter(s => s.accountState === 'active').length;
     const branchCount = portalState.branches.length;
     tiles = `
-      <div class="tile tile-clickable" onclick="showRevenueDrilldown()" title="View revenue breakdown"><div class="tile-icon">💰</div><div class="tile-label">Revenue Today</div><div class="tile-value">₱${totalRevToday.toLocaleString()}</div><div class="tile-trend">▲ 12% vs yesterday</div><div class="tile-drill">View breakdown →</div></div>
-      <div class="tile tile-clickable" onclick="route('orders')" title="View all orders"><div class="tile-icon">📋</div><div class="tile-label">Orders Today</div><div class="tile-value">${ordersToday}</div><div class="tile-trend">▲ 8 more than avg</div><div class="tile-drill">View orders →</div></div>
+      <div class="tile tile-clickable" onclick="showRevenueDrilldown()" title="View revenue breakdown"><div class="tile-icon">💰</div><div class="tile-label">Revenue Today</div><div class="tile-value">₱${totalRevToday.toLocaleString()}</div><div class="tile-trend">across all branches</div><div class="tile-drill">View breakdown →</div></div>
+      <div class="tile tile-clickable" onclick="route('orders')" title="View all orders"><div class="tile-icon">📋</div><div class="tile-label">Orders Today</div><div class="tile-value">${ordersToday}</div><div class="tile-trend">${portalState.orders.filter(o=>o.status!=='done').length} active</div><div class="tile-drill">View orders →</div></div>
       <div class="tile tile-clickable" onclick="route('staff-board')" title="View staff board"><div class="tile-icon">👥</div><div class="tile-label">Active Staff</div><div class="tile-value">${activeStaff}</div><div class="tile-trend">${branchCount} branches</div><div class="tile-drill">View staff →</div></div>
       <div class="tile tile-clickable" onclick="route('inquiries')" title="View inquiries"><div class="tile-icon">📩</div><div class="tile-label">Open Inquiries</div><div class="tile-value">${portalState.inquiries.filter(i => i.status !== 'closed').length}</div><div class="tile-trend">${portalState.inquiries.filter(i => i.status === 'new').length} new</div><div class="tile-drill">View inquiries →</div></div>`;
-  } else if (u.tier === 'operator') {
+  } else if (u.tier === 'admin') {
     tiles = `
       <div class="tile tile-clickable" onclick="route('orders')" title="View all orders"><div class="tile-icon">📋</div><div class="tile-label">Orders Today</div><div class="tile-value">${portalState.orders.length}</div><div class="tile-trend">▲ across all branches</div><div class="tile-drill">View orders →</div></div>
       <div class="tile tile-clickable" onclick="showAvgPrepDrilldown()"><div class="tile-icon">⏱️</div><div class="tile-label">Avg Prep Time</div><div class="tile-value">22 <span style="font-size:18px;color:var(--ink-muted);">min</span></div><div class="tile-trend">▼ 3 min from last week</div><div class="tile-drill">View by branch →</div></div>
@@ -3033,7 +3021,7 @@ function renderDashboard(main) {
     if (recDisable) quests.push({ priority: 'high', text: `<strong>${recDisable} disable recommendation</strong> awaiting your review`, action: 'Review', route: 'accounts' });
     quests.push({ priority: 'med', text: 'Weekly audit log review', action: 'Open', route: 'audit' });
     quests.push({ priority: 'low', text: 'No system policy changes needed today', action: 'Dismiss' });
-  } else if (u.tier === 'ceo' || u.tier === 'operator') {
+  } else if (u.tier === 'ceo' || u.tier === 'admin') {
     const pending = portalState.staff.filter(s => s.accountState === 'pending').length;
     if (pending) quests.push({ priority: 'high', text: `<strong>${pending} new staff account</strong> awaiting your validation`, action: 'Validate', route: 'accounts' });
     if (portalState.inquiries.filter(i => i.status === 'new').length) quests.push({ priority: 'high', text: `<strong>${portalState.inquiries.filter(i => i.status === 'new').length} new B2B/event inquiries</strong> need attention`, action: 'Open', route: 'inquiries' });
@@ -3113,7 +3101,7 @@ function acknowledgeRecog(id) {
 function renderStaffBoard(main) {
   const u = currentUser;
   const isBranchScoped = u.tier === 'manager';
-  const canDrag = ['director', 'ceo', 'operator'].includes(u.tier);
+  const canDrag = ['director', 'ceo', 'admin'].includes(u.tier);
   const branches = isBranchScoped ? portalState.branches.filter(b => b.id === u.branch) : portalState.branches;
 
   let html = `
@@ -3329,8 +3317,8 @@ async function loadOrdersFromSupabase() {
       portalState.orders.unshift(dbOrderToPortalOrder(o));
     });
     renderAdminSidebar();
-    if (currentRoute === 'orders') renderContent();
-    if (currentRoute === 'dashboard') renderContent();
+    if (currentRoute === 'orders') route(currentRoute);
+    if (currentRoute === 'dashboard') route(currentRoute);
   } catch(e) { console.error('loadOrdersFromSupabase:', e); }
 }
 
@@ -3368,13 +3356,13 @@ function subscribeToSupabaseOrders() {
         portalState.orders.unshift(dbOrderToPortalOrder(full));
         showToastPortal(`🔔 New order ${full.order_number}`);
         renderAdminSidebar();
-        if (currentRoute === 'orders' || currentRoute === 'dashboard') renderContent();
+        if (currentRoute === 'orders' || currentRoute === 'dashboard') route(currentRoute);
       } catch(e) { console.error('subscribe INSERT:', e); }
     } else if (payload.eventType === 'UPDATE') {
       const existing = portalState.orders.find(x => x.dbId === payload.new.id);
       if (existing) {
         existing.status = mapDbStatusToUi(payload.new.status);
-        if (currentRoute === 'orders') renderContent();
+        if (currentRoute === 'orders') route(currentRoute);
       }
     }
   });
@@ -3573,14 +3561,14 @@ function renderAccActions(s) {
   const u = currentUser;
   let actions = '';
   if (s.accountState === 'pending') {
-    if (u.tier === 'ceo' || u.tier === 'operator' || u.tier === 'director') {
+    if (u.tier === 'ceo' || u.tier === 'admin' || u.tier === 'director') {
       actions += `<button class="table-btn primary" onclick="approveAccount('${s.id}')">Validate</button>`;
       actions += `<button class="table-btn danger" onclick="rejectAccount('${s.id}')">Reject</button>`;
     } else {
       actions += `<span style="color:var(--ink-faint);font-size:11px;">Awaiting CEO/Operator</span>`;
     }
   } else if (s.accountState === 'active') {
-    if (u.tier === 'ceo' || u.tier === 'operator') {
+    if (u.tier === 'ceo' || u.tier === 'admin') {
       actions += `<button class="table-btn danger" onclick="recommendDisable('${s.id}')">Recommend Disable</button>`;
     } else if (u.tier === 'director') {
       actions += `<button class="table-btn danger" onclick="recommendDisable('${s.id}')">Disable</button>`;
