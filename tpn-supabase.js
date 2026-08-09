@@ -1,19 +1,17 @@
 /* ═══════════════════════════════════════════════════════════════
    TPN OS — Supabase Data Layer
-   
-   Drop-in replacement for localStorage. Include AFTER the Supabase
-   CDN script tag in each of your HTML files:
-   
+
+   Credentials live in config.js (loaded before this file), so this
+   file can be updated freely without ever touching your keys.
+
+   Load order in each HTML file:
      <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+     <script src="config.js"></script>
      <script src="tpn-supabase.js"></script>
-   
-   Then use `TPN.*` methods instead of localStorage/JSON.parse/stringify.
-   
-   PASTE YOUR URL AND ANON KEY BELOW ↓
    ═══════════════════════════════════════════════════════════════ */
 
-const SUPABASE_URL      = 'https://xjlqfpnzobfqxetgkkai.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable_xOrF2eJ4LJQNsmZIhcI3Tg_y5Nm-6WB';
+const SUPABASE_URL      = (window.TPN_CONFIG && window.TPN_CONFIG.SUPABASE_URL)      || 'https://YOUR-PROJECT-REF.supabase.co';
+const SUPABASE_ANON_KEY = (window.TPN_CONFIG && window.TPN_CONFIG.SUPABASE_ANON_KEY) || 'PASTE-YOUR-ANON-KEY-HERE';
 
 // Init client
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
@@ -216,9 +214,21 @@ const TPN = {
 
   async listActiveOrders(branchId = null) {
     let q = sb.from('orders')
-      .select('*, order_items(*)')
+      .select('*, order_items(*), restaurant_tables(table_number)')
       .in('status', ['pending','confirmed','preparing','ready'])
       .order('placed_at', { ascending: true });
+    if (branchId) q = q.eq('branch_id', branchId);
+    const { data, error } = await q;
+    if (error) throw error;
+    return data;
+  },
+
+  async listTodayOrders(branchId = null) {
+    const start = new Date(); start.setHours(0,0,0,0);
+    let q = sb.from('orders')
+      .select('*, order_items(*), restaurant_tables(table_number)')
+      .gte('placed_at', start.toISOString())
+      .order('placed_at', { ascending: false });
     if (branchId) q = q.eq('branch_id', branchId);
     const { data, error } = await q;
     if (error) throw error;

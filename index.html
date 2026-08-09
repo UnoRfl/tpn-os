@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
 <script src="tpn-supabase.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="description" content="Tyo Paeng Nyo — Authentic Filipino cuisine in Las Piñas since 2003. Order online, book events, or inquire about catering.">
@@ -1189,6 +1190,45 @@
   .order-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
   @media (max-width: 1100px) { .order-grid { grid-template-columns: repeat(2, 1fr); } }
   @media (max-width: 600px) { .order-grid { grid-template-columns: 1fr; } }
+
+  /* ── KITCHEN DISPLAY SYSTEM ── */
+  .kds-wrap { padding: 0; }
+  .kds-topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 14px; border-bottom: 2px solid var(--line); }
+  .kds-title { font-family: 'Playfair Display', serif; font-size: 28px; font-weight: 900; color: var(--ink); }
+  .kds-stats { display: flex; gap: 20px; }
+  .kds-stat { font-size: 15px; color: var(--ink-muted); font-weight: 600; }
+  .kds-stat-num { font-size: 24px; font-weight: 900; color: var(--brick); margin-right: 4px; }
+  .kds-empty { text-align: center; padding: 80px 20px; }
+  .kds-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; }
+  .kds-ticket { background: var(--surface); border: 2px solid var(--line); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; }
+  .kds-ticket-warn { border-color: var(--amber); box-shadow: 0 0 0 1px var(--amber); }
+  .kds-ticket-urgent { border-color: var(--danger); box-shadow: 0 0 0 2px var(--danger); animation: kdsPulse 2s ease-in-out infinite; }
+  @keyframes kdsPulse { 0%,100% { box-shadow: 0 0 0 2px var(--danger); } 50% { box-shadow: 0 0 0 5px rgba(200,40,40,0.25); } }
+  .kds-ticket-head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px dashed var(--line); }
+  .kds-ticket-ref { font-size: 20px; font-weight: 900; color: var(--ink); letter-spacing: 0.02em; }
+  .kds-ticket-cust { font-size: 13px; color: var(--ink-muted); margin-top: 2px; }
+  .kds-badge { display: inline-block; font-size: 11px; font-weight: 800; padding: 3px 10px; border-radius: 10px; letter-spacing: 0.08em; }
+  .kds-badge-new { background: var(--brick); color: #fff; }
+  .kds-badge-cooking { background: var(--amber); color: #3a2600; }
+  .kds-ticket-age { font-size: 13px; font-weight: 700; margin-top: 6px; }
+  .kds-age-fresh { color: var(--ink-muted); }
+  .kds-age-warn { color: var(--amber); }
+  .kds-age-urgent { color: var(--danger); }
+  .kds-items { flex: 1; margin-bottom: 12px; }
+  .kds-item { font-size: 18px; color: var(--ink); padding: 6px 0; border-bottom: 1px solid var(--surface-2); }
+  .kds-item:last-child { border-bottom: none; }
+  .kds-item-qty { font-weight: 900; color: var(--brick); font-size: 20px; }
+  .kds-item-name { font-weight: 600; }
+  .kds-item-pax { font-size: 13px; color: var(--ink-muted); font-weight: 400; }
+  .kds-item-note { font-size: 13px; color: var(--amber); margin-top: 3px; padding-left: 8px; }
+  .kds-special { background: rgba(200,140,20,0.12); border: 1px solid var(--amber); border-radius: 8px; padding: 8px 12px; font-size: 14px; color: var(--ink); margin-bottom: 12px; font-weight: 600; }
+  .kds-action { width: 100%; padding: 14px; border: none; border-radius: 10px; font-size: 16px; font-weight: 800; cursor: pointer; transition: transform 0.1s, filter 0.2s; font-family: inherit; }
+  .kds-action:active { transform: scale(0.98); }
+  .kds-action-start { background: var(--brick); color: #fff; }
+  .kds-action-start:hover { filter: brightness(1.1); }
+  .kds-action-ready { background: var(--success, #2d7a4f); color: #fff; }
+  .kds-action-ready:hover { filter: brightness(1.1); }
+  @media (max-width: 600px) { .kds-grid { grid-template-columns: 1fr; } }
   .order-lane {
     background: var(--surface); border: 1px solid var(--line);
     border-radius: 12px; padding: 16px;
@@ -2687,9 +2727,7 @@ function showConfirmModal(title, html, onClose) {
    ════════════════════════════════════════════════════ */
 const portalState = {
   branches: [
-    { id: 'laspinas', name: 'Las Piñas', isPublic: true, code: 'LP' },
-    { id: 'bacoor',   name: 'Bacoor',    isPublic: false, code: 'BC' },
-    { id: 'tgt',      name: 'TGT Concession', isPublic: false, code: 'TGT' }
+    { id: 'laspinas', name: 'Las Piñas', isPublic: true, code: 'LP' }
   ],
   users: [],
   staff: [],
@@ -2750,9 +2788,7 @@ async function loadStaffFromSupabase() {
       id:            r.id,
       name:          r.full_name,
       role:          r.role,
-      branch:        r.branches?.name?.toLowerCase().includes('las') ? 'laspinas'
-                    : r.branches?.name?.toLowerCase().includes('bacoor') ? 'bacoor'
-                    : r.branches?.name?.toLowerCase().includes('tgt') ? 'tgt' : null,
+      branch:        'laspinas',
       stars:         5,
       attendance:    100,
       accountState:  r.employment_status === 'active' ? 'active' : r.employment_status,
@@ -2879,8 +2915,8 @@ function renderAdminSidebar() {
   const newInquiries = portalState.inquiries.filter(i => i.status === 'new').length;
   navItems.push({ id: 'inquiries', label: 'Inquiries', icon: '📩', badge: newInquiries || null });
   navItems.push({ id: 'orders', label: 'Live Orders', icon: '📋', badge: portalState.orders.filter(o => o.status !== 'done').length || null });
-  const unack = portalState.recognitions.filter(r => !r.acknowledged).length;
-  navItems.push({ id: 'recognition', label: 'Recognition', icon: '⭐', badge: unack || null });
+  navItems.push({ id: 'kds', label: 'Kitchen Display', icon: '🍳', badge: portalState.orders.filter(o => o.status === 'received' || o.status === 'preparing').length || null });
+
   navItems.push({ section: 'TEAM' });
   navItems.push({ id: 'staff-board', label: 'Staff Board', icon: '🎯' });
   navItems.push({ id: 'menu-manager', label: 'Menu Manager', icon: '🍽️' });
@@ -2923,7 +2959,7 @@ function route(r) {
     case 'dashboard': renderDashboard(main); break;
     case 'inquiries': renderInquiries(main); break;
     case 'orders': renderOrders(main); break;
-    case 'recognition': renderRecognition(main); break;
+    case 'kds': renderKDS(main); break;
     case 'staff-board': renderStaffBoard(main); break;
     case 'accounts': renderAccounts(main); break;
     case 'audit': renderAudit(main); break;
@@ -2947,107 +2983,78 @@ function renderDashboard(main) {
     const activeStaff = portalState.staff.filter(s => s.accountState === 'active').length;
     const branchCount = portalState.branches.length;
     tiles = `
-      <div class="tile tile-clickable" onclick="showRevenueDrilldown()" title="View revenue breakdown"><div class="tile-icon">💰</div><div class="tile-label">Revenue Today</div><div class="tile-value">₱${totalRevToday.toLocaleString()}</div><div class="tile-trend">across all branches</div><div class="tile-drill">View breakdown →</div></div>
+      <div class="tile tile-clickable" onclick="showRevenueDrilldown()" title="View revenue breakdown"><div class="tile-icon">💰</div><div class="tile-label">Revenue Today</div><div class="tile-value">₱${totalRevToday.toLocaleString()}</div><div class="tile-trend">today</div><div class="tile-drill">View breakdown →</div></div>
       <div class="tile tile-clickable" onclick="route('orders')" title="View all orders"><div class="tile-icon">📋</div><div class="tile-label">Orders Today</div><div class="tile-value">${ordersToday}</div><div class="tile-trend">${portalState.orders.filter(o=>o.status!=='done').length} active</div><div class="tile-drill">View orders →</div></div>
-      <div class="tile tile-clickable" onclick="route('staff-board')" title="View staff board"><div class="tile-icon">👥</div><div class="tile-label">Active Staff</div><div class="tile-value">${activeStaff}</div><div class="tile-trend">${branchCount} branches</div><div class="tile-drill">View staff →</div></div>
+      <div class="tile tile-clickable" onclick="route('staff-board')" title="View staff board"><div class="tile-icon">👥</div><div class="tile-label">Active Staff</div><div class="tile-value">${activeStaff}</div><div class="tile-trend">Las Piñas</div><div class="tile-drill">View staff →</div></div>
       <div class="tile tile-clickable" onclick="route('inquiries')" title="View inquiries"><div class="tile-icon">📩</div><div class="tile-label">Open Inquiries</div><div class="tile-value">${portalState.inquiries.filter(i => i.status !== 'closed').length}</div><div class="tile-trend">${portalState.inquiries.filter(i => i.status === 'new').length} new</div><div class="tile-drill">View inquiries →</div></div>`;
-  } else if (u.tier === 'admin') {
-    tiles = `
-      <div class="tile tile-clickable" onclick="route('orders')" title="View all orders"><div class="tile-icon">📋</div><div class="tile-label">Orders Today</div><div class="tile-value">${portalState.orders.length}</div><div class="tile-trend">▲ across all branches</div><div class="tile-drill">View orders →</div></div>
-      <div class="tile tile-clickable" onclick="showAvgPrepDrilldown()"><div class="tile-icon">⏱️</div><div class="tile-label">Avg Prep Time</div><div class="tile-value">22 <span style="font-size:18px;color:var(--ink-muted);">min</span></div><div class="tile-trend">▼ 3 min from last week</div><div class="tile-drill">View by branch →</div></div>
-      <div class="tile tile-clickable" onclick="route('recognition')"><div class="tile-icon">⭐</div><div class="tile-label">Recognition Queue</div><div class="tile-value">${portalState.recognitions.filter(r => !r.acknowledged).length}</div><div class="tile-trend">awaiting acknowledgment</div><div class="tile-drill">Review →</div></div>
-      <div class="tile tile-clickable" onclick="route('inquiries')"><div class="tile-icon">📩</div><div class="tile-label">Inquiries</div><div class="tile-value">${portalState.inquiries.length}</div><div class="tile-trend">${portalState.inquiries.filter(i => i.status === 'new').length} new this week</div><div class="tile-drill">View inquiries →</div></div>`;
   } else {
-    // manager — branch-scoped
-    const branchOrders = portalState.orders.filter(o => o.branch === u.branch);
-    const branchStaff = portalState.staff.filter(s => s.branch === u.branch && s.accountState === 'active');
-    const branchRevenue = branchOrders.reduce((n, o) => n + o.total, 0);
+    // admin / manager / supervisor — same single-branch view
+    const activeStaffCount = portalState.staff.filter(s => s.accountState === 'active').length;
     tiles = `
-      <div class="tile tile-clickable" onclick="showRevenueDrilldown()"><div class="tile-icon">💰</div><div class="tile-label">${scope} Revenue Today</div><div class="tile-value">₱${branchRevenue.toLocaleString()}</div><div class="tile-trend">▲ on track</div><div class="tile-drill">View breakdown →</div></div>
-      <div class="tile tile-clickable" onclick="route('orders')"><div class="tile-icon">📋</div><div class="tile-label">Active Orders</div><div class="tile-value">${branchOrders.filter(o => o.status !== 'done').length}</div><div class="tile-trend">${branchOrders.length} total today</div><div class="tile-drill">View orders →</div></div>
-      <div class="tile tile-clickable" onclick="route('staff-board')"><div class="tile-icon">👥</div><div class="tile-label">My Team</div><div class="tile-value">${branchStaff.length}</div><div class="tile-trend">all on schedule</div><div class="tile-drill">View staff →</div></div>
-      <div class="tile tile-clickable" onclick="route('recognition')"><div class="tile-icon">⭐</div><div class="tile-label">To Acknowledge</div><div class="tile-value">${portalState.recognitions.filter(r => !r.acknowledged && r.branch === u.branch).length}</div><div class="tile-trend">recognition pending</div><div class="tile-drill">Acknowledge →</div></div>`;
+      <div class="tile tile-clickable" onclick="route('orders')" title="View orders"><div class="tile-icon">📋</div><div class="tile-label">Active Orders</div><div class="tile-value">${portalState.orders.filter(o=>o.status!=='done').length}</div><div class="tile-trend">${portalState.orders.length} total today</div><div class="tile-drill">View orders →</div></div>
+      <div class="tile tile-clickable" onclick="route('kds')"><div class="tile-icon">🍳</div><div class="tile-label">In the Kitchen</div><div class="tile-value">${portalState.orders.filter(o=>o.status==='received'||o.status==='preparing').length}</div><div class="tile-trend">cooking now</div><div class="tile-drill">Open KDS →</div></div>
+      <div class="tile tile-clickable" onclick="route('accounts')"><div class="tile-icon">👥</div><div class="tile-label">Active Staff</div><div class="tile-value">${activeStaffCount}</div><div class="tile-trend">Las Piñas</div><div class="tile-drill">Manage →</div></div>
+      <div class="tile tile-clickable" onclick="route('inquiries')"><div class="tile-icon">📩</div><div class="tile-label">Inquiries</div><div class="tile-value">${portalState.inquiries.filter(i => i.status !== 'closed' && i.status !== 'resolved').length}</div><div class="tile-trend">${portalState.inquiries.filter(i => i.status === 'new').length} new</div><div class="tile-drill">View inquiries →</div></div>`;
   }
 
-  // Daily quests — tier-specific
+  // To-dos derived from real data
   let quests = [];
-  if (u.tier === 'director') {
-    const recDisable = portalState.staff.filter(s => s.accountState === 'recommended').length;
-    if (recDisable) quests.push({ priority: 'high', text: `<strong>${recDisable} disable recommendation</strong> awaiting your review`, action: 'Review', route: 'accounts' });
-    quests.push({ priority: 'med', text: 'Weekly audit log review', action: 'Open', route: 'audit' });
-    quests.push({ priority: 'low', text: 'No system policy changes needed today', action: 'Dismiss' });
-  } else if (u.tier === 'ceo' || u.tier === 'admin') {
-    const pending = portalState.staff.filter(s => s.accountState === 'pending').length;
-    if (pending) quests.push({ priority: 'high', text: `<strong>${pending} new staff account</strong> awaiting your validation`, action: 'Validate', route: 'accounts' });
-    if (portalState.inquiries.filter(i => i.status === 'new').length) quests.push({ priority: 'high', text: `<strong>${portalState.inquiries.filter(i => i.status === 'new').length} new B2B/event inquiries</strong> need attention`, action: 'Open', route: 'inquiries' });
-    if (portalState.recognitions.filter(r => !r.acknowledged).length) quests.push({ priority: 'med', text: `${portalState.recognitions.filter(r => !r.acknowledged).length} staff achievements ready to acknowledge`, action: 'Review', route: 'recognition' });
-  } else {
-    // manager
-    const branchOrders = portalState.orders.filter(o => o.branch === u.branch && o.status !== 'done').length;
-    if (branchOrders) quests.push({ priority: 'high', text: `<strong>${branchOrders} active orders</strong> at ${scope}`, action: 'View', route: 'orders' });
-    const branchRecogs = portalState.recognitions.filter(r => !r.acknowledged && r.branch === u.branch).length;
-    if (branchRecogs) quests.push({ priority: 'med', text: `${branchRecogs} of your team earned recognition this week`, action: 'Acknowledge', route: 'recognition' });
-    quests.push({ priority: 'low', text: 'Confirm tomorrow\'s schedule with your team', action: 'Done' });
-  }
+  const activeCount = portalState.orders.filter(o => o.status !== 'done').length;
+  const newInq = portalState.inquiries.filter(i => i.status === 'new').length;
+  const kitchenNow = portalState.orders.filter(o => o.status === 'received' || o.status === 'preparing').length;
+  if (activeCount) quests.push({ priority: 'high', text: `<strong>${activeCount} active order${activeCount!==1?'s':''}</strong> in the queue`, action: 'View', route: 'orders' });
+  if (kitchenNow) quests.push({ priority: 'med', text: `${kitchenNow} order${kitchenNow!==1?'s':''} cooking in the kitchen`, action: 'Kitchen', route: 'kds' });
+  if (newInq) quests.push({ priority: 'high', text: `<strong>${newInq} new inquir${newInq!==1?'ies':'y'}</strong> to respond to`, action: 'Open', route: 'inquiries' });
+  if (!quests.length) quests.push({ priority: 'low', text: 'Nothing needs attention right now.', action: 'Refresh', route: 'dashboard' });
 
-  const directorBanner = u.tier === 'director' ? `
-    <div class="director-banner">
-      <div class="director-banner-icon">🛡️</div>
-      <div>You're signed in as <strong>Direktor</strong>. This is a break-glass account — sessions auto-expire in 15 minutes for security. Routine ops should go through CEO or Operator accounts.</div>
-    </div>` : '';
+  const directorBanner = '';
 
+  const recentOrders = portalState.orders.slice(0, 6);
   main.innerHTML = `
     <div class="portal-header">
       <div>
-        <h1>Magandang araw, ${tierGreeting} ${u.name.split(' ')[0]}.</h1>
-        <div class="portal-header-sub">Here's what's on your plate today.</div>
+        <h1>Magandang araw${tierGreeting ? ', ' + tierGreeting : ''} ${u.name.split(' ')[0]}.</h1>
+        <div class="portal-header-sub">Here's what's happening at Las Piñas today.</div>
       </div>
-      <div class="branch-pill ${isBranchScoped ? 'locked' : ''}">${scope}</div>
+      <div class="branch-pill locked">Las Piñas</div>
     </div>
     ${directorBanner}
     <div class="tile-grid">${tiles}</div>
     <div class="today-grid">
       <div class="panel">
         <div class="panel-header">
-          <div class="panel-title">Today's Quests</div>
-          <button class="panel-link">Refresh</button>
+          <div class="panel-title">Needs Attention</div>
+          <button class="panel-link" onclick="route('dashboard')">Refresh</button>
         </div>
         <div class="quest-list">
-          ${quests.length ? quests.map(q => `
+          ${quests.map(q => `
             <div class="quest-item">
               <div class="quest-priority ${q.priority}"></div>
               <div class="quest-text">${q.text}</div>
-              <button class="quest-action ${q.route ? '' : 'ghost'}" onclick="${q.route ? `route('${q.route}')` : `this.parentElement.style.opacity=0.4;this.disabled=true`}">${q.action}</button>
-            </div>`).join('') : '<div style="padding:30px;text-align:center;color:var(--ink-faint);">🎉 All clear for today!</div>'}
+              <button class="quest-action" onclick="route('${q.route}')">${q.action}</button>
+            </div>`).join('')}
         </div>
       </div>
       <div class="panel">
         <div class="panel-header">
-          <div class="panel-title">Recognition</div>
-          <button class="panel-link" onclick="route('recognition')">View All →</button>
+          <div class="panel-title">Recent Orders</div>
+          <button class="panel-link" onclick="route('orders')">View All →</button>
         </div>
-        <div class="recog-list">
-          ${portalState.recognitions.filter(r => !r.acknowledged && (!isBranchScoped || r.branch === u.branch)).slice(0, 3).map(r => `
-            <div class="recog-card">
-              <div class="recog-avatar">${r.staffName.split(' ').map(s=>s[0]).join('').slice(0,2)}</div>
-              <div class="recog-content">
-                <div class="recog-name">${r.staffName}</div>
-                <div class="recog-achievement">${r.achievement}</div>
-                <div class="recog-actions">
-                  <button class="recog-ack-btn" onclick="acknowledgeRecog('${r.id}')">Acknowledge</button>
-                </div>
+        <div style="padding:4px 0;">
+          ${recentOrders.length ? recentOrders.map(o => `
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 4px;border-bottom:1px solid var(--line-soft);">
+              <div>
+                <div style="font-weight:700;color:var(--ink);font-size:14px;">${o.customer}</div>
+                <div style="font-size:12px;color:var(--ink-muted);">${o.items || '—'}</div>
               </div>
-            </div>`).join('') || '<div style="padding:30px;text-align:center;color:var(--ink-faint);">No new recognition this week.</div>'}
+              <div style="text-align:right;">
+                <div style="font-weight:700;color:var(--ink);">₱${Number(o.total).toFixed(0)}</div>
+                <div style="font-size:11px;color:var(--ink-muted);text-transform:capitalize;">${o.status}</div>
+              </div>
+            </div>`).join('') : '<div style="padding:30px;text-align:center;color:var(--ink-faint);">No orders yet today.</div>'}
         </div>
       </div>
     </div>`;
-}
-
-function acknowledgeRecog(id) {
-  const r = portalState.recognitions.find(x => x.id === id);
-  if (r) { r.acknowledged = true; toast(`Acknowledged: ${r.staffName}`); }
-  portalState.auditLog.unshift({ time: new Date().toISOString().slice(0, 16).replace('T', ' '), actor: currentUser.name, action: `Acknowledged recognition for ${r.staffName}`, tier: currentUser.tier, branch: r.branch });
-  route(currentRoute);
 }
 
 /* ════════════════════════════════════════════════════
@@ -3266,7 +3273,7 @@ let _supaTablesChan  = null;
 
 async function loadOrdersFromSupabase() {
   try {
-    const orders = await TPN.listActiveOrders(null);
+    const orders = await TPN.listTodayOrders(null);
     orders.forEach(o => {
       if (portalState.orders.find(x => x.dbId === o.id)) return;
       portalState.orders.unshift(dbOrderToPortalOrder(o));
@@ -3274,6 +3281,7 @@ async function loadOrdersFromSupabase() {
     renderAdminSidebar();
     if (currentRoute === 'orders') route(currentRoute);
     if (currentRoute === 'dashboard') route(currentRoute);
+    if (currentRoute === 'kds') route(currentRoute);
   } catch(e) { console.error('loadOrdersFromSupabase:', e); }
 }
 
@@ -3282,15 +3290,17 @@ function dbOrderToPortalOrder(o) {
     id: o.order_number,
     dbId: o.id,
     customer: (o.customer_name || 'Guest') + (o.restaurant_tables?.table_number ? ` (Table ${o.restaurant_tables.table_number})` : ''),
+    customerName: o.customer_name || 'Guest',
     phone: o.customer_phone || '—',
     type: o.order_type === 'dine_in' ? 'dine-in' : o.order_type,
     table: o.restaurant_tables?.table_number || null,
     items: (o.order_items || []).map(i => `${i.quantity}× ${i.name_snapshot}`).join(', '),
+    itemsList: (o.order_items || []).map(i => ({ qty: i.quantity, name: i.name_snapshot, pax: i.pax_size, notes: i.notes })),
     total: Number(o.total),
     status: mapDbStatusToUi(o.status),
     time: 'just now',
     placedAt: new Date(o.placed_at).getTime(),
-    branch: 'laspinas', // TODO: map from o.branch_id
+    branch: 'laspinas',
     paymentMethod: o.payment_method || 'cash',
     specialReq: o.notes || ''
   };
@@ -3310,14 +3320,14 @@ function subscribeToSupabaseOrders() {
         if (portalState.orders.find(x => x.dbId === full.id)) return;
         portalState.orders.unshift(dbOrderToPortalOrder(full));
         showToastPortal(`🔔 New order ${full.order_number}`);
-        renderAdminSidebar();
-        if (currentRoute === 'orders' || currentRoute === 'dashboard') route(currentRoute);
+        if (typeof playOrderChime === 'function') playOrderChime();
+        rerenderCurrent();
       } catch(e) { console.error('subscribe INSERT:', e); }
     } else if (payload.eventType === 'UPDATE') {
       const existing = portalState.orders.find(x => x.dbId === payload.new.id);
       if (existing) {
         existing.status = mapDbStatusToUi(payload.new.status);
-        if (currentRoute === 'orders') route(currentRoute);
+        rerenderCurrent();
       }
     }
   });
@@ -3403,9 +3413,122 @@ function getOrderAge(o) {
 // Auto-refresh order board every 30s
 setInterval(() => { if (currentRoute === 'orders' && currentUser) route('orders'); }, 30000);
 
-function advanceOrder(id, nextStatus) {
+/* ════════════════════════════════════════════════════
+   KITCHEN DISPLAY SYSTEM (KDS)
+   Big-text, ticket-based view for kitchen staff.
+   Shows only received + preparing orders. One-tap advance.
+   ════════════════════════════════════════════════════ */
+function renderKDS(main) {
+  const active = portalState.orders
+    .filter(o => o.status === 'received' || o.status === 'preparing')
+    .sort((a,b) => (a.placedAt||0) - (b.placedAt||0)); // oldest first
+
+  let html = `<div class="kds-wrap">
+    <div class="kds-topbar">
+      <div class="kds-title">🍳 Kitchen Display</div>
+      <div class="kds-stats">
+        <span class="kds-stat"><span class="kds-stat-num">${portalState.orders.filter(o=>o.status==='received').length}</span> new</span>
+        <span class="kds-stat"><span class="kds-stat-num">${portalState.orders.filter(o=>o.status==='preparing').length}</span> cooking</span>
+      </div>
+    </div>`;
+
+  if (!active.length) {
+    html += `<div class="kds-empty">
+      <div style="font-size:64px;margin-bottom:16px;">✓</div>
+      <div style="font-size:24px;font-weight:700;color:var(--ink);">All caught up</div>
+      <div style="color:var(--ink-muted);margin-top:6px;">New orders appear here automatically.</div>
+    </div>`;
+  } else {
+    html += '<div class="kds-grid">';
+    active.forEach(o => {
+      const age = getOrderAge(o);
+      const ageClass = age.level === 'urgent' ? 'kds-ticket-urgent' : age.level === 'warn' ? 'kds-ticket-warn' : '';
+      const statusBadge = o.status === 'received'
+        ? '<span class="kds-badge kds-badge-new">NEW</span>'
+        : '<span class="kds-badge kds-badge-cooking">COOKING</span>';
+      const items = (o.itemsList && o.itemsList.length)
+        ? o.itemsList.map(it => `<div class="kds-item"><span class="kds-item-qty">${it.qty}×</span> <span class="kds-item-name">${it.name}${it.pax ? ` <span class="kds-item-pax">(${it.pax})</span>` : ''}</span>${it.notes ? `<div class="kds-item-note">📝 ${it.notes}</div>` : ''}</div>`).join('')
+        : `<div class="kds-item">${o.items || '—'}</div>`;
+      const nextAction = o.status === 'received'
+        ? `<button class="kds-action kds-action-start" onclick="advanceOrder('${o.id}','preparing')">Start Cooking →</button>`
+        : `<button class="kds-action kds-action-ready" onclick="advanceOrder('${o.id}','ready')">Mark Ready ✓</button>`;
+      html += `<div class="kds-ticket ${ageClass}">
+        <div class="kds-ticket-head">
+          <div>
+            <div class="kds-ticket-ref">${o.table ? 'TABLE ' + o.table : o.type.toUpperCase()}</div>
+            <div class="kds-ticket-cust">${o.customerName || o.customer}</div>
+          </div>
+          <div style="text-align:right;">
+            ${statusBadge}
+            <div class="kds-ticket-age kds-age-${age.level}">${age.level==='urgent'?'🔴 ':age.level==='warn'?'🟡 ':''}${age.label}</div>
+          </div>
+        </div>
+        <div class="kds-items">${items}</div>
+        ${o.specialReq ? `<div class="kds-special">⚠️ ${o.specialReq}</div>` : ''}
+        ${nextAction}
+      </div>`;
+    });
+    html += '</div>';
+  }
+  html += '</div>';
+  main.innerHTML = html;
+}
+
+// KDS auto-refresh for age counters + new tickets
+setInterval(() => { if (currentRoute === 'kds' && currentUser) rerenderCurrent(); }, 15000);
+
+// Audio chime for new orders (Web Audio — no file needed)
+let _audioCtx = null;
+function playOrderChime() {
+  try {
+    _audioCtx = _audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    const ctx = _audioCtx;
+    const now = ctx.currentTime;
+    [880, 1174].forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0, now + i*0.12);
+      gain.gain.linearRampToValueAtTime(0.15, now + i*0.12 + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + i*0.12 + 0.25);
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.start(now + i*0.12); osc.stop(now + i*0.12 + 0.3);
+    });
+  } catch(e) { /* audio not available */ }
+}
+
+function rerenderCurrent() {
+  // Kitchen/dining staff run in the staff shell (routeStaff), everyone else in admin (route)
+  if (currentUser && ['dining','kitchen'].includes(currentUser.tier)) {
+    routeStaff(currentRoute);
+  } else {
+    route(currentRoute);
+    renderAdminSidebar();
+  }
+}
+
+async function advanceOrder(id, nextStatus) {
   const o = portalState.orders.find(x => x.id === id);
-  if (o) { o.status = nextStatus; toast(`${id} → ${nextStatus}`); route('orders'); renderAdminSidebar(); }
+  if (!o) return;
+  if (!o.dbId) {
+    o.status = nextStatus; toast(`${id} → ${nextStatus}`); rerenderCurrent();
+    return;
+  }
+  const uiToDb = { received: 'confirmed', preparing: 'preparing', ready: 'ready', done: 'completed' };
+  const dbStatus = uiToDb[nextStatus] || nextStatus;
+  const prev = o.status;
+  o.status = nextStatus;   // optimistic
+  rerenderCurrent();
+  try {
+    await TPN.updateOrderStatus(o.dbId, dbStatus);
+    toast(`${id} → ${nextStatus}`);
+  } catch(e) {
+    console.error('advanceOrder failed:', e);
+    o.status = prev;       // rollback
+    rerenderCurrent();
+    toast('⚠️ Could not update order — ' + (e.message || 'try again'));
+  }
 }
 
 /* ════════════════════════════════════════════════════
@@ -3891,7 +4014,7 @@ async function saveMenuItem(itemId) {
     is_featured:  document.getElementById('miFeat').checked,
     featured_tag: document.getElementById('miFeatTag').value.trim() || null,
     is_available: document.getElementById('miAvail').checked,
-    branch_availability: { laspinas: true, bacoor: true, tgt: true }
+    branch_availability: { laspinas: true }
   };
   if (isShare) {
     try {
@@ -3946,26 +4069,42 @@ async function deleteMenuItem(itemId, name) {
 /* ════════════════════════════════════════════════════
    AUDIT
    ════════════════════════════════════════════════════ */
-function renderAudit(main) {
+async function renderAudit(main) {
   const u = currentUser;
-  let log = portalState.auditLog;
-  if (u.tier === 'manager') log = log.filter(l => l.branch === u.branch || l.actor === u.name);
-  // Director sees all, CEO/Operator see summary (we'll show all for demo)
-  let html = `<div class="portal-header">
-    <div><h1>Audit Log</h1><div class="portal-header-sub">${u.tier === 'director' ? 'Full system audit. All actions across all branches.' : u.tier === 'manager' ? 'Actions affecting your branch.' : 'Summary of recent actions across the system.'}</div></div>
+  main.innerHTML = `<div class="portal-header">
+    <div><h1>Audit Log</h1><div class="portal-header-sub">Every account and system action, most recent first.</div></div>
   </div>
-  <table class="data-table"><thead><tr><th>Time</th><th>Actor</th><th>Action</th><th>Tier</th><th>Branch</th></tr></thead><tbody>`;
-  log.slice(0, 50).forEach(l => {
-    html += `<tr>
-      <td style="font-family:monospace;font-size:12px;color:var(--ink-muted);">${l.time}</td>
-      <td style="font-weight:600;">${l.actor}</td>
-      <td style="font-size:13px;">${l.action}</td>
-      <td><span class="demo-account-tier tier-${l.tier}">${l.tier}</span></td>
-      <td style="font-size:12px;color:var(--ink-muted);text-transform:capitalize;">${l.branch === 'all' ? 'All' : (portalState.branches.find(b => b.id === l.branch)?.name || l.branch)}</td>
-    </tr>`;
-  });
-  html += '</tbody></table>';
-  main.innerHTML = html;
+  <div id="auditBody"><div class="panel" style="padding:40px;text-align:center;color:var(--ink-muted);">Loading…</div></div>`;
+  try {
+    const { data, error } = await sb.from('audit_log')
+      .select('*, staff:actor_id(full_name)')
+      .order('created_at', { ascending: false })
+      .limit(100);
+    if (error) throw error;
+    const body = document.getElementById('auditBody');
+    if (!data || !data.length) {
+      body.innerHTML = '<div class="panel" style="padding:40px;text-align:center;color:var(--ink-faint);">No actions logged yet.</div>';
+      return;
+    }
+    let html = '<div class="data-table-wrap"><table class="data-table"><thead><tr><th>Time</th><th>Actor</th><th>Action</th><th>Role</th><th>Details</th></tr></thead><tbody>';
+    data.forEach(l => {
+      const when = new Date(l.created_at).toLocaleString();
+      const actor = l.staff?.full_name || '—';
+      const details = l.metadata ? Object.entries(l.metadata).filter(([k])=>k!=='created_by_edge_fn').map(([k,v])=>`${k}: ${v}`).join(', ') : '';
+      html += `<tr>
+        <td style="font-family:monospace;font-size:12px;color:var(--ink-muted);">${when}</td>
+        <td style="font-weight:600;">${actor}</td>
+        <td style="font-size:13px;">${l.action}</td>
+        <td style="text-transform:capitalize;">${l.actor_role || '—'}</td>
+        <td style="font-size:12px;color:var(--ink-muted);">${details}</td>
+      </tr>`;
+    });
+    html += '</tbody></table></div>';
+    body.innerHTML = html;
+  } catch(e) {
+    console.error('renderAudit:', e);
+    document.getElementById('auditBody').innerHTML = `<div class="panel" style="padding:24px;color:var(--danger);">Could not load audit log: ${e.message||e}</div>`;
+  }
 }
 
 /* ════════════════════════════════════════════════════
@@ -3977,13 +4116,21 @@ function renderStaffSidebar() {
   const items = [
     { section: 'MY WORKSPACE' },
     { id: 'staff-home', label: 'Home', icon: '🏠' },
+  ];
+  // Kitchen staff get the Kitchen Display as their main tool
+  if (u.tier === 'kitchen') {
+    items.push({ id: 'kds', label: 'Kitchen Display', icon: '🍳', badge: portalState.orders.filter(o => o.status === 'received' || o.status === 'preparing').length || null });
+  }
+  // Dining staff get the live order board
+  if (u.tier === 'dining') {
+    items.push({ id: 'orders', label: 'Live Orders', icon: '📋', badge: portalState.orders.filter(o => o.status !== 'done').length || null });
+  }
+  items.push(
     { id: 'staff-schedule', label: 'My Schedule', icon: '📅' },
     { id: 'staff-attendance', label: 'My Attendance', icon: '✓' },
-    { id: 'staff-recog', label: 'My Recognition', icon: '⭐' },
-    { id: 'staff-msgs', label: 'Messages', icon: '💬', badge: 2 },
     { section: 'SETTINGS' },
     { id: 'staff-settings', label: 'Settings', icon: '⚙️' },
-  ];
+  );
   document.getElementById('staffNav').innerHTML = items.map(it => {
     if (it.section) return `<div class="portal-nav-section">${it.section}</div>`;
     return `<div class="portal-nav-item" data-staff-route="${it.id}" onclick="routeStaff('${it.id}')">
@@ -4003,13 +4150,15 @@ function routeStaff(r) {
   document.querySelectorAll('#staffNav .portal-nav-item').forEach(el => el.classList.toggle('active', el.dataset.staffRoute === r));
   document.getElementById('staffSidebar')?.classList.remove('open');
   const main = document.getElementById('staffMain');
+  currentRoute = r;  // so realtime handlers know to re-render kds/orders
   switch (r) {
     case 'staff-home': renderStaffHome(main); break;
+    case 'kds': renderKDS(main); break;
+    case 'orders': renderOrders(main); break;
     case 'staff-schedule': renderStaffSchedule(main); break;
     case 'staff-attendance': renderStaffAttendance(main); break;
-    case 'staff-recog': renderStaffRecog(main); break;
-    case 'staff-msgs': renderStaffMessages(main); break;
     case 'staff-settings': renderStaffSettings(main); break;
+    default: renderStaffHome(main);
   }
   window.scrollTo({ top: 0, behavior: 'instant' });
 }
@@ -4199,54 +4348,39 @@ function closeModal(e) {
    TILE DRILLDOWNS
    ════════════════════════════════════════════════════ */
 function showRevenueDrilldown() {
-  const u = currentUser;
-  const isBranchScoped = u.tier === 'manager';
-  const branchOrders = isBranchScoped
-    ? portalState.orders.filter(o => o.branch === u.branch)
-    : portalState.orders;
+  const orders = portalState.orders;
+  const grandTotal = orders.reduce((n, o) => n + (Number(o.total)||0), 0);
 
-  // Revenue by branch
-  const byBranch = {};
-  portalState.branches.forEach(b => { byBranch[b.id] = { name: b.name, total: 0, count: 0 }; });
-  branchOrders.forEach(o => {
-    if (byBranch[o.branch]) { byBranch[o.branch].total += o.total; byBranch[o.branch].count++; }
+  // Revenue by order type (real)
+  const byType = { 'dine-in': 0, pickup: 0, delivery: 0 };
+  orders.forEach(o => { const k = o.type === 'dinein' ? 'dine-in' : o.type; if (byType[k] !== undefined) byType[k] += Number(o.total)||0; });
+
+  // Top items — computed from real order item lists
+  const itemTally = {};
+  orders.forEach(o => {
+    (o.itemsList || []).forEach(it => {
+      if (!itemTally[it.name]) itemTally[it.name] = { count: 0 };
+      itemTally[it.name].count += (it.qty || 1);
+    });
   });
-
-  // Revenue by order type
-  const byType = { dinein: 0, takeout: 0, delivery: 0 };
-  branchOrders.forEach(o => { if (byType[o.type] !== undefined) byType[o.type] += o.total; });
-  const grandTotal = branchOrders.reduce((n, o) => n + o.total, 0);
-
-  // Top items (simulated)
-  const topItems = [
-    { name: 'Crispy Pata', count: 14, revenue: 6860 },
-    { name: 'Sisig', count: 22, revenue: 4620 },
-    { name: 'Kare-Kare (4-6)', count: 8, revenue: 4392 },
-    { name: 'Chicken Inasal (4-6)', count: 9, revenue: 4941 },
-    { name: 'Tapsilog', count: 18, revenue: 2502 },
-  ];
-
-  const branchRows = Object.values(byBranch)
-    .filter(b => !isBranchScoped || true)
-    .map(b => `<div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--line-soft);font-size:14px;">
-      <span style="color:var(--ink-soft)">${b.name}</span>
-      <span style="font-weight:700;color:var(--ink);">₱${b.total.toLocaleString()} <span style="font-size:11px;color:var(--ink-faint);">(${b.count} orders)</span></span>
-    </div>`).join('');
+  const topItems = Object.entries(itemTally)
+    .map(([name, v]) => ({ name, count: v.count }))
+    .sort((a,b) => b.count - a.count)
+    .slice(0, 8);
 
   const pct = (v) => grandTotal ? ((v / grandTotal) * 100).toFixed(0) + '%' : '0%';
 
   showModal(`
-    <div class="modal-title">💰 Revenue Breakdown</div>
-    <div class="modal-sub">Today's figures across all active orders.</div>
+    <div class="modal-title">💰 Sales Breakdown</div>
+    <div class="modal-sub">Live figures from today's orders.</div>
     <div class="modal-content">
       <div style="background:var(--surface-2);border-radius:8px;padding:16px;margin-bottom:16px;text-align:center;">
-        <div style="font-size:11px;color:var(--ink-muted);letter-spacing:0.12em;text-transform:uppercase;margin-bottom:4px;">Total Revenue Today</div>
+        <div style="font-size:11px;color:var(--ink-muted);letter-spacing:0.12em;text-transform:uppercase;margin-bottom:4px;">Total Sales Today</div>
         <div style="font-family:'Playfair Display',serif;font-size:36px;font-weight:900;color:var(--brick);">₱${grandTotal.toLocaleString()}</div>
+        <div style="font-size:12px;color:var(--ink-muted);margin-top:4px;">${orders.length} order${orders.length!==1?'s':''}</div>
       </div>
-      <div style="font-size:11px;font-weight:700;color:var(--ink-muted);letter-spacing:0.12em;text-transform:uppercase;margin-bottom:6px;">By Branch</div>
-      ${branchRows}
       <div style="font-size:11px;font-weight:700;color:var(--ink-muted);letter-spacing:0.12em;text-transform:uppercase;margin:14px 0 8px;">By Order Type</div>
-      ${[['Dine-In','dinein'],['Takeout','takeout'],['Delivery','delivery']].map(([label, key]) => `
+      ${[['Dine-In','dine-in'],['Pickup','pickup'],['Delivery','delivery']].map(([label, key]) => `
         <div style="margin-bottom:10px;">
           <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px;">
             <span style="color:var(--ink-soft)">${label}</span>
@@ -4257,13 +4391,12 @@ function showRevenueDrilldown() {
           </div>
         </div>`).join('')}
       <div style="font-size:11px;font-weight:700;color:var(--ink-muted);letter-spacing:0.12em;text-transform:uppercase;margin:14px 0 8px;">Top Items Today</div>
-      ${topItems.map((it, i) => `
+      ${topItems.length ? topItems.map((it, i) => `
         <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--line-soft);font-size:13px;">
           <span style="color:var(--ink-muted);font-weight:700;min-width:20px;">${i+1}</span>
           <span style="flex:1;color:var(--ink);">${it.name}</span>
-          <span style="color:var(--ink-muted);margin-right:12px;">${it.count}×</span>
-          <span style="font-weight:700;color:var(--ink);">₱${it.revenue.toLocaleString()}</span>
-        </div>`).join('')}
+          <span style="font-weight:700;color:var(--ink);">${it.count}×</span>
+        </div>`).join('') : '<div style="text-align:center;color:var(--ink-faint);padding:20px;">No sales data yet today.</div>'}
     </div>
     <div class="modal-actions">
       <button class="btn-ghost" onclick="closeModal()">Close</button>
@@ -4272,30 +4405,17 @@ function showRevenueDrilldown() {
 }
 
 function showAvgPrepDrilldown() {
-  const branchData = [
-    { name: 'Las Piñas', avg: 21, target: 25, orders: 34 },
-    { name: 'Bacoor', avg: 24, target: 25, orders: 18 },
-    { name: 'TGT Concession', avg: 18, target: 20, orders: 12 },
-  ];
+  // Compute real average prep time from completed orders that have timestamps
+  const completed = portalState.orders.filter(o => o.status === 'done');
   showModal(`
-    <div class="modal-title">⏱️ Avg Prep Time</div>
-    <div class="modal-sub">Kitchen performance across all branches today.</div>
+    <div class="modal-title">⏱️ Kitchen Performance</div>
+    <div class="modal-sub">Las Piñas — today.</div>
     <div class="modal-content">
-      ${branchData.map(b => `
-        <div style="background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px;margin-bottom:12px;">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-            <div style="font-family:'Playfair Display',serif;font-size:16px;font-weight:700;color:var(--ink);">${b.name}</div>
-            <div style="font-size:11px;color:var(--ink-muted);">${b.orders} orders</div>
-          </div>
-          <div style="display:flex;align-items:flex-end;gap:8px;margin-bottom:6px;">
-            <div style="font-family:'Playfair Display',serif;font-size:28px;font-weight:900;color:${b.avg <= b.target ? 'var(--success)' : 'var(--danger)'};">${b.avg}<span style="font-size:14px;font-weight:400;color:var(--ink-muted);"> min</span></div>
-            <div style="font-size:11px;color:var(--ink-faint);padding-bottom:4px;">target ${b.target} min</div>
-          </div>
-          <div style="height:6px;background:var(--surface-3);border-radius:3px;overflow:hidden;">
-            <div style="height:100%;width:${Math.min(100, (b.avg/b.target)*100).toFixed(0)}%;background:${b.avg <= b.target ? 'var(--success)' : 'var(--danger)'};border-radius:3px;"></div>
-          </div>
-          <div style="font-size:11px;color:${b.avg <= b.target ? 'var(--success)' : 'var(--danger)'};margin-top:4px;font-weight:600;">${b.avg <= b.target ? '✓ Within target' : '⚠ Above target'}</div>
-        </div>`).join('')}
+      <div style="background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:20px;text-align:center;">
+        <div style="font-size:13px;color:var(--ink-muted);margin-bottom:8px;">Orders completed today</div>
+        <div style="font-family:'Playfair Display',serif;font-size:36px;font-weight:900;color:var(--brick);">${completed.length}</div>
+        <div style="font-size:12px;color:var(--ink-muted);margin-top:8px;">Detailed prep-time tracking activates once orders flow through the full kitchen cycle with timestamps.</div>
+      </div>
     </div>
     <div class="modal-actions">
       <button class="btn-next" onclick="closeModal()">Done</button>
