@@ -11,6 +11,6 @@
    ═══════════════════════════════════════════════════════════════ */
 
 window.TPN_CONFIG = {
-  SUPABASE_URL:      'https://YOUR-PROJECT-REF.supabase.co',
-  SUPABASE_ANON_KEY: 'PASTE-YOUR-ANON-KEY-HERE'
+  SUPABASE_URL:      'https://xjlqfpnzobfqxetgkkai.supabase.co',
+  SUPABASE_ANON_KEY: 'd355a12a-cd0e-4d86-8aa8-a761632cbd02'
 };
