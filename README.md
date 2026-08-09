@@ -1,11 +1,12 @@
 # TPN OS
 
-Production-ready MVP of the Tyo Paeng Nyo three-surface web system. All data lives in Supabase; no more demo state, no fake accounts.
+Production-ready MVP of the Tyo Paeng Nyo three-surface web system. All data lives in Supabase; menu, staff, orders, and inquiries load dynamically. No hardcoded content.
 
 - **`index.html`** — public site + staff portal
 - **`tpn-table-menu.html`** — dine-in customer menu (opens via table QR)
 - **`tpn-dine-in-floor.html`** — live floor panel for staff
 - **`tpn-supabase.js`** — shared Supabase data layer
+- **`supabase/functions/create-staff/`** — Edge Function for admin-only account creation
 
 ## First-time setup
 
@@ -13,25 +14,40 @@ Production-ready MVP of the Tyo Paeng Nyo three-surface web system. All data liv
 In Supabase SQL Editor:
 
 1. `sql/01-schema.sql` — tables, RLS, triggers
-2. `sql/02-seed.sql` — branches, menu, tables
+2. `sql/02-seed.sql` — branches, menu categories, sample menu items, physical tables
 3. `sql/03-security-fixes.sql` — hardens the schema
 4. `sql/04-signals.sql` — call-staff / bill-request signals
-5. `sql/05-anon-orders.sql` — lets anonymous customers place pickup/delivery orders
+5. `sql/05-anon-orders.sql` — lets anonymous customers place orders
+6. `sql/06-menu-fields.sql` — adds emoji + featured columns for menu items
 
-### 2. Paste your Supabase credentials
-Open `tpn-supabase.js` and replace the two placeholder values at the top:
+### 2. Disable public signups
+Supabase Dashboard → **Authentication → Providers → Email** → find **"Enable signups"** (or "Enable email signups") → **toggle OFF**.
 
-```js
-const SUPABASE_URL      = 'https://YOUR-PROJECT-REF.supabase.co';
-const SUPABASE_ANON_KEY = 'PASTE-YOUR-ANON-KEY-HERE';
-```
+Once this is off, `sb.auth.signUp()` from anywhere on the internet will be blocked. Account creation only happens through the Edge Function (next step).
 
-Find these in Supabase → Project Settings → API.
+### 3. Deploy the create-staff Edge Function
+This is the ONLY way to create accounts after step 2.
 
-### 3. Create your first admin user
-Supabase → Authentication → Users → Add user (email + password).
+Supabase Dashboard → **Edge Functions** → **Deploy a new function**:
+- Function name: `create-staff`
+- Copy the entire contents of `supabase/functions/create-staff/index.ts`
+- Paste into the code editor
+- Click **Deploy function**
 
-Then in SQL Editor:
+The function automatically gets access to `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY` from Supabase's built-in secrets. You don't set these manually.
+
+### 4. Paste your Supabase credentials into the frontend
+Open `tpn-supabase.js` and replace the two placeholder values at the top with values from Supabase → Project Settings → API. (Only the URL and the **anon public** key — never the service_role key.)
+
+### 5. Create your first admin user
+Since public signup is off, you can't sign up through the website. Create your account manually:
+
+Supabase → **Authentication → Users → Add user** → **Create new user**
+- Email: your email
+- Password: your choice
+- Auto Confirm User: ✓ ticked
+
+Then promote yourself in SQL Editor:
 ```sql
 update public.staff
 set role = 'ceo',
@@ -40,35 +56,34 @@ set role = 'ceo',
 where id = (select id from auth.users where email = 'YOUR-EMAIL');
 ```
 
-That user is now CEO and can see everything.
+That user is now CEO. From now on, all future accounts get created through the app (Portal → Accounts → + Add Staff).
 
-## What's wired up (fully functional)
+## Adding staff (once set up)
 
-**Customer flows:**
-- Public site menu, cart, checkout → creates real order in DB
-- Table QR menu (dine-in) → creates order, notifies floor panel
-- "Call staff" and "Request bill" from any table → live signal
-- B2B concession + event inquiry forms → land in `inquiries` table
+Log in as CEO/admin/manager → **Accounts → + Add Staff**.
 
-**Staff portal:**
-- Real Supabase auth login (email + password)
-- No fake accounts, no demo data — starts empty, fills as real data lands
-- Live Orders kanban — realtime updates as orders come in
-- Inquiry Inbox — reads from DB
-- Accounts panel — reads real staff from DB (manager+ can see all)
-- Table QR generator — creates deep links for physical tables
-- Dashboard revenue is computed from actual orders
+Fill in name, email, temporary password, role, branch. The edge function will:
+1. Verify your session is valid and your role is manager+
+2. Reject if you try to grant a role higher than your own
+3. Create the auth user + staff row
+4. Log the action to `audit_log`
 
-**Realtime sync:**
-- Orders across all 3 surfaces update within ~1 second
-- Table signals (call-staff, bill-request) push instantly to floor panel + portal
+The staff member logs in with that email + password at the same login screen and should change their password from Settings after.
 
-## What's still simplified for MVP
+## Managing the menu
 
-- **Staff Board, Recognition Panel, Audit Log** — the panels render (empty for a fresh system), but writing to them isn't wired to the DB yet
-- **2FA** — the fake SMS flow is bypassed. Manager+ users log in with just password. Real SMS gateway (Semaphore) hookup is a follow-up.
-- **Menu items on customer surfaces are still hardcoded in the HTML** — not yet reading from the `menu_items` table. Editing prices means editing the HTML for now. DB-driven menu is a follow-up pass.
-- **Direct staff account creation from the portal** isn't wired — for now, create staff in Supabase Auth dashboard, then update their `staff.role` and `staff.branch_id` via SQL.
+**Menu Manager** in the portal sidebar. Add, edit, "86", or delete items. Changes reflect immediately on all customer surfaces.
+
+## Do I need Vercel?
+
+**No.** GitHub Pages hosts the frontend (static HTML/JS), Supabase hosts the database + auth + realtime + edge functions. That's a full-stack setup with no additional hosting service needed.
+
+Vercel would be relevant if you wanted:
+- Server-side rendering (this site is client-rendered)
+- Serverless functions co-located with the frontend (Supabase Edge Functions cover this)
+- Its analytics or preview deployments
+
+For this project, GitHub Pages + Supabase is enough and cheaper (both free tiers).
 
 ## Test locally
 
@@ -81,10 +96,9 @@ Then visit:
 - Table menu: <http://localhost:8000/tpn-table-menu.html?table=3&branch=Las%20Pi%C3%B1as&branchId=laspinas>
 - Floor panel: <http://localhost:8000/tpn-dine-in-floor.html>
 
-Place an order from the table menu → should appear in the floor panel and staff portal within ~1 second.
-
 ## Push updates to GitHub
 
+From the folder in cmd:
 ```
 git add .
 git commit -m "your message"
@@ -93,11 +107,31 @@ git push
 
 GitHub Pages auto-redeploys in ~30 seconds.
 
-## Production checklist before real launch
+**Note:** The `supabase/functions/create-staff/` folder is bundled in the repo for reference and future edits, but GitHub Pages doesn't run it. It runs on Supabase's edge network after you deploy it via the dashboard.
+
+## Security model summary
+
+| Action | Who can do it | Where it runs |
+|---|---|---|
+| Sign up | Nobody (disabled) | — |
+| Log in | Anyone with valid credentials | Supabase Auth |
+| Place order (dine-in) | Anonymous customer at a table | Supabase (RLS-gated) |
+| Place order (pickup/delivery) | Anonymous customer via website | Supabase (RLS-gated) |
+| Submit inquiry | Anyone | Supabase (RLS-gated) |
+| View orders/inquiries | Authenticated staff (branch-scoped) | Supabase (RLS-gated) |
+| Manage menu | Manager+ | Supabase (RLS-gated) |
+| **Create staff accounts** | **Manager+ (can only grant roles ≤ own level)** | **Edge Function** |
+
+## What's still simplified for MVP
+
+- Staff Board, Recognition Panel, Audit Log — panels render; writing not yet wired
+- No SMS 2FA — password-only login for now
+- Payment webhooks — GCash/Maya QRs display-only
+
+## Production checklist
 
 - [ ] Move Supabase to Pro tier ($25/mo) — free tier pauses after 1 week idle
-- [ ] Set custom domain on GitHub Pages
-- [ ] Wire real payment webhook (GCash Business API) — QRs are display-only right now
-- [ ] Add real SMS 2FA (Semaphore or Twilio) for manager+ accounts
-- [ ] BIR-compliant receipts still handled by StoreHub side
-- [ ] Set up a nightly backup of the Supabase DB
+- [ ] Wire real payment webhook (GCash Business API)
+- [ ] Add SMS 2FA for manager+ (Semaphore)
+- [ ] BIR-compliant receipts still via StoreHub
+- [ ] Nightly Supabase backups

@@ -96,6 +96,51 @@ const TPN = {
     return this._menu.items.filter(i => i.category_id === categoryId);
   },
 
+  // Return menu grouped by category, in the format the HTML files expect:
+  // [ { cat, catName, catSub, items:[{ id, name, desc, emoji, price?, pricePax?, best?, available }, ...] }, ... ]
+  async loadGroupedMenu(branchCode = null) {
+    await this.loadMenu(branchCode);
+    const cats = this._menu.categories;
+    return cats.map(c => {
+      const items = this._menu.items
+        .filter(i => i.category_id === c.id)
+        .map(i => {
+          const base = {
+            id:     i.id,
+            name:   i.name,
+            nameTl: i.name_tagalog || '',
+            desc:   i.description || '',
+            emoji:  i.emoji || (c.icon || '🍽️'),
+            available: i.is_available !== false,
+            best:   !!i.is_featured,
+            featuredTag: i.featured_tag || null
+          };
+          if (i.is_shareable && i.pax_options) base.pricePax = i.pax_options;
+          else base.price = Number(i.price);
+          return base;
+        });
+      // Derive a stable string "code" for the category (used by HTML filters)
+      const cat = (c.name || '').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+      return { cat, catName: c.name, catNameTl: c.name_tagalog || c.name, catSub: '', items };
+    });
+  },
+
+  async getFeaturedItems() {
+    const { data, error } = await sb.from('menu_items')
+      .select('*, menu_categories(name)')
+      .eq('is_available', true).eq('is_featured', true)
+      .order('display_order');
+    if (error) throw error;
+    return (data || []).map(i => ({
+      name:  i.name,
+      emoji: i.emoji || '🍽️',
+      tag:   i.featured_tag || 'Featured',
+      price: i.pax_options
+        ? `₱${i.pax_options['2-3'] || Object.values(i.pax_options)[0]} / ₱${i.pax_options['4-6'] || Object.values(i.pax_options).slice(-1)[0]} pax`
+        : `₱${Number(i.price)}`
+    }));
+  },
+
   // ═════ RESTAURANT TABLES ═════════════════════════════════════
   async getTablesForBranch(branchId) {
     const { data, error } = await sb.from('restaurant_tables')

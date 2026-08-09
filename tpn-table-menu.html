@@ -545,56 +545,22 @@ function saveSessionOrders() {
   try { localStorage.setItem(SESSION_KEY, JSON.stringify(sessionOrders)); } catch(e) {}
 }
 
-const menuData = [
-  { cat:'silogs', catName:'Silogs', catNameTl:'Silogs', items:[
-    { id:'tap', name:'Tapsilog', emoji:'🍳', price:139, best:true, available:true, desc:'Cured beef tapa, garlic rice, sunny-side egg' },
-    { id:'tor', name:'Tosilog', emoji:'🥓', price:129, best:true, available:true, desc:'Sweet pork tocino, garlic rice, fried egg' },
-    { id:'long', name:'Longsilog', emoji:'🌭', price:125, available:true, desc:'Filipino longanisa sausage with sinangag and itlog' },
-    { id:'bang', name:'Bangsilog', emoji:'🐟', price:135, available:true, desc:'Crispy fried bangus, garlic rice, egg' },
-    { id:'hot', name:'Hotsilog', emoji:'🌭', price:99, available:true, desc:'Classic hotdog, garlic rice, egg' },
-  ]},
-  { cat:'chicken', catName:'Chicken', catNameTl:'Manok', items:[
-    { id:'adb', name:'Chicken Adobo', emoji:'🍗', pricePax:{'2-3':289,'4-6':489}, best:true, available:true, desc:'Slow-braised in vinegar, soy, garlic & bay leaf' },
-    { id:'inasal', name:'Chicken Inasal', emoji:'🔥', pricePax:{'2-3':319,'4-6':549}, best:true, available:true, desc:'Visayan-style grilled chicken marinated in calamansi & annatto' },
-    { id:'tinola', name:'Chicken Tinola', emoji:'🍲', pricePax:{'2-3':299,'4-6':499}, available:true, desc:'Ginger broth with green papaya and malunggay leaves' },
-    { id:'fried', name:'Pritong Manok', emoji:'🍗', price:175, available:true, desc:'Golden-fried whole leg quarter, crispy and juicy' },
-  ]},
-  { cat:'pork', catName:'Pork', catNameTl:'Baboy', items:[
-    { id:'lechon', name:'Lechon Kawali', emoji:'🥩', pricePax:{'2-3':349,'4-6':599}, best:true, available:true, desc:'Deep-fried pork belly, crackling skin, liver sauce on the side' },
-    { id:'sini', name:'Sinigang na Baboy', emoji:'🍲', pricePax:{'2-3':329,'4-6':549}, best:true, available:true, desc:'Tamarind-sour pork soup with kangkong and radish' },
-    { id:'kare', name:'Kare-Kare', emoji:'🥜', pricePax:{'2-3':359,'4-6':589}, available:true, desc:'Peanut stew with oxtail, banana blossom, bagoong on the side' },
-  ]},
-  { cat:'seafood', catName:'Seafood', catNameTl:'Seafood', items:[
-    { id:'sinigmahi', name:'Sinigang na Hipon', emoji:'🦐', pricePax:{'2-3':349,'4-6':589}, best:true, available:true, desc:'Tamarind soup with plump river prawns and vegetables' },
-    { id:'inihitang', name:'Inihaw na Bangus', emoji:'🐟', price:199, available:true, desc:'Stuffed grilled milkfish with tomato, onion, and ginger' },
-  ]},
-  { cat:'veggies', catName:'Vegetables', catNameTl:'Gulay', items:[
-    { id:'pinakbet', name:'Pinakbet', emoji:'🥬', pricePax:{'2-3':249,'4-6':399}, available:true, desc:'Ilocano medley of ampalaya, sitaw, and talong in bagoong' },
-    { id:'laing', name:'Laing', emoji:'🌿', pricePax:{'2-3':229,'4-6':379}, available:true, desc:'Dried taro leaves slow-cooked in coconut milk and chili' },
-  ]},
-  { cat:'merienda', catName:'Merienda', catNameTl:'Merienda', items:[
-    { id:'lumpia', name:'Lumpiang Shanghai', emoji:'🥢', price:149, best:true, available:true, desc:'Crispy meat spring rolls, 6 pieces with sweet chili dip' },
-    { id:'pancit', name:'Pancit Canton', emoji:'🍝', price:159, available:true, desc:'Stir-fried egg noodles with chicken and vegetables' },
-    { id:'arroz', name:'Arroz Caldo', emoji:'🍚', price:95, available:true, desc:'Chicken congee with hard-boiled egg and fried garlic' },
-  ]},
-  { cat:'drinks', catName:'Drinks', catNameTl:'Inumin', items:[
-    { id:'coke', name:'Softdrinks', emoji:'🥤', price:55, available:true, desc:'Coke, Sprite, Royal — your choice' },
-    { id:'buko', name:'Buko Juice', emoji:'🥥', price:79, best:true, available:true, desc:'Fresh young coconut juice' },
-    { id:'water', name:'Mineral Water', emoji:'💧', price:35, available:true, desc:'500ml bottled water' },
-    { id:'sago', name:'Sago at Gulaman', emoji:'🧋', price:65, available:true, desc:'Iced brown sugar drink with tapioca pearls' },
-  ]},
-  { cat:'addons', catName:'Add-ons', catNameTl:'Dagdag', items:[
-    { id:'rice', name:'Plain Rice', emoji:'🍚', price:25, available:true, desc:'Steamed, generous portion' },
-    { id:'garlic-rice', name:'Garlic Rice', emoji:'🍚', price:39, available:true, desc:'Sinangag — crispy fried garlic rice' },
-    { id:'unli', name:'Unli Rice (Dine-In)', emoji:'🍚', price:29, best:true, available:true, desc:'All the rice you can eat' },
-    { id:'egg', name:'Sunny-Side Egg', emoji:'🍳', price:25, available:true, desc:'Add to anything' },
-  ]},
-];
+let menuData = [];
+
+async function loadMenuFromDB() {
+  try {
+    menuData = await TPN.loadGroupedMenu(BRANCH_ID);
+    if (document.getElementById('cats-scroll')) renderCategoryChips();
+    if (document.getElementById('menu-grid')) renderMenu();
+    if (document.getElementById('featured-scroll')) renderFeatured();
+  } catch(e) { console.error('loadMenuFromDB:', e); }
+}
 
 document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('header-table-label').textContent = `Table ${TABLE_NUM} · ${BRANCH}`;
   if(guestInfoLocked && sessionOrders.length){ guestName=sessionOrders[0].name; guestPax=sessionOrders[0].pax; }
   applyLang(); renderCategoryChips(); renderFeatured(); renderMenu(); updateRunningBar();
+  loadMenuFromDB();
 });
 
 const T = {

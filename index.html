@@ -2052,71 +2052,23 @@ let checkoutData = { orderType: 'takeout', schedule: 'asap', paymentMethod: 'gca
 let currentUser = null;
 
 /* ════════════════════════════════════════════════════
-   MENU DATA
+   MENU DATA — populated from Supabase on init
    ════════════════════════════════════════════════════ */
-const menuData = [
-  { cat:'silogs', catName:'Silogs', catSub:'Rice meals served all day', items:[
-    { id:'tap', name:'Tapsilog', desc:'Marinated beef tapa, garlic rice, egg', emoji:'🍳', price:139, best:true },
-    { id:'long', name:'Longsilog', desc:'Sweet pork longganisa, garlic rice, egg', emoji:'🍳', price:129 },
-    { id:'tos', name:'Tosilog', desc:'Sweet cured tocino, garlic rice, egg', emoji:'🍳', price:129 },
-    { id:'cor', name:'Cornsilog', desc:'Corned beef, garlic rice, egg', emoji:'🍳', price:139 },
-    { id:'spam', name:'Spamsilog', desc:'Classic Spam, garlic rice, egg', emoji:'🥓', price:149 },
-    { id:'bang', name:'Bangsilog', desc:'Crispy bangus, garlic rice, egg', emoji:'🐟', price:159, best:true },
-  ]},
-  { cat:'wings', catName:'Wings & Bites', catSub:'Pulutan favorites', items:[
-    { id:'wg6', name:'Buffalo Wings 6pc', desc:'Spicy, tangy, the way they should be', emoji:'🍗', price:189 },
-    { id:'wg12', name:'Buffalo Wings 12pc', desc:'Share with friends — or don\'t', emoji:'🍗', price:339, best:true },
-    { id:'sis', name:'Sisig', desc:'Sizzling pork sisig with calamansi', emoji:'🔥', price:229, best:true },
-    { id:'cala', name:'Calamares', desc:'Crispy squid rings, garlic dip', emoji:'🦑', price:189 },
-  ]},
-  { cat:'chicken', catName:'Chicken', catSub:'Tinola, adobo, fried — all the ways', items:[
-    { id:'adb', name:'Chicken Adobo', desc:'Classic adobo, slow-simmered', emoji:'🍗', pricePax: { '2-3': 289, '4-6': 489 }, best:true },
-    { id:'tin', name:'Tinolang Manok', desc:'Ginger broth, papaya, dahon ng sili', emoji:'🥣', pricePax: { '2-3': 269, '4-6': 459 } },
-    { id:'fc', name:'Fried Chicken', desc:'Hand-breaded, golden, juicy', emoji:'🍗', pricePax: { '2-3': 299, '4-6': 509 } },
-    { id:'cur', name:'Chicken Curry', desc:'Filipino-style with coconut milk', emoji:'🍲', pricePax: { '2-3': 309, '4-6': 519 } },
-  ]},
-  { cat:'pork', catName:'Pork', catSub:'Lechon kawali, adobo, the works', items:[
-    { id:'lk', name:'Lechon Kawali', desc:'Hand-fried crispy pork belly', emoji:'🥓', pricePax: { '2-3': 339, '4-6': 569 }, best:true },
-    { id:'pa', name:'Pork Adobo', desc:'Slow-cooked in soy, vinegar, garlic', emoji:'🥘', pricePax: { '2-3': 309, '4-6': 519 } },
-    { id:'bb', name:'Bicol Express', desc:'Spicy coconut pork with chilies', emoji:'🌶️', pricePax: { '2-3': 329, '4-6': 549 } },
-    { id:'hum', name:'Humba', desc:'Visayan-style braised pork belly', emoji:'🥘', pricePax: { '2-3': 319, '4-6': 539 } },
-    { id:'kkl', name:'Kare-Kareng Lechon Kawali', desc:'Peanut stew with crispy lechon kawali', emoji:'🥜', pricePax: { '2-3': 389, '4-6': 649 }, best:true, chefpick:true },
-  ]},
-  { cat:'beef', catName:'Beef', catSub:'Kaldereta, kare-kare, beef stews', items:[
-    { id:'kk', name:'Kare-Kare', desc:'Oxtail in rich peanut sauce, bagoong on side', emoji:'🥜', pricePax: { '2-3': 429, '4-6': 729 }, best:true },
-    { id:'kal', name:'Beef Kaldereta', desc:'Tomato-based stew with liver sauce', emoji:'🍲', pricePax: { '2-3': 389, '4-6': 659 } },
-    { id:'bul', name:'Bulalo', desc:'Beef shank with marrow, vegetables', emoji:'🥣', pricePax: { '2-3': 449, '4-6': 759 } },
-  ]},
-  { cat:'seafood', catName:'Seafood', catSub:'Fresh from the market', items:[
-    { id:'sin', name:'Sinigang na Hipon', desc:'Tamarind sour soup with shrimp', emoji:'🍤', pricePax: { '2-3': 359, '4-6': 619 } },
-    { id:'pak', name:'Paksiw na Bangus', desc:'Milkfish in vinegar with vegetables', emoji:'🐟', pricePax: { '2-3': 289, '4-6': 489 } },
-    { id:'lap', name:'Lapu-lapu Sweet & Sour', desc:'Fried grouper, tangy sauce', emoji:'🐠', pricePax: { '2-3': 459, '4-6': 779 } },
-  ]},
-  { cat:'veg', catName:'Vegetables', catSub:'Pinakbet, laing, chopsuey', items:[
-    { id:'pin', name:'Pinakbet', desc:'Ilocano vegetable stew with bagoong', emoji:'🥬', pricePax: { '2-3': 239, '4-6': 409 } },
-    { id:'lai', name:'Laing', desc:'Taro leaves in coconut milk, chili', emoji:'🥬', pricePax: { '2-3': 259, '4-6': 439 }, best:true, chefpick:true },
-    { id:'chp', name:'Chopsuey', desc:'Mixed vegetables, light gravy', emoji:'🥦', pricePax: { '2-3': 229, '4-6': 389 } },
-  ]},
-  { cat:'merienda', catName:'Merienda', catSub:'Afternoon snacks & noodles', items:[
-    { id:'pan', name:'Pancit Bihon', desc:'Fresh per order, never reheated', emoji:'🍜', pricePax: { '2-3': 219, '4-6': 369 } },
-    { id:'pal', name:'Pancit Palabok', desc:'Rice noodles, shrimp sauce, egg', emoji:'🍜', pricePax: { '2-3': 239, '4-6': 409 }, best:true },
-    { id:'lum', name:'Lumpiang Shanghai (10pc)', desc:'Hand-rolled, golden, sweet chili', emoji:'🌯', price:189 },
-    { id:'lum2', name:'Lumpiang Shanghai (20pc)', desc:'For sharing or hoarding', emoji:'🌯', price:349, isNew:true },
-  ]},
-  { cat:'addons', catName:'Add-ons', catSub:'Rice, egg, sides', items:[
-    { id:'plr', name:'Plain Rice', desc:'Steamed, generous portion', emoji:'🍚', price:25 },
-    { id:'gr', name:'Garlic Rice', desc:'Sinangag, the way it should be', emoji:'🍚', price:39 },
-    { id:'eg', name:'Sunny-Side Egg', desc:'Add to anything', emoji:'🍳', price:25 },
-    { id:'ur', name:'Unli Rice (Dine-in)', desc:'All the rice you can eat', emoji:'🍚', price:29 },
-  ]},
-  { cat:'drinks', catName:'Drinks', catSub:'Coolers, classics, hot drinks', items:[
-    { id:'cal', name:'Calamansi Juice', desc:'Fresh, no syrup, lightly sweet', emoji:'🍋', price:55 },
-    { id:'sgo', name:'Sago\'t Gulaman', desc:'Filipino classic palamig', emoji:'🥤', price:65 },
-    { id:'coke', name:'Soft Drinks', desc:'Coke, Sprite, Royal — choose at checkout', emoji:'🥤', price:45 },
-    { id:'wat', name:'Bottled Water', desc:'500ml', emoji:'💧', price:25 },
-    { id:'cof', name:'Brewed Coffee', desc:'Hot, strong, Filipino-style', emoji:'☕', price:55 },
-  ]},
-];
+let menuData = [];
+let featured = [];
+
+async function loadMenuFromDB() {
+  try {
+    menuData = await TPN.loadGroupedMenu('laspinas');
+    featured = await TPN.getFeaturedItems();
+    // Re-render anything that depends on menu
+    if (document.getElementById('featuredTrack')) renderFeatured();
+    if (document.getElementById('catChips')) renderCategoryChips();
+    if (document.getElementById('menuGrid')) renderMenu();
+  } catch(e) {
+    console.error('loadMenuFromDB:', e);
+  }
+}
 
 /* ════════════════════════════════════════════════════
    NAV / ROUTING
@@ -2158,18 +2110,18 @@ window.addEventListener('scroll', () => {
 });
 
 /* ════════════════════════════════════════════════════
-   FEATURED CAROUSEL
+   FEATURED CAROUSEL (populated from DB via loadMenuFromDB)
    ════════════════════════════════════════════════════ */
-const featured = [
-  { name:'Kare-Kareng Lechon Kawali', emoji:'🥜', tag:'Bestseller', price:'₱389 / ₱649 pax' },
-  { name:'Crispy Pata', emoji:'🍖', tag:'Weekend Special', price:'Ask in-store' },
-  { name:'Sinigang na Hipon', emoji:'🍤', tag:'Customer Favorite', price:'₱359 / ₱619 pax' },
-  { name:'Laing', emoji:'🥬', tag:'Lutong Bicol', price:'₱259 / ₱439 pax' },
-];
 let featIdx = 0;
 function renderFeatured() {
   const track = document.getElementById('featuredTrack');
   const dots = document.getElementById('featuredDots');
+  if (!track || !dots) return;
+  if (!featured.length) {
+    track.innerHTML = `<div class="featured-slide active" style="text-align:center;color:var(--ink-muted);"><div style="font-size:48px;margin-bottom:14px;">🍽️</div><div style="font-family:'Playfair Display',serif;font-size:22px;color:var(--ink);">Menu loading…</div></div>`;
+    dots.innerHTML = '';
+    return;
+  }
   track.innerHTML = featured.map((f, i) => `
     <div class="featured-slide ${i === 0 ? 'active' : ''}" data-feat="${i}">
       <div class="featured-emoji">${f.emoji}</div>
@@ -2180,11 +2132,12 @@ function renderFeatured() {
   dots.innerHTML = featured.map((_, i) => `<div class="featured-dot ${i === 0 ? 'active' : ''}" onclick="goFeat(${i})"></div>`).join('');
 }
 function goFeat(i) {
+  if (!featured.length) return;
   featIdx = i;
   document.querySelectorAll('.featured-slide').forEach((s, idx) => s.classList.toggle('active', idx === i));
   document.querySelectorAll('.featured-dot').forEach((d, idx) => d.classList.toggle('active', idx === i));
 }
-setInterval(() => { featIdx = (featIdx + 1) % featured.length; goFeat(featIdx); }, 4500);
+setInterval(() => { if (featured.length) { featIdx = (featIdx + 1) % featured.length; goFeat(featIdx); } }, 4500);
 
 /* ════════════════════════════════════════════════════
    MENU RENDER
@@ -2930,6 +2883,7 @@ function renderAdminSidebar() {
   navItems.push({ id: 'recognition', label: 'Recognition', icon: '⭐', badge: unack || null });
   navItems.push({ section: 'TEAM' });
   navItems.push({ id: 'staff-board', label: 'Staff Board', icon: '🎯' });
+  navItems.push({ id: 'menu-manager', label: 'Menu Manager', icon: '🍽️' });
   navItems.push({ id: 'table-qr', label: 'Table QR Codes', icon: '📲' });
   navItems.push({ id: 'accounts', label: 'Accounts', icon: '👤', badge: portalState.staff.filter(s => s.accountState === 'pending' || s.accountState === 'recommended').length || null });
   if (tier === 'director' || tier === 'ceo' || tier === 'admin') {
@@ -2974,6 +2928,7 @@ function route(r) {
     case 'accounts': renderAccounts(main); break;
     case 'audit': renderAudit(main); break;
     case 'table-qr': renderTableQR(main); break;
+    case 'menu-manager': renderMenuManager(main); break;
   }
   window.scrollTo({ top: 0, behavior: 'instant' });
 }
@@ -3520,7 +3475,7 @@ function renderAccounts(main) {
 
   let html = `<div class="portal-header">
     <div><h1>Accounts</h1><div class="portal-header-sub">${u.tier === 'director' ? 'Full control over all accounts. Director privilege — execute with care.' : u.tier === 'manager' ? 'Create new Dining/Kitchen staff for your branch. CEO/Operator will validate.' : 'Validate new staff accounts and manage existing team members.'}</div></div>
-    ${u.tier === 'manager' ? '<button class="btn-primary" onclick="showCreateStaffModal()" style="padding:10px 20px;">+ Add Staff</button>' : ''}
+    ${['manager','admin','director','ceo'].includes(u.tier) ? '<button class="btn-primary" onclick="showCreateStaffModal()" style="padding:10px 20px;">+ Add Staff</button>' : ''}
   </div>
   <div class="acc-tabs">
     ${Object.keys(stateMap).map(s => `<button class="acc-tab ${activeAccTab === s ? 'active' : ''}" onclick="setAccTab('${s}')">${stateMap[s]} <span class="acc-tab-count">${counts[s]}</span></button>`).join('')}
@@ -3659,38 +3614,102 @@ function reinstateAccount(id) {
   route('accounts');
 }
 function showCreateStaffModal() {
+  const u = currentUser;
+  // Only admin+ can promote to admin/director/ceo tiers
+  const highTierOptions = ['admin','director','ceo'].includes(u.tier) ? `
+    <option value="supervisor">Supervisor</option>
+    <option value="manager">Manager</option>
+    <option value="admin">Admin</option>
+    ${['director','ceo'].includes(u.tier) ? '<option value="director">Director</option>' : ''}
+    ${u.tier === 'ceo' ? '<option value="ceo">CEO</option>' : ''}
+  ` : '';
+  const branchOpts = portalState.branches.map(b => `<option value="${b.id}">${b.name}</option>`).join('');
   showModal(`
-    <div class="modal-title">Add New Staff</div>
-    <div class="modal-sub">Account will be created in <strong>Pending</strong> state until validated by CEO or Operator.</div>
+    <div class="modal-title">Add Staff Account</div>
+    <div class="modal-sub">Creates a real login. Staff receives the password from you and can change it after their first sign-in.</div>
     <div class="modal-content">
+      <div style="margin-bottom:14px;">
+        <label class="form-label">Full Name</label>
+        <input type="text" class="form-input" id="newStaffName" placeholder="Juan Dela Cruz" autocomplete="off">
+      </div>
+      <div style="margin-bottom:14px;">
+        <label class="form-label">Email</label>
+        <input type="email" class="form-input" id="newStaffEmail" placeholder="juan@tyopaengnyo.com" autocomplete="off">
+      </div>
       <div class="form-row">
-        <div><label class="form-label">Full Name</label><input type="text" class="form-input" id="newStaffName" placeholder="Full name"></div>
+        <div><label class="form-label">Temporary Password</label>
+          <input type="text" class="form-input" id="newStaffPass" placeholder="min 6 chars" autocomplete="off"></div>
+        <div><label class="form-label">Phone (optional)</label>
+          <input type="tel" class="form-input" id="newStaffPhone" placeholder="09171234567" autocomplete="off"></div>
+      </div>
+      <div class="form-row" style="margin-top:14px;">
         <div><label class="form-label">Role</label>
           <select class="form-input" id="newStaffRole">
-            <option value="service">Service (Dining)</option>
+            <option value="dining">Dining (Service)</option>
             <option value="kitchen">Kitchen</option>
-            <option value="cashier">Cashier</option>
+            ${highTierOptions}
           </select>
         </div>
+        <div><label class="form-label">Branch</label>
+          <select class="form-input" id="newStaffBranch">${branchOpts}</select>
+        </div>
       </div>
-      <p style="margin-top:14px;font-size:12px;color:var(--ink-muted);">After validation, credentials will be generated as a QR code with 24-hour expiry. The staff member scans to set their password.</p>
+      <p style="margin-top:14px;font-size:12px;color:var(--ink-muted);">Share the temporary password with the staff member directly. They should change it in Settings after signing in.</p>
+      <div id="createStaffError" style="display:none;margin-top:12px;padding:10px;background:rgba(200,40,40,0.08);border:1px solid rgba(200,40,40,0.25);border-radius:6px;color:#c02828;font-size:13px;"></div>
     </div>
     <div class="modal-actions">
       <button class="btn-back" onclick="closeModal()">Cancel</button>
-      <button class="btn-next" onclick="createStaff()">Create Account</button>
+      <button class="btn-next" id="createStaffBtn" onclick="createStaff()">Create Account</button>
     </div>`);
+  // Prefill branch to current admin's branch if any
+  if (u.branch) document.getElementById('newStaffBranch').value = u.branch;
 }
-function createStaff() {
-  const name = document.getElementById('newStaffName').value.trim();
-  const role = document.getElementById('newStaffRole').value;
-  if (!name) { toast('Please enter a name'); return; }
-  const id = 's' + (portalState.staff.length + 1);
-  portalState.staff.push({ id, name, role, branch: currentUser.branch, stars: 0, attendance: 0, accountState: 'pending' });
-  portalState.auditLog.unshift({ time: new Date().toISOString().slice(0,16).replace('T',' '), actor: currentUser.name, action: `Created pending account: ${name} (${role})`, tier: currentUser.tier, branch: currentUser.branch });
-  closeModal();
-  toast(`${name} added — awaiting CEO/Operator validation`);
-  activeAccTab = 'pending';
-  route('accounts');
+
+// Public signups are disabled in Supabase Auth settings.
+// Account creation happens ONLY through the 'create-staff' Edge Function,
+// which verifies the caller is an authenticated admin (manager+).
+
+async function createStaff() {
+  const name    = document.getElementById('newStaffName').value.trim();
+  const email   = document.getElementById('newStaffEmail').value.trim();
+  const pass    = document.getElementById('newStaffPass').value;
+  const phone   = document.getElementById('newStaffPhone').value.trim() || null;
+  const role    = document.getElementById('newStaffRole').value;
+  const branch  = document.getElementById('newStaffBranch').value;
+  const errEl   = document.getElementById('createStaffError');
+  const btn     = document.getElementById('createStaffBtn');
+  const showErr = m => { errEl.textContent = m; errEl.style.display = 'block'; };
+  const hideErr = () => { errEl.style.display = 'none'; };
+
+  if (!name)  return showErr('Please enter the full name.');
+  if (!email) return showErr('Please enter an email.');
+  if (!pass || pass.length < 6) return showErr('Password must be at least 6 characters.');
+
+  btn.disabled = true; btn.textContent = 'Creating…';
+  hideErr();
+  try {
+    const { data, error } = await sb.functions.invoke('create-staff', {
+      body: { email, password: pass, name, phone, role, branch_code: branch }
+    });
+    // Supabase returns errors either in `error` (network/HTTP) or `data.error` (edge fn returned error status)
+    if (error) throw new Error(error.message || 'Edge function call failed');
+    if (data?.error) throw new Error(data.error);
+    if (!data?.ok) throw new Error('Unexpected response from server');
+
+    closeModal();
+    toast(`✓ ${name} added as ${role}`);
+    await loadStaffFromSupabase();
+    activeAccTab = 'active';
+    route('accounts');
+  } catch(e) {
+    console.error('createStaff error:', e);
+    let msg = e?.message || 'Could not create account.';
+    if (/not authenticated/i.test(msg)) msg = 'Your session expired. Sign in again.';
+    if (/insufficient permissions/i.test(msg)) msg = "You don't have permission to create accounts.";
+    if (/already/i.test(msg) || /exists/i.test(msg)) msg = 'A user with that email already exists.';
+    showErr(msg);
+    btn.disabled = false; btn.textContent = 'Create Account';
+  }
 }
 
 /* ════════════════════════════════════════════════════
@@ -3735,6 +3754,193 @@ function renderTableQR(main) {
   });
 
   main.innerHTML = html;
+}
+
+/* ════════════════════════════════════════════════════
+   MENU MANAGER — add / edit / toggle menu items via DB
+   ════════════════════════════════════════════════════ */
+async function renderMenuManager(main) {
+  const u = currentUser;
+  if (!['manager','admin','director','ceo'].includes(u.tier)) {
+    main.innerHTML = '<div class="panel" style="padding:40px;text-align:center;color:var(--ink-muted);">You don\'t have permission to manage the menu.</div>';
+    return;
+  }
+  main.innerHTML = `<div class="portal-header">
+    <div><h1>Menu Manager</h1><div class="portal-header-sub">Loading current menu from database…</div></div>
+    <button class="btn-primary" onclick="showMenuItemModal()" style="padding:10px 20px;">+ Add Item</button>
+  </div>
+  <div id="menuManagerBody"><div class="panel" style="padding:40px;text-align:center;color:var(--ink-muted);">Loading…</div></div>`;
+  await refreshMenuManager();
+}
+
+async function refreshMenuManager() {
+  const body = document.getElementById('menuManagerBody');
+  if (!body) return;
+  try {
+    const { data: cats } = await sb.from('menu_categories').select('*').order('display_order');
+    const { data: items } = await sb.from('menu_items').select('*, menu_categories(name)').order('display_order');
+    if (!items || !items.length) {
+      body.innerHTML = `<div class="panel" style="padding:40px;text-align:center;">
+        <div style="font-size:48px;margin-bottom:14px;">🍽️</div>
+        <div style="font-family:'Playfair Display',serif;font-size:22px;color:var(--ink);margin-bottom:8px;">No menu items yet</div>
+        <div style="color:var(--ink-muted);">Add your first item using the button above.</div>
+      </div>`;
+      return;
+    }
+    const byCat = {};
+    (cats || []).forEach(c => byCat[c.id] = { cat: c, items: [] });
+    items.forEach(it => { if (byCat[it.category_id]) byCat[it.category_id].items.push(it); });
+    let html = '';
+    Object.values(byCat).forEach(g => {
+      if (!g.items.length) return;
+      html += `<div style="margin-bottom:24px;">
+        <div style="font-family:'Playfair Display',serif;font-size:20px;font-weight:700;color:var(--ink);margin-bottom:10px;">${g.cat.icon || ''} ${g.cat.name}</div>
+        <div class="data-table-wrap"><table class="data-table"><thead><tr>
+          <th style="width:36px;"></th><th>Name</th><th>Price</th><th>Featured</th><th>Available</th><th style="text-align:right;">Actions</th>
+        </tr></thead><tbody>`;
+      g.items.forEach(it => {
+        const price = it.pax_options
+          ? Object.entries(it.pax_options).map(([k,v]) => `${k}: ₱${v}`).join(' · ')
+          : '₱' + Number(it.price).toFixed(0);
+        const safeName = (it.name || '').replace(/'/g, "\\'");
+        html += `<tr>
+          <td style="font-size:20px;">${it.emoji || '🍽️'}</td>
+          <td><div style="font-weight:600;color:var(--ink);">${it.name}</div><div style="font-size:11px;color:var(--ink-muted);">${it.description || ''}</div></td>
+          <td>${price}</td>
+          <td>${it.is_featured ? `<span style="font-size:11px;background:var(--gold);color:#fff;padding:2px 8px;border-radius:10px;">${it.featured_tag||'Featured'}</span>` : '—'}</td>
+          <td>${it.is_available ? '<span style="color:var(--success);">✓ Available</span>' : '<span style="color:var(--danger);">✗ Off menu</span>'}</td>
+          <td class="table-actions">
+            <button class="btn-secondary" onclick="showMenuItemModal('${it.id}')">Edit</button>
+            <button class="btn-secondary" onclick="toggleMenuAvail('${it.id}', ${!it.is_available})">${it.is_available ? '86 it' : 'Restore'}</button>
+            <button class="btn-secondary" onclick="deleteMenuItem('${it.id}', '${safeName}')">Delete</button>
+          </td>
+        </tr>`;
+      });
+      html += '</tbody></table></div></div>';
+    });
+    body.innerHTML = html;
+    const sub = document.querySelector('.portal-header-sub');
+    if (sub) sub.textContent = `${items.length} items across ${Object.values(byCat).filter(g=>g.items.length).length} categories.`;
+  } catch(e) {
+    console.error('refreshMenuManager:', e);
+    body.innerHTML = `<div class="panel" style="padding:24px;color:var(--danger);">Could not load menu: ${e.message||e}</div>`;
+  }
+}
+
+async function showMenuItemModal(itemId) {
+  const { data: cats } = await sb.from('menu_categories').select('*').order('display_order');
+  let item = null;
+  if (itemId) {
+    const { data } = await sb.from('menu_items').select('*').eq('id', itemId).single();
+    item = data;
+  }
+  const catOpts = (cats || []).map(c => `<option value="${c.id}" ${item?.category_id === c.id ? 'selected' : ''}>${c.icon || ''} ${c.name}</option>`).join('');
+  const isShare = item?.is_shareable || false;
+  const paxJson = item?.pax_options ? JSON.stringify(item.pax_options) : '{"2-3":0,"4-6":0}';
+  showModal(`
+    <div class="modal-title">${itemId ? 'Edit Menu Item' : 'Add Menu Item'}</div>
+    <div class="modal-content">
+      <div class="form-row">
+        <div style="flex:2;"><label class="form-label">Name</label><input type="text" class="form-input" id="miName" value="${item?.name || ''}" placeholder="Kare-Kare"></div>
+        <div><label class="form-label">Emoji</label><input type="text" class="form-input" id="miEmoji" value="${item?.emoji || ''}" placeholder="🥜" maxlength="4"></div>
+      </div>
+      <div style="margin-top:12px;"><label class="form-label">Tagalog Name (optional)</label><input type="text" class="form-input" id="miNameTl" value="${item?.name_tagalog || ''}" placeholder="Kare-Kare"></div>
+      <div style="margin-top:12px;"><label class="form-label">Description</label><textarea class="form-input" id="miDesc" rows="2" placeholder="Peanut stew with oxtail, banana blossom">${item?.description || ''}</textarea></div>
+      <div class="form-row" style="margin-top:12px;">
+        <div><label class="form-label">Category</label><select class="form-input" id="miCat">${catOpts}</select></div>
+        <div><label class="form-label"><input type="checkbox" id="miShare" ${isShare ? 'checked' : ''}> Shareable (pax pricing)</label></div>
+      </div>
+      <div id="miPriceSingle" style="margin-top:12px;${isShare ? 'display:none;' : ''}">
+        <label class="form-label">Price (₱)</label>
+        <input type="number" class="form-input" id="miPrice" value="${item?.price || ''}" placeholder="139">
+      </div>
+      <div id="miPricePax" style="margin-top:12px;${!isShare ? 'display:none;' : ''}">
+        <label class="form-label">Pax pricing (JSON, e.g. {"2-3":289,"4-6":489})</label>
+        <input type="text" class="form-input" id="miPax" value='${paxJson}'>
+      </div>
+      <div class="form-row" style="margin-top:12px;">
+        <div><label class="form-label"><input type="checkbox" id="miFeat" ${item?.is_featured ? 'checked' : ''}> Featured on homepage</label></div>
+        <div><label class="form-label">Featured tag</label><input type="text" class="form-input" id="miFeatTag" value="${item?.featured_tag || ''}" placeholder="Bestseller"></div>
+      </div>
+      <div style="margin-top:12px;"><label class="form-label"><input type="checkbox" id="miAvail" ${item?.is_available !== false ? 'checked' : ''}> Available for order</label></div>
+      <div id="miErr" style="display:none;margin-top:12px;padding:10px;background:rgba(200,40,40,0.08);border:1px solid rgba(200,40,40,0.25);border-radius:6px;color:#c02828;font-size:13px;"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-back" onclick="closeModal()">Cancel</button>
+      <button class="btn-next" onclick="saveMenuItem(${itemId ? `'${itemId}'` : 'null'})">${itemId ? 'Save Changes' : 'Add Item'}</button>
+    </div>`);
+  document.getElementById('miShare').addEventListener('change', (e) => {
+    document.getElementById('miPriceSingle').style.display = e.target.checked ? 'none' : 'block';
+    document.getElementById('miPricePax').style.display    = e.target.checked ? 'block' : 'none';
+  });
+}
+
+async function saveMenuItem(itemId) {
+  const err = document.getElementById('miErr');
+  const showErr = m => { err.textContent = m; err.style.display = 'block'; };
+  const name = document.getElementById('miName').value.trim();
+  if (!name) return showErr('Name is required.');
+  const isShare = document.getElementById('miShare').checked;
+  const payload = {
+    name,
+    name_tagalog: document.getElementById('miNameTl').value.trim() || null,
+    description:  document.getElementById('miDesc').value.trim() || null,
+    emoji:        document.getElementById('miEmoji').value.trim() || null,
+    category_id:  document.getElementById('miCat').value,
+    is_shareable: isShare,
+    is_featured:  document.getElementById('miFeat').checked,
+    featured_tag: document.getElementById('miFeatTag').value.trim() || null,
+    is_available: document.getElementById('miAvail').checked,
+    branch_availability: { laspinas: true, bacoor: true, tgt: true }
+  };
+  if (isShare) {
+    try {
+      payload.pax_options = JSON.parse(document.getElementById('miPax').value);
+      payload.price = Object.values(payload.pax_options)[0] || 0;
+    } catch(e) { return showErr('Pax pricing must be valid JSON.'); }
+  } else {
+    payload.price = parseFloat(document.getElementById('miPrice').value);
+    if (isNaN(payload.price) || payload.price <= 0) return showErr('Price must be a positive number.');
+    payload.pax_options = null;
+  }
+  try {
+    if (itemId) {
+      const { error } = await sb.from('menu_items').update(payload).eq('id', itemId);
+      if (error) throw error;
+      toast('✓ Menu item updated');
+    } else {
+      const { error } = await sb.from('menu_items').insert(payload);
+      if (error) throw error;
+      toast('✓ Menu item added');
+    }
+    closeModal();
+    await refreshMenuManager();
+    await loadMenuFromDB();
+  } catch(e) {
+    console.error('saveMenuItem:', e);
+    showErr(e.message || 'Save failed');
+  }
+}
+
+async function toggleMenuAvail(itemId, newValue) {
+  try {
+    const { error } = await sb.from('menu_items').update({ is_available: newValue }).eq('id', itemId);
+    if (error) throw error;
+    toast(newValue ? '✓ Restored to menu' : '✓ Taken off menu');
+    await refreshMenuManager();
+    await loadMenuFromDB();
+  } catch(e) { console.error(e); toast('Update failed: ' + e.message); }
+}
+
+async function deleteMenuItem(itemId, name) {
+  if (!confirm(`Delete "${name}" from the menu? This can't be undone.`)) return;
+  try {
+    const { error } = await sb.from('menu_items').delete().eq('id', itemId);
+    if (error) throw error;
+    toast('✓ Deleted');
+    await refreshMenuManager();
+    await loadMenuFromDB();
+  } catch(e) { console.error(e); toast('Delete failed: ' + e.message); }
 }
 
 /* ════════════════════════════════════════════════════
@@ -4106,6 +4312,7 @@ window.addEventListener('DOMContentLoaded', () => {
   renderFeatured();
   renderCategoryChips();
   updateCartUI();
+  loadMenuFromDB();  // async — will trigger re-renders when ready
   document.querySelectorAll('.reveal').forEach(el => revealObs.observe(el));
   // Manually trigger visible for elements already in view
   setTimeout(() => {
