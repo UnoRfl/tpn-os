@@ -309,6 +309,36 @@ const TPN = {
     return data;
   },
 
+  async updateStaffEmploymentStatus(staffId, newStatus, reason = null) {
+    const { data, error } = await sb.from('staff')
+      .update({ employment_status: newStatus })
+      .eq('id', staffId).select().single();
+    if (error) throw error;
+    await this.logAudit('staff.status_change', 'staff', staffId, { new_status: newStatus, reason });
+    return data;
+  },
+
+  async updateStaffBranch(staffId, branchId) {
+    const { data, error } = await sb.from('staff')
+      .update({ branch_id: branchId })
+      .eq('id', staffId).select().single();
+    if (error) throw error;
+    await this.logAudit('staff.branch_change', 'staff', staffId, { new_branch_id: branchId });
+    return data;
+  },
+
+  // Combined: role + branch (used by Staff Board drag/drop)
+  async updateStaffAssignment(staffId, { role, branchId }) {
+    const patch = {};
+    if (role !== undefined && role !== null)     patch.role      = role;
+    if (branchId !== undefined && branchId !== null) patch.branch_id = branchId;
+    if (!Object.keys(patch).length) return null;
+    const { data, error } = await sb.from('staff').update(patch).eq('id', staffId).select().single();
+    if (error) throw error;
+    await this.logAudit('staff.assignment_change', 'staff', staffId, patch);
+    return data;
+  },
+
   // ═════ AUDIT ════════════════════════════════════════════════
   async logAudit(action, entityType, entityId, metadata = {}) {
     if (!this._user) return;

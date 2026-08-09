@@ -2753,6 +2753,7 @@ async function exitStaffPortal() {
   portalState.orders = [];
   portalState.inquiries = [];
   portalState.staff = [];
+  try { localStorage.removeItem(TPN_ROUTE_KEY_ADMIN); localStorage.removeItem(TPN_ROUTE_KEY_STAFF); } catch(e) {}
   if (typeof _supaOrdersUnsub === 'function') { _supaOrdersUnsub(); }
   if (typeof _supaTablesChan !== 'undefined' && _supaTablesChan) { sb.removeChannel(_supaTablesChan); _supaTablesChan = null; }
   navigate('home');
@@ -2878,19 +2879,55 @@ function verifyTwoFA() {
 
 function enterPortal() {
   if (!currentUser) return;
+  const validAdmin = ['dashboard','inquiries','orders','kds','staff-board','menu-manager','table-qr','accounts','audit'];
+  const validStaff = ['staff-home','kds','orders','staff-schedule','staff-attendance','staff-settings'];
+
   if (['dining', 'kitchen'].includes(currentUser.tier)) {
     showPortalPage('portal-staff');
     renderStaffSidebar();
-    routeStaff('staff-home');
+    const saved = readLastRoute('staff');
+    // Kitchen role can't sit on 'orders'; dining can't sit on 'kds'
+    const allowed = validStaff.filter(r => {
+      if (r === 'kds' && currentUser.tier !== 'kitchen') return false;
+      if (r === 'orders' && currentUser.tier !== 'dining') return false;
+      return true;
+    });
+    const target = (saved && allowed.includes(saved)) ? saved : 'staff-home';
+    routeStaff(target);
   } else {
     showPortalPage('portal-admin');
     renderAdminSidebar();
-    route('dashboard');
+    const saved = readLastRoute('admin');
+    // 'audit' is admin+ only
+    const allowed = validAdmin.filter(r => {
+      if (r === 'audit' && !['director','ceo','admin'].includes(currentUser.tier)) return false;
+      return true;
+    });
+    const target = (saved && allowed.includes(saved)) ? saved : 'dashboard';
+    route(target);
   }
   // Kick off live data (orders realtime + initial fetches)
   startSupabaseSync().catch(e => console.error('sync start:', e));
   loadInquiriesFromSupabase().catch(e => console.error('inquiries load:', e));
   loadStaffFromSupabase().catch(e => console.error('staff load:', e));
+}
+
+// Auto-restore an existing Supabase session on page load.
+// If the user was logged in and hit refresh, drop them straight back into the portal
+// on the same tab they were viewing.
+async function tryRestoreSession() {
+  try {
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) return false;
+    const staff = await TPN.loadProfile();
+    if (!staff) return false;
+    currentUser = staffToPortalUser(staff);
+    enterPortal();
+    return true;
+  } catch (e) {
+    console.warn('session restore failed:', e);
+    return false;
+  }
 }
 
 function togglePortalSidebar() {
@@ -2949,8 +2986,17 @@ function renderAdminSidebar() {
    ADMIN ROUTER
    ════════════════════════════════════════════════════ */
 let currentRoute = 'dashboard';
+const TPN_ROUTE_KEY_ADMIN = 'tpn.lastRoute.admin';
+const TPN_ROUTE_KEY_STAFF = 'tpn.lastRoute.staff';
+function saveLastRoute(kind, r) {
+  try { localStorage.setItem(kind === 'staff' ? TPN_ROUTE_KEY_STAFF : TPN_ROUTE_KEY_ADMIN, r); } catch(e) {}
+}
+function readLastRoute(kind) {
+  try { return localStorage.getItem(kind === 'staff' ? TPN_ROUTE_KEY_STAFF : TPN_ROUTE_KEY_ADMIN); } catch(e) { return null; }
+}
 function route(r) {
   currentRoute = r;
+  saveLastRoute('admin', r);
   document.querySelectorAll('#portalNav .portal-nav-item').forEach(el => el.classList.toggle('active', el.dataset.route === r));
   // close mobile sidebar
   document.getElementById('portalSidebar')?.classList.remove('open');
@@ -3191,20 +3237,34 @@ function moveStaff(staffId, newBranch, newRole) {
       <button class="btn-next" onclick="confirmMoveStaff('${staffId}','${newBranch}','${role}','${oldBranch}')">Confirm Move</button>
     </div>`);
 }
-function confirmMoveStaff(staffId, newBranch, newRole, oldBranch) {
+async function confirmMoveStaff(staffId, newBranch, newRole, oldBranch) {
   const s = portalState.staff.find(x => x.id === staffId);
+  if (!s) { closeModal(); return; }
+  const prevBranch = s.branch, prevRole = s.role;
+
+  // Optimistic UI update
   s.branch = newBranch;
-  s.role = newRole;
-  portalState.auditLog.unshift({
-    time: new Date().toISOString().slice(0, 16).replace('T', ' '),
-    actor: currentUser.name,
-    action: `Relocated ${s.name}: ${oldBranch} → ${portalState.branches.find(b => b.id === newBranch).name} (${newRole})`,
-    tier: currentUser.tier,
-    branch: newBranch
-  });
+  s.role   = newRole;
   closeModal();
-  toast(`Moved ${s.name} to ${portalState.branches.find(b => b.id === newBranch).name}`);
   route('staff-board');
+
+  try {
+    // Resolve branch code → branch UUID for the DB
+    let branchId = null;
+    if (newBranch) {
+      const br = await TPN.getBranchByCode(newBranch);
+      if (!br) throw new Error('Unknown branch: ' + newBranch);
+      branchId = br.id;
+    }
+    await TPN.updateStaffAssignment(staffId, { role: newRole, branchId });
+    toast(`Moved ${s.name} to ${portalState.branches.find(b => b.id === newBranch)?.name || newBranch}`);
+  } catch (e) {
+    console.error('confirmMoveStaff:', e);
+    // Rollback
+    s.branch = prevBranch; s.role = prevRole;
+    toast('Move failed: ' + (e.message || 'server error'));
+    route('staff-board');
+  }
 }
 
 /* ════════════════════════════════════════════════════
@@ -3299,7 +3359,11 @@ function dbOrderToPortalOrder(o) {
     total: Number(o.total),
     status: mapDbStatusToUi(o.status),
     time: 'just now',
-    placedAt: new Date(o.placed_at).getTime(),
+    placedAt:     new Date(o.placed_at).getTime(),
+    confirmedAt:  o.confirmed_at ? new Date(o.confirmed_at).getTime() : null,
+    readyAt:      o.ready_at     ? new Date(o.ready_at).getTime()     : null,
+    servedAt:     o.served_at    ? new Date(o.served_at).getTime()    : null,
+    completedAt:  o.completed_at ? new Date(o.completed_at).getTime() : null,
     branch: 'laspinas',
     paymentMethod: o.payment_method || 'cash',
     specialReq: o.notes || ''
@@ -3326,7 +3390,11 @@ function subscribeToSupabaseOrders() {
     } else if (payload.eventType === 'UPDATE') {
       const existing = portalState.orders.find(x => x.dbId === payload.new.id);
       if (existing) {
-        existing.status = mapDbStatusToUi(payload.new.status);
+        existing.status      = mapDbStatusToUi(payload.new.status);
+        existing.confirmedAt = payload.new.confirmed_at ? new Date(payload.new.confirmed_at).getTime() : existing.confirmedAt;
+        existing.readyAt     = payload.new.ready_at     ? new Date(payload.new.ready_at).getTime()     : existing.readyAt;
+        existing.servedAt    = payload.new.served_at    ? new Date(payload.new.served_at).getTime()    : existing.servedAt;
+        existing.completedAt = payload.new.completed_at ? new Date(payload.new.completed_at).getTime() : existing.completedAt;
         rerenderCurrent();
       }
     }
@@ -3670,17 +3738,37 @@ function renderAccActions(s) {
   return actions;
 }
 function setAccTab(t) { activeAccTab = t; route('accounts'); }
-function approveAccount(id) {
+
+// Helper: persist an accountState change to DB with optimistic UI + rollback
+async function persistAccountState(id, newState, opts = {}) {
   const s = portalState.staff.find(x => x.id === id);
-  s.accountState = 'active';
-  portalState.auditLog.unshift({ time: new Date().toISOString().slice(0,16).replace('T',' '), actor: currentUser.name, action: `Validated account: ${s.name}`, tier: currentUser.tier, branch: s.branch });
-  showConfirmModal('Account Activated', `<strong>${s.name}</strong> is now active. Their credentials are generated as a QR code with a 24-hour expiry. Have them scan to set up their password.`, () => route('accounts'));
+  if (!s) return false;
+  const prev = s.accountState;
+  s.accountState = newState;
+  if (opts.reason !== undefined) s.reason = opts.reason;
+  try {
+    await TPN.updateStaffEmploymentStatus(id, newState, opts.reason || null);
+    return true;
+  } catch (e) {
+    console.error('persistAccountState:', e);
+    s.accountState = prev;               // rollback
+    toast('Save failed: ' + (e.message || 'server error'));
+    return false;
+  }
 }
-function rejectAccount(id) {
+
+async function approveAccount(id) {
   const s = portalState.staff.find(x => x.id === id);
-  s.accountState = 'disabled';
-  portalState.auditLog.unshift({ time: new Date().toISOString().slice(0,16).replace('T',' '), actor: currentUser.name, action: `Rejected pending account: ${s.name}`, tier: currentUser.tier, branch: s.branch });
-  toast(`${s.name} rejected`);
+  if (!s) return;
+  const ok = await persistAccountState(id, 'active');
+  if (!ok) { route('accounts'); return; }
+  showConfirmModal('Account Activated', `<strong>${s.name}</strong> is now active. They can now sign in with the credentials you set at creation time.`, () => route('accounts'));
+}
+async function rejectAccount(id) {
+  const s = portalState.staff.find(x => x.id === id);
+  if (!s) return;
+  const ok = await persistAccountState(id, 'disabled');
+  if (ok) toast(`${s.name} rejected`);
   route('accounts');
 }
 function recommendDisable(id) {
@@ -3697,43 +3785,40 @@ function recommendDisable(id) {
       <button class="btn-next" style="background:var(--danger);" onclick="confirmDisableRec('${id}')">${currentUser.tier === 'director' ? 'Disable Now' : 'Send Recommendation'}</button>
     </div>`);
 }
-function confirmDisableRec(id) {
+async function confirmDisableRec(id) {
   const s = portalState.staff.find(x => x.id === id);
+  if (!s) { closeModal(); return; }
   const reason = document.getElementById('disableReason').value || 'No reason given';
-  if (currentUser.tier === 'director') {
-    s.accountState = 'disabled';
-    s.reason = reason;
-    portalState.auditLog.unshift({ time: new Date().toISOString().slice(0,16).replace('T',' '), actor: currentUser.name, action: `DISABLED account: ${s.name} (${reason})`, tier: 'director', branch: s.branch });
-    toast(`${s.name} disabled`);
-  } else {
-    s.accountState = 'recommended';
-    s.reason = `${reason} — Recommended by ${currentUser.name}`;
-    portalState.auditLog.unshift({ time: new Date().toISOString().slice(0,16).replace('T',' '), actor: currentUser.name, action: `Recommended disable for ${s.name} (${reason})`, tier: currentUser.tier, branch: s.branch });
-    toast(`Recommendation sent to Director`);
-  }
   closeModal();
+
+  if (currentUser.tier === 'director') {
+    const ok = await persistAccountState(id, 'disabled', { reason });
+    if (ok) toast(`${s.name} disabled`);
+  } else {
+    const ok = await persistAccountState(id, 'recommended', { reason: `${reason} — Recommended by ${currentUser.name}` });
+    if (ok) toast(`Recommendation sent to Director`);
+  }
   route('accounts');
 }
-function approveDisable(id) {
+async function approveDisable(id) {
   const s = portalState.staff.find(x => x.id === id);
-  s.accountState = 'disabled';
-  portalState.auditLog.unshift({ time: new Date().toISOString().slice(0,16).replace('T',' '), actor: currentUser.name, action: `Approved disable: ${s.name}`, tier: 'director', branch: s.branch });
-  toast(`${s.name} disabled`);
+  if (!s) return;
+  const ok = await persistAccountState(id, 'disabled');
+  if (ok) toast(`${s.name} disabled`);
   route('accounts');
 }
-function cancelDisableRec(id) {
+async function cancelDisableRec(id) {
   const s = portalState.staff.find(x => x.id === id);
-  s.accountState = 'active';
-  s.reason = null;
-  portalState.auditLog.unshift({ time: new Date().toISOString().slice(0,16).replace('T',' '), actor: currentUser.name, action: `Reinstated ${s.name} — recommendation overruled`, tier: 'director', branch: s.branch });
-  toast(`${s.name} reinstated`);
+  if (!s) return;
+  const ok = await persistAccountState(id, 'active', { reason: null });
+  if (ok) toast(`${s.name} reinstated`);
   route('accounts');
 }
-function reinstateAccount(id) {
+async function reinstateAccount(id) {
   const s = portalState.staff.find(x => x.id === id);
-  s.accountState = 'active';
-  portalState.auditLog.unshift({ time: new Date().toISOString().slice(0,16).replace('T',' '), actor: currentUser.name, action: `Reinstated disabled account: ${s.name}`, tier: 'director', branch: s.branch });
-  toast(`${s.name} reinstated`);
+  if (!s) return;
+  const ok = await persistAccountState(id, 'active');
+  if (ok) toast(`${s.name} reinstated`);
   route('accounts');
 }
 function showCreateStaffModal() {
@@ -4151,6 +4236,7 @@ function routeStaff(r) {
   document.getElementById('staffSidebar')?.classList.remove('open');
   const main = document.getElementById('staffMain');
   currentRoute = r;  // so realtime handlers know to re-render kds/orders
+  saveLastRoute('staff', r);
   switch (r) {
     case 'staff-home': renderStaffHome(main); break;
     case 'kds': renderKDS(main); break;
@@ -4405,16 +4491,62 @@ function showRevenueDrilldown() {
 }
 
 function showAvgPrepDrilldown() {
-  // Compute real average prep time from completed orders that have timestamps
-  const completed = portalState.orders.filter(o => o.status === 'done');
+  // Real prep-time analytics from confirmed_at → ready_at
+  const orders = portalState.orders;
+  const withPrep = orders.filter(o => o.confirmedAt && o.readyAt && o.readyAt > o.confirmedAt);
+  const totalToday = orders.length;
+  const completed  = orders.filter(o => o.status === 'done').length;
+
+  const fmt = ms => {
+    const s = Math.round(ms / 1000);
+    if (s < 60) return s + 's';
+    const m = Math.floor(s / 60); const r = s % 60;
+    return r ? `${m}m ${r}s` : `${m}m`;
+  };
+
+  let avgLine, fastest = null, slowest = null;
+  if (withPrep.length) {
+    const durations = withPrep.map(o => o.readyAt - o.confirmedAt);
+    const avgMs = durations.reduce((a, b) => a + b, 0) / durations.length;
+    fastest = Math.min(...durations);
+    slowest = Math.max(...durations);
+    avgLine = `<div style="font-family:'Playfair Display',serif;font-size:44px;font-weight:900;color:var(--brick);line-height:1;">${fmt(avgMs)}</div>
+               <div style="font-size:12px;color:var(--ink-muted);margin-top:4px;">across ${withPrep.length} order${withPrep.length===1?'':'s'} with full prep timings</div>`;
+  } else {
+    avgLine = `<div style="font-family:'Playfair Display',serif;font-size:26px;font-weight:700;color:var(--ink-muted);line-height:1.2;">No prep timings yet</div>
+               <div style="font-size:12px;color:var(--ink-muted);margin-top:6px;">Advance an order through <em>confirmed → ready</em> to see averages.</div>`;
+  }
+
+  const rangeLine = (fastest && slowest) ? `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px;">
+      <div style="background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:12px;text-align:center;">
+        <div style="font-size:11px;color:var(--ink-muted);text-transform:uppercase;letter-spacing:0.08em;">Fastest</div>
+        <div style="font-size:20px;font-weight:800;color:var(--success);margin-top:4px;">${fmt(fastest)}</div>
+      </div>
+      <div style="background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:12px;text-align:center;">
+        <div style="font-size:11px;color:var(--ink-muted);text-transform:uppercase;letter-spacing:0.08em;">Slowest</div>
+        <div style="font-size:20px;font-weight:800;color:var(--amber);margin-top:4px;">${fmt(slowest)}</div>
+      </div>
+    </div>` : '';
+
   showModal(`
     <div class="modal-title">⏱️ Kitchen Performance</div>
     <div class="modal-sub">Las Piñas — today.</div>
     <div class="modal-content">
       <div style="background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:20px;text-align:center;">
-        <div style="font-size:13px;color:var(--ink-muted);margin-bottom:8px;">Orders completed today</div>
-        <div style="font-family:'Playfair Display',serif;font-size:36px;font-weight:900;color:var(--brick);">${completed.length}</div>
-        <div style="font-size:12px;color:var(--ink-muted);margin-top:8px;">Detailed prep-time tracking activates once orders flow through the full kitchen cycle with timestamps.</div>
+        <div style="font-size:13px;color:var(--ink-muted);margin-bottom:8px;">Average prep time</div>
+        ${avgLine}
+        ${rangeLine}
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px;">
+        <div style="background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:12px;text-align:center;">
+          <div style="font-size:11px;color:var(--ink-muted);text-transform:uppercase;letter-spacing:0.08em;">Orders today</div>
+          <div style="font-size:22px;font-weight:800;color:var(--ink);margin-top:4px;">${totalToday}</div>
+        </div>
+        <div style="background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:12px;text-align:center;">
+          <div style="font-size:11px;color:var(--ink-muted);text-transform:uppercase;letter-spacing:0.08em;">Completed</div>
+          <div style="font-size:22px;font-weight:800;color:var(--success);margin-top:4px;">${completed}</div>
+        </div>
       </div>
     </div>
     <div class="modal-actions">
@@ -4442,6 +4574,8 @@ window.addEventListener('DOMContentLoaded', () => {
     });
   }, 50);
   document.body.classList.add('has-mobile-bar');
+  // If a Supabase session exists, drop the user back into the portal on the tab they were viewing.
+  tryRestoreSession();
 });
 
 // ─── Connection Status ───

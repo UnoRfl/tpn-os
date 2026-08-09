@@ -1,50 +1,57 @@
 # What's new in this build
 
-## Tier 1 — Core restaurant operations (now functional)
+## Session persistence (the big one)
 
-**Order status changes persist to the database.**
-When staff advance an order (received → preparing → ready → done), it now writes to Supabase and pushes live to every connected screen. Two devices stay in sync. Previously this only changed local memory.
+**Refresh no longer boots you back to the login screen or dashboard.**
+If you're logged in and hit refresh — from Menu Manager, Live Orders, Accounts, anywhere — the app now:
+1. Detects your existing Supabase session on page load
+2. Drops you straight back into the portal
+3. Restores the exact sidebar tab you were on
 
-**Kitchen Display System (KDS).**
-New "Kitchen Display" screen built for kitchen staff: big text, ticket-per-order, item quantities, special requests highlighted, order aging with colour warnings (yellow at warn, red pulsing at urgent), and one-tap "Start Cooking" / "Mark Ready". Kitchen staff now land here by default. Plays a chime when new orders arrive.
+Powered by an existing Supabase session + a saved-route pointer in `localStorage`. Signing out clears it.
 
-**Orders show full item breakdowns.**
-Each order carries its structured item list (qty, name, pax size, notes) so the kitchen knows exactly what to make.
+## Actions that now write to the database
 
-## Tier 2 — Day-to-day operation
+**Staff Board drag & drop.**
+Moving a staff chip between branches or role slots writes the new `role` and `branch_id` to Supabase and logs the change to `audit_log`. Optimistic UI with rollback if the save fails.
 
-**Single branch (Las Piñas only).**
-Removed Bacoor and TGT from the app for this version. Run `sql/07-single-branch.sql` and optionally uncomment the delete lines to remove them from the database too.
+**Account state actions.**
+Every button in the Accounts panel now hits the DB:
+- Validate (approve pending) → sets `employment_status = active`
+- Reject → `disabled`
+- Recommend Disable (CEO/Admin) → `recommended`
+- Disable Now (Director) → `disabled`
+- Reinstate → `active`
+- Cancel Recommendation → `active`
 
-**Real sales reporting.**
-The revenue breakdown now computes from actual orders: total sales, breakdown by order type, and top items ranked by real quantity sold. No more hardcoded figures.
+All logged to `audit_log`. Optimistic UI with rollback on failure. RLS: admin+ only, matching current UI gating.
 
-**Today's orders load on login.**
-The portal now pulls all of today's orders (including completed) so sales totals and history are accurate, not just the active queue.
+**Prep-time analytics — real numbers.**
+The Kitchen Performance drilldown no longer shows a placeholder. It computes real averages from the `confirmed_at → ready_at` timestamps that Supabase already writes when staff advance orders through the workflow. Shows: avg prep time, fastest & slowest, orders today, orders completed.
 
-**Audit Log reads from the real database.**
-Every account creation (via the edge function) and future logged action shows up here with who, when, and details. Run `sql/07-single-branch.sql` so managers/owners can read it.
+Prep-time timestamps (`confirmed_at`, `ready_at`, `served_at`, `completed_at`) are now carried into the client order objects, and the realtime UPDATE handler keeps them in sync.
 
-## Tier 3 — Cleanup
+## Backend additions (`tpn-supabase.js`)
 
-**Credentials moved to `config.js`.**
-Your Supabase URL and anon key now live in one small `config.js` file. Every other file reads from it, so future updates never overwrite your keys. **Paste your keys into `config.js` after extracting.**
+New helpers:
+- `TPN.updateStaffEmploymentStatus(staffId, newStatus, reason?)`
+- `TPN.updateStaffBranch(staffId, branchId)`
+- `TPN.updateStaffAssignment(staffId, { role, branchId })`
 
-**Recognition and daily-quests gamification removed.**
-Replaced the corporate "achievements" system with a plain "Needs Attention" list driven by real data (active orders, kitchen backlog, new inquiries) and a "Recent Orders" panel.
-
-**Dashboard simplified and made real.**
-Every tile now reflects live data. Cut the fake trend labels ("▲ 12% vs yesterday").
+All log to `audit_log` on success.
 
 ---
 
 ## Setup reminder
 
-1. Run new migrations in order: `sql/06-menu-fields.sql` (if not already), then `sql/07-single-branch.sql`
-2. Paste your Supabase URL + anon key into **`config.js`**
-3. `git add . && git commit -m "..." && git push`
+No new SQL migrations this session. Just:
+1. Extract, overwrite local files
+2. Paste keys into `config.js` (still gitignored)
+3. `git add . && git commit -m "session persistence + staff/account DB wiring" && git push`
 
-## Still simplified (future work)
-- Staff scheduling doesn't persist yet (view only)
-- Payment webhooks (GCash/Maya QRs are display-only)
+## Still not wired (next session)
+
+- Persistent schedule table (needs new `schedules` DB table + CRUD UI)
+- Payment webhooks (GCash/Maya QRs still display-only)
 - SMS 2FA
+- New staff still default to `employment_status = 'active'`. If you want a "pending → CEO validates" flow, the `create-staff` edge function needs a one-line change and the Accounts UI needs to know about it.
