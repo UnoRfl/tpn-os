@@ -12,8 +12,8 @@
    PASTE YOUR URL AND ANON KEY BELOW ↓
    ═══════════════════════════════════════════════════════════════ */
 
-const SUPABASE_URL      = 'https://YOUR-PROJECT-REF.supabase.co';
-const SUPABASE_ANON_KEY = 'PASTE-YOUR-ANON-KEY-HERE';
+const SUPABASE_URL      = 'https://xjlqfpnzobfqxetgkkai.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_xOrF2eJ4LJQNsmZIhcI3Tg_y5Nm-6WB';
 
 // Init client
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
