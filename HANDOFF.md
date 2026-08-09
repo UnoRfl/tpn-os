@@ -20,18 +20,20 @@ Written at the end of a build session so the next Claude conversation can pick u
 - Public signups: **DISABLED** in Auth → Providers → Email
 - Account creation ONLY path: `create-staff` edge function
 - First CEO was created manually and promoted via SQL
+- Non-active accounts (pending/suspended/recommended/disabled) are blocked at login AND at session-restore
 
 **Edge Function deployed:**
 - Name: `create-staff` (exact spelling — frontend calls this)
 - Manager+ can create, can only grant roles ≤ own level, logs to `audit_log`
-- New accounts default to `employment_status = 'active'` (not pending)
+- **Manager-created accounts start as `pending`; admin+ created accounts start `active`.**
+- Response includes `initial_status` so the UI knows which tab to jump to.
 
 ## Files in the repo
 
 ```
 tpn-os/
 ├── config.js                    ← credentials (SUPABASE_URL + anon key) — gitignored
-├── index.html                   ← public site + staff portal (~4500 lines)
+├── index.html                   ← public site + staff portal (~4900 lines)
 ├── tpn-table-menu.html          ← dine-in QR menu
 ├── tpn-dine-in-floor.html       ← floor panel
 ├── tpn-supabase.js              ← data layer (reads config.js)
@@ -46,27 +48,26 @@ tpn-os/
 │   ├── 04-signals.sql
 │   ├── 05-anon-orders.sql
 │   ├── 06-menu-fields.sql
-│   └── 07-single-branch.sql
+│   ├── 07-single-branch.sql
+│   └── 08-schedules.sql         ← NEW: schedules table + RLS
 └── supabase/functions/create-staff/
-    └── index.ts
+    └── index.ts                 ← UPDATED: pending-flow logic
 ```
-
-No new SQL migrations were added this session — all changes were client-side against the existing schema.
 
 ## Roles
 
 `dining` < `kitchen` < `supervisor` < `manager` < `admin` < `director` < `ceo`
 
-- `dining` — staff portal sidebar, Live Orders + personal home/schedule
-- `kitchen` — staff portal sidebar, Kitchen Display (KDS) + personal home/schedule
-- `manager`+ — admin portal (dashboard, orders, KDS, staff board, menu manager, accounts, inquiries, audit, table QR)
+- `dining` — staff portal sidebar, Live Orders + Home + My Schedule + Attendance + Settings
+- `kitchen` — staff portal sidebar, Kitchen Display (KDS) + Home + My Schedule + Attendance + Settings
+- `manager`+ — admin portal (dashboard, inquiries, orders, KDS, staff board, schedules, menu manager, accounts, table QR, [audit — admin+ only])
 - `ceo`/`director` — same as manager+ but sees revenue tile on dashboard
 
 ## What's wired end-to-end
 
-- ✅ Login (real Supabase Auth, email + password)
-- ✅ **Session restore on refresh** — if you're logged in and refresh, you drop straight back onto the tab you were viewing (last route persisted in `localStorage`)
-- ✅ Add Staff (via edge function, admin-only)
+- ✅ Login (real Supabase Auth, email + password). Blocks non-active accounts with a status-specific message.
+- ✅ **Session restore on refresh** — if you're logged in and refresh, you drop straight back onto the tab you were viewing (last route persisted in `localStorage`).
+- ✅ Add Staff (via edge function). **Manager creations start `pending`, admin+ creations start `active`.**
 - ✅ Menu Manager (portal → CRUD on menu_items, reflects on customer surfaces)
 - ✅ Customer menu on public site + table QR (loads from DB)
 - ✅ Featured carousel (loads is_featured items from DB)
@@ -84,40 +85,47 @@ No new SQL migrations were added this session — all changes were client-side a
 - ✅ Audit Log reads from DB (`audit_log` table, needs migration 07 for manager+ read)
 - ✅ Dashboard tiles + sales drilldown computed from real orders
 - ✅ **Prep-time analytics** — real avg / fastest / slowest computed from `confirmed_at → ready_at` timestamps
+- ✅ **Schedules (staff view)** — pulls current week from DB, prev/next navigation, per-staff manager notes
+- ✅ **Schedules (admin editor)** — new "Schedules" sidebar tab, inline cell editing with immediate save, prev/next/this-week nav, copy-from-prev-week
 
 ## What's NOT wired (known gaps)
 
-- ⏳ Staff schedule / attendance — placeholder UI only; no persistence
+- ⏳ Staff attendance — placeholder UI only; no clock-in/out flow or attendance table
 - ⏳ Recognition Panel — orphaned in code, route removed from sidebar
 - ⏳ Payment confirmation webhooks — GCash / PayMaya QRs are display-only
 - ⏳ SMS 2FA — bypassed for MVP
 - ⏳ BIR-compliant receipts — StoreHub handles this side
-- ⏳ New staff default to `employment_status = 'active'` — no "pending → validate" flow currently. The Accounts UI has a Pending tab that will be empty until the edge function is changed to set `'pending'` for new accounts.
 
 ## Known quirks to remember
 
-- **Windows path issues:** don't `cd path\to\tpn-os` — it's placeholder text. Use `cd /d "C:\Users\User 1\Downloads\tpn-os\tpn-os"`.
-- **Git first-time push:** GitHub auto-added README/LICENSE; if this ever comes up, `git pull origin main --rebase --allow-unrelated-histories` then resolve README conflict with `git checkout --ours README.md`.
+- **Windows path issues:** `cd /d "C:\Users\User 1\Downloads\tpn-os\tpn-os"` (the `/d` handles drive change, quotes handle the space).
+- **Git first-time push:** GitHub auto-added README/LICENSE. If encountered again: `git pull origin main --rebase --allow-unrelated-histories`, resolve README with `git checkout --ours README.md`.
 - **Vim escape:** Esc → `:wq` → Enter. Or run `git config --global core.editor notepad` once.
-- **VPN + Supabase:** some VPNs cause "Failed to fetch" errors. If auth breaks unexpectedly, try disabling the VPN.
+- **VPN + Supabase:** some VPNs cause "Failed to fetch" errors. Disable VPN if auth breaks unexpectedly.
 - **LF/CRLF warnings on git add:** harmless on Windows, ignore.
-- **Session-restore key:** `localStorage["tpn.lastRoute.admin"]` / `localStorage["tpn.lastRoute.staff"]`. Cleared on logout.
+- **localStorage keys:** `tpn.lastRoute.admin` / `tpn.lastRoute.staff`. Cleared on logout.
+- **Schedule edit UX:** the cell input saves on `change` (blur or Enter). Tab-through works. Green flash = saved, red border = error.
+- **`updated_by` in schedules:** set to the caller's staff.id via `TPN._user`. Loaded on session restore.
 
 ## Session boot checklist for next Claude
 
-1. Ask Uno to upload his current `index.html`, `tpn-supabase.js`, and `config.js` from the local folder. **Never assume the working copy matches his** — he pushes his own commits between sessions.
+1. Ask Uno to upload his current `index.html`, `tpn-supabase.js`, and `config.js` from his local folder. **Never assume the working copy matches his** — he pushes his own commits between sessions.
 2. Never regenerate `config.js` without warning first (would wipe credentials).
 3. Prefer surgical `str_replace` edits over full-file regenerations for `index.html`.
-4. Always syntax-check after edits: extract `<script>` blocks, run `node --check`.
+4. Always syntax-check after edits: extract inline `<script>` blocks and run `node --check`.
 5. Deliver changes as a zip + push instructions, not inline paste. Uno's workflow: extract → overwrite local → `git add . && git commit && git push`.
+6. **Remind him to redeploy the `create-staff` edge function whenever `supabase/functions/create-staff/index.ts` is edited** (Supabase Dashboard → Edge Functions → paste → Deploy).
 
 ## Immediate next-session priorities (in order)
 
-1. **Test the current build.** Verify session restore works across refresh from multiple tabs (Menu Manager, Accounts, Live Orders). Verify Staff Board move persists across refresh. Verify Accounts state changes persist.
-2. **Persistent schedule** — new `schedules` table (Mon-Sun × shift times per staff), CRUD in portal, view in staff sidebar
-3. **Pending-account flow** — one-line edge function change + Accounts UI updates so new accounts wait for CEO validation
-4. **Payment webhook flow** — GCash Business API integration when uncle's paid Supabase is ready
-5. **Optional: roles collapse 7→3** — DB enum rename migration, UI simplification
+1. **Test the current build.** Verify:
+   - Session restore across refresh from Schedules, Menu Manager, Accounts, Live Orders
+   - Manager creates staff → account lands in Pending → CEO validates → account becomes Active → they can sign in
+   - Schedule cell edits save (green flash) and read back correctly on staff side
+   - "Copy from prev week" duplicates shifts for all active staff
+2. **Attendance flow** — clock-in/out UI + new `attendance` table + reports view
+3. **Payment webhook flow** — GCash Business API integration when uncle's paid Supabase is ready
+4. **Optional: roles collapse 7→3** — DB enum rename migration, UI simplification
 
 ## Uno's working style
 

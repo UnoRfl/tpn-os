@@ -2847,6 +2847,18 @@ async function attemptLogin() {
       await TPN.logout();
       return;
     }
+    const status = staff.employment_status || 'active';
+    if (status !== 'active') {
+      const msg = {
+        pending:     'Your account is awaiting validation by the CEO/Director. Please try again once approved.',
+        recommended: 'Your account has been flagged for review. Contact your CEO/Director.',
+        suspended:   'Your account is currently suspended. Contact your manager.',
+        disabled:    'Your account has been disabled. Contact your CEO/Director if this is a mistake.'
+      }[status] || `Your account status is "${status}". Contact your manager.`;
+      showErr(msg);
+      await TPN.logout();
+      return;
+    }
     currentUser = staffToPortalUser(staff);
     enterPortal();
   } catch(e) {
@@ -2879,7 +2891,7 @@ function verifyTwoFA() {
 
 function enterPortal() {
   if (!currentUser) return;
-  const validAdmin = ['dashboard','inquiries','orders','kds','staff-board','menu-manager','table-qr','accounts','audit'];
+  const validAdmin = ['dashboard','inquiries','orders','kds','staff-board','schedules','menu-manager','table-qr','accounts','audit'];
   const validStaff = ['staff-home','kds','orders','staff-schedule','staff-attendance','staff-settings'];
 
   if (['dining', 'kitchen'].includes(currentUser.tier)) {
@@ -2921,6 +2933,12 @@ async function tryRestoreSession() {
     if (!session) return false;
     const staff = await TPN.loadProfile();
     if (!staff) return false;
+    const status = staff.employment_status || 'active';
+    if (status !== 'active') {
+      // Their account was suspended/disabled/etc since last visit — log them out silently.
+      try { await TPN.logout(); } catch(e) {}
+      return false;
+    }
     currentUser = staffToPortalUser(staff);
     enterPortal();
     return true;
@@ -2956,6 +2974,7 @@ function renderAdminSidebar() {
 
   navItems.push({ section: 'TEAM' });
   navItems.push({ id: 'staff-board', label: 'Staff Board', icon: '🎯' });
+  navItems.push({ id: 'schedules', label: 'Schedules', icon: '📅' });
   navItems.push({ id: 'menu-manager', label: 'Menu Manager', icon: '🍽️' });
   navItems.push({ id: 'table-qr', label: 'Table QR Codes', icon: '📲' });
   navItems.push({ id: 'accounts', label: 'Accounts', icon: '👤', badge: portalState.staff.filter(s => s.accountState === 'pending' || s.accountState === 'recommended').length || null });
@@ -3007,6 +3026,7 @@ function route(r) {
     case 'orders': renderOrders(main); break;
     case 'kds': renderKDS(main); break;
     case 'staff-board': renderStaffBoard(main); break;
+    case 'schedules': renderSchedulesAdmin(main); break;
     case 'accounts': renderAccounts(main); break;
     case 'audit': renderAudit(main); break;
     case 'table-qr': renderTableQR(main); break;
@@ -3264,6 +3284,211 @@ async function confirmMoveStaff(staffId, newBranch, newRole, oldBranch) {
     s.branch = prevBranch; s.role = prevRole;
     toast('Move failed: ' + (e.message || 'server error'));
     route('staff-board');
+  }
+}
+
+/* ════════════════════════════════════════════════════
+   SCHEDULES (manager+ editor)
+   ════════════════════════════════════════════════════ */
+let _schedulesCursor = null;         // Date (Monday of viewed week)
+let _schedulesCache  = {};           // { staffId: {shifts, notes, id?} } for the current week
+
+async function renderSchedulesAdmin(main) {
+  if (!_schedulesCursor) _schedulesCursor = weekMonday();
+  const monday = _schedulesCursor;
+  const iso    = isoDay(monday);
+  const today  = new Date(); today.setHours(0,0,0,0);
+  const thisMon = weekMonday(today).getTime();
+  const isThisWeek = monday.getTime() === thisMon;
+  const todayKey = DAY_KEYS[(today.getDay() + 6) % 7];
+
+  main.innerHTML = `
+    <div class="portal-header">
+      <div><h1>Schedules</h1><div class="portal-header-sub">Week of ${fmtWeekRange(monday)}. Click any cell to edit — changes save immediately.</div></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="table-btn" onclick="shiftAdminScheduleWeek(-1)">← Prev</button>
+        <button class="table-btn ${isThisWeek?'primary':''}" onclick="shiftAdminScheduleWeek(0)">This Week</button>
+        <button class="table-btn" onclick="shiftAdminScheduleWeek(1)">Next →</button>
+        <button class="table-btn" onclick="copyPrevWeekSchedules()">Copy from prev week</button>
+      </div>
+    </div>
+    <div id="schedulesBody" style="min-height:120px;color:var(--ink-muted);text-align:center;padding:40px;">Loading…</div>`;
+
+  try {
+    const staffRows = portalState.staff.filter(s => s.accountState === 'active');
+    if (!staffRows.length) {
+      document.getElementById('schedulesBody').outerHTML = '<div class="panel" style="text-align:center;color:var(--ink-faint);padding:60px;">No active staff to schedule.</div>';
+      return;
+    }
+    // Fetch this week's saved schedules
+    const rows = await TPN.listSchedulesForWeek(iso);
+    _schedulesCache = {};
+    rows.forEach(r => { _schedulesCache[r.staff_id] = { id: r.id, shifts: r.shifts || {}, notes: r.notes || '' }; });
+
+    // Table
+    let html = `<div class="data-table-wrap"><table class="data-table sched-table"><thead><tr>
+      <th style="min-width:170px;">Staff</th>
+      ${DAY_LABELS.map((d, i) => `<th style="text-align:center;${isThisWeek && DAY_KEYS[i]===todayKey ? 'background:var(--gold-soft,rgba(255,199,89,0.10));' : ''}">${d}</th>`).join('')}
+      <th style="min-width:120px;text-align:center;">Note</th>
+    </tr></thead><tbody>`;
+
+    staffRows.forEach(s => {
+      const cache = _schedulesCache[s.id] || { shifts: {}, notes: '' };
+      html += `<tr data-staff="${s.id}">
+        <td>
+          <div style="display:flex;align-items:center;gap:10px;">
+            <div class="staff-chip-avatar" style="width:32px;height:32px;font-size:11px;">${s.name.split(' ').map(p=>p[0]).join('').slice(0,2)}</div>
+            <div>
+              <div style="font-weight:600;color:var(--ink);">${s.name}</div>
+              <div style="font-size:11px;color:var(--ink-muted);text-transform:capitalize;">${s.role}</div>
+            </div>
+          </div>
+        </td>
+        ${DAY_KEYS.map(k => {
+          const v = (cache.shifts[k] || '').trim();
+          const isOff = !v || /^off$/i.test(v);
+          return `<td style="text-align:center;padding:4px;">
+            <input class="sched-cell ${isOff?'off':''}" data-staff="${s.id}" data-day="${k}" value="${(v||'OFF').replace(/"/g,'&quot;')}" placeholder="OFF" onchange="onSchedCellChange(event)" />
+          </td>`;
+        }).join('')}
+        <td style="text-align:center;padding:4px;">
+          <button class="table-btn" onclick="editScheduleNote('${s.id}')">${cache.notes ? '📝 Edit' : '＋ Add'}</button>
+        </td>
+      </tr>`;
+    });
+    html += '</tbody></table></div>';
+
+    html += `<style>
+      .sched-table td { vertical-align: middle; }
+      .sched-cell {
+        width: 100%; min-width: 90px; box-sizing: border-box;
+        background: var(--bg); border: 1px solid var(--line);
+        border-radius: 6px; color: var(--ink); font-size: 12px;
+        padding: 8px 6px; text-align: center; font-family: inherit;
+        transition: border 120ms, background 120ms;
+      }
+      .sched-cell:focus { outline: none; border-color: var(--brick); background: var(--surface); }
+      .sched-cell.off { color: var(--ink-faint); background: transparent; font-style: italic; }
+      .sched-cell.saving { border-color: var(--amber); }
+      .sched-cell.saved  { border-color: var(--success); }
+      .sched-cell.error  { border-color: var(--danger); }
+    </style>`;
+
+    document.getElementById('schedulesBody').outerHTML = html;
+  } catch (e) {
+    console.error('renderSchedulesAdmin:', e);
+    const body = document.getElementById('schedulesBody');
+    if (body) body.innerHTML = '<div style="color:var(--danger);">Could not load schedules: ' + (e.message||'server error') + '</div>';
+  }
+}
+
+function shiftAdminScheduleWeek(delta) {
+  if (delta === 0) _schedulesCursor = weekMonday();
+  else {
+    if (!_schedulesCursor) _schedulesCursor = weekMonday();
+    _schedulesCursor = new Date(_schedulesCursor);
+    _schedulesCursor.setDate(_schedulesCursor.getDate() + delta * 7);
+  }
+  route('schedules');
+}
+
+async function onSchedCellChange(e) {
+  const input = e.target;
+  const staffId = input.dataset.staff;
+  const day     = input.dataset.day;
+  let raw = (input.value || '').trim();
+  if (!raw || raw.toUpperCase() === 'OFF') { raw = 'OFF'; input.value = 'OFF'; input.classList.add('off'); }
+  else { input.classList.remove('off'); }
+
+  // Update cache + persist
+  const iso    = isoDay(_schedulesCursor);
+  const cache  = _schedulesCache[staffId] || { shifts: {}, notes: '' };
+  cache.shifts = { ...cache.shifts, [day]: raw === 'OFF' ? '' : raw };
+  _schedulesCache[staffId] = cache;
+
+  input.classList.remove('saved','error');
+  input.classList.add('saving');
+  try {
+    await TPN.upsertSchedule({ staffId, weekStart: iso, shifts: cache.shifts, notes: cache.notes || null });
+    input.classList.remove('saving');
+    input.classList.add('saved');
+    setTimeout(() => input.classList.remove('saved'), 900);
+  } catch (err) {
+    console.error('save schedule cell:', err);
+    input.classList.remove('saving');
+    input.classList.add('error');
+    toast('Save failed: ' + (err.message || 'server error'));
+  }
+}
+
+function editScheduleNote(staffId) {
+  const s = portalState.staff.find(x => x.id === staffId);
+  const cache = _schedulesCache[staffId] || { shifts: {}, notes: '' };
+  showModal(`
+    <div class="modal-title">Note for ${s?.name || 'staff'}</div>
+    <div class="modal-sub">This note appears on their My Schedule tab.</div>
+    <div class="modal-content">
+      <textarea class="form-input" id="schedNoteInput" rows="4" placeholder="e.g. Meron tayong big group booking sa Friday…">${(cache.notes||'').replace(/</g,'&lt;')}</textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-back" onclick="closeModal()">Cancel</button>
+      <button class="btn-next" onclick="saveScheduleNote('${staffId}')">Save</button>
+    </div>`);
+}
+async function saveScheduleNote(staffId) {
+  const val = document.getElementById('schedNoteInput').value.trim();
+  const iso = isoDay(_schedulesCursor);
+  const cache = _schedulesCache[staffId] || { shifts: {}, notes: '' };
+  cache.notes = val;
+  _schedulesCache[staffId] = cache;
+  closeModal();
+  try {
+    await TPN.upsertSchedule({ staffId, weekStart: iso, shifts: cache.shifts, notes: val || null });
+    toast('Note saved');
+    route('schedules');
+  } catch (e) {
+    console.error('saveScheduleNote:', e);
+    toast('Save failed: ' + (e.message || 'server error'));
+  }
+}
+
+async function copyPrevWeekSchedules() {
+  const cur = _schedulesCursor || weekMonday();
+  const prev = new Date(cur); prev.setDate(prev.getDate() - 7);
+  const prevIso = isoDay(prev);
+  const curIso  = isoDay(cur);
+
+  showModal(`
+    <div class="modal-title">Copy schedule from previous week?</div>
+    <div class="modal-sub">This will replace every staff shift for the currently viewed week with the shifts from ${fmtWeekRange(prev)}. Notes are NOT copied. Existing entries for this week will be overwritten.</div>
+    <div class="modal-actions">
+      <button class="btn-back" onclick="closeModal()">Cancel</button>
+      <button class="btn-next" onclick="doCopyPrevWeek('${prevIso}','${curIso}')">Copy Now</button>
+    </div>`);
+}
+async function doCopyPrevWeek(prevIso, curIso) {
+  closeModal();
+  try {
+    const prevRows = await TPN.listSchedulesForWeek(prevIso);
+    if (!prevRows.length) { toast('Previous week has no schedules to copy.'); return; }
+    let copied = 0;
+    for (const r of prevRows) {
+      // Only copy for currently-active staff (RLS will also enforce this)
+      const stillActive = portalState.staff.find(s => s.id === r.staff_id && s.accountState === 'active');
+      if (!stillActive) continue;
+      await TPN.upsertSchedule({
+        staffId:   r.staff_id,
+        weekStart: curIso,
+        shifts:    r.shifts || {},
+        notes:     null   // don't clone notes forward
+      });
+      copied++;
+    }
+    toast(`Copied ${copied} schedule${copied===1?'':'s'} from previous week.`);
+    route('schedules');
+  } catch (e) {
+    console.error('doCopyPrevWeek:', e);
+    toast('Copy failed: ' + (e.message || 'server error'));
   }
 }
 
@@ -3905,9 +4130,15 @@ async function createStaff() {
     if (!data?.ok) throw new Error('Unexpected response from server');
 
     closeModal();
-    toast(`✓ ${name} added as ${role}`);
+    const status = data.initial_status || 'active';
+    if (status === 'pending') {
+      toast(`✓ ${name} created — awaiting CEO/Director validation`);
+      activeAccTab = 'pending';
+    } else {
+      toast(`✓ ${name} added as ${role}`);
+      activeAccTab = 'active';
+    }
     await loadStaffFromSupabase();
-    activeAccTab = 'active';
     route('accounts');
   } catch(e) {
     console.error('createStaff error:', e);
@@ -4291,25 +4522,90 @@ function renderStaffHome(main) {
       </div>
     </div>`;
 }
-function renderStaffSchedule(main) {
-  const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-  const nums = [11, 12, 13, 14, 15, 16, 17];
-  const shifts = ['9:45a-6p', '9:45a-6p', 'OFF', '12p-9p', '12p-9p', '9:45a-6p', 'OFF'];
-  main.innerHTML = `<div class="portal-header"><div><h1>My Schedule</h1><div class="portal-header-sub">Week of May 11-17, 2026</div></div></div>
-    <div class="schedule-week">
-      ${days.map((d, i) => `
-        <div class="schedule-day ${i === 1 ? 'today' : ''}">
-          <div class="schedule-day-label">${d}</div>
-          <div class="schedule-day-num">${nums[i]}</div>
-          <div class="schedule-shift ${shifts[i] === 'OFF' ? 'off' : ''}">${shifts[i]}</div>
-        </div>`).join('')}
-    </div>
-    <div class="panel" style="margin-top:24px;">
-      <div class="panel-header"><div class="panel-title">Notes from Manager Marl</div></div>
-      <div style="font-size:14px;color:var(--ink-soft);line-height:1.6;background:var(--bg);padding:14px;border-radius:8px;border-left:3px solid var(--gold);">
-        "Tuesday and Friday meron tayong mga big group bookings. Pakihandaan na natin ng maaga. Salamat!"
+// ─── SCHEDULE UTILS (shared between staff view + manager view) ───
+const DAY_KEYS  = ['mon','tue','wed','thu','fri','sat','sun'];
+const DAY_LABELS = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+function weekMonday(d = new Date()) {
+  const x = new Date(d);
+  const day = x.getDay();                    // 0=Sun..6=Sat
+  x.setDate(x.getDate() + (day === 0 ? -6 : 1 - day));
+  x.setHours(0, 0, 0, 0);
+  return x;
+}
+function fmtWeekRange(monday) {
+  const sun = new Date(monday); sun.setDate(sun.getDate() + 6);
+  const mFmt = { month: 'short', day: 'numeric' };
+  const sameMonth = monday.getMonth() === sun.getMonth();
+  const left  = monday.toLocaleDateString(undefined, mFmt);
+  const right = sun.toLocaleDateString(undefined, sameMonth ? { day: 'numeric' } : mFmt);
+  return `${left} – ${right}, ${sun.getFullYear()}`;
+}
+function isoDay(monday) { return monday.toISOString().slice(0, 10); }
+
+// Per-staff week navigation cursor (staff view)
+let _staffScheduleCursor = null;   // Date object (Monday)
+
+async function renderStaffSchedule(main) {
+  if (!_staffScheduleCursor) _staffScheduleCursor = weekMonday();
+  const monday = _staffScheduleCursor;
+  const iso = isoDay(monday);
+  const today = new Date(); today.setHours(0,0,0,0);
+  const thisMon = weekMonday(today).getTime();
+
+  main.innerHTML = `
+    <div class="portal-header">
+      <div><h1>My Schedule</h1><div class="portal-header-sub">Week of ${fmtWeekRange(monday)}</div></div>
+      <div style="display:flex;gap:8px;">
+        <button class="table-btn" onclick="shiftStaffScheduleWeek(-1)">← Prev</button>
+        <button class="table-btn ${monday.getTime()===thisMon?'primary':''}" onclick="shiftStaffScheduleWeek(0)">This Week</button>
+        <button class="table-btn" onclick="shiftStaffScheduleWeek(1)">Next →</button>
       </div>
-    </div>`;
+    </div>
+    <div id="staffScheduleBody" style="min-height:120px;color:var(--ink-muted);text-align:center;padding:40px;">Loading schedule…</div>`;
+
+  try {
+    const row = await TPN.getSchedule(currentUser.id, iso);
+    const shifts = (row && row.shifts) || {};
+    const notes  = row?.notes || '';
+    const todayKey = DAY_KEYS[(today.getDay() + 6) % 7]; // Mon=0..Sun=6
+    const isThisWeek = monday.getTime() === thisMon;
+
+    const cells = DAY_KEYS.map((k, i) => {
+      const d = new Date(monday); d.setDate(d.getDate() + i);
+      const label = DAY_LABELS[i];
+      const num   = d.getDate();
+      const val   = (shifts[k] || '').trim();
+      const isOff = !val || /^off$/i.test(val);
+      const isToday = isThisWeek && k === todayKey;
+      return `<div class="schedule-day ${isToday?'today':''}">
+        <div class="schedule-day-label">${label}</div>
+        <div class="schedule-day-num">${num}</div>
+        <div class="schedule-shift ${isOff?'off':''}">${val || 'OFF'}</div>
+      </div>`;
+    }).join('');
+
+    document.getElementById('staffScheduleBody').outerHTML = `
+      <div class="schedule-week">${cells}</div>
+      ${notes ? `<div class="panel" style="margin-top:24px;">
+        <div class="panel-header"><div class="panel-title">Note from your manager</div></div>
+        <div style="font-size:14px;color:var(--ink-soft);line-height:1.6;background:var(--bg);padding:14px;border-radius:8px;border-left:3px solid var(--gold);">${notes.replace(/</g,'&lt;')}</div>
+      </div>` : (row ? '' : `<div class="panel" style="margin-top:24px;text-align:center;color:var(--ink-muted);padding:40px;">
+        No schedule posted for this week yet. Check back later or ask your manager.
+      </div>`)}`;
+  } catch (e) {
+    console.error('renderStaffSchedule:', e);
+    const body = document.getElementById('staffScheduleBody');
+    if (body) body.textContent = 'Could not load schedule: ' + (e.message || 'server error');
+  }
+}
+function shiftStaffScheduleWeek(delta) {
+  if (delta === 0) { _staffScheduleCursor = weekMonday(); }
+  else {
+    if (!_staffScheduleCursor) _staffScheduleCursor = weekMonday();
+    _staffScheduleCursor = new Date(_staffScheduleCursor);
+    _staffScheduleCursor.setDate(_staffScheduleCursor.getDate() + delta * 7);
+  }
+  routeStaff('staff-schedule');
 }
 function renderStaffAttendance(main) {
   const entries = [

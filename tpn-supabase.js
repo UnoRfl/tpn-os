@@ -295,6 +295,62 @@ const TPN = {
     return data;
   },
 
+  // ═════ SCHEDULES ════════════════════════════════════════════
+  // Returns Monday of the week containing the given date, as ISO 'YYYY-MM-DD'.
+  weekStartISO(d) {
+    const x = new Date(d);
+    const day = x.getDay();           // 0=Sun..6=Sat
+    const diff = (day === 0 ? -6 : 1 - day);
+    x.setDate(x.getDate() + diff);
+    x.setHours(0, 0, 0, 0);
+    return x.toISOString().slice(0, 10);
+  },
+
+  // Get one staff's schedule for a given week (null if none set).
+  async getSchedule(staffId, weekStart) {
+    const { data, error } = await sb.from('schedules')
+      .select('*').eq('staff_id', staffId).eq('week_start', weekStart).maybeSingle();
+    if (error) throw error;
+    return data;
+  },
+
+  // Get every staff schedule for one week (manager+ view).
+  async listSchedulesForWeek(weekStart, branchId = null) {
+    let q = sb.from('schedules')
+      .select('*, staff:staff(id, full_name, role, branch_id, employment_status)')
+      .eq('week_start', weekStart);
+    const { data, error } = await q;
+    if (error) throw error;
+    let rows = data || [];
+    if (branchId) rows = rows.filter(r => r.staff?.branch_id === branchId);
+    return rows;
+  },
+
+  async upsertSchedule({ staffId, weekStart, shifts, notes }) {
+    const payload = {
+      staff_id:   staffId,
+      week_start: weekStart,
+      shifts:     shifts || {},
+      notes:      notes ?? null,
+      updated_by: this._user?.id || null
+    };
+    const { data, error } = await sb.from('schedules')
+      .upsert(payload, { onConflict: 'staff_id,week_start' })
+      .select().single();
+    if (error) throw error;
+    await this.logAudit('schedule.upsert', 'schedule', data.id, {
+      staff_id: staffId, week_start: weekStart
+    });
+    return data;
+  },
+
+  async deleteSchedule(id) {
+    const { error } = await sb.from('schedules').delete().eq('id', id);
+    if (error) throw error;
+    await this.logAudit('schedule.delete', 'schedule', id, {});
+    return true;
+  },
+
   // ═════ STAFF (admin views) ═══════════════════════════════════
   async listStaff() {
     const { data, error } = await sb.from('staff').select('*, branches(name)').order('full_name');

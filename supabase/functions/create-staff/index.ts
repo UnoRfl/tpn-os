@@ -106,8 +106,12 @@ Deno.serve(async (req) => {
       return json({ error: 'User created but no ID returned' }, 500)
     }
 
-    // The handle_new_user trigger already inserted a staff row with role='dining'.
+    // The handle_new_user trigger already inserted a staff row with role='dining' and employment_status='active'.
     // Now update it with the correct role, branch, and profile fields.
+    // Business rule: accounts created BY a manager start as 'pending' and need CEO/admin/director validation.
+    // Accounts created BY an admin+ (admin, director, ceo) are already trusted → 'active'.
+    const initialStatus = callerLevel >= ROLE_HIERARCHY.indexOf('admin') ? 'active' : 'pending';
+
     let branchId: string | null = null
     if (branch_code) {
       const { data: branch } = await admin
@@ -124,7 +128,8 @@ Deno.serve(async (req) => {
         full_name: name,
         phone: phone || null,
         role,
-        branch_id: branchId
+        branch_id: branchId,
+        employment_status: initialStatus
       })
       .eq('id', created.user.id)
 
@@ -141,10 +146,10 @@ Deno.serve(async (req) => {
       action: 'staff.create',
       entity_type: 'staff',
       entity_id: created.user.id,
-      metadata: { email, role, branch_code: branch_code || null, created_by_edge_fn: true }
+      metadata: { email, role, branch_code: branch_code || null, initial_status: initialStatus, created_by_edge_fn: true }
     }).select().maybeSingle()
 
-    return json({ ok: true, user_id: created.user.id })
+    return json({ ok: true, user_id: created.user.id, initial_status: initialStatus })
   } catch (e) {
     console.error('create-staff error:', e)
     return json({ error: (e as Error).message || 'Unknown error' }, 500)
