@@ -534,7 +534,6 @@ let searchQuery = '', activeCategory = 'all';
 let selectedBillPayMethod = 'cash';
 let guestName = '', guestPax = '1';
 let guestInfoLocked = sessionOrders.length > 0;
-let progressTimer = null;
 
 function loadSessionOrders() {
   try {
@@ -562,6 +561,8 @@ document.addEventListener('DOMContentLoaded', () => {
   if(guestInfoLocked && sessionOrders.length){ guestName=sessionOrders[0].name; guestPax=sessionOrders[0].pax; }
   applyLang(); renderCategoryChips(); renderFeatured(); renderMenu(); updateRunningBar();
   loadMenuFromDB();
+  // Re-attach realtime listeners to any in-flight orders after refresh
+  resubscribeStoredOrders();
 });
 
 const T = {
@@ -712,7 +713,7 @@ function showConfirmation(order){
   setOrderProgress('received'); renderSessionTotalCard();
   document.getElementById('confirm-screen').classList.add('show');
   window.scrollTo(0,0);
-  startProgressSimulation();
+  subscribeToOrderProgress(order);
 }
 
 function renderSessionTotalCard(){
@@ -729,11 +730,59 @@ function setOrderProgress(state){
   progressStates.forEach((s,i)=>{ const dot=document.getElementById('dot-'+s); const lbl=document.getElementById('lbl-'+s); if(!dot) return; dot.classList.remove('done','active'); lbl.classList.remove('done','active'); if(i<idx){ dot.classList.add('done'); dot.textContent='✓'; lbl.classList.add('done'); } else if(i===idx){ dot.classList.add('active'); lbl.classList.add('active'); } });
   for(let i=1;i<=3;i++){ const line=document.getElementById('line-'+i); if(line) line.classList.toggle('done',i<=idx); }
 }
-function startProgressSimulation(){
-  clearTimeout(progressTimer);
-  let step=0;
-  function advance(){ step++; if(step>=progressStates.length) return; setOrderProgress(progressStates[step]); if(step===2) showToast('🔔 Your food is ready! Coming to your table now.'); if(step<progressStates.length-1) progressTimer=setTimeout(advance,[40000,120000,180000][step-1]||120000); }
-  progressTimer=setTimeout(advance,30000);
+
+// Map the DB order status enum → the 4 customer-facing progress states.
+function dbStatusToProgress(dbStatus){
+  return ({
+    pending: 'received', confirmed: 'received', preparing: 'preparing',
+    ready: 'ready', served: 'served', completed: 'served', cancelled: 'served'
+  })[dbStatus] || 'received';
+}
+
+// Track active order subscriptions so we don't leak channels on repeated orders.
+const _orderSubscriptions = new Map();   // dbId -> unsubscribe fn
+let _lastNotifiedReady = new Set();      // dbIds we've already fired the "ready" toast for
+
+function subscribeToOrderProgress(order){
+  if (!order || !order.dbId) return;
+  // If already subscribed, don't double up
+  if (_orderSubscriptions.has(order.dbId)) return;
+
+  const unsub = TPN.subscribeToOrder(order.dbId, (payload) => {
+    const newStatus = payload?.new?.status;
+    if (!newStatus) return;
+    const uiState = dbStatusToProgress(newStatus);
+
+    // Update the local session-orders array so refresh keeps the current state
+    const local = sessionOrders.find(o => o.dbId === order.dbId);
+    if (local) { local.status = uiState; saveSessionOrders(); }
+
+    // Only update the visible progress bar if THIS order is the one currently shown
+    const shownRef = document.getElementById('confirm-ref-num')?.textContent;
+    if (shownRef === order.id) setOrderProgress(uiState);
+
+    // Fire the "ready" toast once per order
+    if (uiState === 'ready' && !_lastNotifiedReady.has(order.dbId)) {
+      _lastNotifiedReady.add(order.dbId);
+      showToast('🔔 Your food is ready! Coming to your table now.');
+    }
+    // Once served/completed/cancelled, tear down the subscription
+    if (['served','completed','cancelled'].includes(newStatus)) {
+      const u = _orderSubscriptions.get(order.dbId);
+      if (typeof u === 'function') u();
+      _orderSubscriptions.delete(order.dbId);
+    }
+  });
+  _orderSubscriptions.set(order.dbId, unsub);
+}
+
+// On page load, re-subscribe to any in-flight orders from prior sessions
+function resubscribeStoredOrders(){
+  sessionOrders.forEach(o => {
+    if (o.dbId && !['served','completed','cancelled'].includes(o.status)) {
+      subscribeToOrderProgress(o);
+    }
+  });
 }
 
 function orderMore(){ document.getElementById('confirm-screen').classList.remove('show'); showToast('🛒 Keep adding dishes and hit Send again!'); }

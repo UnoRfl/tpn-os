@@ -168,20 +168,24 @@ const TPN = {
    * @param {Array<{menu_item_id, name, unit_price, quantity, pax_size?, notes?}>} opts.items
    * @param {string} [opts.paymentMethod]
    * @param {string} [opts.notes]
+   * @param {string} [opts.deliveryAddress]  // required for delivery orders
+   * @param {string} [opts.scheduledFor]     // ISO timestamp for scheduled orders
    */
   async createOrder(opts) {
     const subtotal = opts.items.reduce((s, i) => s + (i.unit_price * i.quantity), 0);
     const total = subtotal;  // extend with service charge / discount later
 
     const { data: order, error: orderErr } = await sb.from('orders').insert({
-      branch_id:      opts.branchId,
-      table_id:       opts.tableId ?? null,
-      order_type:     opts.orderType,
-      customer_name:  opts.customerName ?? null,
-      customer_phone: opts.customerPhone ?? null,
+      branch_id:        opts.branchId,
+      table_id:         opts.tableId ?? null,
+      order_type:       opts.orderType,
+      customer_name:    opts.customerName ?? null,
+      customer_phone:   opts.customerPhone ?? null,
       subtotal, total,
-      payment_method: opts.paymentMethod ?? null,
-      notes:          opts.notes ?? null
+      payment_method:   opts.paymentMethod ?? null,
+      notes:            opts.notes ?? null,
+      delivery_address: opts.deliveryAddress ?? null,
+      scheduled_for:    opts.scheduledFor ?? null
     }).select().single();
     if (orderErr) throw orderErr;
 
@@ -210,6 +214,30 @@ const TPN = {
       .select('*, order_items(*), restaurant_tables(*)').eq('id', id).single();
     if (error) throw error;
     return data;
+  },
+
+  // Look up an order by its human-readable order_number (TPN-LP-YYYYMMDD-0001).
+  // Used by the public "Track My Order" input — anonymous users can hit this
+  // thanks to the orders_anon_read RLS policy.
+  async getOrderByNumber(orderNumber) {
+    const { data, error } = await sb.from('orders')
+      .select('*, order_items(*), restaurant_tables(table_number)')
+      .eq('order_number', orderNumber)
+      .maybeSingle();
+    if (error) throw error;
+    return data;
+  },
+
+  // Realtime subscription filtered to a single order (used by customer's
+  // QR-menu progress bar so the "your food is ready" toast is real, not simulated).
+  subscribeToOrder(orderId, callback) {
+    const chan = sb.channel(`order:${orderId}`)
+      .on('postgres_changes', {
+        event: 'UPDATE', schema: 'public', table: 'orders',
+        filter: `id=eq.${orderId}`
+      }, payload => callback(payload))
+      .subscribe();
+    return () => sb.removeChannel(chan);
   },
 
   async listActiveOrders(branchId = null) {

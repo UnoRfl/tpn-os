@@ -2579,12 +2579,23 @@ async function confirmOrder() {
     const dbOrderType = otMap[checkoutData.orderType] || 'pickup';
     const dbPayment = ({ gcash: 'gcash', paymaya: 'paymaya', card: 'card', cash: 'cash' })[checkoutData.paymentMethod] || 'cash';
 
+    // Compose scheduled_for from date + time inputs (ISO string) — null if ASAP
+    let scheduledFor = null;
+    if (checkoutData.schedule === 'scheduled' && checkoutData.date && checkoutData.time) {
+      const combined = `${checkoutData.date}T${checkoutData.time}:00`;
+      const dt = new Date(combined);
+      if (!isNaN(dt.getTime())) scheduledFor = dt.toISOString();
+    }
+
     const order = await TPN.createOrder({
       branchId: branch.id,
       orderType: dbOrderType,
       customerName: checkoutData.name,
       customerPhone: checkoutData.phone,
       paymentMethod: dbPayment,
+      notes: checkoutData.notes || null,
+      deliveryAddress: dbOrderType === 'delivery' ? (checkoutData.address || null) : null,
+      scheduledFor: scheduledFor,
       items: cart.map(c => ({
         menu_item_id: c.menuItemId || null,
         name: c.name,
@@ -2604,22 +2615,32 @@ async function confirmOrder() {
     toast('⚠️ Could not place order: ' + (e.message || 'connection error'));
   }
 }
-function checkOrderStatus() {
+async function checkOrderStatus() {
   const ref = document.getElementById('trackInput')?.value?.trim();
   const el = document.getElementById('trackResult');
   if (!ref) { if (el) el.textContent = 'I-type ang iyong reference number.'; return; }
-  const order = portalState.orders.find(o => o.id === ref);
-  if (!order) {
-    if (el) el.innerHTML = '<span style="color:var(--danger);">Hindi mahanap ang order na iyan. Tiyakin ang reference number.</span>';
-    return;
+  if (el) el.innerHTML = '<span style="color:var(--ink-muted);">Hinahanap ang iyong order…</span>';
+  try {
+    const order = await TPN.getOrderByNumber(ref);
+    if (!order) {
+      if (el) el.innerHTML = '<span style="color:var(--danger);">Hindi mahanap ang order na iyan. Tiyakin ang reference number.</span>';
+      return;
+    }
+    // DB status enum → customer-facing message
+    const statusMsg = {
+      pending:    '⏳ Natanggap na ang iyong order — naghihintay ng confirmation.',
+      confirmed:  '⏳ Confirmed na ang iyong order — malapit nang lutuin.',
+      preparing:  '👨‍🍳 Inihahanda na ang iyong order!',
+      ready:      '🔔 Ready na! Handa na ang iyong order para i-pickup o i-deliver.',
+      served:     '✅ Naihatid na / napickup na ang iyong order. Salamat!',
+      completed:  '✅ Naihatid na / napickup na ang iyong order. Salamat!',
+      cancelled:  '❌ Na-cancel ang iyong order. Kung tanong, tawagan kami.'
+    };
+    if (el) el.innerHTML = '<strong>' + (statusMsg[order.status] || 'Nakita ang order.') + '</strong>';
+  } catch (e) {
+    console.error('checkOrderStatus:', e);
+    if (el) el.innerHTML = '<span style="color:var(--danger);">Nagka-error sa pag-check. Subukan ulit.</span>';
   }
-  const statusMsg = {
-    received: '⏳ Natanggap na ang iyong order — naghihintay pa lang.',
-    preparing: '👨‍🍳 Inihahanda na ang iyong order!',
-    ready: '🔔 Ready na! Handa na ang iyong order para i-pickup o i-deliver.',
-    done: '✅ Naihatid na / napickup na ang iyong order. Salamat!'
-  };
-  if (el) el.innerHTML = '<strong>' + (statusMsg[order.status] || 'Nakita ang order.') + '</strong>';
 }
 function resetCheckout() {
   checkoutStep = 1;
@@ -4170,7 +4191,7 @@ function renderTableQR(main) {
 
   // Table count setting
   const tableCount = 12; // can be made configurable
-  const baseUrl = 'tpn-table-menu-v2.html';
+  const baseUrl = 'tpn-table-menu.html';
 
   branches.forEach(br => {
     html += `<div class="panel" style="margin-bottom:24px;">
