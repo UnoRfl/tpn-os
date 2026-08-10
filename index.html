@@ -3025,6 +3025,7 @@ function renderAdminSidebar() {
   navItems.push({ id: 'inquiries', label: 'Inquiries', icon: '📩', badge: newInquiries || null });
   navItems.push({ id: 'orders', label: 'Live Orders', icon: '📋', badge: portalState.orders.filter(o => o.status !== 'done').length || null });
   navItems.push({ id: 'kds', label: 'Kitchen Display', icon: '🍳', badge: portalState.orders.filter(o => o.status === 'received' || o.status === 'preparing').length || null });
+  navItems.push({ id: 'floor', label: 'Dine-In Floor', icon: '🪑', external: 'tpn-dine-in-floor.html' });
 
   navItems.push({ section: 'TEAM' });
   navItems.push({ id: 'staff-board', label: 'Staff Board', icon: '🎯' });
@@ -3041,6 +3042,14 @@ function renderAdminSidebar() {
 
   document.getElementById('portalNav').innerHTML = navItems.map(it => {
     if (it.section) return `<div class="portal-nav-section">${it.section}</div>`;
+    // External items open in a new tab instead of routing internally
+    if (it.external) {
+      return `<a class="portal-nav-item" href="${it.external}" target="_blank" rel="noopener" style="text-decoration:none;">
+        <span class="portal-nav-icon">${it.icon}</span>
+        <span>${it.label}</span>
+        <span style="margin-left:auto;font-size:10px;color:var(--ink-faint);">↗</span>
+      </a>`;
+    }
     return `<div class="portal-nav-item" data-route="${it.id}" onclick="route('${it.id}')">
       <span class="portal-nav-icon">${it.icon}</span>
       <span>${it.label}</span>

@@ -332,11 +332,10 @@ let currentBranch = 'Las Piñas';
 let orderFilter = 'all';
 let callAlertTimeout = null;
 
-// Branches with configurable tables
+// Branches with configurable tables — LIVE data only, single branch (Las Piñas).
+// Table count is resolved from Supabase in loadOrdersFromSupabase() → ensureBranchUuids().
 let branches = [
-  { id: 'lasPinas', name: 'Las Piñas', tables: 8, active: true },
-  { id: 'bacoor', name: 'Bacoor', tables: 6, active: true },
-  { id: 'tgt', name: 'TGT Concession', tables: 4, active: true },
+  { id: 'laspinas', name: 'Las Piñas', tables: 8, active: true },
 ];
 
 // Tables per branch — dynamically generated
@@ -353,82 +352,14 @@ function initTableStates() {
   });
 }
 
-// Sample incoming orders (simulating from QR menu)
-let dineInOrders = [
-  {
-    ref: 'TPN-A1B2C3', table: 2, branch: 'Las Piñas', name: 'Maria Santos', pax: '3',
-    allergies: ['Shellfish allergy'], specialReq: 'Extra rice please',
-    items: [
-      { name: 'Tapsilog', emoji: '🍳', qty: 2, price: 139, variant: null },
-      { name: 'Chicken Adobo', emoji: '🍗', qty: 1, price: 289, variant: '2-3 pax' },
-      { name: 'Buko Juice', emoji: '🥥', qty: 3, price: 79, variant: null },
-    ],
-    total: 604, status: 'preparing', timestamp: new Date(Date.now() - 12*60000).toISOString(),
-    billRequested: false, sessionId: 'SES-ABC'
-  },
-  {
-    ref: 'TPN-D4E5F6', table: 5, branch: 'Las Piñas', name: 'Reyes Family', pax: '5',
-    allergies: [], specialReq: '',
-    items: [
-      { name: 'Lechon Kawali', emoji: '🥩', qty: 1, price: 349, variant: '2-3 pax' },
-      { name: 'Sinigang na Baboy', emoji: '🍲', qty: 1, price: 329, variant: '2-3 pax' },
-      { name: 'Lumpiang Shanghai', emoji: '🥢', qty: 2, price: 149, variant: null },
-      { name: 'Softdrinks', emoji: '🥤', qty: 5, price: 55, variant: null },
-    ],
-    total: 1102, status: 'received', timestamp: new Date(Date.now() - 4*60000).toISOString(),
-    billRequested: false, sessionId: 'SES-DEF'
-  },
-  {
-    ref: 'TPN-G7H8I9', table: 1, branch: 'Las Piñas', name: 'Carlo Mendoza', pax: '2',
-    allergies: ['No pork (Halal)'], specialReq: 'Maanghang please',
-    items: [
-      { name: 'Chicken Inasal', emoji: '🔥', qty: 1, price: 319, variant: '2-3 pax' },
-      { name: 'Sago at Gulaman', emoji: '🧋', qty: 2, price: 65, variant: null },
-    ],
-    total: 449, status: 'ready', timestamp: new Date(Date.now() - 25*60000).toISOString(),
-    billRequested: true, sessionId: 'SES-GHI'
-  },
-];
+// Live orders array — populated from Supabase, empty on boot.
+let dineInOrders = [];
 
-// Seed table states from sample orders
-function seedTableStates() {
-  dineInOrders.forEach(order => {
-    const branch = branches.find(b => b.name === order.branch);
-    if (!branch) return;
-    const key = branch.id + '_' + order.table;
-    const tbl = tableStates[key];
-    if (!tbl) return;
-    if (tbl.status === 'empty') {
-      tbl.status = order.status === 'ready' ? 'ready' : 'active-orders';
-      tbl.guest = order.name;
-      tbl.pax = parseInt(order.pax);
-      tbl.openedAt = order.timestamp;
-    }
-    tbl.orders.push(order);
-    tbl.sessionTotal += order.total;
-    if (order.billRequested) tbl.billRequested = true;
-    if (order.billRequested) tbl.status = 'bill-requested';
-  });
-}
+// No seed data — everything is loaded from Supabase.
+function seedTableStates() { /* intentionally empty — real data only */ }
 
-// Menu availability
-let menuAvailability = [
-  { id: 'tap', name: 'Tapsilog', emoji: '🍳', available: true, cat: 'Silogs', price: '₱139' },
-  { id: 'tor', name: 'Tosilog', emoji: '🥓', available: true, cat: 'Silogs', price: '₱129' },
-  { id: 'long', name: 'Longsilog', emoji: '🌭', available: true, cat: 'Silogs', price: '₱125' },
-  { id: 'bang', name: 'Bangsilog', emoji: '🐟', available: true, cat: 'Silogs', price: '₱135' },
-  { id: 'adb', name: 'Chicken Adobo', emoji: '🍗', available: true, cat: 'Chicken', price: '₱289+' },
-  { id: 'inasal', name: 'Chicken Inasal', emoji: '🔥', available: true, cat: 'Chicken', price: '₱319+' },
-  { id: 'tinola', name: 'Chicken Tinola', emoji: '🍲', available: true, cat: 'Chicken', price: '₱299+' },
-  { id: 'lechon', name: 'Lechon Kawali', emoji: '🥩', available: true, cat: 'Pork', price: '₱349+' },
-  { id: 'sini', name: 'Sinigang na Baboy', emoji: '🍲', available: true, cat: 'Pork', price: '₱329+' },
-  { id: 'kare', name: 'Kare-Kare', emoji: '🥜', available: false, cat: 'Pork', price: '₱359+' },
-  { id: 'sinigmahi', name: 'Sinigang na Hipon', emoji: '🦐', available: true, cat: 'Seafood', price: '₱349+' },
-  { id: 'lumpia', name: 'Lumpiang Shanghai', emoji: '🥢', available: true, cat: 'Merienda', price: '₱149' },
-  { id: 'pancit', name: 'Pancit Canton', emoji: '🍝', available: true, cat: 'Merienda', price: '₱159' },
-  { id: 'buko', name: 'Buko Juice', emoji: '🥥', available: true, cat: 'Drinks', price: '₱79' },
-  { id: 'coke', name: 'Softdrinks', emoji: '🥤', available: true, cat: 'Drinks', price: '₱55' },
-];
+// Menu availability — loaded from Supabase menu_items table via loadMenuFromDB()
+let menuAvailability = [];
 
 // ─── AUTH GATE ───
 async function tpnAuthGate() {
@@ -476,11 +407,21 @@ async function tpnAuthGate() {
 document.addEventListener('DOMContentLoaded', async () => {
   const authed = await tpnAuthGate();
   if (!authed) return;
+  // Resolve real table count from DB before initializing states
+  try {
+    await ensureBranchUuids();
+    const uuid = branchUuidCache['laspinas'];
+    if (uuid) {
+      const dbTables = await TPN.getTablesForBranch(uuid);
+      if (dbTables && dbTables.length) branches[0].tables = dbTables.length;
+    }
+  } catch(e) { console.warn('table count fetch:', e); }
   initTableStates();
   seedTableStates();
   updateBadges();
   renderTab();
   await loadOrdersFromSupabase();
+  loadMenuFromDB();
   subscribeToRealtime();
   checkCallStaff();
 });
@@ -850,47 +791,37 @@ function renderMenuStatus() {
 function renderSettings() {
   let html = `<div class="section-title" style="margin-bottom:16px">Branch & Table Settings</div>`;
 
-  // Branch list
+  // Branch list — read-only (single branch, edits happen in main portal)
   html += `<div class="settings-card">
-    <div class="settings-card-title">Branches</div>
+    <div class="settings-card-title">Branch Info</div>
     <div class="branch-list">`;
-  branches.forEach((branch, idx) => {
+  branches.forEach(branch => {
     html += `<div class="branch-item">
       <div class="branch-item-name">${branch.name}</div>
       <div class="branch-item-tables">${branch.tables} tables</div>
-      <div style="display:flex;gap:8px;align-items:center">
-        <label style="font-size:12px;color:var(--text-muted)">Tables:</label>
-        <input class="settings-input" type="number" min="1" max="50" value="${branch.tables}" onchange="updateBranchTables(${idx}, this.value)">
-        <label class="toggle-switch"><input type="checkbox" ${branch.active ? 'checked' : ''} onchange="toggleBranch(${idx}, this.checked)"><span class="toggle-slider"></span></label>
-      </div>
+      <div style="font-size:12px;color:var(--text-muted)">Active</div>
     </div>`;
   });
   html += `</div>
-  <div class="add-branch-form" style="margin-top:14px">
-    <input type="text" id="new-branch-name" placeholder="New branch name..." style="flex:1;min-width:120px;padding:9px 12px;border-radius:8px;border:1.5px solid var(--border);font-size:14px;font-family:'DM Sans',sans-serif;outline:none">
-    <input type="number" id="new-branch-tables" placeholder="Tables" min="1" max="50" value="6" style="width:80px;padding:9px 12px;border-radius:8px;border:1.5px solid var(--border);font-size:14px;font-family:'DM Sans',sans-serif;outline:none;text-align:center">
-    <button class="action-btn" onclick="addBranch()">+ Add Branch</button>
+  <div style="margin-top:10px;padding:10px 12px;background:var(--cream);border-radius:8px;font-size:12px;color:var(--text-muted);line-height:1.5;">
+    💡 Add or remove tables from the main portal → <strong>Table QR Codes</strong> tab.
   </div>
   </div>`;
 
-  // General settings
+  // General settings — informational only
   html += `<div class="settings-card">
     <div class="settings-card-title">General</div>
     <div class="settings-row">
-      <div><div class="settings-label">Auto-refresh interval</div><div class="settings-sub">How often to poll for new orders</div></div>
-      <span style="font-size:13px;color:var(--brick);font-weight:600">Every 3 seconds</span>
+      <div><div class="settings-label">Auto-refresh</div><div class="settings-sub">Realtime updates via Supabase — no polling needed</div></div>
+      <span style="font-size:13px;color:var(--brick);font-weight:600">Live</span>
     </div>
     <div class="settings-row">
-      <div><div class="settings-label">QR Menu base URL</div><div class="settings-sub">Link used in QR codes</div></div>
-      <span style="font-size:11px;color:var(--text-muted);font-family:monospace;word-break:break-all">tpn-table-menu.html</span>
-    </div>
-    <div class="settings-row">
-      <div><div class="settings-label">Bill request alerts</div><div class="settings-sub">Show popup when customer requests bill</div></div>
-      <label class="toggle-switch"><input type="checkbox" checked><span class="toggle-slider"></span></label>
+      <div><div class="settings-label">QR Menu URL</div><div class="settings-sub">Link encoded in printed QR codes</div></div>
+      <span style="font-size:11px;color:var(--text-muted);font-family:monospace;word-break:break-all">${window.location.origin}/tpn-os/tpn-table-menu.html</span>
     </div>
     <div class="settings-row">
       <div><div class="settings-label">New order sound</div><div class="settings-sub">Play audio on new order arrival</div></div>
-      <label class="toggle-switch"><input type="checkbox"><span class="toggle-slider"></span></label>
+      <label class="toggle-switch"><input type="checkbox" checked><span class="toggle-slider"></span></label>
     </div>
   </div>`;
 
@@ -976,10 +907,45 @@ function closeTable(tableNum, branchId) {
   ]);
 }
 
-function toggleMenuItem(idx) {
-  menuAvailability[idx].available = !menuAvailability[idx].available;
-  showToast(`${menuAvailability[idx].name} marked as ${menuAvailability[idx].available ? 'available' : 'unavailable'}.`);
+async function toggleMenuItem(idx) {
+  const item = menuAvailability[idx];
+  if (!item) return;
+  const newState = !item.available;
+  // Optimistic update
+  item.available = newState;
   renderTab();
+  try {
+    const { error } = await sb.from('menu_items').update({ is_available: newState }).eq('id', item.id);
+    if (error) throw error;
+    await TPN.logAudit('menu.toggle_availability', 'menu_item', item.id, { available: newState });
+    showToast(`${item.name} marked as ${newState ? 'available' : 'unavailable'}.`);
+  } catch(e) {
+    console.error('toggleMenuItem:', e);
+    item.available = !newState;   // rollback
+    renderTab();
+    showToast(`⚠️ Could not update ${item.name} — ${e.message||'try again'}`);
+  }
+}
+
+// Load real menu from Supabase (mirrors what the customer-facing site sees)
+async function loadMenuFromDB() {
+  try {
+    const { data, error } = await sb.from('menu_items')
+      .select('id, name, emoji, price, is_available, pax_options, menu_categories(name)')
+      .order('display_order', { ascending: true });
+    if (error) throw error;
+    menuAvailability = (data || []).map(i => ({
+      id: i.id,
+      name: i.name,
+      emoji: i.emoji || '🍽️',
+      available: i.is_available !== false,
+      cat: i.menu_categories?.name || '—',
+      price: i.pax_options
+        ? `₱${Math.min(...Object.values(i.pax_options))}+`
+        : `₱${Number(i.price)}`
+    }));
+    if (currentTab === 'menu') renderTab();
+  } catch(e) { console.error('loadMenuFromDB:', e); }
 }
 
 function updateBranchTables(idx, val) {
