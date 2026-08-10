@@ -345,7 +345,7 @@ const TPN = {
   // Get every staff schedule for one week (manager+ view).
   async listSchedulesForWeek(weekStart, branchId = null) {
     let q = sb.from('schedules')
-      .select('*, staff:staff(id, full_name, role, branch_id, employment_status)')
+      .select('*, staff:staff_id(id, full_name, role, branch_id, employment_status)')
       .eq('week_start', weekStart);
     const { data, error } = await q;
     if (error) throw error;
@@ -503,7 +503,7 @@ const TPN = {
   // Manager+ list attendance for a given work_date, across their branch (RLS enforced).
   async listAttendanceForDate(workDate) {
     const { data, error } = await sb.from('attendance')
-      .select('*, staff:staff(id, full_name, role, branch_id, employment_status)')
+      .select('*, staff:staff_id(id, full_name, role, branch_id, employment_status)')
       .eq('work_date', workDate)
       .order('clock_in_at', { ascending: false });
     if (error) throw error;

@@ -4214,7 +4214,10 @@ async function renderTableQR(main) {
   </div>
   <div id="tableQrBody"><div class="panel" style="padding:40px;text-align:center;color:var(--ink-muted);">Loading tables from database…</div></div>`;
 
-  const baseUrl = 'tpn-table-menu.html';
+  // Build ABSOLUTE base URL so QR codes work when scanned on any device.
+  // window.location.href strips filename + querystring to get the current directory.
+  const currentDir = window.location.href.replace(/[^/]*(\?.*)?$/, '');
+  const baseUrl = currentDir + 'tpn-table-menu.html';
   let html = '';
 
   try {
