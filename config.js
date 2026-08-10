@@ -12,5 +12,5 @@
 
 window.TPN_CONFIG = {
   SUPABASE_URL:      'https://xjlqfpnzobfqxetgkkai.supabase.co',
-  SUPABASE_ANON_KEY: 'd355a12a-cd0e-4d86-8aa8-a761632cbd02'
+  SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhqbHFmcG56b2JmcXhldGdra2FpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYxOTY4MDYsImV4cCI6MjEwMTc3MjgwNn0.DbSQcsrU_-GOBalxPT19F63lGoMr2RzMHBh5ZTQG0VY'
 };
