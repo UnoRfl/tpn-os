@@ -1415,7 +1415,7 @@
 
   /* RESPONSIVE — customer site */
   @media (max-width: 960px) {
-    nav { padding: 0 20px; }
+    #mainNav { padding: 0 20px; }
     .nav-links { display: none; }
     .nav-toggle { display: block; }
     .hero { padding: 110px 20px 80px; flex-direction: column; justify-content: center; }
@@ -1463,7 +1463,7 @@
     .conc-steps { grid-template-columns: 1fr; }
     .events-grid { grid-template-columns: 1fr 1fr; gap: 12px; }
     .menu-grid { grid-template-columns: 1fr; }
-    nav { height: 60px; }
+    #mainNav { height: 60px; }
     .mobile-menu { top: 60px; }
     .tile-grid { grid-template-columns: 1fr 1fr; }
     .order-grid { grid-template-columns: 1fr; }
@@ -2623,7 +2623,7 @@ async function confirmOrder() {
     const branch = await TPN.getBranchByCode('laspinas');
     if (!branch) throw new Error('Branch not found');
     // Map checkout orderType to DB enum
-    const otMap = { dinein: 'dine_in', pickup: 'pickup', delivery: 'delivery' };
+    const otMap = { takeout: 'pickup', pickup: 'pickup', delivery: 'delivery', dinein: 'dine_in' };
     const dbOrderType = otMap[checkoutData.orderType] || 'pickup';
     const dbPayment = ({ gcash: 'gcash', paymaya: 'paymaya', card: 'card', cash: 'cash' })[checkoutData.paymentMethod] || 'cash';
 
@@ -2692,7 +2692,7 @@ async function checkOrderStatus() {
 }
 function resetCheckout() {
   checkoutStep = 1;
-  checkoutData = { orderType: 'dinein', schedule: 'asap', paymentMethod: 'gcash' };
+  checkoutData = { orderType: 'takeout', schedule: 'asap', paymentMethod: 'gcash' };
   navigate('home');
 }
 
