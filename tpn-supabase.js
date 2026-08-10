@@ -423,6 +423,181 @@ const TPN = {
     return data;
   },
 
+  // ═════ ATTENDANCE ═══════════════════════════════════════════
+  // Clock in. Throws if there's already an open shift for this user (DB unique index enforces).
+  async clockIn(notes = null) {
+    if (!this._user) throw new Error('Not logged in');
+    const { data, error } = await sb.from('attendance').insert({
+      staff_id: this._user.id,
+      notes:    notes ?? null
+    }).select().single();
+    if (error) {
+      // Friendly message for the unique-index collision
+      if (/uniq_attendance_open_per_staff|duplicate/i.test(error.message||'')) {
+        throw new Error('You already have an open shift. Clock out first.');
+      }
+      throw error;
+    }
+    await this.logAudit('attendance.clock_in', 'attendance', data.id, {});
+    return data;
+  },
+
+  // Close the currently-open shift for this user. Returns null if there was none.
+  async clockOut() {
+    if (!this._user) throw new Error('Not logged in');
+    // Find the open one
+    const { data: openRows, error: findErr } = await sb.from('attendance')
+      .select('*').eq('staff_id', this._user.id).is('clock_out_at', null).limit(1);
+    if (findErr) throw findErr;
+    if (!openRows || !openRows.length) return null;
+    const row = openRows[0];
+    const { data, error } = await sb.from('attendance')
+      .update({ clock_out_at: new Date().toISOString() })
+      .eq('id', row.id).select().single();
+    if (error) throw error;
+    await this.logAudit('attendance.clock_out', 'attendance', data.id, {});
+    return data;
+  },
+
+  // Currently-open shift for this user (null if not clocked in).
+  async getOpenShift() {
+    if (!this._user) return null;
+    const { data, error } = await sb.from('attendance')
+      .select('*').eq('staff_id', this._user.id).is('clock_out_at', null).maybeSingle();
+    if (error) throw error;
+    return data;
+  },
+
+  // Last N days of attendance for this user (or a specific staffId, admin+).
+  async getMyAttendance(days = 7, staffId = null) {
+    const uid = staffId || this._user?.id;
+    if (!uid) return [];
+    const since = new Date(Date.now() - days * 86400000).toISOString();
+    const { data, error } = await sb.from('attendance')
+      .select('*').eq('staff_id', uid).gte('clock_in_at', since)
+      .order('clock_in_at', { ascending: false });
+    if (error) throw error;
+    return data || [];
+  },
+
+  // Attendance summary counts for the manager dashboard: past 30 days per staff.
+  async getAttendanceSummary(staffIds, days = 30) {
+    if (!staffIds || !staffIds.length) return {};
+    const since = new Date(Date.now() - days * 86400000).toISOString();
+    const { data, error } = await sb.from('attendance')
+      .select('staff_id, clock_in_at, clock_out_at')
+      .in('staff_id', staffIds).gte('clock_in_at', since);
+    if (error) throw error;
+    const summary = {};
+    staffIds.forEach(id => summary[id] = { shifts: 0, complete: 0, open: 0 });
+    (data || []).forEach(r => {
+      const s = summary[r.staff_id];
+      if (!s) return;
+      s.shifts++;
+      if (r.clock_out_at) s.complete++;
+      else s.open++;
+    });
+    return summary;
+  },
+
+  // Manager+ list attendance for a given work_date, across their branch (RLS enforced).
+  async listAttendanceForDate(workDate) {
+    const { data, error } = await sb.from('attendance')
+      .select('*, staff:staff(id, full_name, role, branch_id, employment_status)')
+      .eq('work_date', workDate)
+      .order('clock_in_at', { ascending: false });
+    if (error) throw error;
+    return data || [];
+  },
+
+  // Admin-only: correct an entry (e.g. staff forgot to clock out).
+  async correctAttendance(id, patch) {
+    const p = { ...patch, corrected_by: this._user?.id || null, corrected_at: new Date().toISOString() };
+    const { data, error } = await sb.from('attendance').update(p).eq('id', id).select().single();
+    if (error) throw error;
+    await this.logAudit('attendance.correct', 'attendance', id, patch);
+    return data;
+  },
+
+  subscribeAttendance(callback) {
+    const chan = sb.channel('attendance:all')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'attendance' },
+          payload => callback(payload))
+      .subscribe();
+    return () => sb.removeChannel(chan);
+  },
+
+  // ═════ MESSAGES ═════════════════════════════════════════════
+  // Inbox: to me directly + branch broadcasts to my branch. Ordered newest first.
+  async listMyMessages(limit = 50) {
+    if (!this._user) return [];
+    const { data, error } = await sb.from('messages')
+      .select('*, from_staff:from_staff_id(id, full_name, role), to_staff:to_staff_id(id, full_name)')
+      .or(`to_staff_id.eq.${this._user.id},and(to_staff_id.is.null,branch_id.eq.${this._user.branch_id || '00000000-0000-0000-0000-000000000000'})`)
+      .order('created_at', { ascending: false })
+      .limit(limit);
+    if (error) throw error;
+    return data || [];
+  },
+
+  // Sent messages (manager+ view of what they've sent).
+  async listSentMessages(limit = 50) {
+    if (!this._user) return [];
+    const { data, error } = await sb.from('messages')
+      .select('*, to_staff:to_staff_id(id, full_name)')
+      .eq('from_staff_id', this._user.id)
+      .order('created_at', { ascending: false })
+      .limit(limit);
+    if (error) throw error;
+    return data || [];
+  },
+
+  // Send. If toStaffId is null, this is a branch broadcast.
+  async sendMessage({ toStaffId = null, branchId = null, subject = null, body }) {
+    if (!this._user) throw new Error('Not logged in');
+    if (!body || !body.trim()) throw new Error('Message body cannot be empty');
+    const payload = {
+      from_staff_id: this._user.id,
+      to_staff_id:   toStaffId,
+      branch_id:     branchId || this._user.branch_id || null,
+      subject:       subject || null,
+      body:          body.trim()
+    };
+    const { data, error } = await sb.from('messages').insert(payload).select().single();
+    if (error) throw error;
+    await this.logAudit('message.send', 'message', data.id, {
+      to_staff_id: toStaffId, broadcast: toStaffId === null
+    });
+    return data;
+  },
+
+  async markMessageRead(id) {
+    const { data, error } = await sb.from('messages')
+      .update({ read_at: new Date().toISOString() })
+      .eq('id', id).is('read_at', null).select().maybeSingle();
+    if (error) throw error;
+    return data;
+  },
+
+  async unreadMessageCount() {
+    if (!this._user) return 0;
+    const { count, error } = await sb.from('messages')
+      .select('id', { count: 'exact', head: true })
+      .or(`to_staff_id.eq.${this._user.id},and(to_staff_id.is.null,branch_id.eq.${this._user.branch_id || '00000000-0000-0000-0000-000000000000'})`)
+      .is('read_at', null);
+    if (error) return 0;
+    return count || 0;
+  },
+
+  subscribeMessages(callback) {
+    if (!this._user) return () => {};
+    const chan = sb.channel('messages:' + this._user.id)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' },
+          payload => callback(payload))
+      .subscribe();
+    return () => sb.removeChannel(chan);
+  },
+
   // ═════ AUDIT ════════════════════════════════════════════════
   async logAudit(action, entityType, entityId, metadata = {}) {
     if (!this._user) return;

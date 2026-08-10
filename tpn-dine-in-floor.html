@@ -252,6 +252,30 @@
 </head>
 <body>
 
+<!-- AUTH GATE — hides content until we've confirmed the user is manager+ -->
+<style>
+  #tpn-auth-gate {
+    position: fixed; inset: 0; z-index: 9999;
+    background: var(--charcoal); color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    flex-direction: column; gap: 16px;
+    font-family: 'DM Sans', sans-serif;
+  }
+  #tpn-auth-gate .g-title { font-family: 'Playfair Display', serif; font-size: 22px; color: var(--gold-light); }
+  #tpn-auth-gate .g-sub   { font-size: 14px; color: rgba(255,255,255,0.7); text-align: center; max-width: 320px; }
+  #tpn-auth-gate .g-spin  { width: 34px; height: 34px; border: 3px solid rgba(255,255,255,0.15); border-top-color: var(--gold); border-radius: 50%; animation: gspin 0.9s linear infinite; }
+  @keyframes gspin { to { transform: rotate(360deg); } }
+  #tpn-auth-gate .g-btn { margin-top: 12px; background: var(--brick); color: #fff; border: none; padding: 10px 22px; border-radius: 10px; font-weight: 700; font-family: 'DM Sans', sans-serif; cursor: pointer; }
+  body.tpn-authed #tpn-auth-gate { display: none; }
+  body:not(.tpn-authed) > *:not(#tpn-auth-gate):not(script) { visibility: hidden; }
+</style>
+<div id="tpn-auth-gate">
+  <div class="g-title">Tyo Paeng Nyo</div>
+  <div class="g-spin"></div>
+  <div class="g-sub" id="tpn-auth-msg">Checking your login…</div>
+  <button class="g-btn" id="tpn-auth-btn" style="display:none;" onclick="window.location.href='index.html'">Go to Staff Login</button>
+</div>
+
 <!-- TOPBAR -->
 <header class="topbar">
   <div class="topbar-left">
@@ -406,8 +430,52 @@ let menuAvailability = [
   { id: 'coke', name: 'Softdrinks', emoji: '🥤', available: true, cat: 'Drinks', price: '₱55' },
 ];
 
+// ─── AUTH GATE ───
+async function tpnAuthGate() {
+  const msg = document.getElementById('tpn-auth-msg');
+  const btn = document.getElementById('tpn-auth-btn');
+  try {
+    // Wait for supabase-js to restore session from localStorage
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) {
+      msg.textContent = 'You need to be signed in as manager+ to view the floor panel.';
+      btn.style.display = 'inline-block';
+      return false;
+    }
+    const profile = await TPN.loadProfile();
+    if (!profile) {
+      msg.textContent = 'Your account is not linked to a staff profile.';
+      btn.style.display = 'inline-block';
+      return false;
+    }
+    if (profile.employment_status && profile.employment_status !== 'active') {
+      msg.textContent = 'Your account is not active. Contact a manager.';
+      btn.style.display = 'inline-block';
+      return false;
+    }
+    if (!TPN.hasRole('manager')) {
+      msg.textContent = 'The floor panel is for manager+ staff only. Your account: ' + (profile.role || 'unknown') + '.';
+      btn.style.display = 'inline-block';
+      return false;
+    }
+    // Reveal content
+    document.body.classList.add('tpn-authed');
+    // Reflect the role in the badge
+    const badge = document.getElementById('role-badge');
+    if (badge) badge.textContent = (profile.role || 'staff').replace(/\b\w/g, c => c.toUpperCase());
+    return true;
+  } catch (e) {
+    console.error('Auth gate error:', e);
+    msg.textContent = 'Could not verify your login. Try refreshing.';
+    btn.style.display = 'inline-block';
+    return false;
+  }
+}
+
 // ─── INIT ───
 document.addEventListener('DOMContentLoaded', async () => {
+  const authed = await tpnAuthGate();
+  if (!authed) return;
   initTableStates();
   seedTableStates();
   updateBadges();

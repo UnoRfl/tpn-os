@@ -2015,7 +2015,7 @@
         <div style="margin-top: 24px;">
           <button class="login-submit" onclick="verifyTwoFA()">Verify & Sign In</button>
         </div>
-        <div class="twofa-hint"><strong>Demo:</strong> Enter <strong>123456</strong> to continue (or any 6 digits)</div>
+        <div class="twofa-hint" style="color:var(--ink-muted);">SMS 2FA is bypassed for MVP — press <strong>Verify</strong> to continue.</div>
         <div style="margin-top: 20px; font-size: 13px; color: var(--ink-muted);">
           Didn't receive a code? <a class="forgot-link" onclick="toast('Code resent to your phone')">Resend</a>
         </div>
@@ -2754,7 +2754,6 @@ const portalState = {
   staff: [],
   inquiries: [],
   orders: [],
-  recognitions: [],
   auditLog: [],
   lang: 'en'
 };
@@ -2777,6 +2776,8 @@ async function exitStaffPortal() {
   try { localStorage.removeItem(TPN_ROUTE_KEY_ADMIN); localStorage.removeItem(TPN_ROUTE_KEY_STAFF); } catch(e) {}
   if (typeof _supaOrdersUnsub === 'function') { _supaOrdersUnsub(); }
   if (typeof _supaTablesChan !== 'undefined' && _supaTablesChan) { sb.removeChannel(_supaTablesChan); _supaTablesChan = null; }
+  if (typeof _msgUnsub === 'function') { _msgUnsub(); _msgUnsub = null; }
+  window._tpnUnreadMsgs = null;
   navigate('home');
 }
 
@@ -2811,14 +2812,12 @@ async function loadStaffFromSupabase() {
       name:          r.full_name,
       role:          r.role,
       branch:        'laspinas',
-      stars:         5,
-      attendance:    100,
       accountState:  r.employment_status === 'active' ? 'active' : r.employment_status,
       email:         r.email,
       phone:         r.phone
     }));
     renderAdminSidebar?.();
-    if (currentRoute === 'staff' || currentRoute === 'accounts' || currentRoute === 'dashboard') route(currentRoute);
+    if (currentRoute === 'staff' || currentRoute === 'accounts' || currentRoute === 'dashboard' || currentRoute === 'staff-board') route(currentRoute);
   } catch(e) { console.error('loadStaffFromSupabase:', e); }
 }
 
@@ -2912,8 +2911,8 @@ function verifyTwoFA() {
 
 function enterPortal() {
   if (!currentUser) return;
-  const validAdmin = ['dashboard','inquiries','orders','kds','staff-board','schedules','menu-manager','table-qr','accounts','audit'];
-  const validStaff = ['staff-home','kds','orders','staff-schedule','staff-attendance','staff-settings'];
+  const validAdmin = ['dashboard','inquiries','orders','kds','staff-board','schedules','menu-manager','table-qr','accounts','audit','attendance-admin','messages-admin'];
+  const validStaff = ['staff-home','kds','orders','staff-schedule','staff-attendance','staff-messages','staff-settings'];
 
   if (['dining', 'kitchen'].includes(currentUser.tier)) {
     showPortalPage('portal-staff');
@@ -2943,6 +2942,40 @@ function enterPortal() {
   startSupabaseSync().catch(e => console.error('sync start:', e));
   loadInquiriesFromSupabase().catch(e => console.error('inquiries load:', e));
   loadStaffFromSupabase().catch(e => console.error('staff load:', e));
+  startMessageSync().catch(e => console.error('message sync:', e));
+}
+
+// Poll unread message count + subscribe for realtime new messages
+let _msgUnsub = null;
+async function startMessageSync() {
+  try {
+    const c = await TPN.unreadMessageCount();
+    window._tpnUnreadMsgs = c || null;
+    if (typeof renderAdminSidebar === 'function' && currentUser && !['dining','kitchen'].includes(currentUser.tier)) renderAdminSidebar();
+    if (typeof renderStaffSidebar === 'function' && currentUser && ['dining','kitchen'].includes(currentUser.tier)) renderStaffSidebar();
+  } catch(e) { console.warn('unread count:', e); }
+  if (_msgUnsub) _msgUnsub();
+  _msgUnsub = TPN.subscribeMessages(async (payload) => {
+    const msg = payload?.new;
+    if (!msg) return;
+    // Ignore what we ourselves just sent
+    if (msg.from_staff_id === currentUser?.id) return;
+    // Only alert if I'm the recipient or it's a branch broadcast for my branch
+    const forMe = msg.to_staff_id === currentUser?.id
+      || (msg.to_staff_id === null && msg.branch_id === currentUser?.branch_id);
+    if (!forMe) return;
+    // Refresh count
+    try {
+      const c = await TPN.unreadMessageCount();
+      window._tpnUnreadMsgs = c || null;
+    } catch(e) {}
+    if (typeof renderAdminSidebar === 'function' && currentUser && !['dining','kitchen'].includes(currentUser.tier)) renderAdminSidebar();
+    if (typeof renderStaffSidebar === 'function' && currentUser && ['dining','kitchen'].includes(currentUser.tier)) renderStaffSidebar();
+    toast('✉️ New message from ' + (msg.from_staff_id ? 'a teammate' : 'the system'));
+    // If the user is currently viewing messages, refresh
+    if (currentRoute === 'staff-messages') routeStaff('staff-messages');
+    if (currentRoute === 'messages-admin') route('messages-admin');
+  });
 }
 
 // Auto-restore an existing Supabase session on page load.
@@ -2996,6 +3029,8 @@ function renderAdminSidebar() {
   navItems.push({ section: 'TEAM' });
   navItems.push({ id: 'staff-board', label: 'Staff Board', icon: '🎯' });
   navItems.push({ id: 'schedules', label: 'Schedules', icon: '📅' });
+  navItems.push({ id: 'attendance-admin', label: 'Attendance', icon: '✓' });
+  navItems.push({ id: 'messages-admin', label: 'Messages', icon: '✉️', badge: window._tpnUnreadMsgs || null });
   navItems.push({ id: 'menu-manager', label: 'Menu Manager', icon: '🍽️' });
   navItems.push({ id: 'table-qr', label: 'Table QR Codes', icon: '📲' });
   navItems.push({ id: 'accounts', label: 'Accounts', icon: '👤', badge: portalState.staff.filter(s => s.accountState === 'pending' || s.accountState === 'recommended').length || null });
@@ -3048,6 +3083,8 @@ function route(r) {
     case 'kds': renderKDS(main); break;
     case 'staff-board': renderStaffBoard(main); break;
     case 'schedules': renderSchedulesAdmin(main); break;
+    case 'attendance-admin': renderAttendanceAdmin(main); break;
+    case 'messages-admin': renderMessagesAdmin(main); break;
     case 'accounts': renderAccounts(main); break;
     case 'audit': renderAudit(main); break;
     case 'table-qr': renderTableQR(main); break;
@@ -3182,11 +3219,30 @@ function renderStaffBoard(main) {
       </div>`;
 
     const roleSlots = [
-      { role: 'manager', label: 'Manager', icon: '👔' },
-      { role: 'cashier', label: 'Cashier', icon: '💵' },
-      { role: 'kitchen', label: 'Kitchen', icon: '🍳' },
-      { role: 'service', label: 'Service', icon: '🍽️' },
+      { role: 'manager',    label: 'Manager',    icon: '👔' },
+      { role: 'supervisor', label: 'Supervisor', icon: '🎯' },
+      { role: 'dining',     label: 'Dining',     icon: '🍽️' },
+      { role: 'kitchen',    label: 'Kitchen',    icon: '🍳' },
     ];
+
+    // Admin+ leadership shows separately at the top of the column (not draggable to
+    // avoid accidentally demoting yourself). Only visible if there are any.
+    const leadership = branchStaff.filter(s => ['admin','director','ceo'].includes(s.role));
+    if (leadership.length) {
+      html += `<div class="role-slot" style="background:linear-gradient(135deg,rgba(184,128,15,0.12),rgba(139,26,14,0.06));border-color:var(--gold);">
+        <div class="role-slot-header"><span class="role-slot-icon">⭐</span><span>Leadership</span></div>
+        <div class="role-slot-bin" style="pointer-events:none;">
+          ${leadership.map(s => `
+            <div class="staff-chip" data-staff="${s.id}" style="opacity:0.9;">
+              <div class="staff-chip-avatar">${s.name.split(' ').map(p=>p[0]).join('').slice(0,2)}</div>
+              <div class="staff-chip-info">
+                <div class="staff-chip-name">${s.name}</div>
+                <div class="staff-chip-meta" style="text-transform:capitalize;">${s.role}</div>
+              </div>
+            </div>`).join('')}
+        </div>
+      </div>`;
+    }
 
     roleSlots.forEach(slot => {
       const staffInRole = branchStaff.filter(s => s.role === slot.role);
@@ -3198,7 +3254,7 @@ function renderStaffBoard(main) {
               <div class="staff-chip-avatar">${s.name.split(' ').map(p=>p[0]).join('').slice(0,2)}</div>
               <div class="staff-chip-info">
                 <div class="staff-chip-name">${s.name}</div>
-                ${(u.tier !== 'manager') ? `<div class="staff-chip-stars">${'★'.repeat(s.stars)}${'☆'.repeat(5-s.stars)}</div>` : `<div class="staff-chip-meta">${s.attendance}% attendance</div>`}
+                <div class="staff-chip-meta" style="text-transform:capitalize;">${s.role}</div>
               </div>
             </div>`).join('') : '<div class="empty-slot-hint">Drop staff here</div>'}
         </div>
@@ -3541,8 +3597,8 @@ function renderInquiries(main) {
         <div class="inquiry-actions">
           ${inq.status === 'new' ? `<button class="table-btn primary" onclick="updateInquiryStatus('${inq.id}','in-progress')">Mark In Progress</button>` : ''}
           ${inq.status !== 'closed' ? `<button class="table-btn" onclick="updateInquiryStatus('${inq.id}','closed')">Close</button>` : ''}
-          <button class="table-btn" onclick="toast('Call: ${inq.phone}')">📞 Call</button>
-          ${inq.email ? `<button class="table-btn" onclick="toast('Email drafted')">✉️ Email</button>` : ''}
+          ${inq.phone && inq.phone !== '—' ? `<a class="table-btn" href="tel:${inq.phone}" style="text-decoration:none;display:inline-block;">📞 Call</a>` : ''}
+          ${inq.email && inq.email !== '—' ? `<a class="table-btn" href="mailto:${inq.email}?subject=Re:%20Your%20inquiry%20to%20Tyo%20Paeng%20Nyo" style="text-decoration:none;display:inline-block;">✉️ Email</a>` : ''}
         </div>
       </div>`;
     });
@@ -3550,18 +3606,30 @@ function renderInquiries(main) {
   }
   main.innerHTML = html;
 }
-function updateInquiryStatus(id, status) {
+async function updateInquiryStatus(id, status) {
   const inq = portalState.inquiries.find(x => x.id === id);
-  if (inq) {
-    inq.status = status;
-    portalState.auditLog.unshift({
-      time: new Date().toISOString().slice(0, 16).replace('T', ' '),
-      actor: currentUser.name,
-      action: `Updated inquiry ${id} → ${status}`,
-      tier: currentUser.tier, branch: 'all'
-    });
+  if (!inq) return;
+  if (!inq.dbId) { toast('Cannot update — this inquiry has no DB reference'); return; }
+
+  const prev = inq.status;
+  // Optimistic UI
+  inq.status = status;
+  route('inquiries');
+
+  // Map UI status → DB status enum
+  const dbStatus = ({ 'new': 'pending', 'in-progress': 'in_progress', 'closed': 'closed', 'resolved': 'resolved' })[status] || status;
+  try {
+    const { error } = await sb.from('inquiries')
+      .update({ status: dbStatus, updated_at: new Date().toISOString() })
+      .eq('id', inq.dbId);
+    if (error) throw error;
+    await TPN.logAudit('inquiry.status_change', 'inquiry', inq.dbId, { new_status: dbStatus, ref: id });
     toast('Inquiry updated');
+  } catch (e) {
+    console.error('updateInquiryStatus failed:', e);
+    inq.status = prev;    // rollback
     route('inquiries');
+    toast('⚠️ Could not update inquiry — ' + (e.message || 'try again'));
   }
 }
 
@@ -3846,52 +3914,8 @@ async function advanceOrder(id, nextStatus) {
 }
 
 /* ════════════════════════════════════════════════════
-   RECOGNITION
+   RECOGNITION — removed. See git history if needed.
    ════════════════════════════════════════════════════ */
-function renderRecognition(main) {
-  const u = currentUser;
-  const isBranchScoped = u.tier === 'manager';
-  const recogs = isBranchScoped ? portalState.recognitions.filter(r => r.branch === u.branch) : portalState.recognitions;
-  let html = `<div class="portal-header">
-    <div><h1>Recognition</h1><div class="portal-header-sub">Auto-surfaced milestones based on attendance, customer feedback, and shift performance. Acknowledge to confirm receipt — rewards are at your discretion.</div></div>
-  </div>`;
-  const pending = recogs.filter(r => !r.acknowledged);
-  const ack = recogs.filter(r => r.acknowledged);
-  html += `<div class="panel"><div class="panel-header"><div class="panel-title">Awaiting Acknowledgment (${pending.length})</div></div>`;
-  if (!pending.length) html += '<div style="text-align:center;color:var(--ink-faint);padding:30px;">🎉 All caught up!</div>';
-  else {
-    html += '<div class="recog-list">';
-    pending.forEach(r => {
-      html += `<div class="recog-card">
-        <div class="recog-avatar">${r.staffName.split(' ').map(s=>s[0]).join('').slice(0,2)}</div>
-        <div class="recog-content">
-          <div class="recog-name">${r.staffName} <span style="font-weight:500;color:var(--ink-muted);font-size:12px;">• ${portalState.branches.find(b=>b.id===r.branch).name}</span></div>
-          <div class="recog-achievement">${r.achievement}</div>
-          <div class="recog-actions">
-            <button class="recog-ack-btn" onclick="acknowledgeRecog('${r.id}')">✓ Acknowledge</button>
-            <button class="recog-skip-btn" onclick="toast('Saved for later review')">Save for Later</button>
-          </div>
-        </div>
-      </div>`;
-    });
-    html += '</div>';
-  }
-  html += '</div>';
-  if (ack.length) {
-    html += `<div class="panel" style="margin-top:20px;"><div class="panel-header"><div class="panel-title">Acknowledged (${ack.length})</div></div><div class="recog-list">`;
-    ack.forEach(r => {
-      html += `<div class="recog-card" style="opacity:0.65;background:var(--surface);border-color:var(--line);">
-        <div class="recog-avatar">${r.staffName.split(' ').map(s=>s[0]).join('').slice(0,2)}</div>
-        <div class="recog-content">
-          <div class="recog-name">${r.staffName}</div>
-          <div class="recog-achievement">${r.achievement} ✓ acknowledged</div>
-        </div>
-      </div>`;
-    });
-    html += '</div></div>';
-  }
-  main.innerHTML = html;
-}
 
 /* ════════════════════════════════════════════════════
    ACCOUNTS
@@ -3930,7 +3954,7 @@ function renderAccounts(main) {
       html += `<tr>
         <td><div style="display:flex;align-items:center;gap:10px;">
           <div class="staff-chip-avatar" style="width:32px;height:32px;font-size:11px;">${s.name.split(' ').map(p=>p[0]).join('').slice(0,2)}</div>
-          <div><div style="font-weight:600;color:var(--ink);">${s.name}</div>${s.accountState === 'active' ? `<div style="font-size:11px;color:var(--ink-muted);">${s.attendance}% attendance</div>` : ''}</div>
+          <div><div style="font-weight:600;color:var(--ink);">${s.name}</div>${s.email ? `<div style="font-size:11px;color:var(--ink-muted);">${s.email}</div>` : ''}</div>
         </div></td>
         <td style="text-transform:capitalize;">${s.role}</td>
         <td>${br}</td>
@@ -4175,10 +4199,10 @@ async function createStaff() {
 /* ════════════════════════════════════════════════════
    TABLE QR CODES
    ════════════════════════════════════════════════════ */
-function renderTableQR(main) {
+async function renderTableQR(main) {
   const u = currentUser;
   const branches = portalState.branches;
-  let html = `<div class="portal-header">
+  main.innerHTML = `<div class="portal-header">
     <div>
       <h1>Table QR Codes</h1>
       <div class="portal-header-sub">Generate and print QR codes for each table. Customers scan to access the dine-in menu, bound to their table number.</div>
@@ -4187,33 +4211,76 @@ function renderTableQR(main) {
   <div style="background:rgba(184,128,15,0.10);border:1px solid var(--gold);border-radius:10px;padding:14px 18px;margin-bottom:24px;font-size:13px;color:var(--ink-soft);display:flex;align-items:center;gap:12px;">
     <span style="font-size:22px;">💡</span>
     <div>Each QR code links directly to the table menu with the table number and branch pre-filled. Customers scan → order → pay. Orders appear instantly in Live Orders.</div>
-  </div>`;
+  </div>
+  <div id="tableQrBody"><div class="panel" style="padding:40px;text-align:center;color:var(--ink-muted);">Loading tables from database…</div></div>`;
 
-  // Table count setting
-  const tableCount = 12; // can be made configurable
   const baseUrl = 'tpn-table-menu.html';
+  let html = '';
 
-  branches.forEach(br => {
-    html += `<div class="panel" style="margin-bottom:24px;">
-      <div class="panel-header">
-        <div class="panel-title">${br.name}</div>
-        <button class="panel-link" onclick="window.print()">🖨️ Print All</button>
-      </div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:16px;padding-top:8px;">`;
-    for (let t = 1; t <= tableCount; t++) {
-      const qrData = encodeURIComponent(`${baseUrl}?table=${t}&branch=${encodeURIComponent(br.name)}&branchId=${br.id}`);
-      const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${qrData}&color=8B1A0E&bgcolor=FDF6EC&margin=8`;
-      html += `<div style="background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;text-align:center;">
-        <div style="font-family:'Playfair Display',serif;font-size:18px;font-weight:900;color:var(--brick);margin-bottom:10px;">Table ${t}</div>
-        <img src="${qrUrl}" alt="Table ${t} QR" style="width:120px;height:120px;border-radius:8px;border:2px solid var(--brick);" loading="lazy">
-        <div style="font-size:10px;color:var(--ink-faint);margin-top:8px;letter-spacing:0.08em;">${br.name.toUpperCase()}</div>
-        <a href="${baseUrl}?table=${t}&branch=${encodeURIComponent(br.name)}&branchId=${br.id}" target="_blank" style="display:block;margin-top:8px;font-size:11px;color:var(--brick);font-weight:600;">Open Menu →</a>
-      </div>`;
+  try {
+    for (const br of branches) {
+      // Resolve to DB branch by code
+      const dbBranch = await TPN.getBranchByCode(br.id);   // portalState uses code as id
+      let tables = [];
+      if (dbBranch) {
+        try { tables = await TPN.getTablesForBranch(dbBranch.id); } catch(e) { tables = []; }
+      }
+      // Fallback: if no tables exist yet, offer to seed 1-12
+      const tableNumbers = tables.length ? tables.map(t => t.table_number).sort((a,b) => a - b) : [];
+
+      html += `<div class="panel" style="margin-bottom:24px;">
+        <div class="panel-header">
+          <div class="panel-title">${br.name} <span style="font-size:12px;color:var(--ink-muted);font-weight:500;margin-left:8px;">${tableNumbers.length} table${tableNumbers.length===1?'':'s'}</span></div>
+          <div style="display:flex;gap:8px;">
+            <button class="btn-ghost" style="padding:6px 12px;font-size:12px;" onclick="promptAddTable('${br.id}')">+ Add Table</button>
+            <button class="panel-link" onclick="window.print()">🖨️ Print All</button>
+          </div>
+        </div>`;
+      if (!tableNumbers.length) {
+        html += `<div style="text-align:center;color:var(--ink-faint);padding:30px;">No tables registered for ${br.name} yet. Click <strong>+ Add Table</strong> to create one.</div>`;
+      } else {
+        html += `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:16px;padding-top:8px;">`;
+        for (const t of tableNumbers) {
+          const qrData = encodeURIComponent(`${baseUrl}?table=${t}&branch=${encodeURIComponent(br.name)}&branchId=${br.id}`);
+          const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${qrData}&color=8B1A0E&bgcolor=FDF6EC&margin=8`;
+          html += `<div style="background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;text-align:center;">
+            <div style="font-family:'Playfair Display',serif;font-size:18px;font-weight:900;color:var(--brick);margin-bottom:10px;">Table ${t}</div>
+            <img src="${qrUrl}" alt="Table ${t} QR" style="width:120px;height:120px;border-radius:8px;border:2px solid var(--brick);" loading="lazy">
+            <div style="font-size:10px;color:var(--ink-faint);margin-top:8px;letter-spacing:0.08em;">${br.name.toUpperCase()}</div>
+            <a href="${baseUrl}?table=${t}&branch=${encodeURIComponent(br.name)}&branchId=${br.id}" target="_blank" style="display:block;margin-top:8px;font-size:11px;color:var(--brick);font-weight:600;">Open Menu →</a>
+          </div>`;
+        }
+        html += `</div>`;
+      }
+      html += `</div>`;
     }
-    html += `</div></div>`;
-  });
+    document.getElementById('tableQrBody').innerHTML = html;
+  } catch(e) {
+    console.error('renderTableQR:', e);
+    document.getElementById('tableQrBody').innerHTML = `<div class="panel" style="padding:24px;color:var(--danger);">Could not load tables: ${e.message||e}</div>`;
+  }
+}
 
-  main.innerHTML = html;
+async function promptAddTable(branchCode) {
+  const numStr = prompt('Table number to add (integer):');
+  if (!numStr) return;
+  const num = parseInt(numStr, 10);
+  if (!Number.isInteger(num) || num < 1 || num > 999) { toast('Invalid table number'); return; }
+  try {
+    const br = await TPN.getBranchByCode(branchCode);
+    if (!br) throw new Error('Branch not found');
+    const { error } = await sb.from('restaurant_tables').insert({
+      branch_id: br.id, table_number: num, is_active: true
+    });
+    if (error) throw error;
+    await TPN.logAudit('table.create', 'restaurant_table', null, { branch_code: branchCode, table_number: num });
+    toast(`✓ Table ${num} added`);
+    route('table-qr');
+  } catch(e) {
+    console.error('promptAddTable:', e);
+    if (/duplicate|unique/i.test(e.message||'')) toast(`⚠️ Table ${num} already exists`);
+    else toast('⚠️ Could not add table — ' + (e.message||'try again'));
+  }
 }
 
 /* ════════════════════════════════════════════════════
@@ -4445,6 +4512,252 @@ async function renderAudit(main) {
 }
 
 /* ════════════════════════════════════════════════════
+   ATTENDANCE (admin view)
+   ════════════════════════════════════════════════════ */
+let _attendanceCursor = new Date();
+async function renderAttendanceAdmin(main) {
+  const u = currentUser;
+  if (!TPN.hasRole('manager')) {
+    main.innerHTML = '<div class="panel" style="padding:40px;text-align:center;color:var(--ink-muted);">You don\'t have permission to view attendance records.</div>';
+    return;
+  }
+  const canCorrect = ['admin','director','ceo'].includes(u.tier);
+  const dateISO = _attendanceCursor.toISOString().slice(0, 10);
+  const dateLabel = _attendanceCursor.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+
+  main.innerHTML = `<div class="portal-header">
+    <div><h1>Attendance</h1><div class="portal-header-sub">Clock-in/out records for your branch.</div></div>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <button class="btn-ghost" onclick="attendanceNav(-1)">← Prev</button>
+      <div style="min-width:220px;text-align:center;font-weight:700;color:var(--ink);">${dateLabel}</div>
+      <button class="btn-ghost" onclick="attendanceNav(1)">Next →</button>
+      <button class="btn-ghost" onclick="attendanceNav(0)">Today</button>
+    </div>
+  </div>
+  <div id="attAdminBody"><div class="panel" style="padding:40px;text-align:center;color:var(--ink-muted);">Loading…</div></div>`;
+
+  try {
+    const rows = await TPN.listAttendanceForDate(dateISO);
+    const body = document.getElementById('attAdminBody');
+
+    // Also compute a 30-day summary per active staff for the overview tiles
+    const activeStaff = portalState.staff.filter(s => s.accountState === 'active');
+    const summary = activeStaff.length ? await TPN.getAttendanceSummary(activeStaff.map(s => s.id), 30) : {};
+
+    const totalShiftsToday = rows.length;
+    const stillOpen = rows.filter(r => !r.clock_out_at).length;
+    const uniqueStaffToday = new Set(rows.map(r => r.staff_id)).size;
+
+    let html = `<div class="tile-grid">
+      <div class="tile"><div class="tile-icon">👥</div><div class="tile-label">Staff Clocked In</div><div class="tile-value">${uniqueStaffToday}<span style="color:var(--ink-muted);font-size:18px;">/${activeStaff.length}</span></div><div class="tile-trend">${dateISO === new Date().toISOString().slice(0,10) ? 'today' : 'on ' + dateISO}</div></div>
+      <div class="tile"><div class="tile-icon">🕐</div><div class="tile-label">Total Shifts</div><div class="tile-value">${totalShiftsToday}</div><div class="tile-trend">records logged</div></div>
+      <div class="tile"><div class="tile-icon">🟢</div><div class="tile-label">Still on Shift</div><div class="tile-value">${stillOpen}</div><div class="tile-trend">not yet clocked out</div></div>
+    </div>`;
+
+    if (!rows.length) {
+      html += `<div class="panel" style="margin-top:24px;padding:40px;text-align:center;color:var(--ink-faint);">
+        No attendance records for ${dateLabel}.
+      </div>`;
+    } else {
+      const fmtTime = iso => iso ? new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) : '—';
+      html += `<div class="data-table-wrap" style="margin-top:24px;"><table class="data-table"><thead><tr>
+        <th>Staff</th><th>Role</th><th>Clock In</th><th>Clock Out</th><th>Duration</th><th>Status</th>${canCorrect ? '<th style="text-align:right;">Actions</th>' : ''}
+      </tr></thead><tbody>`;
+      rows.forEach(r => {
+        const staffName = r.staff?.full_name || '—';
+        const role = r.staff?.role || '—';
+        const dur = (r.clock_in_at && r.clock_out_at) ? (() => {
+          const ms = new Date(r.clock_out_at) - new Date(r.clock_in_at);
+          const h = Math.floor(ms/3600000), m = Math.floor((ms%3600000)/60000);
+          return `${h}h ${m}m`;
+        })() : (r.clock_in_at && !r.clock_out_at) ? 'ongoing' : '—';
+        const status = r.clock_out_at ? 'complete' : 'on-shift';
+        const correctedNote = r.corrected_at ? '<div style="font-size:10px;color:var(--gold);margin-top:2px;">✎ corrected</div>' : '';
+        html += `<tr>
+          <td><div style="font-weight:600;color:var(--ink);">${staffName}</div>${correctedNote}</td>
+          <td style="text-transform:capitalize;">${role}</td>
+          <td style="font-family:monospace;">${fmtTime(r.clock_in_at)}</td>
+          <td style="font-family:monospace;">${fmtTime(r.clock_out_at)}</td>
+          <td style="font-family:monospace;color:var(--ink-muted);">${dur}</td>
+          <td><span class="state-pill state-${status === 'on-shift' ? 'pending' : 'active'}">${status}</span></td>
+          ${canCorrect ? `<td class="table-actions"><button class="btn-ghost" style="padding:4px 10px;font-size:12px;" onclick="openCorrectAttendanceModal('${r.id}')">Correct</button></td>` : ''}
+        </tr>`;
+      });
+      html += `</tbody></table></div>`;
+    }
+
+    // 30-day per-staff summary
+    if (activeStaff.length) {
+      html += `<div class="panel" style="margin-top:24px;">
+        <div class="panel-header"><div class="panel-title">30-day summary per staff</div></div>
+        <div class="data-table-wrap"><table class="data-table"><thead><tr>
+          <th>Staff</th><th>Role</th><th>Total shifts</th><th>Complete</th><th>Currently open</th>
+        </tr></thead><tbody>`;
+      activeStaff.sort((a, b) => (summary[b.id]?.shifts || 0) - (summary[a.id]?.shifts || 0));
+      activeStaff.forEach(s => {
+        const sum = summary[s.id] || { shifts: 0, complete: 0, open: 0 };
+        html += `<tr>
+          <td style="font-weight:600;">${s.name}</td>
+          <td style="text-transform:capitalize;">${s.role}</td>
+          <td>${sum.shifts}</td>
+          <td>${sum.complete}</td>
+          <td>${sum.open > 0 ? '<span class="state-pill state-pending">' + sum.open + '</span>' : '0'}</td>
+        </tr>`;
+      });
+      html += `</tbody></table></div></div>`;
+    }
+
+    body.innerHTML = html;
+  } catch(e) {
+    console.error('renderAttendanceAdmin:', e);
+    document.getElementById('attAdminBody').innerHTML = `<div class="panel" style="padding:24px;color:var(--danger);">Could not load attendance: ${e.message||e}</div>`;
+  }
+}
+
+function attendanceNav(delta) {
+  if (delta === 0) _attendanceCursor = new Date();
+  else {
+    _attendanceCursor = new Date(_attendanceCursor);
+    _attendanceCursor.setDate(_attendanceCursor.getDate() + delta);
+  }
+  route('attendance-admin');
+}
+
+async function openCorrectAttendanceModal(id) {
+  if (!['admin','director','ceo'].includes(currentUser.tier)) { toast('Admin+ only'); return; }
+  // Fetch the record fresh
+  try {
+    const { data: r, error } = await sb.from('attendance').select('*, staff:staff(full_name)').eq('id', id).single();
+    if (error) throw error;
+    const toLocalDT = iso => iso ? new Date(iso).toISOString().slice(0, 16) : '';
+    showModal(`
+      <div class="modal-title">Correct Attendance Entry</div>
+      <div class="modal-sub">Staff: <strong>${r.staff?.full_name || '—'}</strong></div>
+      <div class="modal-content" style="display:grid;gap:12px;">
+        <div>
+          <label class="form-label">Clock In</label>
+          <input type="datetime-local" class="form-input" id="corrIn" value="${toLocalDT(r.clock_in_at)}">
+        </div>
+        <div>
+          <label class="form-label">Clock Out (leave blank if still on shift)</label>
+          <input type="datetime-local" class="form-input" id="corrOut" value="${toLocalDT(r.clock_out_at)}">
+        </div>
+        <div>
+          <label class="form-label">Reason (optional)</label>
+          <input type="text" class="form-input" id="corrReason" placeholder="e.g. forgot to clock out">
+        </div>
+        <div id="corrErr" style="color:var(--danger);font-size:13px;display:none;"></div>
+      </div>
+      <div class="modal-actions" style="justify-content:space-between;">
+        <button class="btn-ghost" style="color:var(--danger);" onclick="deleteAttendanceEntry('${id}')">Delete Entry</button>
+        <div style="display:flex;gap:10px;">
+          <button class="btn-back" onclick="closeModal()">Cancel</button>
+          <button class="btn-next" id="corrBtn" onclick="submitCorrectAttendance('${id}')">Save</button>
+        </div>
+      </div>`);
+  } catch(e) { console.error(e); toast('⚠️ Could not load entry'); }
+}
+
+async function submitCorrectAttendance(id) {
+  const err = document.getElementById('corrErr');
+  const btn = document.getElementById('corrBtn');
+  const inV = document.getElementById('corrIn').value;
+  const outV = document.getElementById('corrOut').value;
+  const reason = document.getElementById('corrReason').value.trim() || null;
+  err.style.display = 'none';
+  if (!inV) { err.textContent = 'Clock In is required.'; err.style.display = 'block'; return; }
+  if (outV && new Date(outV) < new Date(inV)) { err.textContent = 'Clock Out cannot be before Clock In.'; err.style.display = 'block'; return; }
+  btn.disabled = true; btn.textContent = 'Saving…';
+  try {
+    const patch = {
+      clock_in_at: new Date(inV).toISOString(),
+      clock_out_at: outV ? new Date(outV).toISOString() : null,
+      notes: reason
+    };
+    await TPN.correctAttendance(id, patch);
+    closeModal();
+    toast('✓ Entry corrected');
+    route('attendance-admin');
+  } catch(e) {
+    console.error('correctAttendance:', e);
+    err.textContent = e.message || 'Could not save.';
+    err.style.display = 'block';
+    btn.disabled = false; btn.textContent = 'Save';
+  }
+}
+
+async function deleteAttendanceEntry(id) {
+  if (!confirm('Delete this attendance entry? This cannot be undone.')) return;
+  try {
+    const { error } = await sb.from('attendance').delete().eq('id', id);
+    if (error) throw error;
+    await TPN.logAudit('attendance.delete', 'attendance', id, {});
+    closeModal();
+    toast('Entry deleted');
+    route('attendance-admin');
+  } catch(e) { console.error(e); toast('⚠️ Could not delete — ' + (e.message||'')); }
+}
+
+/* ════════════════════════════════════════════════════
+   MESSAGES (admin view — inbox + sent + compose)
+   ════════════════════════════════════════════════════ */
+let _msgAdminTab = 'inbox';
+async function renderMessagesAdmin(main) {
+  if (!TPN.hasRole('manager')) {
+    main.innerHTML = '<div class="panel" style="padding:40px;text-align:center;color:var(--ink-muted);">Manager+ only.</div>';
+    return;
+  }
+  main.innerHTML = `<div class="portal-header">
+    <div><h1>Messages</h1><div class="portal-header-sub">Your inbox and messages you've sent. Compose to send to a person or broadcast to Las Piñas.</div></div>
+    <button class="btn-primary" onclick="openComposeMessageModal()" style="padding:10px 20px;">✉️ Compose</button>
+  </div>
+  <div style="display:flex;gap:8px;margin-bottom:16px;">
+    <button class="btn-ghost" style="${_msgAdminTab==='inbox'?'background:var(--brick);color:#fff;':''}" onclick="setMsgAdminTab('inbox')">📥 Inbox</button>
+    <button class="btn-ghost" style="${_msgAdminTab==='sent'?'background:var(--brick);color:#fff;':''}" onclick="setMsgAdminTab('sent')">📤 Sent</button>
+  </div>
+  <div id="msgAdminBody"><div class="panel" style="padding:40px;text-align:center;color:var(--ink-muted);">Loading…</div></div>`;
+
+  try {
+    const rows = _msgAdminTab === 'sent' ? await TPN.listSentMessages(100) : await TPN.listMyMessages(100);
+    const body = document.getElementById('msgAdminBody');
+    if (!rows.length) {
+      body.innerHTML = `<div class="panel" style="padding:40px;text-align:center;color:var(--ink-faint);">
+        ${_msgAdminTab === 'sent' ? '📤 You haven\'t sent any messages yet.' : '📥 Your inbox is empty.'}
+      </div>`;
+      return;
+    }
+    body.innerHTML = `<div class="msg-list">` + rows.map(m => {
+      const isSent = _msgAdminTab === 'sent';
+      const otherParty = isSent
+        ? (m.to_staff?.full_name || (m.to_staff_id === null ? '📣 All Las Piñas' : '—'))
+        : (m.from_staff?.full_name || 'System');
+      const initials = otherParty.split(' ').map(s=>s[0]).join('').slice(0,2).replace(/[^A-Za-z]/g, '') || 'TP';
+      const isBroadcast = !isSent && m.to_staff_id === null;
+      const label = isSent ? 'To' : 'From';
+      return `<div class="msg-item ${!isSent && !m.read_at ? 'unread' : ''}" onclick="openMessageDetail('${m.id}')">
+        <div class="msg-avatar">${initials}</div>
+        <div class="msg-content">
+          <div class="msg-header">
+            <div class="msg-from"><span style="font-size:10px;color:var(--ink-muted);font-weight:500;">${label}:</span> ${otherParty}${isBroadcast ? ' <span style=\"font-size:10px;color:var(--gold);font-weight:600;\">📣 BROADCAST</span>' : ''}</div>
+            <div class="msg-time">${timeAgo(new Date(m.created_at))}</div>
+          </div>
+          ${m.subject ? `<div style="font-weight:600;color:var(--ink);font-size:13px;margin-bottom:4px;">${m.subject}</div>` : ''}
+          <div class="msg-snippet">${(m.body || '').slice(0, 200)}${m.body && m.body.length > 200 ? '…' : ''}</div>
+        </div>
+      </div>`;
+    }).join('') + `</div>`;
+  } catch(e) {
+    console.error('renderMessagesAdmin:', e);
+    document.getElementById('msgAdminBody').innerHTML = `<div class="panel" style="padding:24px;color:var(--danger);">Could not load messages: ${e.message||e}</div>`;
+  }
+}
+
+function setMsgAdminTab(tab) {
+  _msgAdminTab = tab;
+  route('messages-admin');
+}
+
+/* ════════════════════════════════════════════════════
    STAFF PERSONAL VIEW (Dining/Kitchen)
    ════════════════════════════════════════════════════ */
 function renderStaffSidebar() {
@@ -4465,6 +4778,7 @@ function renderStaffSidebar() {
   items.push(
     { id: 'staff-schedule', label: 'My Schedule', icon: '📅' },
     { id: 'staff-attendance', label: 'My Attendance', icon: '✓' },
+    { id: 'staff-messages', label: 'Messages', icon: '✉️', badge: window._tpnUnreadMsgs || null },
     { section: 'SETTINGS' },
     { id: 'staff-settings', label: 'Settings', icon: '⚙️' },
   );
@@ -4495,53 +4809,120 @@ function routeStaff(r) {
     case 'orders': renderOrders(main); break;
     case 'staff-schedule': renderStaffSchedule(main); break;
     case 'staff-attendance': renderStaffAttendance(main); break;
+    case 'staff-messages': renderStaffMessages(main); break;
     case 'staff-settings': renderStaffSettings(main); break;
     default: renderStaffHome(main);
   }
   window.scrollTo({ top: 0, behavior: 'instant' });
 }
-function renderStaffHome(main) {
+async function renderStaffHome(main) {
   const u = currentUser;
   const first = u.name.split(' ')[0];
+
+  // Render skeleton first so route change feels snappy
   main.innerHTML = `
     <div class="staff-hero">
       <div class="staff-hero-content">
         <h1>Magandang araw, ${first}!</h1>
-        <div class="staff-hero-sub">${u.tier === 'dining' ? 'Dining Staff' : 'Kitchen Staff'} • Las Piñas Branch</div>
+        <div class="staff-hero-sub">${u.tier === 'dining' ? 'Dining Staff' : u.tier === 'kitchen' ? 'Kitchen Staff' : (u.tier.charAt(0).toUpperCase()+u.tier.slice(1))} • Las Piñas Branch</div>
       </div>
-      <div class="staff-hero-stats">
-        <div class="staff-hero-stat"><div class="staff-hero-stat-label">This Week</div><div class="staff-hero-stat-val">5/6</div></div>
-        <div class="staff-hero-stat"><div class="staff-hero-stat-label">This Month</div><div class="staff-hero-stat-val">22/24</div></div>
-        <div class="staff-hero-stat"><div class="staff-hero-stat-label">Streak</div><div class="staff-hero-stat-val">14d</div></div>
+      <div class="staff-hero-stats" id="staffHeroStats">
+        <div class="staff-hero-stat"><div class="staff-hero-stat-label">This Week</div><div class="staff-hero-stat-val">—</div></div>
+        <div class="staff-hero-stat"><div class="staff-hero-stat-label">This Month</div><div class="staff-hero-stat-val">—</div></div>
+        <div class="staff-hero-stat"><div class="staff-hero-stat-label">Streak</div><div class="staff-hero-stat-val">—</div></div>
       </div>
     </div>
     <div class="today-grid">
       <div class="panel">
         <div class="panel-header"><div class="panel-title">Today's Shift</div><button class="panel-link" onclick="routeStaff('staff-schedule')">Full Week →</button></div>
-        <div style="padding:14px;background:var(--bg);border-radius:8px;border:1px solid var(--line);">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-            <div><div style="font-family:'Playfair Display',serif;font-size:18px;font-weight:700;color:var(--ink);">Today, May 12</div><div style="font-size:13px;color:var(--ink-muted);">Tuesday</div></div>
-            <div class="state-pill state-active">On Shift</div>
-          </div>
-          <div style="display:flex;gap:20px;font-size:14px;margin-top:14px;border-top:1px solid var(--line-soft);padding-top:14px;">
-            <div><div style="font-size:10px;color:var(--ink-muted);letter-spacing:0.12em;text-transform:uppercase;font-weight:700;margin-bottom:4px;">Clock In</div><div style="color:var(--ink);font-weight:600;">9:45 AM ✓</div></div>
-            <div><div style="font-size:10px;color:var(--ink-muted);letter-spacing:0.12em;text-transform:uppercase;font-weight:700;margin-bottom:4px;">Shift End</div><div style="color:var(--ink);font-weight:600;">6:00 PM</div></div>
-            <div><div style="font-size:10px;color:var(--ink-muted);letter-spacing:0.12em;text-transform:uppercase;font-weight:700;margin-bottom:4px;">Break</div><div style="color:var(--ink);font-weight:600;">1:00-2:00 PM</div></div>
-          </div>
-        </div>
+        <div id="staffTodayShift" style="padding:14px;background:var(--bg);border-radius:8px;border:1px solid var(--line);color:var(--ink-muted);">Loading…</div>
       </div>
       <div class="panel">
-        <div class="panel-header"><div class="panel-title">My Recognition</div></div>
-        <div class="recog-card">
-          <div class="recog-avatar">${u.name.split(' ').map(s=>s[0]).join('').slice(0,2)}</div>
-          <div class="recog-content">
-            <div class="recog-name">14-day streak!</div>
-            <div class="recog-achievement">Perfect attendance recognized by Manager Marl</div>
-          </div>
-        </div>
-        <div style="margin-top:14px;font-size:13px;color:var(--ink-muted);line-height:1.5;">Recognition is at your manager's discretion. Salamat sa magandang trabaho!</div>
+        <div class="panel-header"><div class="panel-title">Recent Messages</div><button class="panel-link" onclick="routeStaff('staff-messages')">Inbox →</button></div>
+        <div id="staffHomeMsgs" style="padding:8px 0;color:var(--ink-muted);">Loading…</div>
       </div>
     </div>`;
+
+  // Fill in real data async
+  try {
+    const [attendance, openShift, msgs] = await Promise.all([
+      TPN.getMyAttendance(35),
+      TPN.getOpenShift(),
+      TPN.listMyMessages(3).catch(() => [])
+    ]);
+    // Compute this-week / this-month counts
+    const now = new Date();
+    const weekAgo = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6);
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const thisWeek  = attendance.filter(a => new Date(a.clock_in_at) >= weekAgo).length;
+    const thisMonth = attendance.filter(a => new Date(a.clock_in_at) >= monthStart).length;
+    // Streak = consecutive days ending today with at least one shift
+    const daySet = new Set(attendance.map(a => (a.work_date || a.clock_in_at.slice(0,10))));
+    let streak = 0;
+    const d = new Date();
+    while (true) {
+      const key = d.toISOString().slice(0, 10);
+      if (daySet.has(key)) { streak++; d.setDate(d.getDate() - 1); }
+      else break;
+    }
+    const stats = document.getElementById('staffHeroStats');
+    if (stats) stats.innerHTML = `
+      <div class="staff-hero-stat"><div class="staff-hero-stat-label">This Week</div><div class="staff-hero-stat-val">${thisWeek}</div></div>
+      <div class="staff-hero-stat"><div class="staff-hero-stat-label">This Month</div><div class="staff-hero-stat-val">${thisMonth}</div></div>
+      <div class="staff-hero-stat"><div class="staff-hero-stat-label">Streak</div><div class="staff-hero-stat-val">${streak}d</div></div>`;
+
+    // Today's shift + clock in/out button
+    const shiftEl = document.getElementById('staffTodayShift');
+    if (shiftEl) {
+      const today = new Date();
+      const dateLabel = today.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
+      let inner = '';
+      if (openShift) {
+        const inTime = new Date(openShift.clock_in_at);
+        const mins = Math.floor((Date.now() - inTime.getTime()) / 60000);
+        const h = Math.floor(mins/60), m = mins%60;
+        inner = `
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+            <div><div style="font-family:'Playfair Display',serif;font-size:18px;font-weight:700;color:var(--ink);">${dateLabel}</div><div style="font-size:13px;color:var(--ink-muted);">On shift since ${inTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</div></div>
+            <div class="state-pill state-active">On Shift · ${h}h ${m}m</div>
+          </div>
+          <button class="btn-primary" style="width:100%;padding:12px;font-size:15px;" onclick="doClockOut()">🕐 Clock Out</button>`;
+      } else {
+        inner = `
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+            <div><div style="font-family:'Playfair Display',serif;font-size:18px;font-weight:700;color:var(--ink);">${dateLabel}</div><div style="font-size:13px;color:var(--ink-muted);">Not clocked in</div></div>
+            <div class="state-pill state-pending">Off Shift</div>
+          </div>
+          <button class="btn-primary" style="width:100%;padding:12px;font-size:15px;background:var(--success);" onclick="doClockIn()">🕐 Clock In</button>`;
+      }
+      shiftEl.innerHTML = inner;
+    }
+
+    // Messages preview
+    const msgEl = document.getElementById('staffHomeMsgs');
+    if (msgEl) {
+      if (!msgs.length) msgEl.innerHTML = '<div style="text-align:center;color:var(--ink-faint);padding:20px;">📬 No messages yet.</div>';
+      else msgEl.innerHTML = msgs.slice(0, 3).map(m => `
+        <div class="msg-item ${!m.read_at ? 'unread' : ''}" onclick="routeStaff('staff-messages')" style="cursor:pointer;">
+          <div class="msg-avatar">${(m.from_staff?.full_name || '?').split(' ').map(s=>s[0]).join('').slice(0,2)}</div>
+          <div class="msg-content">
+            <div class="msg-header"><div class="msg-from">${m.from_staff?.full_name || 'System'}</div><div class="msg-time">${timeAgo(new Date(m.created_at))}</div></div>
+            <div class="msg-snippet">${(m.body || '').slice(0, 120)}${m.body && m.body.length > 120 ? '…' : ''}</div>
+          </div>
+        </div>`).join('');
+    }
+  } catch (e) {
+    console.error('renderStaffHome:', e);
+  }
+}
+
+async function doClockIn() {
+  try { await TPN.clockIn(); toast('✓ Clocked in'); routeStaff('staff-home'); }
+  catch(e) { toast('⚠️ ' + (e.message || 'Could not clock in')); }
+}
+async function doClockOut() {
+  try { await TPN.clockOut(); toast('✓ Clocked out'); routeStaff('staff-home'); }
+  catch(e) { toast('⚠️ ' + (e.message || 'Could not clock out')); }
 }
 // ─── SCHEDULE UTILS (shared between staff view + manager view) ───
 const DAY_KEYS  = ['mon','tue','wed','thu','fri','sat','sun'];
@@ -4628,110 +5009,274 @@ function shiftStaffScheduleWeek(delta) {
   }
   routeStaff('staff-schedule');
 }
-function renderStaffAttendance(main) {
-  const entries = [
-    { date: 'May 12, 2026', day: 'Tue', in: '9:45 AM', out: '—', status: 'on-shift' },
-    { date: 'May 11, 2026', day: 'Mon', in: '9:42 AM', out: '6:05 PM', status: 'complete' },
-    { date: 'May 10, 2026', day: 'Sun', in: 'OFF', out: '—', status: 'off' },
-    { date: 'May 9, 2026', day: 'Sat', in: '9:50 AM', out: '6:00 PM', status: 'complete' },
-    { date: 'May 8, 2026', day: 'Fri', in: '12:00 PM', out: '9:10 PM', status: 'complete' },
-    { date: 'May 7, 2026', day: 'Thu', in: '11:55 AM', out: '9:00 PM', status: 'complete' },
-    { date: 'May 6, 2026', day: 'Wed', in: 'OFF', out: '—', status: 'off' },
-  ];
-  main.innerHTML = `<div class="portal-header"><div><h1>My Attendance</h1><div class="portal-header-sub">Last 7 days. Your records, fully visible.</div></div></div>
-    <div class="tile-grid">
-      <div class="tile"><div class="tile-icon">📈</div><div class="tile-label">This Month</div><div class="tile-value">22<span style="color:var(--ink-muted);font-size:18px;">/24</span></div><div class="tile-trend">92% — strong</div></div>
-      <div class="tile"><div class="tile-icon">🔥</div><div class="tile-label">Current Streak</div><div class="tile-value">14<span style="color:var(--ink-muted);font-size:18px;"> days</span></div><div class="tile-trend">no late, no absent</div></div>
-      <div class="tile"><div class="tile-icon">⏱️</div><div class="tile-label">Avg Clock-In</div><div class="tile-value">9:47<span style="color:var(--ink-muted);font-size:18px;"> AM</span></div><div class="tile-trend">always early</div></div>
-    </div>
-    <table class="data-table" style="margin-top:24px;"><thead><tr><th>Date</th><th>Day</th><th>Clock In</th><th>Clock Out</th><th>Status</th></tr></thead><tbody>
-      ${entries.map(e => `<tr>
-        <td>${e.date}</td><td>${e.day}</td><td style="font-family:monospace;">${e.in}</td><td style="font-family:monospace;">${e.out}</td>
-        <td><span class="state-pill state-${e.status === 'on-shift' ? 'pending' : e.status === 'complete' ? 'active' : 'disabled'}">${e.status}</span></td>
-      </tr>`).join('')}
-    </tbody></table>`;
+async function renderStaffAttendance(main) {
+  main.innerHTML = `<div class="portal-header"><div><h1>My Attendance</h1><div class="portal-header-sub">Last 30 days. Your records, fully visible.</div></div></div>
+    <div id="attendBody"><div class="panel" style="padding:40px;text-align:center;color:var(--ink-muted);">Loading…</div></div>`;
+  try {
+    const [rows, openShift] = await Promise.all([TPN.getMyAttendance(30), TPN.getOpenShift()]);
+
+    // Compute stats
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const daysThisMonth = Math.min(30, Math.floor((now - monthStart) / 86400000) + 1);
+    const shiftsThisMonth = rows.filter(a => new Date(a.clock_in_at) >= monthStart).length;
+
+    // Compute avg clock-in hour
+    const inTimes = rows.filter(a => a.clock_in_at).map(a => {
+      const d = new Date(a.clock_in_at);
+      return d.getHours() + d.getMinutes()/60;
+    });
+    const avgHour = inTimes.length ? inTimes.reduce((a,b) => a+b, 0) / inTimes.length : null;
+    const avgLabel = avgHour === null ? '—' : (() => {
+      const h = Math.floor(avgHour); const m = Math.round((avgHour - h) * 60);
+      const ampm = h >= 12 ? 'PM' : 'AM'; const h12 = h % 12 || 12;
+      return `${h12}:${String(m).padStart(2,'0')}<span style="color:var(--ink-muted);font-size:18px;"> ${ampm}</span>`;
+    })();
+
+    // Streak (see renderStaffHome logic)
+    const daySet = new Set(rows.map(a => (a.work_date || a.clock_in_at.slice(0,10))));
+    let streak = 0; const d = new Date();
+    while (true) {
+      const key = d.toISOString().slice(0, 10);
+      if (daySet.has(key)) { streak++; d.setDate(d.getDate() - 1); }
+      else break;
+    }
+
+    const fmtTime = iso => iso ? new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) : '—';
+    const fmtDate = iso => iso ? new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
+    const fmtDay  = iso => iso ? new Date(iso).toLocaleDateString('en-US', { weekday: 'short' }) : '—';
+
+    const body = document.getElementById('attendBody');
+    let html = `
+      <div class="tile-grid">
+        <div class="tile"><div class="tile-icon">📈</div><div class="tile-label">This Month</div><div class="tile-value">${shiftsThisMonth}<span style="color:var(--ink-muted);font-size:18px;"> shifts</span></div><div class="tile-trend">of ${daysThisMonth} days elapsed</div></div>
+        <div class="tile"><div class="tile-icon">🔥</div><div class="tile-label">Current Streak</div><div class="tile-value">${streak}<span style="color:var(--ink-muted);font-size:18px;"> day${streak===1?'':'s'}</span></div><div class="tile-trend">consecutive with shift</div></div>
+        <div class="tile"><div class="tile-icon">⏱️</div><div class="tile-label">Avg Clock-In</div><div class="tile-value">${avgLabel}</div><div class="tile-trend">across ${inTimes.length} shift${inTimes.length===1?'':'s'}</div></div>
+      </div>`;
+
+    if (!rows.length) {
+      html += `<div class="panel" style="margin-top:24px;padding:40px;text-align:center;color:var(--ink-faint);">
+        No attendance records yet. Clock in from your Home tab to get started.
+      </div>`;
+    } else {
+      html += `<table class="data-table" style="margin-top:24px;"><thead><tr>
+        <th>Date</th><th>Day</th><th>Clock In</th><th>Clock Out</th><th>Duration</th><th>Status</th>
+      </tr></thead><tbody>`;
+      rows.forEach(r => {
+        const inT = r.clock_in_at, outT = r.clock_out_at;
+        const dur = (inT && outT) ? (() => {
+          const ms = new Date(outT) - new Date(inT);
+          const h = Math.floor(ms/3600000), m = Math.floor((ms%3600000)/60000);
+          return `${h}h ${m}m`;
+        })() : (inT && !outT) ? 'ongoing' : '—';
+        const status = outT ? 'complete' : 'on-shift';
+        html += `<tr>
+          <td>${fmtDate(inT)}</td><td>${fmtDay(inT)}</td>
+          <td style="font-family:monospace;">${fmtTime(inT)}</td>
+          <td style="font-family:monospace;">${fmtTime(outT)}</td>
+          <td style="font-family:monospace;color:var(--ink-muted);">${dur}</td>
+          <td><span class="state-pill state-${status === 'on-shift' ? 'pending' : 'active'}">${status}</span></td>
+        </tr>`;
+      });
+      html += `</tbody></table>`;
+    }
+    body.innerHTML = html;
+  } catch(e) {
+    console.error('renderStaffAttendance:', e);
+    document.getElementById('attendBody').innerHTML = `<div class="panel" style="padding:24px;color:var(--danger);">Could not load attendance: ${e.message||e}</div>`;
+  }
 }
-function renderStaffRecog(main) {
-  main.innerHTML = `<div class="portal-header"><div><h1>My Recognition</h1><div class="portal-header-sub">Achievements your manager has acknowledged.</div></div></div>
-    <div class="recog-list">
-      <div class="recog-card">
-        <div class="recog-avatar">${currentUser.name.split(' ').map(s=>s[0]).join('').slice(0,2)}</div>
-        <div class="recog-content">
-          <div class="recog-name">14-Day Perfect Attendance ★</div>
-          <div class="recog-achievement">Acknowledged by Manager Marl on May 10, 2026</div>
-        </div>
-      </div>
-      <div class="recog-card" style="background:var(--surface);">
-        <div class="recog-avatar">${currentUser.name.split(' ').map(s=>s[0]).join('').slice(0,2)}</div>
-        <div class="recog-content">
-          <div class="recog-name">Customer Compliment</div>
-          <div class="recog-achievement">"Ang bait ng nag-serve sa amin kanina." — Customer feedback, April 28</div>
-        </div>
-      </div>
-      <div class="recog-card" style="background:var(--surface);">
-        <div class="recog-avatar">${currentUser.name.split(' ').map(s=>s[0]).join('').slice(0,2)}</div>
-        <div class="recog-content">
-          <div class="recog-name">Month of April: 23 days perfect</div>
-          <div class="recog-achievement">Acknowledged by Manager Marl on May 1, 2026</div>
-        </div>
-      </div>
-    </div>`;
-}
-function renderStaffMessages(main) {
-  const msgs = [
-    { from: 'Manager Marl', initials: 'MM', time: '2h ago', snippet: 'Janelle, pakitignan ang sched mo this Friday — meron tayong 80-pax group sa lunch service. Need ko ng experienced sa floor.', unread: true },
-    { from: 'CEO Reyes', initials: 'CR', time: 'yesterday', snippet: 'All-staff: Salamat sa magandang trabaho this past week. Sales are up across all branches. Tuloy lang ang husay!', unread: true },
-    { from: 'Joel Bautista (Kitchen)', initials: 'JB', time: '2d ago', snippet: 'Pre kalat ng kalat tong tray mo kanina lol. Joke lang, ayos lang. May kanin pa ba sa station mo?', unread: false },
-    { from: 'Manager Marl', initials: 'MM', time: '3d ago', snippet: 'Reminder for everyone: training session this Saturday 4PM. Mandatory ang attendance. Snacks provided.', unread: false },
-  ];
-  main.innerHTML = `<div class="portal-header"><div><h1>Messages</h1><div class="portal-header-sub">From your manager and Las Piñas coworkers.</div></div></div>
-    <div class="msg-list">
-      ${msgs.map(m => `<div class="msg-item ${m.unread ? 'unread' : ''}" onclick="toast('Message thread (demo)')">
-        <div class="msg-avatar">${m.initials}</div>
+// ── Messages (staff inbox — reads from DB) ──
+async function renderStaffMessages(main) {
+  const canSend = TPN.hasRole('manager');
+  main.innerHTML = `<div class="portal-header">
+    <div><h1>Messages</h1><div class="portal-header-sub">From your manager${canSend ? ' — and you can send to your team below.' : '.'}</div></div>
+    ${canSend ? '<button class="btn-primary" onclick="openComposeMessageModal()" style="padding:10px 20px;">✉️ Compose</button>' : ''}
+  </div>
+  <div id="msgBody"><div class="panel" style="padding:40px;text-align:center;color:var(--ink-muted);">Loading…</div></div>`;
+
+  try {
+    const msgs = await TPN.listMyMessages(50);
+    const body = document.getElementById('msgBody');
+    if (!msgs.length) {
+      body.innerHTML = '<div class="panel" style="padding:40px;text-align:center;color:var(--ink-faint);">📬 No messages yet.</div>';
+      return;
+    }
+    body.innerHTML = `<div class="msg-list">` + msgs.map(m => {
+      const from = m.from_staff?.full_name || 'System';
+      const initials = from.split(' ').map(s=>s[0]).join('').slice(0,2);
+      const isBroadcast = m.to_staff_id === null;
+      return `<div class="msg-item ${!m.read_at ? 'unread' : ''}" onclick="openMessageDetail('${m.id}')">
+        <div class="msg-avatar">${initials}</div>
         <div class="msg-content">
-          <div class="msg-header"><div class="msg-from">${m.from}</div><div class="msg-time">${m.time}</div></div>
-          <div class="msg-snippet">${m.snippet}</div>
+          <div class="msg-header">
+            <div class="msg-from">${from}${isBroadcast ? ' <span style=\"font-size:10px;color:var(--gold);font-weight:600;\">📣 BROADCAST</span>' : ''}</div>
+            <div class="msg-time">${timeAgo(new Date(m.created_at))}</div>
+          </div>
+          ${m.subject ? `<div style="font-weight:600;color:var(--ink);font-size:13px;margin-bottom:4px;">${m.subject}</div>` : ''}
+          <div class="msg-snippet">${(m.body || '').slice(0, 200)}${m.body && m.body.length > 200 ? '…' : ''}</div>
         </div>
-      </div>`).join('')}
-    </div>`;
+      </div>`;
+    }).join('') + `</div>`;
+  } catch(e) {
+    console.error('renderStaffMessages:', e);
+    document.getElementById('msgBody').innerHTML = `<div class="panel" style="padding:24px;color:var(--danger);">Could not load messages: ${e.message||e}</div>`;
+  }
 }
+
+async function openMessageDetail(id) {
+  try {
+    // Fetch either from staff view or admin view
+    const adminSentTab = (typeof _msgAdminTab !== 'undefined' && _msgAdminTab === 'sent');
+    const rows = adminSentTab
+      ? await TPN.listSentMessages(100)
+      : await TPN.listMyMessages(100);
+    const m = rows.find(x => x.id === id);
+    if (!m) return;
+    // Mark as read (fire-and-forget)
+    if (!m.read_at && m.to_staff_id === currentUser.id) {
+      TPN.markMessageRead(id).then(async () => {
+        // Refresh badge
+        try {
+          const c = await TPN.unreadMessageCount();
+          window._tpnUnreadMsgs = c || null;
+          if (typeof renderAdminSidebar === 'function' && currentUser && !['dining','kitchen'].includes(currentUser.tier)) renderAdminSidebar();
+          if (typeof renderStaffSidebar === 'function' && currentUser && ['dining','kitchen'].includes(currentUser.tier)) renderStaffSidebar();
+        } catch(e) {}
+      }).catch(e => console.warn('markRead:', e));
+    }
+    const from = m.from_staff?.full_name || 'System';
+    const when = new Date(m.created_at).toLocaleString();
+    showModal(`
+      <div class="modal-title">${m.subject || 'Message'}</div>
+      <div class="modal-sub">From <strong>${from}</strong> • ${when}</div>
+      <div class="modal-content" style="max-height:60vh;overflow-y:auto;white-space:pre-wrap;line-height:1.6;color:var(--ink);">${(m.body||'').replace(/</g, '&lt;')}</div>
+      <div class="modal-actions">
+        <button class="btn-next" onclick="closeModal()">Close</button>
+      </div>`);
+  } catch(e) { console.error('openMessageDetail:', e); }
+}
+
+async function openComposeMessageModal() {
+  if (!TPN.hasRole('manager')) { toast('Only managers can send messages'); return; }
+  const staff = portalState.staff.filter(s => s.accountState === 'active');
+  const opts = staff.map(s => `<option value="${s.id}">${s.name} (${s.role})</option>`).join('');
+  showModal(`
+    <div class="modal-title">Compose Message</div>
+    <div class="modal-sub">Send to a specific person, or broadcast to your whole branch.</div>
+    <div class="modal-content" style="display:grid;gap:12px;">
+      <div>
+        <label class="form-label">To</label>
+        <select class="form-input" id="cmpTo">
+          <option value="">📣 Broadcast to all Las Piñas staff</option>
+          ${opts}
+        </select>
+      </div>
+      <div>
+        <label class="form-label">Subject (optional)</label>
+        <input type="text" class="form-input" id="cmpSubject" placeholder="e.g. Friday group booking heads-up">
+      </div>
+      <div>
+        <label class="form-label">Message</label>
+        <textarea class="form-input" id="cmpBody" rows="6" placeholder="Type your message here…"></textarea>
+      </div>
+      <div id="cmpErr" style="color:var(--danger);font-size:13px;display:none;"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-back" onclick="closeModal()">Cancel</button>
+      <button class="btn-next" id="cmpBtn" onclick="submitComposeMessage()">Send</button>
+    </div>`);
+}
+
+async function submitComposeMessage() {
+  const err = document.getElementById('cmpErr');
+  const btn = document.getElementById('cmpBtn');
+  const to = document.getElementById('cmpTo').value || null;
+  const subject = document.getElementById('cmpSubject').value.trim() || null;
+  const body = document.getElementById('cmpBody').value.trim();
+  err.style.display = 'none';
+  if (!body) { err.textContent = 'Message body cannot be empty.'; err.style.display = 'block'; return; }
+  btn.disabled = true; btn.textContent = 'Sending…';
+  try {
+    await TPN.sendMessage({ toStaffId: to, subject, body });
+    closeModal();
+    toast(to ? '✓ Message sent' : '✓ Broadcast sent to Las Piñas');
+    // Refresh view
+    if (currentRoute === 'staff-messages') routeStaff('staff-messages');
+    if (currentRoute === 'messages') route('messages');
+  } catch(e) {
+    console.error('sendMessage:', e);
+    err.textContent = e.message || 'Could not send.';
+    err.style.display = 'block';
+    btn.disabled = false; btn.textContent = 'Send';
+  }
+}
+
 function renderStaffSettings(main) {
+  const u = currentUser;
+  const roleLabel = ({ dining: 'Dining Staff', kitchen: 'Kitchen Staff', supervisor: 'Supervisor', manager: 'Manager', admin: 'Admin', director: 'Director', ceo: 'CEO' })[u.tier] || u.tier;
   main.innerHTML = `<div class="portal-header"><div><h1>Settings</h1><div class="portal-header-sub">Your account, your security, your choice.</div></div></div>
     <div class="panel" style="margin-bottom:20px;">
       <div class="panel-header"><div class="panel-title">Account</div></div>
       <div style="display:grid;gap:14px;">
-        <div><div style="font-size:11px;color:var(--ink-muted);letter-spacing:0.12em;text-transform:uppercase;font-weight:700;margin-bottom:4px;">Username</div><div style="color:var(--ink);font-weight:600;">${currentUser.username}</div></div>
-        <div><div style="font-size:11px;color:var(--ink-muted);letter-spacing:0.12em;text-transform:uppercase;font-weight:700;margin-bottom:4px;">Display Name</div><div style="color:var(--ink);font-weight:600;">${currentUser.name}</div></div>
-        <div><div style="font-size:11px;color:var(--ink-muted);letter-spacing:0.12em;text-transform:uppercase;font-weight:700;margin-bottom:4px;">Role</div><div style="color:var(--ink);font-weight:600;">${currentUser.tier === 'dining' ? 'Dining Staff' : 'Kitchen Staff'} • Las Piñas</div></div>
-        <button class="btn-ghost" style="width:fit-content;" onclick="toast('Password change flow (demo)')">Change Password</button>
+        <div><div style="font-size:11px;color:var(--ink-muted);letter-spacing:0.12em;text-transform:uppercase;font-weight:700;margin-bottom:4px;">Email</div><div style="color:var(--ink);font-weight:600;">${u.email || u.username || '—'}</div></div>
+        <div><div style="font-size:11px;color:var(--ink-muted);letter-spacing:0.12em;text-transform:uppercase;font-weight:700;margin-bottom:4px;">Display Name</div><div style="color:var(--ink);font-weight:600;">${u.name}</div></div>
+        <div><div style="font-size:11px;color:var(--ink-muted);letter-spacing:0.12em;text-transform:uppercase;font-weight:700;margin-bottom:4px;">Role</div><div style="color:var(--ink);font-weight:600;">${roleLabel} • Las Piñas</div></div>
+        <button class="btn-ghost" style="width:fit-content;" onclick="openChangePasswordModal()">Change Password</button>
       </div>
     </div>
     <div class="panel">
       <div class="panel-header"><div class="panel-title">Security</div></div>
-      <div style="display:flex;justify-content:space-between;align-items:center;gap:16px;padding:14px;background:var(--bg);border-radius:8px;border:1px solid var(--line);">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:16px;padding:14px;background:var(--bg);border-radius:8px;border:1px solid var(--line);opacity:0.6;">
         <div style="flex:1;">
           <div style="font-weight:700;color:var(--ink);margin-bottom:4px;">Extra Security on New Devices</div>
-          <div style="font-size:13px;color:var(--ink-muted);line-height:1.5;">When enabled, you'll get an SMS code when logging in from a new device or browser. Your choice — only you can turn this on or off for your own account.</div>
+          <div style="font-size:13px;color:var(--ink-muted);line-height:1.5;">SMS 2FA coming soon. Your account is still protected by your password.</div>
         </div>
-        <label style="position:relative;display:inline-block;width:48px;height:26px;flex-shrink:0;">
-          <input type="checkbox" id="deviceVerifyToggle" style="opacity:0;width:0;height:0;" onchange="toggleDeviceVerify()">
-          <span id="dvSlider" style="position:absolute;cursor:pointer;inset:0;background:var(--surface-3);border-radius:26px;transition:0.2s;"></span>
-        </label>
       </div>
-      <div style="margin-top:14px;font-size:12px;color:var(--ink-faint);font-style:italic;">No surveillance, no auto-rules — turning this on is up to you.</div>
     </div>`;
 }
-function toggleDeviceVerify() {
-  const on = document.getElementById('deviceVerifyToggle').checked;
-  const sl = document.getElementById('dvSlider');
-  if (on) {
-    sl.style.background = 'var(--success)';
-    sl.innerHTML = '<span style="position:absolute;left:24px;top:3px;width:20px;height:20px;background:white;border-radius:50%;transition:0.2s;"></span>';
-    toast('Device verification ON — you\'ll get an SMS code on new devices');
-  } else {
-    sl.style.background = 'var(--surface-3)';
-    sl.innerHTML = '<span style="position:absolute;left:3px;top:3px;width:20px;height:20px;background:white;border-radius:50%;transition:0.2s;"></span>';
-    toast('Device verification OFF');
+
+function openChangePasswordModal() {
+  showModal(`
+    <div class="modal-title">Change Password</div>
+    <div class="modal-sub">Enter a new password. Minimum 6 characters.</div>
+    <div class="modal-content" style="display:grid;gap:12px;">
+      <div>
+        <label class="form-label">New Password</label>
+        <input type="password" class="form-input" id="cpwNew" autocomplete="new-password" placeholder="At least 6 characters">
+      </div>
+      <div>
+        <label class="form-label">Confirm New Password</label>
+        <input type="password" class="form-input" id="cpwConfirm" autocomplete="new-password" placeholder="Type it again">
+      </div>
+      <div id="cpwErr" style="color:var(--danger);font-size:13px;display:none;"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-back" onclick="closeModal()">Cancel</button>
+      <button class="btn-next" id="cpwBtn" onclick="submitChangePassword()">Update Password</button>
+    </div>`);
+}
+
+async function submitChangePassword() {
+  const err = document.getElementById('cpwErr');
+  const btn = document.getElementById('cpwBtn');
+  const npw = document.getElementById('cpwNew').value;
+  const cpw = document.getElementById('cpwConfirm').value;
+  err.style.display = 'none';
+  if (npw.length < 6) { err.textContent = 'Password must be at least 6 characters.'; err.style.display = 'block'; return; }
+  if (npw !== cpw)    { err.textContent = 'Passwords don\'t match.'; err.style.display = 'block'; return; }
+  btn.disabled = true; btn.textContent = 'Updating…';
+  try {
+    const { error } = await sb.auth.updateUser({ password: npw });
+    if (error) throw error;
+    await TPN.logAudit('auth.password_change', 'staff', currentUser?.id || null, {});
+    closeModal();
+    toast('✓ Password updated');
+  } catch(e) {
+    console.error('changePassword:', e);
+    err.textContent = e.message || 'Could not update password.';
+    err.style.display = 'block';
+    btn.disabled = false; btn.textContent = 'Update Password';
   }
 }
 
