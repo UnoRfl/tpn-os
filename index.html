@@ -14,6 +14,48 @@
 <meta property="og:image" content="https://tyopaengnyo.ph/og-image.jpg">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <title>Tyo Paeng Nyo — Authentic Filipino Flavors Since 2003</title>
+<script>
+  // Strip .html from URL for a cleaner look (works because GitHub Pages
+  // resolves both /tpn-table-menu and /tpn-table-menu.html to the same file).
+  (function(){
+    var p = window.location.pathname;
+    if (/\.html$/.test(p)) {
+      history.replaceState(null, '', p.replace(/\.html$/, '') + window.location.search + window.location.hash);
+    }
+  })();
+</script>
+<style>
+  /* Boot overlay — shown immediately, hidden once app initialises. Prevents the
+     marketing/home flicker while Supabase restores the staff session. */
+  #tpn-boot {
+    position: fixed; inset: 0; z-index: 999999;
+    background: linear-gradient(180deg, #1a0f08 0%, #2d1a0a 100%);
+    color: #FDF6EC;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 24px;
+    font-family: 'DM Sans', system-ui, sans-serif;
+    transition: opacity 0.5s ease-out;
+  }
+  #tpn-boot.tpn-boot-fade { opacity: 0; pointer-events: none; }
+  #tpn-boot .tpn-boot-logo {
+    font-family: 'Playfair Display', Georgia, serif;
+    font-size: 42px; font-weight: 900; letter-spacing: -0.5px;
+    color: #E8C97C; text-align: center; line-height: 1.1;
+  }
+  #tpn-boot .tpn-boot-sub {
+    font-size: 12px; letter-spacing: 0.28em; text-transform: uppercase;
+    color: rgba(232, 201, 124, 0.55); font-weight: 500;
+  }
+  #tpn-boot .tpn-boot-spinner {
+    width: 40px; height: 40px;
+    border: 2px solid rgba(232, 201, 124, 0.15);
+    border-top-color: #E8C97C;
+    border-radius: 50%;
+    animation: tpn-boot-spin 0.9s linear infinite;
+    margin-top: 8px;
+  }
+  @keyframes tpn-boot-spin { to { transform: rotate(360deg); } }
+</style>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=Lora:ital,wght@0,400;0,600;1,400&family=DM+Sans:wght@300;400;500;700&display=swap" rel="stylesheet">
@@ -1430,6 +1472,12 @@
 </style>
 </head>
 <body>
+<!-- Boot overlay — dismissed by hideBootOverlay() once first paint is stable. -->
+<div id="tpn-boot">
+  <div class="tpn-boot-logo">Tyo Paeng Nyo</div>
+  <div class="tpn-boot-sub">Authentic Filipino Since 2003</div>
+  <div class="tpn-boot-spinner"></div>
+</div>
 
 <!-- ════════ CUSTOMER SITE ════════ -->
 
@@ -3025,7 +3073,7 @@ function renderAdminSidebar() {
   navItems.push({ id: 'inquiries', label: 'Inquiries', icon: '📩', badge: newInquiries || null });
   navItems.push({ id: 'orders', label: 'Live Orders', icon: '📋', badge: portalState.orders.filter(o => o.status !== 'done').length || null });
   navItems.push({ id: 'kds', label: 'Kitchen Display', icon: '🍳', badge: portalState.orders.filter(o => o.status === 'received' || o.status === 'preparing').length || null });
-  navItems.push({ id: 'floor', label: 'Dine-In Floor', icon: '🪑', external: 'tpn-dine-in-floor.html' });
+  navItems.push({ id: 'floor', label: 'Dine-In Floor', icon: '🪑', external: 'tpn-dine-in-floor' });
 
   navItems.push({ section: 'TEAM' });
   navItems.push({ id: 'staff-board', label: 'Staff Board', icon: '🎯' });
@@ -3042,12 +3090,11 @@ function renderAdminSidebar() {
 
   document.getElementById('portalNav').innerHTML = navItems.map(it => {
     if (it.section) return `<div class="portal-nav-section">${it.section}</div>`;
-    // External items open in a new tab instead of routing internally
+    // External items open in a new tab but styled identically to internal items
     if (it.external) {
-      return `<a class="portal-nav-item" href="${it.external}" target="_blank" rel="noopener" style="text-decoration:none;">
+      return `<a class="portal-nav-item" href="${it.external}" target="_blank" rel="noopener" style="text-decoration:none;color:inherit;">
         <span class="portal-nav-icon">${it.icon}</span>
         <span>${it.label}</span>
-        <span style="margin-left:auto;font-size:10px;color:var(--ink-faint);">↗</span>
       </a>`;
     }
     return `<div class="portal-nav-item" data-route="${it.id}" onclick="route('${it.id}')">
@@ -3945,7 +3992,9 @@ function renderAccounts(main) {
 
   let html = `<div class="portal-header">
     <div><h1>Accounts</h1><div class="portal-header-sub">${u.tier === 'director' ? 'Full control over all accounts. Director privilege — execute with care.' : u.tier === 'manager' ? 'Create new Dining/Kitchen staff for your branch. CEO/Operator will validate.' : 'Validate new staff accounts and manage existing team members.'}</div></div>
-    ${['manager','admin','director','ceo'].includes(u.tier) ? '<button class="btn-primary" onclick="showCreateStaffModal()" style="padding:10px 20px;">+ Add Staff</button>' : ''}
+    ${['manager','admin','director','ceo'].includes(u.tier) ? `<button class="btn-primary" onclick="showCreateStaffModal()" style="padding:12px 24px;font-size:15px;font-weight:700;box-shadow:0 4px 12px rgba(139,26,14,0.35);white-space:nowrap;">
+      <span style="font-size:18px;margin-right:6px;">+</span> Add Staff Account
+    </button>` : ''}
   </div>
   <div class="acc-tabs">
     ${Object.keys(stateMap).map(s => `<button class="acc-tab ${activeAccTab === s ? 'active' : ''}" onclick="setAccTab('${s}')">${stateMap[s]} <span class="acc-tab-count">${counts[s]}</span></button>`).join('')}
@@ -3953,7 +4002,14 @@ function renderAccounts(main) {
 
   const rows = all.filter(s => s.accountState === activeAccTab);
   if (!rows.length) {
-    html += `<div class="panel" style="text-align:center;color:var(--ink-faint);padding:60px;">No accounts in this state.</div>`;
+    // Empty-state gets a big CTA to add staff so it's discoverable even if the top button was missed
+    const canAdd = ['manager','admin','director','ceo'].includes(u.tier);
+    html += `<div class="panel" style="text-align:center;padding:60px 40px;">
+      <div style="font-size:48px;margin-bottom:12px;">${activeAccTab === 'active' ? '👥' : activeAccTab === 'pending' ? '⏳' : '📁'}</div>
+      <div style="color:var(--ink);font-size:16px;font-weight:600;margin-bottom:6px;">No ${stateMap[activeAccTab].toLowerCase()} accounts</div>
+      <div style="color:var(--ink-faint);font-size:13px;margin-bottom:${canAdd && activeAccTab === 'active' ? '24' : '0'}px;">${activeAccTab === 'active' ? 'Your team roster is empty — add your first staff member.' : 'Nothing in this state right now.'}</div>
+      ${canAdd && activeAccTab === 'active' ? '<button class="btn-primary" onclick="showCreateStaffModal()" style="padding:14px 28px;font-size:15px;font-weight:700;">+ Add Your First Staff</button>' : ''}
+    </div>`;
   } else {
     html += `<div class="data-table-wrap"><table class="data-table"><thead><tr>
       <th>Name</th><th>Role</th><th>Branch</th><th>State</th><th style="text-align:right;">Actions</th>
@@ -4226,7 +4282,7 @@ async function renderTableQR(main) {
   // Build ABSOLUTE base URL so QR codes work when scanned on any device.
   // window.location.href strips filename + querystring to get the current directory.
   const currentDir = window.location.href.replace(/[^/]*(\?.*)?$/, '');
-  const baseUrl = currentDir + 'tpn-table-menu.html';
+  const baseUrl = currentDir + 'tpn-table-menu';
   let html = '';
 
   try {
@@ -5434,7 +5490,7 @@ const revealObs = new IntersectionObserver((entries) => {
 }, { threshold: 0.1 });
 
 // Init on load
-window.addEventListener('DOMContentLoaded', () => {
+window.addEventListener('DOMContentLoaded', async () => {
   renderFeatured();
   renderCategoryChips();
   updateCartUI();
@@ -5449,8 +5505,20 @@ window.addEventListener('DOMContentLoaded', () => {
   }, 50);
   document.body.classList.add('has-mobile-bar');
   // If a Supabase session exists, drop the user back into the portal on the tab they were viewing.
-  tryRestoreSession();
+  await tryRestoreSession();
+  hideBootOverlay();
 });
+
+function hideBootOverlay() {
+  const el = document.getElementById('tpn-boot');
+  if (!el) return;
+  el.classList.add('tpn-boot-fade');
+  setTimeout(() => el.remove(), 550);
+}
+
+// Safety net: if init hangs for any reason, dismiss the overlay after 4s so the
+// user is never stuck on the loading screen.
+setTimeout(hideBootOverlay, 4000);
 
 // ─── Connection Status ───
 window.addEventListener('offline', () => {

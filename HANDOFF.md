@@ -1,142 +1,162 @@
 # TPN OS — Session Handoff
 
-Written at the end of a build session so the next Claude conversation can pick up cleanly. Read this before doing anything.
+**Last updated:** Aug 10, 2026
+**Deployed:** https://unorfl.github.io/tpn-os/
+**Repo:** https://github.com/UnoRfl/tpn-os
+**Supabase project ref:** `xjlqfpnzobfqxetgkkai` (single project, single branch)
+
+---
 
 ## Current state
 
-**Deployment:**
-- Repo: https://github.com/UnoRfl/tpn-os (public)
-- Live: https://unorfl.github.io/tpn-os/ via GitHub Pages
-- Supabase project ref: `xjlqfpnzobfqxetgkkai` (free tier, will migrate to uncle's paid org later)
-- Local working folder: `C:\Users\User 1\Downloads\tpn-os\tpn-os`
+**MVP is functionally complete.** The site handles the full restaurant-management workflow end-to-end using real Supabase data. Zero hardcoded/fake demo data remains. All 4 files pass Node syntax checks.
 
-**Credentials architecture:**
-- All Supabase keys live in `config.js` (one file, one job, gitignored)
-- `tpn-supabase.js` reads from `window.TPN_CONFIG`
-- Anon key is safe to commit publicly (RLS protects data)
-- Service role key is only in Supabase's edge function env (NEVER put anywhere in the repo)
-
-**Supabase Auth state:**
-- Public signups: **DISABLED** in Auth → Providers → Email
-- Account creation ONLY path: `create-staff` edge function
-- First CEO was created manually and promoted via SQL
-- Non-active accounts (pending/suspended/recommended/disabled) are blocked at login AND at session-restore
-
-**Edge Function deployed:**
-- Name: `create-staff` (exact spelling — frontend calls this)
-- Manager+ can create, can only grant roles ≤ own level, logs to `audit_log`
-- **Manager-created accounts start as `pending`; admin+ created accounts start `active`.**
-- Response includes `initial_status` so the UI knows which tab to jump to.
-
-## Files in the repo
-
+### File layout
 ```
 tpn-os/
-├── config.js                    ← credentials (SUPABASE_URL + anon key) — gitignored
-├── index.html                   ← public site + staff portal (~4900 lines)
-├── tpn-table-menu.html          ← dine-in QR menu
-├── tpn-dine-in-floor.html       ← floor panel
-├── tpn-supabase.js              ← data layer (reads config.js)
-├── README.md
-├── WHATS-NEW.md                 ← last session's changelog
-├── HANDOFF.md                   ← THIS FILE
-├── .gitignore
-├── sql/
-│   ├── 01-schema.sql
-│   ├── 02-seed.sql
-│   ├── 03-security-fixes.sql
-│   ├── 04-signals.sql
-│   ├── 05-anon-orders.sql
-│   ├── 06-menu-fields.sql
-│   ├── 07-single-branch.sql
-│   └── 08-schedules.sql         ← NEW: schedules table + RLS
-└── supabase/functions/create-staff/
-    └── index.ts                 ← UPDATED: pending-flow logic
+├── index.html                 ~5500 lines — public site + staff portal (single-page app)
+├── tpn-supabase.js            ~625 lines — TPN.* helper layer over supabase-js
+├── config.js                  Supabase URL + anon key (never commit real secrets from other envs)
+├── tpn-table-menu.html        ~870 lines — customer-facing QR-scanned menu
+├── tpn-dine-in-floor.html     ~1200 lines — manager-facing floor overview
+├── sql/                       migrations 01–09 (run in order in Supabase SQL Editor)
+├── supabase/functions/
+│   └── create-staff/          edge function for auth.admin.createUser
+├── HANDOFF.md
+└── README.md
 ```
 
-## Roles
+### Working systems
 
-`dining` < `kitchen` < `supervisor` < `manager` < `admin` < `director` < `ceo`
+| System | State |
+|---|---|
+| Public marketing site + navigation | ✅ live |
+| Menu display (categories, featured, pax pricing) — reads DB | ✅ live |
+| Customer checkout (dine-in/pickup/delivery) with delivery_address, notes, scheduled_for | ✅ live |
+| Anonymous order tracking by `order_number` | ✅ live |
+| Table QR codes — absolute URLs, dynamic count from DB, "+ Add Table" button | ✅ live |
+| Table dine-in menu — realtime progress via `subscribeToOrder` | ✅ live |
+| Call-staff / bill-request signals | ✅ live |
+| Live Orders kanban (portal) | ✅ live |
+| Kitchen Display System with chime + age counters | ✅ live |
+| **Dine-In Floor Panel** — accessible from portal sidebar, real Supabase data only, single branch | ✅ live |
+| Auth gate on floor panel (manager+) | ✅ live |
+| Inquiries with `tel:`/`mailto:` and DB persistence | ✅ live |
+| Menu Manager CRUD | ✅ live |
+| Staff Board with correct DB enum roles + Leadership row | ✅ live |
+| Persistent Schedules (staff view + admin editor + copy-week) | ✅ live |
+| **Attendance** — clock in/out, real stats, admin correction modal | ✅ live |
+| **Messages** — inbox + broadcasts + realtime toasts + badges | ✅ live |
+| Accounts / staff creation via edge function | ✅ live |
+| Audit log (admin+ only) | ✅ live |
+| Change Password modal → `sb.auth.updateUser` | ✅ live |
+| Dashboard tiles + revenue drilldown + prep-time analytics | ✅ live |
+| Session restore with **branded boot overlay** (no flicker) | ✅ live |
+| **Extensionless URLs** (`/tpn-table-menu`, `/tpn-dine-in-floor`) | ✅ live |
 
-- `dining` — staff portal sidebar, Live Orders + Home + My Schedule + Attendance + Settings
-- `kitchen` — staff portal sidebar, Kitchen Display (KDS) + Home + My Schedule + Attendance + Settings
-- `manager`+ — admin portal (dashboard, inquiries, orders, KDS, staff board, schedules, menu manager, accounts, table QR, [audit — admin+ only])
-- `ceo`/`director` — same as manager+ but sees revenue tile on dashboard
+---
 
-## What's wired end-to-end
+## Deferred — blocked on external dependencies
 
-- ✅ Login (real Supabase Auth, email + password). Blocks non-active accounts with a status-specific message.
-- ✅ **Session restore on refresh** — if you're logged in and refresh, you drop straight back onto the tab you were viewing (last route persisted in `localStorage`).
-- ✅ Add Staff (via edge function). **Manager creations start `pending`, admin+ creations start `active`.**
-- ✅ Menu Manager (portal → CRUD on menu_items, reflects on customer surfaces)
-- ✅ Customer menu on public site + table QR (loads from DB)
-- ✅ Featured carousel (loads is_featured items from DB)
-- ✅ Place order from public checkout → DB
-- ✅ Place order from table QR → DB
-- ✅ Order status changes (advance/rollback) → DB + realtime to all screens
-- ✅ Kitchen Display System (own route + chime on new orders)
-- ✅ Live Orders kanban with realtime updates
-- ✅ Call-staff / request-bill signals from table → floor panel + portal toast
-- ✅ B2B / event inquiry forms → DB
-- ✅ Inquiry Inbox reads from DB
-- ✅ Accounts panel reads real staff from DB
-- ✅ **Account actions persist to DB** — validate / reject / recommend disable / disable / reinstate all write `employment_status` and log to `audit_log`
-- ✅ **Staff Board drag/drop persists to DB** — role + branch update, logged to `audit_log`
-- ✅ Audit Log reads from DB (`audit_log` table, needs migration 07 for manager+ read)
-- ✅ Dashboard tiles + sales drilldown computed from real orders
-- ✅ **Prep-time analytics** — real avg / fastest / slowest computed from `confirmed_at → ready_at` timestamps
-- ✅ **Schedules (staff view)** — pulls current week from DB, prev/next navigation, per-staff manager notes
-- ✅ **Schedules (admin editor)** — new "Schedules" sidebar tab, inline cell editing with immediate save, prev/next/this-week nav, copy-from-prev-week
+These are **not code problems.** They cannot be shipped until external steps happen:
 
-## What's NOT wired (known gaps)
+### 1. GCash / PayMaya payment webhooks
+- Currently: QR payment screen displays a fake plain-text QR
+- Needed:
+  1. Uncle finishes paid Supabase project transfer
+  2. GCash Business API application approved (~2-4 week process from application submission)
+  3. Static merchant QR image from GCash Business dashboard
+  4. Webhook edge function: receives GCash payment confirmation → updates `orders.payment_status` → notifies floor panel
+- ETA to unblock: uncle-dependent
 
-- ⏳ Staff attendance — placeholder UI only; no clock-in/out flow or attendance table
-- ⏳ Recognition Panel — orphaned in code, route removed from sidebar
-- ⏳ Payment confirmation webhooks — GCash / PayMaya QRs are display-only
-- ⏳ SMS 2FA — bypassed for MVP
-- ⏳ BIR-compliant receipts — StoreHub handles this side
+### 2. SMS 2FA
+- Currently: cleanly bypassed on login (no fake demo hints anymore)
+- Needed:
+  1. Sign up with paid SMS provider (recommended: Semaphore.co, ~₱0.50/SMS in PH)
+  2. Store provider API key as Supabase edge function secret
+  3. New edge function `send-2fa-code` — generates 6-digit, stores hashed in DB with 5-min TTL, sends via SMS
+  4. Wire the existing 2FA screen input to verify against DB
+- ETA: 4-6 hours of dev work once provider chosen
 
-## Known quirks to remember
+### 3. BIR-compliant receipts
+- **Explicitly out of scope** by architecture decision — StoreHub handles official receipts
+- Do not add unless the strategy changes
 
-- **Windows path issues:** `cd /d "C:\Users\User 1\Downloads\tpn-os\tpn-os"` (the `/d` handles drive change, quotes handle the space).
-- **Git first-time push:** GitHub auto-added README/LICENSE. If encountered again: `git pull origin main --rebase --allow-unrelated-histories`, resolve README with `git checkout --ours README.md`.
-- **Vim escape:** Esc → `:wq` → Enter. Or run `git config --global core.editor notepad` once.
-- **VPN + Supabase:** some VPNs cause "Failed to fetch" errors. Disable VPN if auth breaks unexpectedly.
-- **LF/CRLF warnings on git add:** harmless on Windows, ignore.
-- **localStorage keys:** `tpn.lastRoute.admin` / `tpn.lastRoute.staff`. Cleared on logout.
-- **Schedule edit UX:** the cell input saves on `change` (blur or Enter). Tab-through works. Green flash = saved, red border = error.
-- **`updated_by` in schedules:** set to the caller's staff.id via `TPN._user`. Loaded on session restore.
+---
 
-## Session boot checklist for next Claude
+## Potential enhancements (not gaps — nice-to-haves)
 
-1. Ask Uno to upload his current `index.html`, `tpn-supabase.js`, and `config.js` from his local folder. **Never assume the working copy matches his** — he pushes his own commits between sessions.
-2. Never regenerate `config.js` without warning first (would wipe credentials).
-3. Prefer surgical `str_replace` edits over full-file regenerations for `index.html`.
-4. Always syntax-check after edits: extract inline `<script>` blocks and run `node --check`.
-5. Deliver changes as a zip + push instructions, not inline paste. Uno's workflow: extract → overwrite local → `git add . && git commit && git push`.
-6. **Remind him to redeploy the `create-staff` edge function whenever `supabase/functions/create-staff/index.ts` is edited** (Supabase Dashboard → Edge Functions → paste → Deploy).
+These are ordered by user value. Only start these if the site is stable in production for 2+ weeks.
 
-## Immediate next-session priorities (in order)
+### High value
 
-1. **Test the current build.** Verify:
-   - Session restore across refresh from Schedules, Menu Manager, Accounts, Live Orders
-   - Manager creates staff → account lands in Pending → CEO validates → account becomes Active → they can sign in
-   - Schedule cell edits save (green flash) and read back correctly on staff side
-   - "Copy from prev week" duplicates shifts for all active staff
-2. **Attendance flow** — clock-in/out UI + new `attendance` table + reports view
-3. **Payment webhook flow** — GCash Business API integration when uncle's paid Supabase is ready
-4. **Optional: roles collapse 7→3** — DB enum rename migration, UI simplification
+1. **Web Push notifications for staff messages** — currently in-app toast only. Add VAPID keys + service worker (same approach used on Orbit). Staff get notified even when tab is closed. ~2 hours.
 
-## Uno's working style
+2. **Attendance geo-fence** — prevent buddy-punching. Require browser geolocation within 100m of the restaurant to clock in. Requires `branches.latitude` + `branches.longitude` columns. ~1 hour.
 
-- Terse, directive prompts. Wants immediate action, not discussion.
-- Prefers surgical `str_replace` edits with zip delivery over full-file paste.
-- Filipino English patterns: "off the site" often means "from the site"; "shits" is casual filler.
-- First-year BSIT at UPHSD Las Piñas. Self-taught. Familiar with GitHub Pages, Supabase (from Orbit), Tauri (Jarvis), Luau (Unoryx PVP).
-- TPN is his family's real restaurant. This is a real deployment, not a school project.
+3. **Schedule → Attendance late/on-time badges** — compare `attendance.clock_in_at` against the day's scheduled shift start time from `schedules`. Show ⏰ Late/✅ On Time chips on attendance rows. ~1 hour.
 
-## Contact points
+### Medium value
 
-- Uncle has paid Supabase org (project transfer planned when ready)
-- StoreHub still runs POS/receipts/inventory in parallel
-- TPN OS is the online + operational layer alongside StoreHub
+4. **Sales report CSV export** — button on Dashboard revenue drilldown → downloads a CSV of orders for a date range. ~30 min.
+
+5. **Order edit before "preparing"** — customer or staff can add items to an existing order while it's still in `pending`/`confirmed` state. ~2 hours.
+
+6. **Staff profile photo upload** — Supabase Storage bucket + upload widget in Settings. Chips throughout the portal show photos instead of initials. ~2 hours.
+
+7. **Menu item photo upload** — same, for menu_items. Improves customer-facing menu. ~1 hour.
+
+### Low value (defer indefinitely)
+
+8. Multi-branch support (Bacoor, TGT Concession) — DB already supports it; just need UI branch switcher throughout. Only build when second branch actually opens.
+9. Full chat/reply threading on messages — current inbox is 1-way (manager → staff). Only build if staff-to-manager backchannel becomes a felt need.
+10. Analytics dashboard — top items, hour heatmap, category revenue splits. Current dashboard covers the essentials.
+
+---
+
+## Known quirks / gotchas for the next session
+
+- **Always ask for current files before editing.** Uno pushes his own commits between sessions. Never assume Claude's copy matches live. Fetch via `curl https://raw.githubusercontent.com/UnoRfl/tpn-os/main/<file>` before proposing edits.
+
+- **Delivery style:** zips + git push from cmd. Full-file replacements. No surgical edit instructions.
+
+- **Supabase FK ambiguity:** Any table with 2 FKs to the same target needs disambiguation in PostgREST queries. Attendance (`staff_id` + `corrected_by`), Schedules (`staff_id` + `updated_by`), Messages (`from_staff_id` + `to_staff_id`). Use `staff:staff_id(...)` syntax not `staff:staff(...)`.
+
+- **Extensionless URLs:** GitHub Pages resolves `/tpn-table-menu` → `tpn-table-menu.html` automatically. All internal links use extensionless. A small script at the top of each page strips `.html` from any URL that has it (for old bookmarks and old QR codes). Actual filenames on disk remain `.html`.
+
+- **Boot overlay:** Injected at the very top of `<head>` via inline `<style>`, DOM node injected right after `<body>`. Dismissed by `hideBootOverlay()` after session restore completes, or after 4s safety-net timeout. Do not remove the safety-net — a Supabase hang would otherwise leave the user stuck.
+
+- **Role enum (DB source of truth):** `dining, kitchen, supervisor, manager, admin, director, ceo`. All lowercase. Any UI that uses different casing or extra values (`cashier`, `service`) is a bug — fix it, don't add code around it.
+
+- **Never assume Menu Manager categories match hardcoded lists** anywhere. All menu display code reads from `menu_items` + `menu_categories` tables.
+
+- **`config.js` should never be regenerated blindly.** It's committed to the repo with the anon key. Only edit if the Supabase project ref itself changes (i.e., after the uncle transfer).
+
+---
+
+## Migration order (Supabase SQL Editor)
+
+Run these once in order on any fresh Supabase project:
+
+```
+sql/01-schema.sql             base schema, staff/branches/menu/orders/inquiries
+sql/02-seed.sql               initial branches + menu categories + featured items
+sql/03-security-fixes.sql     RLS tightening
+sql/04-signals.sql            call-staff + bill-request signals table
+sql/05-anon-orders.sql        allow anonymous checkout for pickup/delivery
+sql/06-menu-fields.sql        pax_options JSON column on menu_items
+sql/07-single-branch.sql      remove Bacoor/TGT, tighten branches
+sql/08-schedules.sql          weekly schedules table
+sql/09-order-fields-and-attendance.sql   delivery_address, scheduled_for, attendance, messages
+```
+
+Edge function to deploy once via Supabase CLI:
+```
+supabase functions deploy create-staff
+```
+
+---
+
+## When restarting a session, prompt Claude with:
+
+> "Working on TPN OS. Deployed at unorfl.github.io/tpn-os. Repo UnoRfl/tpn-os. Please fetch the current index.html, tpn-supabase.js, tpn-table-menu.html, and tpn-dine-in-floor.html from raw.githubusercontent.com before proposing any edits, since I push commits between sessions. Also read HANDOFF.md for context on what's done vs. deferred."
