@@ -15,6 +15,21 @@
       history.replaceState(null, '', p.replace(/\.html$/, '') + window.location.search + window.location.hash);
     }
   })();
+  // UnoSys: global error boundary — the floor panel is a busy realtime
+  // surface, so we swallow uncaught errors instead of letting the DOM
+  // freeze on the manager. All errors still log for debugging.
+  window.addEventListener('error', function(ev){ console.error('[Floor uncaught]', ev.error || ev.message); });
+  window.addEventListener('unhandledrejection', function(ev){ console.error('[Floor unhandled]', ev.reason); });
+  // UnoSys: XSS-safe escape used on every DB / user value that hits innerHTML.
+  window.E = function(v){
+    if (v === null || v === undefined) return '';
+    const M = { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' };
+    return String(v).replace(/[&<>"']/g, c => M[c]);
+  };
+  window.N = function(v, d){
+    const n = Number(v); d = (typeof d === 'number') ? d : 2;
+    return Number.isFinite(n) ? n.toFixed(d) : (0).toFixed(d);
+  };
 </script>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,700;1,500&family=DM+Sans:wght@300;400;500;600&family=Lora:ital@0;1&display=swap" rel="stylesheet">
 <style>
@@ -636,7 +651,7 @@ function renderFloor() {
   </div>
   <div class="branch-selector" id="branch-selector">`;
   branches.filter(b => b.active).forEach(b => {
-    html += `<div class="branch-pill ${b.name === currentBranch ? 'active' : ''}" onclick="switchBranch('${b.name}')">${b.name}</div>`;
+    html += `<div class="branch-pill ${b.name === currentBranch ? 'active' : ''}" onclick="switchBranch('${E(b.name)}')">${E(b.name)}</div>`;
   });
   html += `</div><div class="floor-grid">`;
 
@@ -719,23 +734,23 @@ function renderOrders() {
     const pillLabel = { received: 'Received', preparing: 'Preparing', ready: 'Ready', done: 'Done' }[order.status] || '';
     const elapsed = Math.floor((Date.now() - new Date(order.timestamp)) / 60000);
 
-    html += `<div class="order-card ${order.status}">
+    html += `<div class="order-card ${E(order.status)}">
       <div class="order-card-header">
         <div>
-          <div class="order-card-ref">${order.ref}</div>
-          <div class="order-card-table">Table ${order.table}</div>
+          <div class="order-card-ref">${E(order.ref)}</div>
+          <div class="order-card-table">Table ${E(order.table)}</div>
         </div>
         <span class="order-status-pill ${pillClass}">${pillLabel}</span>
       </div>
       <div class="order-guest-info">
-        <span>👤 ${order.name}</span>
-        <span>👥 ${order.pax} pax</span>
+        <span>👤 ${E(order.name)}</span>
+        <span>👥 ${E(order.pax)} pax</span>
         <span>🕒 ${elapsed}m ago</span>
       </div>
       <div class="order-items-list">`;
     order.items.forEach(item => {
       html += `<div class="order-item-row">
-        <span class="order-item-name">${item.emoji} ${item.qty}× ${item.name}${item.variant ? ' (' + item.variant + ')' : ''}</span>
+        <span class="order-item-name">${E(item.emoji)} ${E(item.qty)}× ${E(item.name)}${item.variant ? ' (' + E(item.variant) + ')' : ''}</span>
         <span class="order-item-price">₱${(item.price * item.qty).toFixed(2)}</span>
       </div>`;
     });
@@ -744,20 +759,20 @@ function renderOrders() {
     if (order.allergies?.length || order.specialReq) {
       html += `<div class="order-flags">`;
       order.allergies?.forEach(a => { html += `<span class="order-flag flag-allergy">⚠️ ${a}</span>`; });
-      if (order.specialReq) html += `<span class="order-flag flag-req">📝 ${order.specialReq}</span>`;
+      if (order.specialReq) html += `<span class="order-flag flag-req">📝 ${E(order.specialReq)}</span>`;
       if (order.billRequested) html += `<span class="order-flag flag-bill">💳 Bill Requested</span>`;
       html += `</div>`;
     }
 
     html += `<div class="order-footer">
       <div>
-        <div class="order-total">₱${order.total.toFixed(2)}</div>
+        <div class="order-total">₱${N(order.total, 2)}</div>
       </div>
       <div class="order-actions">
-        <button class="o-btn view" onclick="openOrderModal('${order.ref}')">View</button>
-        ${order.status === 'received' ? `<button class="o-btn advance" onclick="advanceOrder('${order.ref}')">→ Preparing</button>` : ''}
-        ${order.status === 'preparing' ? `<button class="o-btn done-btn" onclick="advanceOrder('${order.ref}')">→ Ready</button>` : ''}
-        ${order.status === 'ready' ? `<button class="o-btn advance" onclick="advanceOrder('${order.ref}')">✓ Served</button>` : ''}
+        <button class="o-btn view" onclick="openOrderModal('${E(order.ref)}')">View</button>
+        ${order.status === 'received' ? `<button class="o-btn advance" onclick="advanceOrder('${E(order.ref)}')">→ Preparing</button>` : ''}
+        ${order.status === 'preparing' ? `<button class="o-btn done-btn" onclick="advanceOrder('${E(order.ref)}')">→ Ready</button>` : ''}
+        ${order.status === 'ready' ? `<button class="o-btn advance" onclick="advanceOrder('${E(order.ref)}')">✓ Served</button>` : ''}
       </div>
     </div></div>`;
   });
@@ -781,10 +796,10 @@ function renderMenuStatus() {
   <div class="menu-manager-list">`;
   menuAvailability.forEach((item, idx) => {
     html += `<div class="menu-item-row">
-      <div class="menu-item-emoji">${item.emoji}</div>
+      <div class="menu-item-emoji">${E(item.emoji)}</div>
       <div class="menu-item-info">
-        <div class="menu-item-name">${item.name}</div>
-        <div style="font-size:11px;color:var(--text-muted)">${item.cat} · ${item.price}</div>
+        <div class="menu-item-name">${E(item.name)}</div>
+        <div style="font-size:11px;color:var(--text-muted)">${E(item.cat)} · ${E(item.price)}</div>
       </div>
       <button class="avail-toggle ${item.available ? 'on' : 'off'}" onclick="toggleMenuItem(${idx})">
         ${item.available ? '✓ Available' : '✗ Hidden'}
@@ -805,8 +820,8 @@ function renderSettings() {
     <div class="branch-list">`;
   branches.forEach(branch => {
     html += `<div class="branch-item">
-      <div class="branch-item-name">${branch.name}</div>
-      <div class="branch-item-tables">${branch.tables} tables</div>
+      <div class="branch-item-name">${E(branch.name)}</div>
+      <div class="branch-item-tables">${E(branch.tables)} tables</div>
       <div style="font-size:12px;color:var(--text-muted)">Active</div>
     </div>`;
   });
@@ -1029,7 +1044,7 @@ function openTableModal(tableNum, branchId) {
       </div>`;
     order.items.forEach(item => {
       content += `<div class="order-item-row" style="font-size:13px;padding:3px 0">
-        <span>${item.emoji} ${item.qty}× ${item.name}</span>
+        <span>${E(item.emoji)} ${E(item.qty)}× ${E(item.name)}</span>
         <span style="font-weight:600;color:var(--text-muted)">₱${(item.price * item.qty).toFixed(2)}</span>
       </div>`;
     });
@@ -1058,7 +1073,7 @@ function openOrderModal(ref) {
   let content = `
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
     <div style="background:var(--cream);border-radius:10px;padding:10px"><div style="font-size:10px;color:var(--text-muted);font-weight:700">TABLE</div><div style="font-size:16px;font-weight:700">Table ${order.table}</div></div>
-    <div style="background:var(--cream);border-radius:10px;padding:10px"><div style="font-size:10px;color:var(--text-muted);font-weight:700">GUEST</div><div style="font-size:16px;font-weight:700">${order.name}</div></div>
+    <div style="background:var(--cream);border-radius:10px;padding:10px"><div style="font-size:10px;color:var(--text-muted);font-weight:700">GUEST</div><div style="font-size:16px;font-weight:700">${E(order.name)}</div></div>
     <div style="background:var(--cream);border-radius:10px;padding:10px"><div style="font-size:10px;color:var(--text-muted);font-weight:700">PAX</div><div style="font-size:16px;font-weight:700">${order.pax}</div></div>
     <div style="background:var(--cream);border-radius:10px;padding:10px"><div style="font-size:10px;color:var(--text-muted);font-weight:700">TOTAL</div><div style="font-size:16px;font-weight:700;color:var(--brick)">₱${order.total.toFixed(2)}</div></div>
   </div>
@@ -1068,7 +1083,7 @@ function openOrderModal(ref) {
     content += `<div class="detail-item">
       <div class="detail-item-emoji">${item.emoji}</div>
       <div class="detail-item-info">
-        <div class="detail-item-name">${item.name}${item.variant ? ' — ' + item.variant : ''}</div>
+        <div class="detail-item-name">${E(item.name)}${item.variant ? ' — ' + E(item.variant) : ''}</div>
         <div class="detail-item-meta">Qty: ${item.qty} × ₱${item.price}</div>
       </div>
       <div class="detail-item-price">₱${(item.price * item.qty).toFixed(2)}</div>

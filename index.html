@@ -23,6 +23,16 @@
       history.replaceState(null, '', p.replace(/\.html$/, '') + window.location.search + window.location.hash);
     }
   })();
+  // UnoSys: global error boundary. Catches any uncaught runtime error
+  // or unhandled promise so the app doesn't silently freeze the UI.
+  window.addEventListener('error', function(ev){
+    console.error('[TPN uncaught]', ev.error || ev.message);
+    try { if (typeof toast === 'function') toast('Something glitched — the panel stayed alive. Refresh if it looks off.'); } catch(e){}
+  });
+  window.addEventListener('unhandledrejection', function(ev){
+    console.error('[TPN unhandled promise]', ev.reason);
+    try { if (typeof toast === 'function') toast('Server hiccup — try again in a second.'); } catch(e){}
+  });
 </script>
 <style>
   /* Boot overlay — shown immediately, hidden once app initialises. Prevents the
@@ -2273,7 +2283,7 @@ function renderMenu() {
     const q2 = (document.getElementById('menuSearch')?.value || '').trim();
     sec.innerHTML = `<div class="empty-state">
       <div class="empty-state-icon">🔍</div>
-      <div class="empty-state-title">Wala pa kaming ${q2 ? '"' + q2 + '"' : 'results'} sa menu ngayon.</div>
+      <div class="empty-state-title">Wala pa kaming ${q2 ? '"' + E(q2) + '"' : 'results'} sa menu ngayon.</div>
       <div class="empty-state-body">Baka may typo? O subukan mo ang ibang ulam — 60+ dishes ang luto namin.</div>
       <button class="empty-state-cta" onclick="document.getElementById('menuSearch').value='';setCategory('all')">Clear search →</button>
     </div>`;
@@ -2804,7 +2814,19 @@ const portalState = {
   inquiries: [],
   orders: [],
   auditLog: [],
+  notifications: [],
+  unreadNotifCount: 0,
   lang: 'en'
+};
+
+// UnoSys: short alias so template literals stay readable. Every DB
+// value that hits innerHTML MUST go through E().
+const E = (v) => (window.TPN && TPN.esc) ? TPN.esc(v) : String(v == null ? '' : v).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+// UnoSys: safe number formatter — never throws on null/NaN.
+const N = (v, digits = 2) => {
+  const n = Number(v);
+  return Number.isFinite(n) ? n.toFixed(digits) : (0).toFixed(digits);
 };
 
 /* ════════════════════════════════════════════════════
@@ -2826,7 +2848,10 @@ async function exitStaffPortal() {
   if (typeof _supaOrdersUnsub === 'function') { _supaOrdersUnsub(); }
   if (typeof _supaTablesChan !== 'undefined' && _supaTablesChan) { sb.removeChannel(_supaTablesChan); _supaTablesChan = null; }
   if (typeof _msgUnsub === 'function') { _msgUnsub(); _msgUnsub = null; }
+  if (typeof _notifUnsub === 'function') { _notifUnsub(); _notifUnsub = null; }
   window._tpnUnreadMsgs = null;
+  portalState.notifications = [];
+  portalState.unreadNotifCount = 0;
   navigate('home');
 }
 
@@ -2992,6 +3017,7 @@ function enterPortal() {
   loadInquiriesFromSupabase().catch(e => console.error('inquiries load:', e));
   loadStaffFromSupabase().catch(e => console.error('staff load:', e));
   startMessageSync().catch(e => console.error('message sync:', e));
+  startNotificationSync().catch(e => console.error('notification sync:', e));
 }
 
 // Poll unread message count + subscribe for realtime new messages
@@ -3080,6 +3106,7 @@ function renderAdminSidebar() {
   navItems.push({ id: 'staff-board', label: 'Staff Board', icon: '🎯' });
   navItems.push({ id: 'schedules', label: 'Schedules', icon: '📅' });
   navItems.push({ id: 'attendance-admin', label: 'Attendance', icon: '✓' });
+  navItems.push({ id: 'notifications', label: 'Notifications', icon: '🔔', badge: portalState.unreadNotifCount || null });
   navItems.push({ id: 'messages-admin', label: 'Messages', icon: '✉️', badge: window._tpnUnreadMsgs || null });
   navItems.push({ id: 'menu-manager', label: 'Menu Manager', icon: '🍽️' });
   navItems.push({ id: 'table-qr', label: 'Table QR Codes', icon: '📲' });
@@ -3106,10 +3133,10 @@ function renderAdminSidebar() {
   }).join('');
 
   document.getElementById('portalUser').innerHTML = `
-    <div class="portal-user-avatar">${initials}</div>
+    <div class="portal-user-avatar">${E(initials)}</div>
     <div class="portal-user-info">
-      <div class="portal-user-name">${u.name}</div>
-      <div class="portal-user-tier">${tierLabel}${u.branch ? ' • ' + (portalState.branches.find(b => b.id === u.branch)?.name || u.branch) : ''}</div>
+      <div class="portal-user-name">${E(u.name)}</div>
+      <div class="portal-user-tier">${E(tierLabel)}${u.branch ? ' • ' + E(portalState.branches.find(b => b.id === u.branch)?.name || u.branch) : ''}</div>
     </div>
     <button class="portal-logout" onclick="exitStaffPortal()">Out</button>`;
 }
@@ -3126,9 +3153,20 @@ function saveLastRoute(kind, r) {
 function readLastRoute(kind) {
   try { return localStorage.getItem(kind === 'staff' ? TPN_ROUTE_KEY_STAFF : TPN_ROUTE_KEY_ADMIN); } catch(e) { return null; }
 }
-function route(r) {
+function route(r, opts) {
+  opts = opts || {};
   currentRoute = r;
   saveLastRoute('admin', r);
+  // UnoSys: keep browser back/forward in sync with in-app routing.
+  try {
+    const url = new URL(window.location.href);
+    url.searchParams.set('view', r);
+    if (opts.replace || url.searchParams.get('view') === new URLSearchParams(window.location.search).get('view')) {
+      history.replaceState({ tpnRoute: r, kind: 'admin' }, '', url.pathname + url.search);
+    } else {
+      history.pushState({ tpnRoute: r, kind: 'admin' }, '', url.pathname + url.search);
+    }
+  } catch(e) {}
   document.querySelectorAll('#portalNav .portal-nav-item').forEach(el => el.classList.toggle('active', el.dataset.route === r));
   // close mobile sidebar
   document.getElementById('portalSidebar')?.classList.remove('open');
@@ -3146,6 +3184,7 @@ function route(r) {
     case 'audit': renderAudit(main); break;
     case 'table-qr': renderTableQR(main); break;
     case 'menu-manager': renderMenuManager(main); break;
+    case 'notifications': renderNotifications(main, 'admin'); break;
   }
   window.scrollTo({ top: 0, behavior: 'instant' });
 }
@@ -3225,12 +3264,12 @@ function renderDashboard(main) {
           ${recentOrders.length ? recentOrders.map(o => `
             <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 4px;border-bottom:1px solid var(--line-soft);">
               <div>
-                <div style="font-weight:700;color:var(--ink);font-size:14px;">${o.customer}</div>
-                <div style="font-size:12px;color:var(--ink-muted);">${o.items || '—'}</div>
+                <div style="font-weight:700;color:var(--ink);font-size:14px;">${E(o.customer)}</div>
+                <div style="font-size:12px;color:var(--ink-muted);">${E(o.items) || '—'}</div>
               </div>
               <div style="text-align:right;">
-                <div style="font-weight:700;color:var(--ink);">₱${Number(o.total).toFixed(0)}</div>
-                <div style="font-size:11px;color:var(--ink-muted);text-transform:capitalize;">${o.status}</div>
+                <div style="font-weight:700;color:var(--ink);">₱${N(o.total, 0)}</div>
+                <div style="font-size:11px;color:var(--ink-muted);text-transform:capitalize;">${E(o.status)}</div>
               </div>
             </div>`).join('') : '<div style="padding:30px;text-align:center;color:var(--ink-faint);">No orders yet today.</div>'}
         </div>
@@ -3290,11 +3329,11 @@ function renderStaffBoard(main) {
         <div class="role-slot-header"><span class="role-slot-icon">⭐</span><span>Leadership</span></div>
         <div class="role-slot-bin" style="pointer-events:none;">
           ${leadership.map(s => `
-            <div class="staff-chip" data-staff="${s.id}" style="opacity:0.9;">
-              <div class="staff-chip-avatar">${s.name.split(' ').map(p=>p[0]).join('').slice(0,2)}</div>
+            <div class="staff-chip" data-staff="${E(s.id)}" style="opacity:0.9;">
+              <div class="staff-chip-avatar">${E(s.name.split(' ').map(p=>p[0]).join('').slice(0,2))}</div>
               <div class="staff-chip-info">
-                <div class="staff-chip-name">${s.name}</div>
-                <div class="staff-chip-meta" style="text-transform:capitalize;">${s.role}</div>
+                <div class="staff-chip-name">${E(s.name)}</div>
+                <div class="staff-chip-meta" style="text-transform:capitalize;">${E(s.role)}</div>
               </div>
             </div>`).join('')}
         </div>
@@ -3307,11 +3346,11 @@ function renderStaffBoard(main) {
         <div class="role-slot-header"><span class="role-slot-icon">${slot.icon}</span><span>${slot.label}</span></div>
         <div class="role-slot-bin ${staffInRole.length === 0 ? 'empty' : ''}" data-branch="${br.id}" data-role="${slot.role}" ondragover="slotDragOver(event)" ondragleave="slotDragLeave(event)" ondrop="slotDrop(event)">
           ${staffInRole.length ? staffInRole.map(s => `
-            <div class="staff-chip" ${canDrag ? 'draggable="true"' : ''} data-staff="${s.id}" ondragstart="chipDragStart(event)" ondragend="chipDragEnd(event)">
-              <div class="staff-chip-avatar">${s.name.split(' ').map(p=>p[0]).join('').slice(0,2)}</div>
+            <div class="staff-chip" ${canDrag ? 'draggable="true"' : ''} data-staff="${E(s.id)}" ondragstart="chipDragStart(event)" ondragend="chipDragEnd(event)">
+              <div class="staff-chip-avatar">${E(s.name.split(' ').map(p=>p[0]).join('').slice(0,2))}</div>
               <div class="staff-chip-info">
-                <div class="staff-chip-name">${s.name}</div>
-                <div class="staff-chip-meta" style="text-transform:capitalize;">${s.role}</div>
+                <div class="staff-chip-name">${E(s.name)}</div>
+                <div class="staff-chip-meta" style="text-transform:capitalize;">${E(s.role)}</div>
               </div>
             </div>`).join('') : '<div class="empty-slot-hint">Drop staff here</div>'}
         </div>
@@ -3378,10 +3417,10 @@ function moveStaff(staffId, newBranch, newRole) {
   // Confirm move
   showModal(`
     <div class="modal-title">Confirm Relocation</div>
-    <div class="modal-sub">You're about to relocate <strong>${s.name}</strong>.</div>
+    <div class="modal-sub">You're about to relocate <strong>${E(s.name)}</strong>.</div>
     <div class="modal-content" style="background:var(--surface);border-radius:8px;padding:16px;">
       <div style="display:flex;justify-content:space-between;font-size:13px;color:var(--ink-muted);margin-bottom:8px;">
-        <div><div style="text-transform:uppercase;letter-spacing:0.1em;font-size:10px;color:var(--ink-muted);">From</div><div style="color:var(--ink);font-weight:600;margin-top:4px;">${oldBranch} • ${s.role}</div></div>
+        <div><div style="text-transform:uppercase;letter-spacing:0.1em;font-size:10px;color:var(--ink-muted);">From</div><div style="color:var(--ink);font-weight:600;margin-top:4px;">${E(oldBranch)} • ${E(s.role)}</div></div>
         <div style="font-size:24px;color:var(--gold);">→</div>
         <div><div style="text-transform:uppercase;letter-spacing:0.1em;font-size:10px;color:var(--ink-muted);">To</div><div style="color:var(--brick);font-weight:700;margin-top:4px;">${newBranchName} • ${role}</div></div>
       </div>
@@ -3468,13 +3507,13 @@ async function renderSchedulesAdmin(main) {
 
     staffRows.forEach(s => {
       const cache = _schedulesCache[s.id] || { shifts: {}, notes: '' };
-      html += `<tr data-staff="${s.id}">
+      html += `<tr data-staff="${E(s.id)}">
         <td>
           <div style="display:flex;align-items:center;gap:10px;">
-            <div class="staff-chip-avatar" style="width:32px;height:32px;font-size:11px;">${s.name.split(' ').map(p=>p[0]).join('').slice(0,2)}</div>
+            <div class="staff-chip-avatar" style="width:32px;height:32px;font-size:11px;">${E(s.name.split(' ').map(p=>p[0]).join('').slice(0,2))}</div>
             <div>
-              <div style="font-weight:600;color:var(--ink);">${s.name}</div>
-              <div style="font-size:11px;color:var(--ink-muted);text-transform:capitalize;">${s.role}</div>
+              <div style="font-weight:600;color:var(--ink);">${E(s.name)}</div>
+              <div style="font-size:11px;color:var(--ink-muted);text-transform:capitalize;">${E(s.role)}</div>
             </div>
           </div>
         </td>
@@ -3638,24 +3677,28 @@ function renderInquiries(main) {
   } else {
     html += '<div class="inbox-list">';
     portalState.inquiries.forEach(inq => {
+      // UnoSys: inquiry data is anonymous public input — escape every field.
+      // For tel:/mailto: we also URI-encode to keep the URL parser honest.
+      const _telHref  = inq.phone && inq.phone !== '—' ? 'tel:'    + encodeURIComponent(inq.phone) : '';
+      const _mailHref = inq.email && inq.email !== '—' ? 'mailto:' + encodeURIComponent(inq.email) + '?subject=Re:%20Your%20inquiry%20to%20Tyo%20Paeng%20Nyo' : '';
       html += `<div class="inquiry-card ${inq.status === 'new' ? 'new' : ''}">
         <div class="inquiry-header">
           <div>
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
               <span class="inquiry-tag ${inq.type === 'b2b' ? 'tag-b2b' : 'tag-event'}">${inq.type === 'b2b' ? 'B2B / Concession' : 'Event'}</span>
-              <span class="state-pill state-${inq.status === 'new' ? 'pending' : inq.status === 'in-progress' ? 'active' : 'disabled'}">${inq.status}</span>
+              <span class="state-pill state-${inq.status === 'new' ? 'pending' : inq.status === 'in-progress' ? 'active' : 'disabled'}">${E(inq.status)}</span>
             </div>
-            <div class="inquiry-name">${inq.name}${inq.company ? ` <span style="color:var(--ink-muted);font-weight:500;font-size:14px;">— ${inq.company}</span>` : ''}</div>
-            <div class="inquiry-meta">${inq.phone}${inq.email ? ' • ' + inq.email : ''}${inq.eventType ? ' • ' + inq.eventType + ' (' + inq.pax + ' pax)' : ''}${inq.headcount ? ' • ' + inq.headcount + ' pax' : ''}</div>
+            <div class="inquiry-name">${E(inq.name)}${inq.company ? ` <span style="color:var(--ink-muted);font-weight:500;font-size:14px;">— ${E(inq.company)}</span>` : ''}</div>
+            <div class="inquiry-meta">${E(inq.phone)}${inq.email ? ' • ' + E(inq.email) : ''}${inq.eventType ? ' • ' + E(inq.eventType) + ' (' + E(inq.pax) + ' pax)' : ''}${inq.headcount ? ' • ' + E(inq.headcount) + ' pax' : ''}</div>
           </div>
-          <div class="inquiry-time">${inq.time}</div>
+          <div class="inquiry-time">${E(inq.time)}</div>
         </div>
-        <div class="inquiry-body">${inq.notes}</div>
+        <div class="inquiry-body">${E(inq.notes)}</div>
         <div class="inquiry-actions">
-          ${inq.status === 'new' ? `<button class="table-btn primary" onclick="updateInquiryStatus('${inq.id}','in-progress')">Mark In Progress</button>` : ''}
-          ${inq.status !== 'closed' ? `<button class="table-btn" onclick="updateInquiryStatus('${inq.id}','closed')">Close</button>` : ''}
-          ${inq.phone && inq.phone !== '—' ? `<a class="table-btn" href="tel:${inq.phone}" style="text-decoration:none;display:inline-block;">📞 Call</a>` : ''}
-          ${inq.email && inq.email !== '—' ? `<a class="table-btn" href="mailto:${inq.email}?subject=Re:%20Your%20inquiry%20to%20Tyo%20Paeng%20Nyo" style="text-decoration:none;display:inline-block;">✉️ Email</a>` : ''}
+          ${inq.status === 'new' ? `<button class="table-btn primary" onclick="updateInquiryStatus('${E(inq.id)}','in-progress')">Mark In Progress</button>` : ''}
+          ${inq.status !== 'closed' ? `<button class="table-btn" onclick="updateInquiryStatus('${E(inq.id)}','closed')">Close</button>` : ''}
+          ${_telHref  ? `<a class="table-btn" href="${_telHref}"  style="text-decoration:none;display:inline-block;">📞 Call</a>` : ''}
+          ${_mailHref ? `<a class="table-btn" href="${_mailHref}" style="text-decoration:none;display:inline-block;">✉️ Email</a>` : ''}
         </div>
       </div>`;
     });
@@ -3704,16 +3747,26 @@ let _supaTablesChan  = null;
 
 async function loadOrdersFromSupabase() {
   try {
-    const orders = await TPN.listTodayOrders(null);
-    orders.forEach(o => {
-      if (portalState.orders.find(x => x.dbId === o.id)) return;
-      portalState.orders.unshift(dbOrderToPortalOrder(o));
-    });
-    renderAdminSidebar();
-    if (currentRoute === 'orders') route(currentRoute);
-    if (currentRoute === 'dashboard') route(currentRoute);
-    if (currentRoute === 'kds') route(currentRoute);
-  } catch(e) { console.error('loadOrdersFromSupabase:', e); }
+    // UnoSys: load active orders + last hour of terminal ones. Older
+    // completed/cancelled don't come back on refresh — this fixes the
+    // "cleared order reappears" bug.
+    const orders = await TPN.listOrdersSince({ sinceMinutes: 60 });
+    // Rebuild local state from the DB source of truth. Preserve any
+    // orders currently open in the UI that came in via realtime but
+    // aren't in this snapshot (edge case).
+    const kept = portalState.orders.filter(x =>
+      !orders.find(o => o.id === x.dbId) &&
+      (Date.now() - (x.placedAt || 0)) < 60 * 60 * 1000
+    );
+    portalState.orders = orders.map(dbOrderToPortalOrder).concat(kept);
+    if (typeof renderAdminSidebar === 'function') renderAdminSidebar();
+    if (currentRoute === 'orders' || currentRoute === 'dashboard' || currentRoute === 'kds') {
+      route(currentRoute);
+    }
+  } catch(e) {
+    console.error('loadOrdersFromSupabase:', e);
+    try { toast('⚠ Could not load orders — will retry when connection returns.'); } catch(_){}
+  }
 }
 
 function dbOrderToPortalOrder(o) {
@@ -3749,26 +3802,50 @@ function mapDbStatusToUi(s) {
 function subscribeToSupabaseOrders() {
   if (_supaOrdersUnsub) _supaOrdersUnsub();
   _supaOrdersUnsub = TPN.subscribeOrders(null, async (payload) => {
-    if (payload.eventType === 'INSERT') {
-      try {
+    try {
+      if (payload.eventType === 'INSERT') {
         const full = await TPN.getOrder(payload.new.id);
+        if (!full) return;
         if (portalState.orders.find(x => x.dbId === full.id)) return;
         portalState.orders.unshift(dbOrderToPortalOrder(full));
         showToastPortal(`🔔 New order ${full.order_number}`);
         if (typeof playOrderChime === 'function') playOrderChime();
         rerenderCurrent();
-      } catch(e) { console.error('subscribe INSERT:', e); }
-    } else if (payload.eventType === 'UPDATE') {
-      const existing = portalState.orders.find(x => x.dbId === payload.new.id);
-      if (existing) {
+      } else if (payload.eventType === 'UPDATE') {
+        const existing = portalState.orders.find(x => x.dbId === payload.new.id);
+        if (!existing) return;
         existing.status      = mapDbStatusToUi(payload.new.status);
         existing.confirmedAt = payload.new.confirmed_at ? new Date(payload.new.confirmed_at).getTime() : existing.confirmedAt;
         existing.readyAt     = payload.new.ready_at     ? new Date(payload.new.ready_at).getTime()     : existing.readyAt;
         existing.servedAt    = payload.new.served_at    ? new Date(payload.new.served_at).getTime()    : existing.servedAt;
         existing.completedAt = payload.new.completed_at ? new Date(payload.new.completed_at).getTime() : existing.completedAt;
+        // UnoSys: when an order becomes terminal (done), keep it visible
+        // in the "Done" lane for 5 min then drop from local state so
+        // refresh + cross-device stay consistent.
+        const dbStatus = payload.new.status;
+        if (dbStatus === 'completed' || dbStatus === 'cancelled' || dbStatus === 'served') {
+          setTimeout(() => {
+            const idx = portalState.orders.findIndex(x => x.dbId === payload.new.id);
+            if (idx !== -1 && portalState.orders[idx].status === 'done') {
+              portalState.orders.splice(idx, 1);
+              rerenderCurrent();
+            }
+          }, 5 * 60 * 1000);
+        }
+        // UnoSys: if the payload is truncated by RLS (rare but real),
+        // re-fetch the full row so the UI stays honest.
+        if (!payload.new.total || !payload.new.order_number) {
+          try {
+            const full = await TPN.getOrder(payload.new.id);
+            if (full) Object.assign(existing, dbOrderToPortalOrder(full));
+          } catch(_){}
+        }
         rerenderCurrent();
+      } else if (payload.eventType === 'DELETE') {
+        const idx = portalState.orders.findIndex(x => x.dbId === payload.old?.id);
+        if (idx !== -1) { portalState.orders.splice(idx, 1); rerenderCurrent(); }
       }
-    }
+    } catch(e){ console.error('order realtime:', e); }
   });
 
   // Subscribe to table signals (call-staff, bill request)
@@ -3790,6 +3867,12 @@ function subscribeToSupabaseOrders() {
 async function startSupabaseSync() {
   await loadOrdersFromSupabase();
   subscribeToSupabaseOrders();
+  // UnoSys: re-fetch + re-subscribe on tab wake / reconnect.
+  if (window._tpnOrderResub) window._tpnOrderResub();
+  window._tpnOrderResub = TPN.registerResub(() => {
+    loadOrdersFromSupabase();
+    subscribeToSupabaseOrders();
+  });
 }
 
 function renderOrders(main) {
@@ -3815,11 +3898,11 @@ function renderOrders(main) {
     else laneOrders.forEach(o => {
       html += `<div class="order-card">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:6px;margin-bottom:6px;">
-          <div class="order-ref">${o.id}</div>
-          <div class="order-type-mini ${o.type === 'dinein' ? 'dine' : o.type}">${o.type}</div>
+          <div class="order-ref">${E(o.id)}</div>
+          <div class="order-type-mini ${o.type === 'dinein' ? 'dine' : E(o.type)}">${E(o.type)}</div>
         </div>
-        <div class="order-customer">${o.customer}</div>
-        <div class="order-items">${o.items}</div>
+        <div class="order-customer">${E(o.customer)}</div>
+        <div class="order-items">${E(o.items)}</div>
         ${(o.paymentMethod&&o.paymentMethod!=="cash")?"<div style=\"font-size:11px;color:var(--amber);margin-bottom:3px;\">\uD83D\uDCB3 "+({gcash:"GCash QR",paymaya:"PayMaya QR",card:"Card Terminal"})[o.paymentMethod]+"</div>":""}
         <div class="order-row-foot">
           <div class="order-total">₱${o.total.toFixed(2)}</div>
@@ -3886,8 +3969,8 @@ function renderKDS(main) {
         ? '<span class="kds-badge kds-badge-new">NEW</span>'
         : '<span class="kds-badge kds-badge-cooking">COOKING</span>';
       const items = (o.itemsList && o.itemsList.length)
-        ? o.itemsList.map(it => `<div class="kds-item"><span class="kds-item-qty">${it.qty}×</span> <span class="kds-item-name">${it.name}${it.pax ? ` <span class="kds-item-pax">(${it.pax})</span>` : ''}</span>${it.notes ? `<div class="kds-item-note">📝 ${it.notes}</div>` : ''}</div>`).join('')
-        : `<div class="kds-item">${o.items || '—'}</div>`;
+        ? o.itemsList.map(it => `<div class="kds-item"><span class="kds-item-qty">${E(it.qty)}×</span> <span class="kds-item-name">${E(it.name)}${it.pax ? ` <span class="kds-item-pax">(${E(it.pax)})</span>` : ''}</span>${it.notes ? `<div class="kds-item-note">📝 ${E(it.notes)}</div>` : ''}</div>`).join('')
+        : `<div class="kds-item">${E(o.items) || '—'}</div>`;
       const nextAction = o.status === 'received'
         ? `<button class="kds-action kds-action-start" onclick="advanceOrder('${o.id}','preparing')">Start Cooking →</button>`
         : `<button class="kds-action kds-action-ready" onclick="advanceOrder('${o.id}','ready')">Mark Ready ✓</button>`;
@@ -3895,7 +3978,7 @@ function renderKDS(main) {
         <div class="kds-ticket-head">
           <div>
             <div class="kds-ticket-ref">${o.table ? 'TABLE ' + o.table : o.type.toUpperCase()}</div>
-            <div class="kds-ticket-cust">${o.customerName || o.customer}</div>
+            <div class="kds-ticket-cust">${E(o.customerName || o.customer)}</div>
           </div>
           <div style="text-align:right;">
             ${statusBadge}
@@ -4019,12 +4102,12 @@ function renderAccounts(main) {
       const br = portalState.branches.find(b => b.id === s.branch)?.name || '—';
       html += `<tr>
         <td><div style="display:flex;align-items:center;gap:10px;">
-          <div class="staff-chip-avatar" style="width:32px;height:32px;font-size:11px;">${s.name.split(' ').map(p=>p[0]).join('').slice(0,2)}</div>
-          <div><div style="font-weight:600;color:var(--ink);">${s.name}</div>${s.email ? `<div style="font-size:11px;color:var(--ink-muted);">${s.email}</div>` : ''}</div>
+          <div class="staff-chip-avatar" style="width:32px;height:32px;font-size:11px;">${E(s.name.split(' ').map(p=>p[0]).join('').slice(0,2))}</div>
+          <div><div style="font-weight:600;color:var(--ink);">${E(s.name)}</div>${s.email ? `<div style="font-size:11px;color:var(--ink-muted);">${E(s.email)}</div>` : ''}</div>
         </div></td>
-        <td style="text-transform:capitalize;">${s.role}</td>
-        <td>${br}</td>
-        <td><span class="state-pill state-${s.accountState}">${stateMap[s.accountState].toLowerCase()}</span></td>
+        <td style="text-transform:capitalize;">${E(s.role)}</td>
+        <td>${E(br)}</td>
+        <td><span class="state-pill state-${E(s.accountState)}">${E(stateMap[s.accountState].toLowerCase())}</span></td>
         <td class="table-actions">${renderAccActions(s)}</td>
       </tr>`;
     });
@@ -4390,25 +4473,26 @@ async function refreshMenuManager() {
     Object.values(byCat).forEach(g => {
       if (!g.items.length) return;
       html += `<div style="margin-bottom:24px;">
-        <div style="font-family:'Playfair Display',serif;font-size:20px;font-weight:700;color:var(--ink);margin-bottom:10px;">${g.cat.icon || ''} ${g.cat.name}</div>
+        <div style="font-family:'Playfair Display',serif;font-size:20px;font-weight:700;color:var(--ink);margin-bottom:10px;">${E(g.cat.icon || '')} ${E(g.cat.name)}</div>
         <div class="data-table-wrap"><table class="data-table"><thead><tr>
           <th style="width:36px;"></th><th>Name</th><th>Price</th><th>Featured</th><th>Available</th><th style="text-align:right;">Actions</th>
         </tr></thead><tbody>`;
       g.items.forEach(it => {
         const price = it.pax_options
-          ? Object.entries(it.pax_options).map(([k,v]) => `${k}: ₱${v}`).join(' · ')
-          : '₱' + Number(it.price).toFixed(0);
-        const safeName = (it.name || '').replace(/'/g, "\\'");
+          ? Object.entries(it.pax_options).map(([k,v]) => `${E(k)}: ₱${E(v)}`).join(' · ')
+          : '₱' + N(it.price, 0);
+        // UnoSys: escape for JS-attr context in the Delete confirm handler.
+        const safeName = (it.name || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
         html += `<tr>
-          <td style="font-size:20px;">${it.emoji || '🍽️'}</td>
-          <td><div style="font-weight:600;color:var(--ink);">${it.name}</div><div style="font-size:11px;color:var(--ink-muted);">${it.description || ''}</div></td>
+          <td style="font-size:20px;">${E(it.emoji || '🍽️')}</td>
+          <td><div style="font-weight:600;color:var(--ink);">${E(it.name)}</div><div style="font-size:11px;color:var(--ink-muted);">${E(it.description || '')}</div></td>
           <td>${price}</td>
-          <td>${it.is_featured ? `<span style="font-size:11px;background:var(--gold);color:#fff;padding:2px 8px;border-radius:10px;">${it.featured_tag||'Featured'}</span>` : '—'}</td>
+          <td>${it.is_featured ? `<span style="font-size:11px;background:var(--gold);color:#fff;padding:2px 8px;border-radius:10px;">${E(it.featured_tag||'Featured')}</span>` : '—'}</td>
           <td>${it.is_available ? '<span style="color:var(--success);">✓ Available</span>' : '<span style="color:var(--danger);">✗ Off menu</span>'}</td>
           <td class="table-actions">
-            <button class="btn-secondary" onclick="showMenuItemModal('${it.id}')">Edit</button>
-            <button class="btn-secondary" onclick="toggleMenuAvail('${it.id}', ${!it.is_available})">${it.is_available ? '86 it' : 'Restore'}</button>
-            <button class="btn-secondary" onclick="deleteMenuItem('${it.id}', '${safeName}')">Delete</button>
+            <button class="btn-secondary" onclick="showMenuItemModal('${E(it.id)}')">Edit</button>
+            <button class="btn-secondary" onclick="toggleMenuAvail('${E(it.id)}', ${!it.is_available})">${it.is_available ? '86 it' : 'Restore'}</button>
+            <button class="btn-secondary" onclick="deleteMenuItem('${E(it.id)}', '${safeName}')">Delete</button>
           </td>
         </tr>`;
       });
@@ -4701,7 +4785,7 @@ async function openCorrectAttendanceModal(id) {
     const toLocalDT = iso => iso ? new Date(iso).toISOString().slice(0, 16) : '';
     showModal(`
       <div class="modal-title">Correct Attendance Entry</div>
-      <div class="modal-sub">Staff: <strong>${r.staff?.full_name || '—'}</strong></div>
+      <div class="modal-sub">Staff: <strong>${E(r.staff?.full_name || '—')}</strong></div>
       <div class="modal-content" style="display:grid;gap:12px;">
         <div>
           <label class="form-label">Clock In</label>
@@ -4827,6 +4911,208 @@ function setMsgAdminTab(tab) {
 }
 
 /* ════════════════════════════════════════════════════
+   NOTIFICATIONS — bell tab, live sync, cross-device
+   ════════════════════════════════════════════════════ */
+let _notifUnsub = null;
+
+function _notifIconFor(kind) {
+  return ({
+    order_new:             '🛎️',
+    order_ready:           '🍽️',
+    order_cancelled:       '✖️',
+    inquiry_new:           '📩',
+    message_new:           '✉️',
+    attendance_correction: '🕐',
+    table_signal:          '📳',
+    staff_pending:         '👤',
+    system:                'ℹ️'
+  })[kind] || '🔔';
+}
+
+function _notifRouteFor(link) {
+  // Map the DB 'link' hint to a real in-app route. Falls back to notifications.
+  const map = {
+    orders:            'orders',
+    inquiries:         'inquiries',
+    accounts:          'accounts',
+    'staff-messages':  currentUser && ['dining','kitchen'].includes(currentUser.tier) ? 'staff-messages' : 'messages-admin',
+    'staff-attendance':currentUser && ['dining','kitchen'].includes(currentUser.tier) ? 'staff-attendance' : 'attendance-admin'
+  };
+  return map[link] || null;
+}
+
+async function renderNotifications(main, viewKind) {
+  main.innerHTML = `
+    <div class="portal-header">
+      <div>
+        <h1>Notifications</h1>
+        <div class="portal-header-sub">Everything happening across your branch, in one feed. Synced live across your devices.</div>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn-ghost" onclick="markAllNotificationsRead()">✓ Mark all read</button>
+        <button class="btn-ghost" onclick="route('${viewKind === 'staff' ? 'staff-notifications' : 'notifications'}')">↻ Refresh</button>
+      </div>
+    </div>
+    <div id="notifBody"><div class="panel" style="padding:32px;text-align:center;color:var(--ink-muted);">Loading…</div></div>`;
+  try {
+    const list = await TPN.listNotifications({ limit: 100 });
+    portalState.notifications = list;
+    portalState.unreadNotifCount = list.filter(n => !n.read_at).length;
+    renderNotifBody();
+    if (typeof renderAdminSidebar === 'function' && currentUser && !['dining','kitchen'].includes(currentUser.tier)) renderAdminSidebar();
+    if (typeof renderStaffSidebar === 'function' && currentUser && ['dining','kitchen'].includes(currentUser.tier)) renderStaffSidebar();
+  } catch(e) {
+    console.error('renderNotifications:', e);
+    const body = document.getElementById('notifBody');
+    if (body) body.innerHTML = `<div class="panel" style="padding:24px;color:var(--danger);">Could not load notifications: ${E(e.message||e)}</div>`;
+  }
+}
+
+function renderNotifBody() {
+  const body = document.getElementById('notifBody');
+  if (!body) return;
+  const list = portalState.notifications || [];
+  if (!list.length) {
+    body.innerHTML = `<div class="panel" style="padding:40px;text-align:center;">
+      <div style="font-size:48px;margin-bottom:12px;">🔕</div>
+      <div style="font-size:18px;color:var(--ink);font-weight:600;margin-bottom:6px;">You're all caught up</div>
+      <div style="color:var(--ink-muted);font-size:14px;">New activity across your branch will show up here in real time.</div>
+    </div>`;
+    return;
+  }
+  const groups = { today: [], week: [], older: [] };
+  const now = Date.now();
+  list.forEach(n => {
+    const age = now - new Date(n.created_at).getTime();
+    if (age < 24*60*60*1000) groups.today.push(n);
+    else if (age < 7*24*60*60*1000) groups.week.push(n);
+    else groups.older.push(n);
+  });
+  const section = (title, arr) => arr.length ? `
+    <div class="panel" style="margin-bottom:16px;">
+      <div class="panel-header"><div class="panel-title">${E(title)} <span style="font-size:12px;color:var(--ink-muted);font-weight:500;margin-left:8px;">${arr.length}</span></div></div>
+      <div style="display:flex;flex-direction:column;">
+        ${arr.map(n => notifRow(n)).join('')}
+      </div>
+    </div>` : '';
+  body.innerHTML = section('Today', groups.today) + section('This week', groups.week) + section('Older', groups.older);
+}
+
+function notifRow(n) {
+  const unread = !n.read_at;
+  const routeTarget = _notifRouteFor(n.link);
+  const clickAttr = routeTarget
+    ? `onclick="onNotifClick('${E(n.id)}','${E(routeTarget)}')"`
+    : `onclick="onNotifClick('${E(n.id)}',null)"`;
+  return `
+    <div class="notif-row ${unread ? 'notif-unread' : ''}" ${clickAttr}
+         style="display:flex;gap:12px;padding:14px 18px;border-bottom:1px solid var(--line);cursor:pointer;${unread ? 'background:rgba(184,128,15,0.06);' : ''}">
+      <div style="flex-shrink:0;font-size:22px;line-height:1;">${_notifIconFor(n.kind)}</div>
+      <div style="flex:1;min-width:0;">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;">
+          <div style="font-weight:${unread ? 700 : 600};color:var(--ink);font-size:14px;">${E(n.title)}</div>
+          <div style="font-size:11px;color:var(--ink-muted);flex-shrink:0;">${E(timeAgo(new Date(n.created_at)))}</div>
+        </div>
+        ${n.body ? `<div style="font-size:13px;color:var(--ink-muted);margin-top:2px;line-height:1.4;">${E(n.body)}</div>` : ''}
+      </div>
+      <button class="table-btn" style="align-self:flex-start;flex-shrink:0;" onclick="event.stopPropagation();deleteNotification('${E(n.id)}')" title="Dismiss">×</button>
+    </div>`;
+}
+
+async function onNotifClick(id, targetRoute) {
+  const n = portalState.notifications.find(x => x.id === id);
+  if (n && !n.read_at) {
+    n.read_at = new Date().toISOString();
+    portalState.unreadNotifCount = Math.max(0, portalState.unreadNotifCount - 1);
+    TPN.markNotifRead(id);   // fire-and-forget
+    if (typeof renderAdminSidebar === 'function' && currentUser && !['dining','kitchen'].includes(currentUser.tier)) renderAdminSidebar();
+    if (typeof renderStaffSidebar === 'function' && currentUser && ['dining','kitchen'].includes(currentUser.tier)) renderStaffSidebar();
+    renderNotifBody();
+  }
+  if (targetRoute && targetRoute !== 'null') {
+    if (currentUser && ['dining','kitchen'].includes(currentUser.tier)) routeStaff(targetRoute);
+    else route(targetRoute);
+  }
+}
+
+async function markAllNotificationsRead() {
+  const ok = await TPN.markAllNotifsRead();
+  if (!ok) { try { toast('Could not mark all read — try again.'); } catch(e){} return; }
+  portalState.notifications.forEach(n => n.read_at = n.read_at || new Date().toISOString());
+  portalState.unreadNotifCount = 0;
+  renderNotifBody();
+  if (typeof renderAdminSidebar === 'function' && currentUser && !['dining','kitchen'].includes(currentUser.tier)) renderAdminSidebar();
+  if (typeof renderStaffSidebar === 'function' && currentUser && ['dining','kitchen'].includes(currentUser.tier)) renderStaffSidebar();
+  try { toast('All notifications marked read'); } catch(e){}
+}
+
+async function deleteNotification(id) {
+  const ok = await TPN.deleteNotification(id);
+  if (!ok) { try { toast('Could not dismiss — try again.'); } catch(e){} return; }
+  const idx = portalState.notifications.findIndex(n => n.id === id);
+  if (idx !== -1) {
+    if (!portalState.notifications[idx].read_at) {
+      portalState.unreadNotifCount = Math.max(0, portalState.unreadNotifCount - 1);
+    }
+    portalState.notifications.splice(idx, 1);
+  }
+  renderNotifBody();
+  if (typeof renderAdminSidebar === 'function' && currentUser && !['dining','kitchen'].includes(currentUser.tier)) renderAdminSidebar();
+  if (typeof renderStaffSidebar === 'function' && currentUser && ['dining','kitchen'].includes(currentUser.tier)) renderStaffSidebar();
+}
+
+// Start the live sync at login. Fetches the count + subscribes.
+async function startNotificationSync() {
+  try {
+    portalState.unreadNotifCount = await TPN.unreadNotifCount();
+  } catch(e) { portalState.unreadNotifCount = 0; }
+  if (typeof renderAdminSidebar === 'function' && currentUser && !['dining','kitchen'].includes(currentUser.tier)) renderAdminSidebar();
+  if (typeof renderStaffSidebar === 'function' && currentUser && ['dining','kitchen'].includes(currentUser.tier)) renderStaffSidebar();
+
+  if (_notifUnsub) _notifUnsub();
+  _notifUnsub = TPN.subscribeNotifications((payload) => {
+    try {
+      if (payload.eventType === 'INSERT') {
+        const n = payload.new;
+        // Ignore if it isn't actually for us (RLS should filter but
+        // double-check for branch broadcasts vs our branch).
+        if (n.user_id && n.user_id !== currentUser?.id && !TPN.hasRole('admin')) return;
+        portalState.notifications.unshift(n);
+        if (!n.read_at) portalState.unreadNotifCount++;
+        // Toast the high-priority ones without stealing focus
+        if (n.priority === 'high' || n.priority === 'urgent') {
+          try { showToastPortal(_notifIconFor(n.kind) + ' ' + n.title); } catch(e){}
+        }
+        if (currentRoute === 'notifications' || currentRoute === 'staff-notifications') renderNotifBody();
+        if (typeof renderAdminSidebar === 'function' && currentUser && !['dining','kitchen'].includes(currentUser.tier)) renderAdminSidebar();
+        if (typeof renderStaffSidebar === 'function' && currentUser && ['dining','kitchen'].includes(currentUser.tier)) renderStaffSidebar();
+      } else if (payload.eventType === 'UPDATE') {
+        const existing = portalState.notifications.find(n => n.id === payload.new.id);
+        if (existing) {
+          const wasUnread = !existing.read_at;
+          Object.assign(existing, payload.new);
+          const isUnread = !existing.read_at;
+          if (wasUnread && !isUnread) portalState.unreadNotifCount = Math.max(0, portalState.unreadNotifCount - 1);
+          if (!wasUnread && isUnread) portalState.unreadNotifCount++;
+          if (currentRoute === 'notifications' || currentRoute === 'staff-notifications') renderNotifBody();
+          if (typeof renderAdminSidebar === 'function' && currentUser && !['dining','kitchen'].includes(currentUser.tier)) renderAdminSidebar();
+          if (typeof renderStaffSidebar === 'function' && currentUser && ['dining','kitchen'].includes(currentUser.tier)) renderStaffSidebar();
+        }
+      } else if (payload.eventType === 'DELETE') {
+        const idx = portalState.notifications.findIndex(n => n.id === payload.old?.id);
+        if (idx !== -1) {
+          if (!portalState.notifications[idx].read_at) portalState.unreadNotifCount = Math.max(0, portalState.unreadNotifCount - 1);
+          portalState.notifications.splice(idx, 1);
+          if (currentRoute === 'notifications' || currentRoute === 'staff-notifications') renderNotifBody();
+          if (typeof renderAdminSidebar === 'function' && currentUser && !['dining','kitchen'].includes(currentUser.tier)) renderAdminSidebar();
+          if (typeof renderStaffSidebar === 'function' && currentUser && ['dining','kitchen'].includes(currentUser.tier)) renderStaffSidebar();
+        }
+      }
+    } catch(e){ console.warn('notif subscribe:', e); }
+  });
+}
+
+/* ════════════════════════════════════════════════════
    STAFF PERSONAL VIEW (Dining/Kitchen)
    ════════════════════════════════════════════════════ */
 function renderStaffSidebar() {
@@ -4847,6 +5133,7 @@ function renderStaffSidebar() {
   items.push(
     { id: 'staff-schedule', label: 'My Schedule', icon: '📅' },
     { id: 'staff-attendance', label: 'My Attendance', icon: '✓' },
+    { id: 'staff-notifications', label: 'Notifications', icon: '🔔', badge: portalState.unreadNotifCount || null },
     { id: 'staff-messages', label: 'Messages', icon: '✉️', badge: window._tpnUnreadMsgs || null },
     { section: 'SETTINGS' },
     { id: 'staff-settings', label: 'Settings', icon: '⚙️' },
@@ -4859,19 +5146,30 @@ function renderStaffSidebar() {
     </div>`;
   }).join('');
   document.getElementById('staffUser').innerHTML = `
-    <div class="portal-user-avatar">${initials}</div>
+    <div class="portal-user-avatar">${E(initials)}</div>
     <div class="portal-user-info">
-      <div class="portal-user-name">${u.name}</div>
+      <div class="portal-user-name">${E(u.name)}</div>
       <div class="portal-user-tier">${u.tier === 'dining' ? 'Dining' : 'Kitchen'} • Las Piñas</div>
     </div>
     <button class="portal-logout" onclick="exitStaffPortal()">Out</button>`;
 }
-function routeStaff(r) {
+function routeStaff(r, opts) {
+  opts = opts || {};
   document.querySelectorAll('#staffNav .portal-nav-item').forEach(el => el.classList.toggle('active', el.dataset.staffRoute === r));
   document.getElementById('staffSidebar')?.classList.remove('open');
   const main = document.getElementById('staffMain');
   currentRoute = r;  // so realtime handlers know to re-render kds/orders
   saveLastRoute('staff', r);
+  // UnoSys: keep browser back/forward in sync with in-app routing.
+  try {
+    const url = new URL(window.location.href);
+    url.searchParams.set('view', r);
+    if (opts.replace) {
+      history.replaceState({ tpnRoute: r, kind: 'staff' }, '', url.pathname + url.search);
+    } else {
+      history.pushState({ tpnRoute: r, kind: 'staff' }, '', url.pathname + url.search);
+    }
+  } catch(e) {}
   switch (r) {
     case 'staff-home': renderStaffHome(main); break;
     case 'kds': renderKDS(main); break;
@@ -4879,6 +5177,7 @@ function routeStaff(r) {
     case 'staff-schedule': renderStaffSchedule(main); break;
     case 'staff-attendance': renderStaffAttendance(main); break;
     case 'staff-messages': renderStaffMessages(main); break;
+    case 'staff-notifications': renderNotifications(main, 'staff'); break;
     case 'staff-settings': renderStaffSettings(main); break;
     default: renderStaffHome(main);
   }
@@ -4973,9 +5272,9 @@ async function renderStaffHome(main) {
       if (!msgs.length) msgEl.innerHTML = '<div style="text-align:center;color:var(--ink-faint);padding:20px;">📬 No messages yet.</div>';
       else msgEl.innerHTML = msgs.slice(0, 3).map(m => `
         <div class="msg-item ${!m.read_at ? 'unread' : ''}" onclick="routeStaff('staff-messages')" style="cursor:pointer;">
-          <div class="msg-avatar">${(m.from_staff?.full_name || '?').split(' ').map(s=>s[0]).join('').slice(0,2)}</div>
+          <div class="msg-avatar">${E((m.from_staff?.full_name || '?').split(' ').map(s=>s[0]).join('').slice(0,2))}</div>
           <div class="msg-content">
-            <div class="msg-header"><div class="msg-from">${m.from_staff?.full_name || 'System'}</div><div class="msg-time">${timeAgo(new Date(m.created_at))}</div></div>
+            <div class="msg-header"><div class="msg-from">${E(m.from_staff?.full_name || 'System')}</div><div class="msg-time">${E(timeAgo(new Date(m.created_at)))}</div></div>
             <div class="msg-snippet">${(m.body || '').slice(0, 120)}${m.body && m.body.length > 120 ? '…' : ''}</div>
           </div>
         </div>`).join('');
@@ -5489,6 +5788,21 @@ function showAvgPrepDrilldown() {
 const revealObs = new IntersectionObserver((entries) => {
   entries.forEach(entry => { if (entry.isIntersecting) entry.target.classList.add('visible'); });
 }, { threshold: 0.1 });
+
+// UnoSys: browser back/forward → drive route without pushing a new
+// history entry. Safe fallback: if the state target isn't a valid
+// route, we just stay put and let the user try again.
+window.addEventListener('popstate', function(ev){
+  try {
+    const st = ev.state || {};
+    if (!st || !st.tpnRoute) return;
+    if (st.kind === 'admin' && typeof route === 'function') {
+      route(st.tpnRoute, { replace: true });
+    } else if (st.kind === 'staff' && typeof routeStaff === 'function') {
+      routeStaff(st.tpnRoute, { replace: true });
+    }
+  } catch(e){ console.warn('popstate:', e); }
+});
 
 // Init on load
 window.addEventListener('DOMContentLoaded', async () => {

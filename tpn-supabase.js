@@ -611,10 +611,224 @@ const TPN = {
   }
 };
 
+// ═════════════════════════════════════════════════════════════
+// UnoSys: XSS-safe HTML escape. Wrap ANY string that came from
+// user input or the DB before inserting into innerHTML. Safe on
+// null / undefined / numbers.
+// ═════════════════════════════════════════════════════════════
+TPN.esc = function (v) {
+  if (v === null || v === undefined) return '';
+  const ESC_MAP = { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' };
+  return String(v).replace(/[&<>"']/g, c => ESC_MAP[c]);
+};
+// Convenience: escape for use inside JS string literals in inline onclick=""
+// Only used where we cannot avoid inline handlers. Callers should prefer
+// data-* attributes + addEventListener, but we retain this for legacy sites.
+TPN.escAttr = function (v) {
+  return TPN.esc(v).replace(/`/g, '&#96;');
+};
+
+// ═════════════════════════════════════════════════════════════
+// UnoSys: Cache invalidation for branches (avoids stuck empty cache
+// from a transient error on first load).
+// ═════════════════════════════════════════════════════════════
+TPN.invalidateBranchCache = function () { TPN._branches = null; };
+
+// ═════════════════════════════════════════════════════════════
+// UnoSys: Cross-device / cross-tab broadcast. Used to sync UI
+// state (cart, current route) between tabs on the SAME browser.
+// Cross-DEVICE sync for real data is handled by Supabase realtime
+// on the underlying tables (orders, messages, notifications).
+// Safe on browsers without BroadcastChannel: falls back to storage
+// events via localStorage ping.
+// ═════════════════════════════════════════════════════════════
+TPN._bcChannel = (typeof BroadcastChannel !== 'undefined')
+  ? new BroadcastChannel('tpn-os-sync') : null;
+TPN.broadcast = function (kind, payload) {
+  const msg = { kind, payload, at: Date.now(), from: TPN._user?.id || null };
+  try {
+    if (TPN._bcChannel) TPN._bcChannel.postMessage(msg);
+    else localStorage.setItem('tpn.bcast', JSON.stringify(msg));
+  } catch (e) { /* silent */ }
+};
+TPN.onBroadcast = function (handler) {
+  if (typeof handler !== 'function') return () => {};
+  if (TPN._bcChannel) {
+    const fn = (ev) => { try { handler(ev.data); } catch(e){ console.warn('bc handler:', e); } };
+    TPN._bcChannel.addEventListener('message', fn);
+    return () => TPN._bcChannel.removeEventListener('message', fn);
+  }
+  const fn = (ev) => {
+    if (ev.key !== 'tpn.bcast' || !ev.newValue) return;
+    try { handler(JSON.parse(ev.newValue)); } catch(e){}
+  };
+  window.addEventListener('storage', fn);
+  return () => window.removeEventListener('storage', fn);
+};
+
+// ═════════════════════════════════════════════════════════════
+// UnoSys: Realtime reconnection health. Supabase realtime can
+// silently drop after a laptop sleep or a phone tab suspend.
+// This heartbeat re-subscribes any channel-holders when the tab
+// wakes up. Consumers just need to expose a re-subscribe fn.
+// ═════════════════════════════════════════════════════════════
+TPN._resubHandlers = new Set();
+TPN.registerResub = function (fn) {
+  if (typeof fn !== 'function') return () => {};
+  TPN._resubHandlers.add(fn);
+  return () => TPN._resubHandlers.delete(fn);
+};
+TPN._runResub = function () {
+  TPN._resubHandlers.forEach(fn => { try { fn(); } catch(e){ console.warn('resub:', e); } });
+};
+if (typeof document !== 'undefined') {
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') TPN._runResub();
+  });
+  window.addEventListener('online', () => TPN._runResub());
+}
+
+// ═════════════════════════════════════════════════════════════
+// UnoSys: Safer active-order query. Includes all live states, plus
+// completed/cancelled within the last `sinceMinutes` (default 60)
+// so terminal orders don't linger forever in Live Orders lanes.
+// Callers can pass sinceMinutes=null to get an unbounded window.
+// ═════════════════════════════════════════════════════════════
+TPN.listOrdersSince = async function (opts = {}) {
+  const sinceMinutes = opts.sinceMinutes ?? 60;
+  const branchId = opts.branchId ?? null;
+  const cutoff = sinceMinutes == null
+    ? new Date(0).toISOString()
+    : new Date(Date.now() - sinceMinutes * 60000).toISOString();
+  let q = sb.from('orders')
+    .select('*, order_items(*), restaurant_tables(table_number)')
+    .or(`status.in.(pending,confirmed,preparing,ready),placed_at.gte.${cutoff}`)
+    .order('placed_at', { ascending: false })
+    .limit(200);
+  if (branchId) q = q.eq('branch_id', branchId);
+  const { data, error } = await q;
+  if (error) throw error;
+  return data || [];
+};
+
+// ═════════════════════════════════════════════════════════════
+// UnoSys: NOTIFICATIONS
+// Backed by public.notifications (sql/10-notifications.sql).
+// Rows shape: { id, user_id, branch_id, kind, title, body, link,
+//               entity_type, entity_id, priority, read_at,
+//               created_at }
+// kind values: 'order_new','order_ready','order_cancelled',
+//              'inquiry_new','message_new','attendance_correction',
+//              'table_signal','staff_pending','system'
+// ═════════════════════════════════════════════════════════════
+TPN.listNotifications = async function ({ limit = 50, includeRead = true } = {}) {
+  if (!this._user) return [];
+  try {
+    let q = sb.from('notifications')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(limit);
+    if (!includeRead) q = q.is('read_at', null);
+    const { data, error } = await q;
+    if (error) throw error;
+    return data || [];
+  } catch (e) {
+    console.warn('listNotifications:', e.message || e);
+    return [];   // never break the UI on a fetch error
+  }
+};
+
+TPN.unreadNotifCount = async function () {
+  if (!this._user) return 0;
+  try {
+    const { count, error } = await sb.from('notifications')
+      .select('id', { count: 'exact', head: true })
+      .is('read_at', null);
+    if (error) return 0;
+    return count || 0;
+  } catch (e) { return 0; }
+};
+
+TPN.markNotifRead = async function (id) {
+  if (!id) return null;
+  try {
+    const { data, error } = await sb.from('notifications')
+      .update({ read_at: new Date().toISOString() })
+      .eq('id', id).is('read_at', null).select().maybeSingle();
+    if (error) throw error;
+    return data;
+  } catch (e) { console.warn('markNotifRead:', e.message||e); return null; }
+};
+
+TPN.markAllNotifsRead = async function () {
+  try {
+    const { error } = await sb.from('notifications')
+      .update({ read_at: new Date().toISOString() })
+      .is('read_at', null);
+    if (error) throw error;
+    return true;
+  } catch (e) { console.warn('markAllNotifsRead:', e.message||e); return false; }
+};
+
+TPN.deleteNotification = async function (id) {
+  if (!id) return false;
+  try {
+    const { error } = await sb.from('notifications').delete().eq('id', id);
+    if (error) throw error;
+    return true;
+  } catch (e) { console.warn('deleteNotification:', e.message||e); return false; }
+};
+
+// Insert a notification directly (for cases the DB triggers don't cover).
+// Server-side rules (sql/10) still enforce who can insert to whom.
+TPN.pushNotification = async function ({ userId = null, branchId = null, kind, title, body = null, link = null, entityType = null, entityId = null, priority = 'normal' }) {
+  try {
+    const { data, error } = await sb.from('notifications').insert({
+      user_id:     userId,
+      branch_id:   branchId,
+      kind, title, body, link,
+      entity_type: entityType,
+      entity_id:   entityId,
+      priority
+    }).select().maybeSingle();
+    if (error) throw error;
+    return data;
+  } catch (e) { console.warn('pushNotification:', e.message||e); return null; }
+};
+
+// Realtime subscribe. Returns unsubscribe fn. Auto-resubscribes on
+// tab wake via registerResub.
+TPN.subscribeNotifications = function (callback) {
+  if (!this._user) return () => {};
+  let chan = null;
+  const build = () => {
+    if (chan) { try { sb.removeChannel(chan); } catch(e){} }
+    chan = sb.channel('notifications:' + TPN._user.id)
+      .on('postgres_changes', {
+        event: '*', schema: 'public', table: 'notifications'
+      }, payload => { try { callback(payload); } catch(e){ console.warn('notif cb:', e); } })
+      .subscribe();
+  };
+  build();
+  const off = TPN.registerResub(build);
+  return () => { off(); if (chan) { try { sb.removeChannel(chan); } catch(e){} } };
+};
+
+// ═════════════════════════════════════════════════════════════
+// UnoSys: On sign-out, wipe user-scoped caches too, so a re-login
+// as a different user on the same device doesn't leak state.
+// ═════════════════════════════════════════════════════════════
+const _origLogout = TPN.logout.bind(TPN);
+TPN.logout = async function () {
+  TPN._branches = null;
+  TPN._menu     = null;
+  await _origLogout();
+};
+
 // Restore session on load
 sb.auth.onAuthStateChange((event) => {
   if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') TPN.loadProfile();
-  if (event === 'SIGNED_OUT') TPN._user = null;
+  if (event === 'SIGNED_OUT') { TPN._user = null; TPN._branches = null; TPN._menu = null; }
 });
 
 // Expose globals

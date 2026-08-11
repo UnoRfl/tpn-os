@@ -10,6 +10,18 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>Tyo Paeng Nyo · Table Menu</title>
 <script>
+  // UnoSys: global error boundary for the customer surface.
+  window.addEventListener('error', function(ev){ console.error('[Menu uncaught]', ev.error || ev.message); });
+  window.addEventListener('unhandledrejection', function(ev){ console.error('[Menu unhandled]', ev.reason); });
+  window.E = function(v){
+    if (v === null || v === undefined) return '';
+    const M = { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' };
+    return String(v).replace(/[&<>"']/g, c => M[c]);
+  };
+  window.N = function(v, d){
+    const n = Number(v); d = (typeof d === 'number') ? d : 2;
+    return Number.isFinite(n) ? n.toFixed(d) : (0).toFixed(d);
+  };
   (function(){
     var p = window.location.pathname;
     if (/\.html$/.test(p)) {
@@ -583,7 +595,7 @@ function toggleLang(){ lang=lang==='en'?'tl':'en'; applyLang(); renderFeatured()
 function renderCategoryChips(){
   const all=lang==='tl'?'Lahat':'All';
   const cats=[{cat:'all',catName:all,catNameTl:all}].concat(menuData);
-  document.getElementById('cats-scroll').innerHTML=cats.map(c=>`<button class="cat-chip ${activeCategory===c.cat?'active':''}" onclick="setCategory('${c.cat}')">${lang==='tl'?(c.catNameTl||c.catName):c.catName}</button>`).join('');
+  document.getElementById('cats-scroll').innerHTML=cats.map(c=>`<button class="cat-chip ${activeCategory===c.cat?'active':''}" onclick="setCategory('${E(c.cat)}')">${E(lang==='tl'?(c.catNameTl||c.catName):c.catName)}</button>`).join('');
 }
 function setCategory(cat){ activeCategory=cat; renderCategoryChips(); renderMenu(); if(cat!=='all') setTimeout(()=>{ const el=document.getElementById('cat-'+cat); if(el) el.scrollIntoView({behavior:'smooth',block:'start'}); },50); }
 
@@ -591,7 +603,7 @@ function renderFeatured(){
   const f=[]; menuData.forEach(cat=>cat.items.forEach(item=>{ if(item.best&&item.available) f.push(item); }));
   document.getElementById('featured-scroll').innerHTML=f.map(item=>{
     const price=item.price?`₱${item.price}`:`₱${Math.min(...Object.values(item.pricePax))}+`;
-    return `<div class="featured-card" onclick="openDishModal('${item.id}')"><div class="featured-emoji">${item.emoji}</div><div class="featured-body"><div class="featured-tag">BESTSELLER</div><div class="featured-name">${item.name}</div><div class="featured-price">${price}</div><button class="add-mini-btn" onclick="event.stopPropagation();openDishModal('${item.id}')">+ Add</button></div></div>`;
+    return `<div class="featured-card" onclick="openDishModal('${E(item.id)}')"><div class="featured-emoji">${E(item.emoji)}</div><div class="featured-body"><div class="featured-tag">BESTSELLER</div><div class="featured-name">${E(item.name)}</div><div class="featured-price">${E(price)}</div><button class="add-mini-btn" onclick="event.stopPropagation();openDishModal('${E(item.id)}')">+ Add</button></div></div>`;
   }).join('');
 }
 
@@ -601,16 +613,16 @@ function renderMenu(){
     const catName=lang==='tl'?(cat.catNameTl||cat.catName):cat.catName;
     const items=cat.items.filter(item=>{ if(activeCategory!=='all'&&activeCategory!==cat.cat) return false; if(q&&!item.name.toLowerCase().includes(q)&&!(item.desc||'').toLowerCase().includes(q)) return false; return true; });
     if(!items.length) return; anyVisible=true;
-    html+=`<div class="cat-section" id="cat-${cat.cat}"><div class="cat-section-title">${catName} <span class="cat-count">(${items.length})</span></div><div class="dish-list">`;
+    html+=`<div class="cat-section" id="cat-${E(cat.cat)}"><div class="cat-section-title">${E(catName)} <span class="cat-count">(${items.length})</span></div><div class="dish-list">`;
     items.forEach(item=>{
       const hasPax=!!item.pricePax;
       const paxChips=hasPax?`<div class="dish-pax-chips">${Object.entries(item.pricePax).map(([size,price])=>`<span class="dish-pax-chip">${size} pax · ₱${price}</span>`).join('')}</div>`:'';
       const priceHtml=hasPax?`<div class="dish-price">₱${Math.min(...Object.values(item.pricePax))}<span class="dish-price-sub">+/pax</span></div>`:`<div class="dish-price">₱${item.price}</div>`;
       const bestTag=item.best?`<div class="dish-tags"><span class="dish-tag tag-best">⭐ BESTSELLER</span></div>`:'';
-      html+=`<div class="dish-card ${item.available?'':'unavailable'}" onclick="${item.available?`openDishModal('${item.id}')`:''}" >
-        <div class="dish-emoji">${item.emoji}</div>
-        <div class="dish-info"><div class="dish-name">${item.name}</div>${item.desc?`<div class="dish-desc">${item.desc}</div>`:''}${bestTag}${paxChips}</div>
-        <div class="dish-right">${priceHtml}<button class="add-dish-btn" ${item.available?`onclick="event.stopPropagation();openDishModal('${item.id}')"`:' disabled'}>${item.available?'+ Add':'Sold Out'}</button></div>
+      html+=`<div class="dish-card ${item.available?'':'unavailable'}" onclick="${item.available?`openDishModal('${E(item.id)}')`:''}" >
+        <div class="dish-emoji">${E(item.emoji)}</div>
+        <div class="dish-info"><div class="dish-name">${E(item.name)}</div>${item.desc?`<div class="dish-desc">${E(item.desc)}</div>`:''}${bestTag}${paxChips}</div>
+        <div class="dish-right">${priceHtml}<button class="add-dish-btn" ${item.available?`onclick="event.stopPropagation();openDishModal('${E(item.id)}')"`:' disabled'}>${item.available?'+ Add':'Sold Out'}</button></div>
       </div>`;
     });
     html+=`</div></div>`;
@@ -624,7 +636,7 @@ function openDishModal(id){ activeDish=findDish(id); if(!activeDish||!activeDish
 function closeDishModal(e){ if(e&&e.target!==document.getElementById('dish-modal')) return; document.getElementById('dish-modal').classList.remove('open'); document.body.style.overflow=''; }
 function renderDishModal(){
   const item=activeDish; const hasPax=!!item.pricePax; const cp=hasPax?item.pricePax[activePaxChoice]:item.price; const total=cp*activeQty;
-  let body=`<div class="modal-emoji">${item.emoji}</div><div class="modal-dish-name">${item.name}</div>${item.desc?`<div class="modal-dish-desc">${item.desc}</div>`:''}`;
+  let body=`<div class="modal-emoji">${E(item.emoji)}</div><div class="modal-dish-name">${E(item.name)}</div>${item.desc?`<div class="modal-dish-desc">${E(item.desc)}</div>`:''}`;
   if(hasPax){ body+=`<div class="modal-label">Serving Size</div><div class="pax-options">`; Object.entries(item.pricePax).forEach(([size,price])=>{ body+=`<div class="pax-opt ${activePaxChoice===size?'selected':''}" onclick="selectPax('${size}')"><span class="pax-opt-size">${size} pax</span><span class="pax-opt-price">₱${price}</span></div>`; }); body+=`</div>`; }
   body+=`<div class="qty-row"><div class="qty-row-label">Quantity</div><div class="qty-control"><button class="qty-btn" onclick="changeQty(-1)">−</button><span class="qty-num">${activeQty}</span><button class="qty-btn" onclick="changeQty(1)">+</button></div></div><div class="modal-label">Special request (optional)</div><textarea class="special-req-input" id="modal-special-req" placeholder="e.g. Extra rice, mas maanghang..."></textarea><button class="modal-add-btn" onclick="addToCart()">+ Add to Order &nbsp;·&nbsp; ₱${total}</button>`;
   document.getElementById('dish-modal-body').innerHTML=body;
@@ -647,7 +659,7 @@ function updateCartUI(){
   document.getElementById('checkout-btn').disabled=count===0;
   const el=document.getElementById('cart-items-list');
   if(!cart.length){ el.innerHTML=`<div class="cart-empty">🍽️ Your cart is empty.<br>Add some dishes!</div>`; return; }
-  el.innerHTML=cart.map(item=>`<div class="cart-item"><div class="cart-item-emoji">${item.emoji}</div><div class="cart-item-info"><div class="cart-item-name">${item.name}</div>${item.variant?`<div class="cart-item-variant">${item.variant}</div>`:''}${item.specialReq?`<div class="cart-item-variant" style="color:var(--gold)">📝 ${item.specialReq}</div>`:''}<div class="cart-item-qty"><button class="qty-btn" onclick="changeCartQty('${item.id}',-1)">−</button><span class="qty-num">${item.qty}</span><button class="qty-btn" onclick="changeCartQty('${item.id}',1)">+</button></div></div><div class="cart-item-price">₱${(item.price*item.qty).toFixed(2)}</div></div>`).join('');
+  el.innerHTML=cart.map(item=>`<div class="cart-item"><div class="cart-item-emoji">${E(item.emoji)}</div><div class="cart-item-info"><div class="cart-item-name">${E(item.name)}</div>${item.variant?`<div class="cart-item-variant">${E(item.variant)}</div>`:''}${item.specialReq?`<div class="cart-item-variant" style="color:var(--gold)">📝 ${E(item.specialReq)}</div>`:''}<div class="cart-item-qty"><button class="qty-btn" onclick="changeCartQty('${E(item.id)}',-1)">−</button><span class="qty-num">${E(item.qty)}</span><button class="qty-btn" onclick="changeCartQty('${E(item.id)}',1)">+</button></div></div><div class="cart-item-price">₱${N(item.price*item.qty, 2)}</div></div>`).join('');
 }
 function changeCartQty(id,d){ const idx=cart.findIndex(i=>i.id===id); if(idx===-1) return; cart[idx].qty+=d; if(cart[idx].qty<=0){ cart.splice(idx,1); showToast('Removed.'); } updateCartUI(); }
 function openCart(){ document.getElementById('cart-overlay').classList.add('open'); document.getElementById('cart-drawer').classList.add('open'); document.body.style.overflow='hidden'; }
@@ -676,7 +688,7 @@ function closeCheckout(){ document.getElementById('checkout-screen').classList.r
 
 function renderOrderSummary(){
   const total=cart.reduce((s,i)=>s+i.price*i.qty,0);
-  let html=cart.map(item=>`<div class="summary-item"><div><span class="summary-item-qty">${item.qty}×</span>${item.name}${item.variant?' ('+item.variant+')':''}</div><span class="summary-item-price">₱${(item.price*item.qty).toFixed(2)}</span></div>`).join('');
+  let html=cart.map(item=>`<div class="summary-item"><div><span class="summary-item-qty">${E(item.qty)}×</span>${E(item.name)}${item.variant?' ('+E(item.variant)+')':''}</div><span class="summary-item-price">₱${N(item.price*item.qty, 2)}</span></div>`).join('');
   html+=`<hr class="summary-divider"><div class="summary-total"><span>This batch</span><span class="summary-total-price">₱${total.toFixed(2)}</span></div>`;
   if(sessionTotal>0) html+=`<div style="display:flex;justify-content:space-between;font-size:13px;color:var(--text-muted);margin-top:4px;font-weight:600"><span>Running total after this</span><span>₱${(sessionTotal+total).toFixed(2)}</span></div>`;
   document.getElementById('order-summary-list').innerHTML=html;
