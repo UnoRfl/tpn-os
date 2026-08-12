@@ -5210,7 +5210,7 @@ async function renderPerformance(main) {
           <input type="month" id="perfMonth" value="${E(_perfState.month)}" max="${E(today.slice(0,7))}" style="padding:8px 10px;border:1px solid var(--line);border-radius:6px;font-size:14px;">
         </label>
         <button class="btn-secondary" onclick="loadPerformance()">↻ Reload</button>
-        <button class="btn-secondary" onclick="exportPerformanceCSV()">⬇ Export CSV</button>
+        <button class="btn-secondary" onclick="exportPerformanceXLSX()">⬇ Export Excel</button>
       </div>
     </div>
     <div id="perfBody"><div class="panel" style="padding:40px;text-align:center;color:var(--ink-muted);">Crunching the numbers…</div></div>`;
@@ -5448,37 +5448,384 @@ function _emptyMini(msg) {
   return `<div style="padding:32px 12px;text-align:center;color:var(--ink-muted);font-size:13px;">${E(msg)}</div>`;
 }
 
-function exportPerformanceCSV() {
+/* ------------------------------------------------------------------ *
+ * UnoSys: sleek multi-sheet XLSX export.
+ * Replaces the old flat CSV dump. Uses ExcelJS (lazy-loaded from CDN
+ * on first click) so initial page load stays fast. Each performance
+ * section gets its own sheet with brick/gold branded headers, currency
+ * formatting, zebra rows, totals rows with SUM formulas, frozen panes,
+ * and print-ready page setup (landscape, fit-to-page, repeat header,
+ * footer with report label + page number).
+ * ------------------------------------------------------------------ */
+
+// Brand palette in ARGB (Excel wants "FF" prefix for full opacity)
+const _XLSX_BRAND = {
+  brick:     'FF8B1A0E',
+  brickDeep: 'FF5C1008',
+  gold:      'FFB8800F',
+  goldHi:    'FFE8B340',
+  parch:     'FFF2E4C7',
+  parchAlt:  'FFF9F1DE',
+  ink:       'FF2B1810',
+  inkMuted:  'FF6B4A35',
+  white:     'FFFFFFFF',
+  line:      'FFD8C89A',
+};
+
+let _excelJSPromise = null;
+function _loadExcelJS() {
+  if (window.ExcelJS) return Promise.resolve(window.ExcelJS);
+  if (_excelJSPromise) return _excelJSPromise;
+  _excelJSPromise = new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js';
+    s.onload = () => resolve(window.ExcelJS);
+    s.onerror = () => { _excelJSPromise = null; reject(new Error('Failed to load Excel library')); };
+    document.head.appendChild(s);
+  });
+  return _excelJSPromise;
+}
+
+// Title band (row 1) + subtitle band (row 2) + slim spacer (row 3).
+// Returns the row number that headers should be written to (4).
+function _xlsxWriteTitle(ws, title, subtitle, colCount) {
+  const endCol = String.fromCharCode(64 + colCount);
+  ws.mergeCells(`A1:${endCol}1`);
+  const t = ws.getCell('A1');
+  t.value = title;
+  t.font = { name: 'Calibri', size: 16, bold: true, color: { argb: _XLSX_BRAND.white } };
+  t.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: _XLSX_BRAND.brick } };
+  t.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
+  ws.getRow(1).height = 30;
+
+  ws.mergeCells(`A2:${endCol}2`);
+  const st = ws.getCell('A2');
+  st.value = subtitle;
+  st.font = { name: 'Calibri', size: 10, italic: true, color: { argb: _XLSX_BRAND.inkMuted } };
+  st.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: _XLSX_BRAND.parch } };
+  st.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
+  ws.getRow(2).height = 18;
+
+  ws.getRow(3).height = 6;
+  return 4;
+}
+
+function _xlsxStyleHeader(ws, rowNum) {
+  const row = ws.getRow(rowNum);
+  row.height = 22;
+  row.eachCell(cell => {
+    cell.font = { name: 'Calibri', size: 11, bold: true, color: { argb: _XLSX_BRAND.goldHi } };
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: _XLSX_BRAND.brickDeep } };
+    cell.alignment = { vertical: 'middle', horizontal: 'center' };
+    cell.border = {
+      top:    { style: 'thin',   color: { argb: _XLSX_BRAND.brickDeep } },
+      bottom: { style: 'medium', color: { argb: _XLSX_BRAND.gold } },
+      left:   { style: 'thin',   color: { argb: _XLSX_BRAND.brickDeep } },
+      right:  { style: 'thin',   color: { argb: _XLSX_BRAND.brickDeep } },
+    };
+  });
+}
+
+function _xlsxStyleBody(row, indexInSection) {
+  const zebra = (indexInSection % 2) === 1;
+  row.eachCell({ includeEmpty: true }, cell => {
+    const prevFont = cell.font || {};
+    cell.font = { name: 'Calibri', size: 11, color: { argb: _XLSX_BRAND.ink }, ...prevFont };
+    if (zebra) {
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: _XLSX_BRAND.parchAlt } };
+    }
+    cell.border = {
+      top:    { style: 'hair', color: { argb: _XLSX_BRAND.line } },
+      bottom: { style: 'hair', color: { argb: _XLSX_BRAND.line } },
+      left:   { style: 'hair', color: { argb: _XLSX_BRAND.line } },
+      right:  { style: 'hair', color: { argb: _XLSX_BRAND.line } },
+    };
+  });
+}
+
+function _xlsxStyleTotal(ws, rowNum) {
+  const row = ws.getRow(rowNum);
+  row.height = 20;
+  row.eachCell({ includeEmpty: true }, cell => {
+    cell.font = { name: 'Calibri', size: 11, bold: true, color: { argb: _XLSX_BRAND.ink } };
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: _XLSX_BRAND.goldHi } };
+    cell.border = {
+      top:    { style: 'medium', color: { argb: _XLSX_BRAND.gold } },
+      bottom: { style: 'medium', color: { argb: _XLSX_BRAND.gold } },
+      left:   { style: 'thin',   color: { argb: _XLSX_BRAND.gold } },
+      right:  { style: 'thin',   color: { argb: _XLSX_BRAND.gold } },
+    };
+  });
+}
+
+// Auto-size columns from cell content, with min/max clamp.
+function _xlsxAutoWidth(ws, hints) {
+  ws.columns.forEach((col, i) => {
+    let max = (hints && hints[i]) ? hints[i] : 10;
+    col.eachCell({ includeEmpty: false }, cell => {
+      const v = cell.value;
+      let s = '';
+      if (v == null) s = '';
+      else if (typeof v === 'object' && v.formula) s = String(v.result != null ? v.result : '');
+      else if (typeof v === 'number') s = v.toLocaleString('en-PH', { maximumFractionDigits: 2 });
+      else s = String(v);
+      if (s.length > max) max = s.length;
+    });
+    col.width = Math.min(Math.max(max + 3, 10), 42);
+  });
+}
+
+function _xlsxSetupPrint(ws, headerRow, footerLeft) {
+  ws.pageSetup = {
+    orientation: 'landscape',
+    paperSize: 9, // A4
+    fitToPage: true,
+    fitToWidth: 1,
+    fitToHeight: 0,
+    margins: { left: 0.3, right: 0.3, top: 0.55, bottom: 0.55, header: 0.25, footer: 0.25 },
+    printTitlesRow: `${headerRow}:${headerRow}`,
+    horizontalCentered: true,
+  };
+  ws.headerFooter = {
+    oddHeader: `&L&"Calibri,Bold"&11&K8B1A0ETyo Paeng Nyo&R&"Calibri,Italic"&9Generated ${new Date().toLocaleDateString('en-PH')}`,
+    oddFooter: `&L&"Calibri,Italic"&9${footerLeft}&C&"Calibri,Italic"&9Confidential&R&"Calibri,Italic"&9Page &P of &N`,
+  };
+  ws.views = [{ state: 'frozen', ySplit: headerRow, showGridLines: false }];
+}
+
+// Standard table sheet: title + subtitle + header + rows + optional totals.
+function _xlsxWriteTable(wb, opts) {
+  const {
+    name, title, subtitle,
+    headers, rows,
+    money = [], integer = [], percent = [],
+    totals = null,
+    columnHints = [],
+    footerLabel,
+  } = opts;
+
+  const ws = wb.addWorksheet(name);
+  const hdr = _xlsxWriteTitle(ws, title, subtitle, headers.length);
+
+  ws.getRow(hdr).values = headers;
+  _xlsxStyleHeader(ws, hdr);
+
+  if (!rows.length) {
+    const r = ws.addRow(['(no data for this period)']);
+    ws.mergeCells(r.number, 1, r.number, headers.length);
+    r.getCell(1).font = { italic: true, color: { argb: _XLSX_BRAND.inkMuted } };
+    r.getCell(1).alignment = { horizontal: 'center' };
+    _xlsxAutoWidth(ws, columnHints);
+    _xlsxSetupPrint(ws, hdr, footerLabel);
+    return ws;
+  }
+
+  const firstDataRow = hdr + 1;
+  rows.forEach((r, i) => {
+    const row = ws.addRow(r);
+    money.forEach(c   => { row.getCell(c).numFmt = '"₱"#,##0.00'; row.getCell(c).alignment = { horizontal: 'right' }; });
+    integer.forEach(c => { row.getCell(c).numFmt = '#,##0';       row.getCell(c).alignment = { horizontal: 'right' }; });
+    percent.forEach(c => { row.getCell(c).numFmt = '0.0%';        row.getCell(c).alignment = { horizontal: 'right' }; });
+    _xlsxStyleBody(row, i);
+  });
+  const lastDataRow = firstDataRow + rows.length - 1;
+
+  if (totals) {
+    const vals = totals.map((op, idx) => {
+      if (!op) return idx === 0 ? 'TOTAL' : null;
+      if (op === 'SUM') {
+        const col = String.fromCharCode(65 + idx);
+        return { formula: `SUM(${col}${firstDataRow}:${col}${lastDataRow})` };
+      }
+      return op;
+    });
+    const tRow = ws.addRow(vals);
+    money.forEach(c   => { tRow.getCell(c).numFmt = '"₱"#,##0.00'; tRow.getCell(c).alignment = { horizontal: 'right' }; });
+    integer.forEach(c => { tRow.getCell(c).numFmt = '#,##0';       tRow.getCell(c).alignment = { horizontal: 'right' }; });
+    percent.forEach(c => { tRow.getCell(c).numFmt = '0.0%';        tRow.getCell(c).alignment = { horizontal: 'right' }; });
+    _xlsxStyleTotal(ws, tRow.number);
+  }
+
+  _xlsxAutoWidth(ws, columnHints);
+  _xlsxSetupPrint(ws, hdr, footerLabel);
+  return ws;
+}
+
+async function exportPerformanceXLSX() {
   const d = window._lastPerfData;
   if (!d) { try { toast('Load a month first, then export.'); } catch(e){} return; }
-  const rows = [];
-  rows.push(['section','key','value_1','value_2']);
-  const ov = d.overview || {};
-  rows.push(['overview','revenue', ov.revenue, '']);
-  rows.push(['overview','orders',  ov.orders, '']);
-  rows.push(['overview','avg_order', ov.avg_order, '']);
-  rows.push(['overview','best_day',  ov.best_day, ov.best_day_revenue]);
-  rows.push(['overview','peak_hour', ov.peak_hour, ov.peak_hour_orders]);
-  rows.push(['overview','void_rate', ov.void_rate, ov.void_amount]);
-  (d.daily || []).forEach(r => rows.push(['daily', r.day, r.revenue, r.orders]));
-  (d.top_items || []).forEach(r => rows.push(['top_items', r.name, r.qty, r.revenue]));
-  (d.categories || []).forEach(r => rows.push(['categories', r.category, r.revenue, r.qty]));
-  (d.order_types || []).forEach(r => rows.push(['order_types', r.type, r.orders, r.revenue]));
-  (d.hours || []).forEach(r => rows.push(['hours', r.hour, r.orders, r.revenue]));
-  (d.payment_methods || []).forEach(r => rows.push(['payment_methods', r.method, r.orders, r.revenue]));
-  (d.void_reasons || []).forEach(r => rows.push(['void_reasons', r.reason, r.count, r.amount]));
-  const csv = rows.map(r => r.map(v => {
-    if (v === null || v === undefined) return '';
-    const s = String(v);
-    return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
-  }).join(',')).join('\n');
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = `tpn-performance-${_perfState.month}.csv`;
-  document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+
+  let ExcelJS;
+  try { ExcelJS = await _loadExcelJS(); }
+  catch(e) { try { toast('Could not load Excel library — check your connection.'); } catch(_){} return; }
+
+  try { toast('Building Excel workbook…'); } catch(_){}
+
+  const wb = new ExcelJS.Workbook();
+  wb.creator  = 'Tyo Paeng Nyo — TPN OS';
+  wb.company  = 'Tyo Paeng Nyo';
+  wb.created  = new Date();
+
+  const monthLabel = _perfState.month;
+  const branchName = (portalState && portalState.currentBranch && portalState.currentBranch.name)
+                  || (portalState && portalState.branch && portalState.branch.name)
+                  || 'All branches';
+  const subtitle = `${branchName} · ${monthLabel}`;
+
+  const ov   = d.overview       || {};
+  const prev = d.prev_overview  || {};
+
+  // ---------- Summary sheet (KPIs with month-over-month deltas) ----------
+  const s1 = wb.addWorksheet('Summary');
+  const hRow = _xlsxWriteTitle(s1, 'Tyo Paeng Nyo — Performance Report', subtitle, 4);
+  s1.getRow(hRow).values = ['Metric', 'This Month', 'Last Month', 'Change'];
+  _xlsxStyleHeader(s1, hRow);
+
+  const kpiRows = [
+    ['Revenue',              ov.revenue          || 0, prev.revenue   || 0,   'money'],
+    ['Orders',               ov.orders           || 0, prev.orders    || 0,   'int'],
+    ['Average order value',  ov.avg_order        || 0, prev.avg_order || 0,   'money'],
+    ['Best day',             ov.best_day         || '—', '',                  'text'],
+    ['Best day revenue',     ov.best_day_revenue || 0,  '',                   'money'],
+    ['Peak hour',            (ov.peak_hour != null ? `${ov.peak_hour}:00` : '—'), '', 'text'],
+    ['Peak-hour orders',     ov.peak_hour_orders || 0,  '',                   'int'],
+    ['Void rate',            ov.void_rate        || 0,  '',                   'percent'],
+    ['Void amount',          ov.void_amount      || 0,  '',                   'money'],
+  ];
+  kpiRows.forEach(([label, cur, prv, kind], i) => {
+    const row = s1.addRow([label, cur, prv, null]);
+    if (typeof cur === 'number' && typeof prv === 'number' && prv) {
+      row.getCell(4).value = { formula: `IFERROR((B${row.number}-C${row.number})/C${row.number},0)` };
+      row.getCell(4).numFmt = '+0.0%;-0.0%;0.0%';
+      row.getCell(4).alignment = { horizontal: 'right' };
+    } else {
+      row.getCell(4).value = '';
+    }
+    if (kind === 'money') {
+      row.getCell(2).numFmt = '"₱"#,##0.00'; row.getCell(2).alignment = { horizontal: 'right' };
+      if (typeof prv === 'number') { row.getCell(3).numFmt = '"₱"#,##0.00'; row.getCell(3).alignment = { horizontal: 'right' }; }
+    } else if (kind === 'int') {
+      row.getCell(2).numFmt = '#,##0'; row.getCell(2).alignment = { horizontal: 'right' };
+      if (typeof prv === 'number') { row.getCell(3).numFmt = '#,##0'; row.getCell(3).alignment = { horizontal: 'right' }; }
+    } else if (kind === 'percent') {
+      row.getCell(2).numFmt = '0.00%'; row.getCell(2).alignment = { horizontal: 'right' };
+    }
+    _xlsxStyleBody(row, i);
+    row.getCell(1).font = { name: 'Calibri', size: 11, bold: true, color: { argb: _XLSX_BRAND.ink } };
+  });
+  _xlsxAutoWidth(s1, [26, 18, 18, 14]);
+  _xlsxSetupPrint(s1, hRow, `TPN — Performance Summary — ${monthLabel}`);
+
+  // ---------- Daily ----------
+  _xlsxWriteTable(wb, {
+    name: 'Daily',
+    title: 'Daily Sales', subtitle,
+    headers: ['Date', 'Revenue', 'Orders'],
+    rows: (d.daily || []).map(r => [r.day, Number(r.revenue)||0, Number(r.orders)||0]),
+    money: [2], integer: [3],
+    totals: [null, 'SUM', 'SUM'],
+    columnHints: [14, 18, 14],
+    footerLabel: `TPN — Daily Sales — ${monthLabel}`,
+  });
+
+  // ---------- Top items ----------
+  _xlsxWriteTable(wb, {
+    name: 'Top Items',
+    title: 'Top-selling Items', subtitle,
+    headers: ['Item', 'Qty sold', 'Revenue'],
+    rows: (d.top_items || []).map(r => [r.name, Number(r.qty)||0, Number(r.revenue)||0]),
+    money: [3], integer: [2],
+    totals: [null, 'SUM', 'SUM'],
+    columnHints: [32, 12, 18],
+    footerLabel: `TPN — Top Items — ${monthLabel}`,
+  });
+
+  // ---------- Categories (with % share column) ----------
+  const catTotal = (d.categories || []).reduce((s, c) => s + (Number(c.revenue)||0), 0);
+  _xlsxWriteTable(wb, {
+    name: 'Categories',
+    title: 'Sales by Category', subtitle,
+    headers: ['Category', 'Qty', 'Revenue', 'Share'],
+    rows: (d.categories || []).map(r => [
+      r.category, Number(r.qty)||0, Number(r.revenue)||0,
+      catTotal ? (Number(r.revenue)||0) / catTotal : 0
+    ]),
+    money: [3], integer: [2], percent: [4],
+    totals: [null, 'SUM', 'SUM', null],
+    columnHints: [22, 12, 18, 12],
+    footerLabel: `TPN — Categories — ${monthLabel}`,
+  });
+
+  // ---------- Order types ----------
+  _xlsxWriteTable(wb, {
+    name: 'Order Types',
+    title: 'Sales by Order Type', subtitle,
+    headers: ['Order type', 'Orders', 'Revenue'],
+    rows: (d.order_types || []).map(r => [r.type, Number(r.orders)||0, Number(r.revenue)||0]),
+    money: [3], integer: [2],
+    totals: [null, 'SUM', 'SUM'],
+    columnHints: [22, 12, 18],
+    footerLabel: `TPN — Order Types — ${monthLabel}`,
+  });
+
+  // ---------- Hours ----------
+  _xlsxWriteTable(wb, {
+    name: 'Hours',
+    title: 'Sales by Hour of Day', subtitle,
+    headers: ['Hour', 'Orders', 'Revenue'],
+    rows: (d.hours || []).map(r => [
+      (r.hour != null ? `${String(r.hour).padStart(2,'0')}:00` : '—'),
+      Number(r.orders)||0,
+      Number(r.revenue)||0,
+    ]),
+    money: [3], integer: [2],
+    totals: [null, 'SUM', 'SUM'],
+    columnHints: [10, 12, 18],
+    footerLabel: `TPN — Hours — ${monthLabel}`,
+  });
+
+  // ---------- Payment methods ----------
+  _xlsxWriteTable(wb, {
+    name: 'Payments',
+    title: 'Sales by Payment Method', subtitle,
+    headers: ['Method', 'Orders', 'Revenue'],
+    rows: (d.payment_methods || []).map(r => [r.method, Number(r.orders)||0, Number(r.revenue)||0]),
+    money: [3], integer: [2],
+    totals: [null, 'SUM', 'SUM'],
+    columnHints: [18, 12, 18],
+    footerLabel: `TPN — Payments — ${monthLabel}`,
+  });
+
+  // ---------- Voids ----------
+  _xlsxWriteTable(wb, {
+    name: 'Voids',
+    title: 'Voided Orders — By Reason', subtitle,
+    headers: ['Reason', 'Count', 'Amount'],
+    rows: (d.void_reasons || []).map(r => [r.reason, Number(r.count)||0, Number(r.amount)||0]),
+    money: [3], integer: [2],
+    totals: [null, 'SUM', 'SUM'],
+    columnHints: [28, 10, 18],
+    footerLabel: `TPN — Voids — ${monthLabel}`,
+  });
+
+  // ---------- Download ----------
+  try {
+    const buf = await wb.xlsx.writeBuffer();
+    const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `tpn-performance-${monthLabel}.xlsx`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    try { toast('Excel workbook downloaded.'); } catch(_){}
+  } catch(e) {
+    console.error('[XLSX export]', e);
+    try { toast('Export failed: ' + (e.message || e)); } catch(_){}
+  }
 }
+
+// Back-compat: any old code or bookmarks calling the CSV name still work.
+function exportPerformanceCSV() { return exportPerformanceXLSX(); }
 
 async function renderHistory(main) {
   const today = _todayManila();
