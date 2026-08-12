@@ -897,6 +897,107 @@ TPN.getSalesPerformanceMonth = async function (monthDate, branchId = null) {
   }
 };
 
+// ═════════════════════════════════════════════════════════════
+// UnoSys: DISCOUNTS
+// - listDiscountPresets: everyone (staff picker)
+// - listAllDiscountPresets: manager+ (management view — includes
+//   inactive / expired for editing)
+// - upsertDiscountPreset / deleteDiscountPreset: manager+
+// - applyDiscount / removeDiscount: staff
+// ═════════════════════════════════════════════════════════════
+TPN.listDiscountPresets = async function (branchId = null) {
+  try {
+    const { data, error } = await sb.rpc('list_active_discount_presets', { p_branch_id: branchId });
+    if (error) throw error;
+    return data || [];
+  } catch (e) { console.warn('listDiscountPresets:', e.message||e); return []; }
+};
+
+TPN.listAllDiscountPresets = async function () {
+  try {
+    const { data, error } = await sb.from('discount_presets')
+      .select('*').order('sort_order', { ascending: true }).order('name');
+    if (error) throw error;
+    return data || [];
+  } catch (e) { console.warn('listAllDiscountPresets:', e.message||e); return []; }
+};
+
+TPN.upsertDiscountPreset = async function (preset) {
+  // preset can be a new object (no id) or an existing one (with id) — Supabase upsert handles both.
+  const payload = { ...preset, updated_at: new Date().toISOString() };
+  if (!payload.created_by && TPN._user) payload.created_by = TPN._user.id;
+  const { data, error } = await sb.from('discount_presets')
+    .upsert(payload).select().maybeSingle();
+  if (error) throw error;
+  return data;
+};
+
+TPN.deleteDiscountPreset = async function (id) {
+  const { error } = await sb.from('discount_presets').delete().eq('id', id);
+  if (error) throw error;
+  return true;
+};
+
+TPN.applyDiscount = async function (orderId, presetId, reference = null, customValue = null) {
+  const { data, error } = await sb.rpc('apply_discount', {
+    p_order_id:     orderId,
+    p_preset_id:    presetId,
+    p_reference:    reference,
+    p_custom_value: customValue
+  });
+  if (error) throw error;
+  return data;
+};
+
+TPN.removeDiscount = async function (orderId) {
+  const { data, error } = await sb.rpc('remove_discount', { p_order_id: orderId });
+  if (error) throw error;
+  return data;
+};
+
+// ═════════════════════════════════════════════════════════════
+// UnoSys: Excel export. Dynamically loads SheetJS on first use so
+// we don't ship a heavy library to every page load. Takes a
+// dictionary of { sheetName: aoa } where aoa = array of arrays
+// (first row = headers). Writes an .xlsx and triggers a download.
+// ═════════════════════════════════════════════════════════════
+TPN._sheetJSLoading = null;
+TPN._ensureSheetJS = function () {
+  if (typeof window.XLSX !== 'undefined') return Promise.resolve();
+  if (TPN._sheetJSLoading) return TPN._sheetJSLoading;
+  TPN._sheetJSLoading = new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
+    s.onload  = () => resolve();
+    s.onerror = () => reject(new Error('Could not load xlsx library'));
+    document.head.appendChild(s);
+  });
+  return TPN._sheetJSLoading;
+};
+
+TPN.exportSheetsToXLSX = async function (filename, sheets) {
+  await TPN._ensureSheetJS();
+  const wb = window.XLSX.utils.book_new();
+  for (const [name, aoa] of Object.entries(sheets)) {
+    const ws = window.XLSX.utils.aoa_to_sheet(aoa);
+    // Auto-size columns based on the max content length in each column.
+    const widths = [];
+    aoa.forEach(row => {
+      row.forEach((cell, i) => {
+        const len = (cell === null || cell === undefined) ? 0 : String(cell).length;
+        widths[i] = Math.max(widths[i] || 0, Math.min(60, len + 2));
+      });
+    });
+    ws['!cols'] = widths.map(w => ({ wch: w }));
+    // Freeze the header row.
+    ws['!freeze'] = { xSplit: 0, ySplit: 1 };
+    // Truncate sheet name to Excel's 31-char limit and strip invalid chars.
+    const safeName = String(name).replace(/[\\/?*\[\]:]/g, ' ').slice(0, 31);
+    window.XLSX.utils.book_append_sheet(wb, ws, safeName);
+  }
+  window.XLSX.writeFile(wb, filename);
+};
+
 // Trigger the monthly archive on demand (also runnable via pg_cron).
 TPN.archiveAuditLog = async function (daysToKeep = 31) {
   const { data, error } = await sb.rpc('audit_log_archive_old', { p_days_to_keep: daysToKeep });

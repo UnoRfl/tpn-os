@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="config.js?v=20260812"></script>
-<script src="tpn-supabase.js?v=20260812"></script>
+<script src="config.js?v=20260813"></script>
+<script src="tpn-supabase.js?v=20260813"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="description" content="Tyo Paeng Nyo — Authentic Filipino cuisine in Las Piñas since 2003. Order online, book events, or inquire about catering.">
 <meta name="theme-color" content="#8B1A0E">
@@ -1541,6 +1541,70 @@
   .modal-sub { color: var(--ink-muted); font-size: 14px; margin-bottom: 22px; }
   .modal-content { margin-bottom: 24px; }
   .modal-actions { display: flex; justify-content: flex-end; gap: 10px; }
+
+  /* ═══════════════════════════════════════════════════════════
+     UnoSys: Modal + form primitives used by discount editor and
+     the discount-apply flow.
+     ═══════════════════════════════════════════════════════════ */
+  .modal-backdrop {
+    position: fixed; inset: 0; z-index: 620;
+    background: rgba(24, 12, 4, 0.55);
+    backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+    display: flex; align-items: center; justify-content: center;
+    padding: 20px; overflow-y: auto;
+    animation: mb-in .15s ease;
+  }
+  @keyframes mb-in { from { opacity: 0; } to { opacity: 1; } }
+  .modal-card {
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: 14px; padding: 24px 26px;
+    max-width: 560px; width: 100%;
+    box-shadow: 0 20px 60px rgba(24, 12, 4, 0.35), inset 0 1px 0 rgba(255, 248, 232, 0.5);
+    max-height: 90vh; overflow-y: auto;
+    animation: mc-in .18s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  @keyframes mc-in { from { opacity: 0; transform: translateY(8px) scale(0.98); } to { opacity: 1; transform: none; } }
+  .form-field {
+    display: flex; flex-direction: column; gap: 4px;
+  }
+  .form-field > span {
+    font-size: 11px; font-weight: 700;
+    color: var(--ink-muted);
+    text-transform: uppercase; letter-spacing: 0.08em;
+  }
+  .form-field > input,
+  .form-field > select,
+  .form-field > textarea {
+    background: var(--bg);
+    border: 1px solid var(--line); border-radius: 7px;
+    padding: 9px 11px; font-size: 14px; color: var(--ink);
+    font-family: inherit;
+    transition: border-color .15s ease, box-shadow .15s ease;
+  }
+  .form-field > input:focus,
+  .form-field > select:focus,
+  .form-field > textarea:focus {
+    outline: none;
+    border-color: var(--gold);
+    box-shadow: 0 0 0 3px rgba(184, 128, 15, 0.15);
+  }
+  .form-field > input[type=checkbox] { width: auto; }
+
+  /* Discount picker chips (used inside the apply modal) */
+  .disc-chip {
+    display: flex; align-items: center; gap: 10px;
+    padding: 12px 14px; border: 1.5px solid var(--line);
+    border-radius: 10px; cursor: pointer;
+    background: var(--surface); transition: all .15s ease;
+    text-align: left; font-family: inherit;
+  }
+  .disc-chip:hover { border-color: var(--gold); background: rgba(184, 128, 15, 0.04); transform: translateY(-1px); }
+  .disc-chip.selected { border-color: var(--gold); background: rgba(184, 128, 15, 0.09); box-shadow: 0 0 0 3px rgba(184, 128, 15, 0.15); }
+  .disc-chip-emoji { font-size: 22px; line-height: 1; }
+  .disc-chip-body { flex: 1; min-width: 0; }
+  .disc-chip-name { font-weight: 700; color: var(--ink); font-size: 14px; }
+  .disc-chip-meta { font-size: 11px; color: var(--ink-muted); margin-top: 2px; }
+  .disc-chip-value { font-weight: 700; color: var(--gold); font-variant-numeric: tabular-nums; }
 
   /* ORDER TIME URGENCY */
   .order-time { font-size: 10px; color: var(--ink-faint); letter-spacing: 0.06em; }
@@ -3257,6 +3321,7 @@ function renderAdminSidebar() {
   navItems.push({ id: 'notifications', label: 'Notifications', icon: '🔔', badge: portalState.unreadNotifCount || null });
   navItems.push({ id: 'messages-admin', label: 'Messages', icon: '✉️', badge: window._tpnUnreadMsgs || null });
   navItems.push({ id: 'menu-manager', label: 'Menu Manager', icon: '🍽️' });
+  navItems.push({ id: 'discounts', label: 'Discounts', icon: '🎟️' });
   navItems.push({ id: 'table-qr', label: 'Table QR Codes', icon: '📲' });
   navItems.push({ id: 'accounts', label: 'Accounts', icon: '👤', badge: portalState.staff.filter(s => s.accountState === 'pending' || s.accountState === 'recommended').length || null });
   if (tier === 'director' || tier === 'ceo' || tier === 'admin') {
@@ -3334,6 +3399,7 @@ function route(r, opts) {
     case 'audit': renderAudit(main); break;
     case 'table-qr': renderTableQR(main); break;
     case 'menu-manager': renderMenuManager(main); break;
+    case 'discounts': renderDiscountsAdmin(main); break;
     case 'notifications': renderNotifications(main, 'admin'); break;
     case 'performance': renderPerformance(main); break;
     case 'history': renderHistory(main); break;
@@ -3933,6 +3999,10 @@ function dbOrderToPortalOrder(o) {
     items: (o.order_items || []).map(i => `${i.quantity}× ${i.name_snapshot}`).join(', '),
     itemsList: (o.order_items || []).map(i => ({ qty: i.quantity, name: i.name_snapshot, pax: i.pax_size, notes: i.notes })),
     total: Number(o.total),
+    subtotal:      Number(o.subtotal || 0),
+    serviceCharge: Number(o.service_charge || 0),
+    discount:      Number(o.discount || 0),
+    discountLabel: o.discount_label || null,
     status: mapDbStatusToUi(o.status),
     time: 'just now',
     placedAt:     new Date(o.placed_at).getTime(),
@@ -4056,6 +4126,7 @@ function renderOrders(main) {
         </div>
         <div class="order-customer">${E(o.customer)}</div>
         <div class="order-items">${E(o.items)}</div>
+        ${o.discount > 0 ? `<div style="display:inline-block;margin:4px 0;padding:3px 9px;background:rgba(184,128,15,0.12);border:1px solid var(--gold);color:var(--gold);border-radius:10px;font-size:11px;font-weight:600;">🎟️ ${E(o.discountLabel || 'Discount')} · − ₱${N(o.discount, 2)}</div>` : ''}
         ${(o.paymentMethod&&o.paymentMethod!=="cash")?"<div style=\"font-size:11px;color:var(--amber);margin-bottom:3px;\">\uD83D\uDCB3 "+({gcash:"GCash QR",paymaya:"PayMaya QR",card:"Card Terminal"})[o.paymentMethod]+"</div>":""}
         <div class="order-row-foot">
           <div class="order-total">₱${N(o.total, 2)}</div>
@@ -4064,6 +4135,7 @@ function renderOrders(main) {
           </div>
         </div>
         ${lane.next ? `<button class="order-advance" onclick="advanceOrder('${E(o.id)}','${E(lane.next)}')">${E(lane.nextLabel)}</button>` : ''}
+        ${lane.id !== 'done' ? `<button class="order-advance" style="margin-top:6px;background:transparent;color:var(--gold);border:1px solid var(--gold);" onclick="openDiscountApplyModal('${E(o.dbId||o.id)}')">🎟️ ${o.discount > 0 ? 'Edit discount' : 'Apply discount'}</button>` : ''}
         ${canVoid && lane.id !== 'done' ? `<button class="order-advance" style="margin-top:6px;background:transparent;color:var(--danger);border:1px solid var(--danger);" onclick="openVoidItemsModal('${E(o.dbId||o.id)}')">🚫 Void items</button>` : ''}
       </div>`;
     });
@@ -5159,6 +5231,439 @@ function _todayManila() {
 }
 
 /* ════════════════════════════════════════════════════
+   DISCOUNTS — manager+ preset editor
+   ════════════════════════════════════════════════════ */
+
+async function renderDiscountsAdmin(main) {
+  main.innerHTML = `
+    <div class="portal-header">
+      <div>
+        <h1>Discounts</h1>
+        <div class="portal-header-sub">Preset discount types staff can apply at checkout. Regular discounts (Senior, PWD) live in the top section; special / limited / exclusive promos appear below with their restrictions visible.</div>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn-secondary primary" onclick="openDiscountEditor()">＋ New preset</button>
+      </div>
+    </div>
+    <div id="discountsAdminBody"><div class="panel" style="padding:40px;text-align:center;color:var(--ink-muted);">Loading presets…</div></div>`;
+  loadDiscountsAdmin();
+}
+
+async function loadDiscountsAdmin() {
+  const body = document.getElementById('discountsAdminBody');
+  if (!body) return;
+  try {
+    const rows = await TPN.listAllDiscountPresets();
+    window._discountPresets = rows;
+    const regular = rows.filter(r => !r.is_special);
+    const special = rows.filter(r =>  r.is_special);
+
+    body.innerHTML = `
+      ${renderPresetSection('Regular discounts', 'These stay available continuously. Use for legally mandated discounts (Senior, PWD, Solo Parent) and steady programs (Employee, Loyalty).', regular)}
+      ${renderPresetSection('Special · limited · exclusive', 'Promos with restrictions — a validity window, a minimum order, a usage cap, or a manager-only role gate. Perfect for anniversary sales, seasonal events, VIP campaigns.', special)}`;
+  } catch(e) {
+    body.innerHTML = `<div class="panel" style="padding:24px;color:var(--danger);">Could not load presets: ${E(e.message||e)}</div>`;
+  }
+}
+
+function renderPresetSection(title, sub, rows) {
+  return `
+    <div class="panel" style="padding:20px;margin-bottom:16px;">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:14px;gap:12px;flex-wrap:wrap;">
+        <div>
+          <div style="font-family:'Playfair Display',serif;font-size:18px;font-weight:700;color:var(--ink);">${E(title)}</div>
+          <div style="font-size:12px;color:var(--ink-muted);margin-top:2px;max-width:640px;line-height:1.5;">${E(sub)}</div>
+        </div>
+        <div style="font-size:11px;color:var(--ink-faint);">${rows.length} preset${rows.length===1?'':'s'}</div>
+      </div>
+      ${rows.length === 0
+        ? '<div style="padding:24px;text-align:center;color:var(--ink-muted);font-size:13px;">None yet — hit “New preset” up top to create one.</div>'
+        : `<div class="data-table-wrap"><table class="data-table">
+            <thead><tr>
+              <th style="width:40px;"></th>
+              <th>Name</th>
+              <th>Value</th>
+              <th>Restrictions</th>
+              <th>Usage</th>
+              <th>Status</th>
+              <th style="text-align:right;">Actions</th>
+            </tr></thead>
+            <tbody>${rows.map(discountRow).join('')}</tbody>
+          </table></div>`}
+    </div>`;
+}
+
+function discountRow(p) {
+  const valueLabel = p.kind === 'percent'
+    ? (Number(p.value) === 0 ? 'Custom %' : Number(p.value) + '%')
+    : (Number(p.value) === 0 ? 'Custom ₱' : '₱' + Number(p.value).toLocaleString('en-PH'));
+  const restrictions = [];
+  if (p.requires_reference) restrictions.push('ID required');
+  if (p.role_required && p.role_required !== 'dining') restrictions.push(p.role_required + '+ only');
+  if (p.valid_from)   restrictions.push('from ' + new Date(p.valid_from).toLocaleDateString('en-PH'));
+  if (p.valid_until)  restrictions.push('until ' + new Date(p.valid_until).toLocaleDateString('en-PH'));
+  if (p.min_order_amount)   restrictions.push('min ₱' + Number(p.min_order_amount).toLocaleString('en-PH'));
+  if (p.max_discount_amount) restrictions.push('cap ₱' + Number(p.max_discount_amount).toLocaleString('en-PH'));
+  const usage = p.usage_limit
+    ? `${p.usage_count || 0} / ${p.usage_limit}`
+    : (p.usage_count || 0) + ' used';
+  const status = p.is_active
+    ? '<span class="state-pill state-active">Active</span>'
+    : '<span class="state-pill state-disabled">Off</span>';
+  return `<tr>
+    <td style="font-size:20px;">${E(p.emoji || '🎟️')}</td>
+    <td>
+      <div style="font-weight:600;color:var(--ink);">${E(p.name)}</div>
+      ${p.description ? `<div style="font-size:11px;color:var(--ink-muted);max-width:340px;line-height:1.45;">${E(p.description)}</div>` : ''}
+    </td>
+    <td style="font-weight:700;color:var(--gold);font-variant-numeric:tabular-nums;">${E(valueLabel)}</td>
+    <td style="font-size:11px;color:var(--ink-muted);">${restrictions.length ? restrictions.map(E).join(' · ') : '—'}</td>
+    <td style="font-variant-numeric:tabular-nums;color:var(--ink-muted);font-size:12px;">${E(usage)}</td>
+    <td>${status}</td>
+    <td class="table-actions">
+      <button class="btn-secondary" onclick="openDiscountEditor('${E(p.id)}')">✎ Edit</button>
+      <button class="btn-secondary" onclick="toggleDiscountActive('${E(p.id)}', ${!p.is_active})">${p.is_active ? '⏸ Pause' : '▶ Activate'}</button>
+      <button class="btn-secondary danger" onclick="deleteDiscountPreset('${E(p.id)}', '${E((p.name||'').replace(/'/g,"&#39;"))}')">Delete</button>
+    </td>
+  </tr>`;
+}
+
+async function toggleDiscountActive(id, newState) {
+  const preset = (window._discountPresets || []).find(p => p.id === id);
+  if (!preset) return;
+  try {
+    await TPN.upsertDiscountPreset({ ...preset, is_active: newState });
+    toast(newState ? 'Preset activated' : 'Preset paused');
+    loadDiscountsAdmin();
+  } catch(e) { toast('Could not update: ' + (e.message||e)); }
+}
+
+async function deleteDiscountPreset(id, name) {
+  if (!window.confirm(`Delete the "${name}" preset? Orders that already used it will keep their applied discount amount.`)) return;
+  try {
+    await TPN.deleteDiscountPreset(id);
+    toast('Preset deleted');
+    loadDiscountsAdmin();
+  } catch(e) { toast('Delete failed: ' + (e.message||e)); }
+}
+
+function openDiscountEditor(id) {
+  const existing = id ? (window._discountPresets || []).find(p => p.id === id) : null;
+  const p = existing || {
+    name: '', description: '', kind: 'percent', value: 0, applies_to: 'subtotal',
+    requires_reference: false, reference_label: '', is_active: true, is_special: false,
+    role_required: 'dining', valid_from: null, valid_until: null,
+    min_order_amount: null, max_discount_amount: null, usage_limit: null,
+    emoji: '🎟️', color: '#B8800F', sort_order: 50
+  };
+  const modal = document.getElementById('modalRoot') || (() => {
+    const el = document.createElement('div'); el.id = 'modalRoot'; document.body.appendChild(el); return el;
+  })();
+  const dateVal = (d) => d ? new Date(d).toISOString().slice(0,16) : '';
+  modal.innerHTML = `
+    <div class="modal-backdrop" onclick="if(event.target===this)this.remove()">
+      <div class="modal-card" style="max-width:640px;">
+        <div class="modal-title">${existing ? 'Edit discount preset' : 'New discount preset'}</div>
+        <div class="modal-sub">Fill only what you need. Fields under “Restrictions” make this a special / limited / exclusive discount when set.</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px;">
+          <label class="form-field">
+            <span>Name</span>
+            <input id="dp_name" value="${E(p.name)}" placeholder="e.g. Anniversary Weekend">
+          </label>
+          <label class="form-field">
+            <span>Emoji</span>
+            <input id="dp_emoji" value="${E(p.emoji||'🎟️')}" maxlength="4">
+          </label>
+          <label class="form-field" style="grid-column:1/-1;">
+            <span>Description (shown to staff)</span>
+            <input id="dp_description" value="${E(p.description||'')}" placeholder="What this is / when to apply it">
+          </label>
+          <label class="form-field">
+            <span>Type</span>
+            <select id="dp_kind">
+              <option value="percent"${p.kind==='percent'?' selected':''}>Percent (%)</option>
+              <option value="fixed"${p.kind==='fixed'?' selected':''}>Fixed peso (₱)</option>
+            </select>
+          </label>
+          <label class="form-field">
+            <span>Value <span style="color:var(--ink-faint);font-weight:400;">(0 = custom entered by staff)</span></span>
+            <input id="dp_value" type="number" step="0.01" min="0" value="${E(p.value)}">
+          </label>
+          <label class="form-field">
+            <span>Applies to</span>
+            <select id="dp_applies_to">
+              <option value="subtotal"${p.applies_to==='subtotal'?' selected':''}>Subtotal (food only)</option>
+              <option value="total"${p.applies_to==='total'?' selected':''}>Total (incl. service charge)</option>
+            </select>
+          </label>
+          <label class="form-field">
+            <span>Required staff role</span>
+            <select id="dp_role">
+              <option value="dining"${p.role_required==='dining'?' selected':''}>Any staff</option>
+              <option value="supervisor"${p.role_required==='supervisor'?' selected':''}>Supervisor+</option>
+              <option value="manager"${p.role_required==='manager'?' selected':''}>Manager+ only</option>
+              <option value="director"${p.role_required==='director'?' selected':''}>Director+ only</option>
+            </select>
+          </label>
+        </div>
+
+        <div style="margin-top:16px;padding:14px;background:var(--bg);border:1px dashed var(--line);border-radius:8px;">
+          <label style="display:flex;align-items:center;gap:8px;font-weight:600;color:var(--ink);margin-bottom:8px;">
+            <input id="dp_requires_reference" type="checkbox" ${p.requires_reference?'checked':''}>
+            Requires a reference number (Senior / PWD / Solo Parent ID)
+          </label>
+          <label class="form-field" style="margin-top:6px;">
+            <span>Reference label (only used when the box above is ticked)</span>
+            <input id="dp_reference_label" value="${E(p.reference_label||'')}" placeholder="e.g. Senior Citizen ID #">
+          </label>
+        </div>
+
+        <div style="margin-top:16px;padding:14px;background:var(--bg);border:1px dashed var(--gold);border-radius:8px;">
+          <label style="display:flex;align-items:center;gap:8px;font-weight:600;color:var(--ink);margin-bottom:8px;">
+            <input id="dp_is_special" type="checkbox" ${p.is_special?'checked':''}>
+            This is a special / limited / exclusive discount
+          </label>
+          <div style="font-size:11px;color:var(--ink-muted);margin-bottom:10px;line-height:1.5;">
+            Tick this if any of the below are set. Presets ticked here appear in the “Special” section on this page so they're clearly separated from the always-on ones.
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+            <label class="form-field">
+              <span>Valid from</span>
+              <input id="dp_valid_from" type="datetime-local" value="${E(dateVal(p.valid_from))}">
+            </label>
+            <label class="form-field">
+              <span>Valid until</span>
+              <input id="dp_valid_until" type="datetime-local" value="${E(dateVal(p.valid_until))}">
+            </label>
+            <label class="form-field">
+              <span>Min order amount (₱)</span>
+              <input id="dp_min_order" type="number" step="0.01" min="0" value="${E(p.min_order_amount ?? '')}">
+            </label>
+            <label class="form-field">
+              <span>Max discount cap (₱)</span>
+              <input id="dp_max_discount" type="number" step="0.01" min="0" value="${E(p.max_discount_amount ?? '')}">
+            </label>
+            <label class="form-field">
+              <span>Usage limit (total times this preset can be used)</span>
+              <input id="dp_usage_limit" type="number" step="1" min="1" value="${E(p.usage_limit ?? '')}">
+            </label>
+            <label class="form-field">
+              <span>Sort order</span>
+              <input id="dp_sort_order" type="number" step="1" value="${E(p.sort_order ?? 50)}">
+            </label>
+          </div>
+        </div>
+
+        <div style="margin-top:16px;display:flex;align-items:center;gap:8px;">
+          <input id="dp_is_active" type="checkbox" ${p.is_active?'checked':''}>
+          <label for="dp_is_active" style="font-weight:600;color:var(--ink);">Active (staff can apply this at checkout)</label>
+        </div>
+
+        <div class="modal-actions" style="margin-top:16px;">
+          <button class="btn-secondary" onclick="document.getElementById('modalRoot').innerHTML=''">Cancel</button>
+          <button class="btn-secondary primary" onclick="saveDiscountPreset('${E(existing?.id || '')}')">${existing ? 'Save changes' : 'Create preset'}</button>
+        </div>
+      </div>
+    </div>`;
+}
+
+async function saveDiscountPreset(id) {
+  const num = (v) => { const n = parseFloat(v); return Number.isFinite(n) ? n : null; };
+  const int = (v) => { const n = parseInt(v, 10); return Number.isFinite(n) ? n : null; };
+  const val = (el) => document.getElementById(el)?.value?.trim() ?? '';
+  const chk = (el) => document.getElementById(el)?.checked ?? false;
+  const payload = {
+    name:                val('dp_name'),
+    description:         val('dp_description') || null,
+    kind:                val('dp_kind'),
+    value:               Number(val('dp_value')) || 0,
+    applies_to:          val('dp_applies_to'),
+    role_required:       val('dp_role'),
+    requires_reference:  chk('dp_requires_reference'),
+    reference_label:     val('dp_reference_label') || null,
+    is_special:          chk('dp_is_special'),
+    is_active:           chk('dp_is_active'),
+    valid_from:          val('dp_valid_from') ? new Date(val('dp_valid_from')).toISOString() : null,
+    valid_until:         val('dp_valid_until') ? new Date(val('dp_valid_until')).toISOString() : null,
+    min_order_amount:    num(val('dp_min_order')),
+    max_discount_amount: num(val('dp_max_discount')),
+    usage_limit:         int(val('dp_usage_limit')),
+    emoji:               val('dp_emoji') || '🎟️',
+    sort_order:          int(val('dp_sort_order')) ?? 50
+  };
+  if (!payload.name) { toast('Give the preset a name.'); return; }
+  if (id) payload.id = id;
+  try {
+    await TPN.upsertDiscountPreset(payload);
+    document.getElementById('modalRoot').innerHTML = '';
+    toast(id ? '✓ Preset updated' : '✓ Preset created');
+    loadDiscountsAdmin();
+  } catch(e) { toast('Save failed: ' + (e.message||e)); }
+}
+
+/* ────────────────────────────────────────────────────
+   Discount APPLY modal — used at checkout (from the
+   order detail view). Any staff can open; server-side
+   role_required check on the preset gates who can use
+   which one.
+   ──────────────────────────────────────────────────── */
+async function openDiscountApplyModal(orderId) {
+  const modal = document.getElementById('modalRoot') || (() => {
+    const el = document.createElement('div'); el.id = 'modalRoot'; document.body.appendChild(el); return el;
+  })();
+  modal.innerHTML = `
+    <div class="modal-backdrop" onclick="if(event.target===this)this.remove()">
+      <div class="modal-card">
+        <div class="modal-title">Apply discount</div>
+        <div class="modal-sub">Pick a preset. Presets that need a Senior / PWD ID will ask for it below.</div>
+        <div id="discApplyBody" style="min-height:120px;color:var(--ink-muted);text-align:center;padding:24px;">Loading presets…</div>
+      </div>
+    </div>`;
+
+  try {
+    const [order, presets] = await Promise.all([
+      TPN.getOrder(orderId),
+      TPN.listDiscountPresets()
+    ]);
+    if (!order) { toast('Order not found'); modal.innerHTML = ''; return; }
+    window._discountApplyContext = { order, presets, selectedId: null };
+    _renderDiscountApplyBody();
+  } catch(e) {
+    document.getElementById('discApplyBody').innerHTML =
+      `<div style="color:var(--danger);">${E(e.message||e)}</div>`;
+  }
+}
+
+function _renderDiscountApplyBody() {
+  const ctx = window._discountApplyContext || {};
+  const { order, presets, selectedId } = ctx;
+  if (!order) return;
+  const body = document.getElementById('discApplyBody');
+  if (!body) return;
+
+  const selected = presets.find(p => p.id === selectedId);
+  const isCustom = selected && Number(selected.value) === 0;
+
+  const subtotal = Number(order.subtotal || 0);
+  const svc      = Number(order.service_charge || 0);
+  const custom   = Number(document.getElementById('discCustom')?.value || 0);
+  let previewDisc = 0;
+  if (selected) {
+    const base = selected.applies_to === 'total' ? (subtotal + svc) : subtotal;
+    const v = Number(selected.value) === 0 ? custom : Number(selected.value);
+    previewDisc = selected.kind === 'percent' ? (base * (v / 100)) : v;
+    if (selected.max_discount_amount) previewDisc = Math.min(previewDisc, Number(selected.max_discount_amount));
+    if (previewDisc > subtotal + svc) previewDisc = subtotal + svc;
+    if (previewDisc < 0) previewDisc = 0;
+  }
+  const newTotal = Math.max(0, subtotal + svc - previewDisc);
+
+  body.style.textAlign = 'left'; body.style.color = ''; body.style.padding = '';
+  body.innerHTML = `
+    <div style="margin-bottom:16px;">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+        ${presets.map(p => {
+          const v = Number(p.value) === 0
+            ? (p.kind === 'percent' ? 'Custom %' : 'Custom ₱')
+            : (p.kind === 'percent' ? p.value + '%' : '₱' + Number(p.value).toLocaleString('en-PH'));
+          const restr = [];
+          if (p.min_order_amount) restr.push('min ₱' + Number(p.min_order_amount).toLocaleString('en-PH'));
+          if (p.valid_until) restr.push('ends ' + new Date(p.valid_until).toLocaleDateString('en-PH'));
+          return `<button type="button" class="disc-chip ${selectedId === p.id ? 'selected' : ''}"
+                          onclick="_selectDiscountPreset('${E(p.id)}')">
+            <div class="disc-chip-emoji">${E(p.emoji || '🎟️')}</div>
+            <div class="disc-chip-body">
+              <div class="disc-chip-name">${E(p.name)}</div>
+              ${restr.length ? `<div class="disc-chip-meta">${restr.map(E).join(' · ')}</div>` : ''}
+            </div>
+            <div class="disc-chip-value">${E(v)}</div>
+          </button>`;
+        }).join('')}
+      </div>
+    </div>
+
+    ${selected ? `
+      ${selected.description ? `<div style="font-size:12px;color:var(--ink-muted);background:var(--bg);border:1px dashed var(--line);border-radius:6px;padding:8px 10px;margin-bottom:12px;">${E(selected.description)}</div>` : ''}
+      ${isCustom ? `
+        <label class="form-field" style="margin-bottom:12px;">
+          <span>Custom ${selected.kind === 'percent' ? 'percentage (%)' : 'amount (₱)'}</span>
+          <input id="discCustom" type="number" step="0.01" min="0" value="${E(custom)}" oninput="_renderDiscountApplyBody()">
+        </label>` : ''}
+      ${selected.requires_reference ? `
+        <label class="form-field" style="margin-bottom:12px;">
+          <span>${E(selected.reference_label || 'Reference #')} <span style="color:var(--danger);">required</span></span>
+          <input id="discReference" placeholder="Enter the ID number shown on the card">
+        </label>` : ''}
+    ` : ''}
+
+    <div style="border-top:1px solid var(--line);padding-top:14px;">
+      <div style="display:flex;justify-content:space-between;padding:4px 0;color:var(--ink-muted);font-size:13px;">
+        <span>Subtotal</span><span style="font-variant-numeric:tabular-nums;">₱${subtotal.toLocaleString('en-PH', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+      </div>
+      ${svc > 0 ? `<div style="display:flex;justify-content:space-between;padding:4px 0;color:var(--ink-muted);font-size:13px;">
+        <span>Service charge</span><span style="font-variant-numeric:tabular-nums;">₱${svc.toLocaleString('en-PH', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+      </div>` : ''}
+      <div style="display:flex;justify-content:space-between;padding:4px 0;color:${previewDisc > 0 ? 'var(--danger)' : 'var(--ink-muted)'};font-size:13px;font-weight:600;">
+        <span>Discount</span><span style="font-variant-numeric:tabular-nums;">− ₱${previewDisc.toLocaleString('en-PH', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;padding:8px 0 4px;font-weight:800;color:var(--ink);font-size:18px;border-top:1px dashed var(--line);margin-top:6px;">
+        <span>New total</span><span style="font-variant-numeric:tabular-nums;">₱${newTotal.toLocaleString('en-PH', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+      </div>
+    </div>
+
+    <div class="modal-actions" style="margin-top:16px;">
+      ${Number(order.discount) > 0 ? `<button class="btn-secondary" onclick="_runRemoveDiscount('${E(order.id)}')">Remove existing discount</button>` : ''}
+      <button class="btn-secondary" onclick="document.getElementById('modalRoot').innerHTML=''">Cancel</button>
+      <button class="btn-secondary primary" ${selected ? '' : 'disabled'} onclick="_runApplyDiscount()">Apply discount</button>
+    </div>`;
+}
+
+function _selectDiscountPreset(id) {
+  const ctx = window._discountApplyContext; if (!ctx) return;
+  ctx.selectedId = id;
+  _renderDiscountApplyBody();
+}
+
+async function _runApplyDiscount() {
+  const ctx = window._discountApplyContext; if (!ctx || !ctx.selectedId) return;
+  const preset = ctx.presets.find(p => p.id === ctx.selectedId);
+  const ref = document.getElementById('discReference')?.value?.trim() || null;
+  const customV = Number(document.getElementById('discCustom')?.value || 0) || null;
+  if (preset.requires_reference && !ref) { toast('This discount needs a reference number.'); return; }
+  if (Number(preset.value) === 0 && !customV) { toast('Enter the custom amount / percent.'); return; }
+  try {
+    const res = await TPN.applyDiscount(ctx.order.id, preset.id, ref, customV);
+    document.getElementById('modalRoot').innerHTML = '';
+    toast(`✓ ${preset.name} applied — new total ₱${Number(res.new_total).toLocaleString('en-PH', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`);
+    if (typeof loadOrdersFromSupabase === 'function') loadOrdersFromSupabase();
+  } catch(e) {
+    // Server errors come back with a short code like 'preset_requires_reference' — humanize it.
+    const raw = String(e.message || e);
+    const nicer = ({
+      'preset_requires_reference':  'That discount needs a Senior / PWD / Solo Parent ID number.',
+      'preset_inactive':            'This preset is currently paused.',
+      'preset_expired':             'This promo has already ended.',
+      'preset_not_yet_valid':       'This promo has not started yet.',
+      'preset_usage_limit_reached': 'This promo has hit its usage cap.',
+      'order_below_minimum':        'Order is below the minimum for this discount.',
+      'not_authenticated':          'You need to be logged in to apply a discount.',
+    });
+    const key = Object.keys(nicer).find(k => raw.includes(k));
+    toast('Could not apply: ' + (key ? nicer[key] : raw));
+  }
+}
+
+async function _runRemoveDiscount(orderId) {
+  if (!window.confirm('Remove the currently applied discount?')) return;
+  try {
+    await TPN.removeDiscount(orderId);
+    document.getElementById('modalRoot').innerHTML = '';
+    toast('✓ Discount removed');
+    if (typeof loadOrdersFromSupabase === 'function') loadOrdersFromSupabase();
+  } catch(e) { toast('Could not remove: ' + (e.message||e)); }
+}
+
+/* ════════════════════════════════════════════════════
    PERFORMANCE — restaurant analytics dashboard
    Monthly revenue, top dishes, categories, peak hours,
    payment mix, void analysis. Manager+ only.
@@ -5210,7 +5715,7 @@ async function renderPerformance(main) {
           <input type="month" id="perfMonth" value="${E(_perfState.month)}" max="${E(today.slice(0,7))}" style="padding:8px 10px;border:1px solid var(--line);border-radius:6px;font-size:14px;">
         </label>
         <button class="btn-secondary" onclick="loadPerformance()">↻ Reload</button>
-        <button class="btn-secondary" onclick="exportPerformanceCSV()">⬇ Export CSV</button>
+        <button class="btn-secondary" onclick="exportPerformanceCSV()">⬇ Export Excel</button>
       </div>
     </div>
     <div id="perfBody"><div class="panel" style="padding:40px;text-align:center;color:var(--ink-muted);">Crunching the numbers…</div></div>`;
@@ -5451,33 +5956,63 @@ function _emptyMini(msg) {
 function exportPerformanceCSV() {
   const d = window._lastPerfData;
   if (!d) { try { toast('Load a month first, then export.'); } catch(e){} return; }
-  const rows = [];
-  rows.push(['section','key','value_1','value_2']);
   const ov = d.overview || {};
-  rows.push(['overview','revenue', ov.revenue, '']);
-  rows.push(['overview','orders',  ov.orders, '']);
-  rows.push(['overview','avg_order', ov.avg_order, '']);
-  rows.push(['overview','best_day',  ov.best_day, ov.best_day_revenue]);
-  rows.push(['overview','peak_hour', ov.peak_hour, ov.peak_hour_orders]);
-  rows.push(['overview','void_rate', ov.void_rate, ov.void_amount]);
-  (d.daily || []).forEach(r => rows.push(['daily', r.day, r.revenue, r.orders]));
-  (d.top_items || []).forEach(r => rows.push(['top_items', r.name, r.qty, r.revenue]));
-  (d.categories || []).forEach(r => rows.push(['categories', r.category, r.revenue, r.qty]));
-  (d.order_types || []).forEach(r => rows.push(['order_types', r.type, r.orders, r.revenue]));
-  (d.hours || []).forEach(r => rows.push(['hours', r.hour, r.orders, r.revenue]));
-  (d.payment_methods || []).forEach(r => rows.push(['payment_methods', r.method, r.orders, r.revenue]));
-  (d.void_reasons || []).forEach(r => rows.push(['void_reasons', r.reason, r.count, r.amount]));
-  const csv = rows.map(r => r.map(v => {
-    if (v === null || v === undefined) return '';
-    const s = String(v);
-    return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
-  }).join(',')).join('\n');
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = `tpn-performance-${_perfState.month}.csv`;
-  document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  const prev = d.prev_overview || {};
+
+  // Each entry becomes a sheet — one section, laid out as a proper 2D table.
+  const sheets = {
+    'Overview': [
+      ['Metric', 'This month', 'Previous month', 'Change'],
+      ['Revenue',   Number(ov.revenue||0),   Number(prev.revenue||0),   _pctChange(ov.revenue, prev.revenue).text],
+      ['Orders',    Number(ov.orders||0),    Number(prev.orders||0),    _pctChange(ov.orders,  prev.orders).text],
+      ['Avg Order', Number(ov.avg_order||0), Number(prev.avg_order||0), _pctChange(ov.avg_order, prev.avg_order).text],
+      [],
+      ['Best day',     ov.best_day || '—', Number(ov.best_day_revenue||0), ''],
+      ['Peak hour',    ov.peak_hour ?? '—', Number(ov.peak_hour_orders||0) + ' orders', ''],
+      ['Void count',   Number(ov.void_count||0),  '', ''],
+      ['Void amount',  Number(ov.void_amount||0), '', ''],
+      ['Void rate %',  Number(ov.void_rate||0),   '', '']
+    ],
+    'Daily revenue': [
+      ['Day', 'Revenue', 'Orders'],
+      ...((d.daily||[]).map(r => [r.day, Number(r.revenue||0), Number(r.orders||0)]))
+    ],
+    'Top dishes': [
+      ['Rank', 'Item', 'Qty sold', 'Revenue', 'Share % of month'],
+      ...((d.top_items||[]).map((r, i) => [
+        i + 1, r.name, Number(r.qty||0), Number(r.revenue||0),
+        (ov.revenue > 0 ? Number(r.revenue)/Number(ov.revenue)*100 : 0)
+      ]))
+    ],
+    'Categories': [
+      ['Category', 'Revenue', 'Qty sold'],
+      ...((d.categories||[]).map(r => [r.category, Number(r.revenue||0), Number(r.qty||0)]))
+    ],
+    'Order types': [
+      ['Type', 'Orders', 'Revenue'],
+      ...((d.order_types||[]).map(r => [_prettyOrderType(r.type), Number(r.orders||0), Number(r.revenue||0)]))
+    ],
+    'Payment methods': [
+      ['Method', 'Orders', 'Revenue'],
+      ...((d.payment_methods||[]).map(r => [_prettyPayment(r.method), Number(r.orders||0), Number(r.revenue||0)]))
+    ],
+    'Peak hours': [
+      ['Hour (24h)', 'Label', 'Orders', 'Revenue'],
+      ...((d.hours||[]).map(r => [Number(r.hour||0), _hourLabel(r.hour), Number(r.orders||0), Number(r.revenue||0)]))
+    ]
+  };
+  if ((d.void_reasons||[]).length > 0) {
+    sheets['Void reasons'] = [
+      ['Reason', 'Count', 'Amount'],
+      ...((d.void_reasons||[]).map(r => [r.reason, Number(r.count||0), Number(r.amount||0)]))
+    ];
+  }
+
+  const filename = `tpn-performance-${_perfState.month}.xlsx`;
+  TPN.exportSheetsToXLSX(filename, sheets).catch(e => {
+    try { toast('Export failed: ' + (e.message || e)); } catch(_){}
+    console.error('performance export:', e);
+  });
 }
 
 async function renderHistory(main) {
@@ -5491,6 +6026,7 @@ async function renderHistory(main) {
         <div class="portal-header-sub">Audit trail across your branch. Rows older than 31 days are archived automatically once the monthly job has run.</div>
       </div>
       <div style="display:flex;gap:8px;">
+        <button class="btn-secondary" onclick="exportHistoryXLSX()" title="Download the current month + day view as .xlsx">⬇ Export Excel</button>
         <button class="btn-ghost" onclick="triggerAuditArchive()" title="Move rows &gt; 31 days into the archive + refresh the summary">↳ Archive now</button>
       </div>
     </div>
@@ -5523,6 +6059,7 @@ async function loadHistory() {
   // Month rollup
   try {
     const rows = await TPN.getAuditDailyCounts(_historyState.month);
+    window._lastHistoryMonthRows = rows;
     // Aggregate by day for the top chart, and by action for a breakdown.
     const byDay = new Map();
     const byAction = new Map();
@@ -5565,6 +6102,7 @@ async function loadHistory() {
   // Day detail
   try {
     const rows = await TPN.listAuditForDay(_historyState.day);
+    window._lastHistoryDayRows = rows;
     if (!rows.length) {
       dayCard.innerHTML = `<div style="color:var(--ink-muted);text-align:center;padding:24px;">No audit rows on ${E(_historyState.day)}.</div>`;
     } else {
@@ -5604,6 +6142,53 @@ async function triggerAuditArchive() {
     toast(`✓ Archive done — rolled up ${r?.rolled_up ?? 0}, archived ${r?.archived ?? 0}, deleted ${r?.deleted ?? 0}`);
     loadHistory();
   } catch(e) { toast('Archive failed: ' + (e.message||e)); }
+}
+
+function exportHistoryXLSX() {
+  const monthRows = window._lastHistoryMonthRows || [];
+  const dayRows   = window._lastHistoryDayRows   || [];
+  if (!monthRows.length && !dayRows.length) {
+    try { toast('Nothing loaded yet — open History and let it populate first.'); } catch(_){}
+    return;
+  }
+  // Roll the month-rollup into two useful sheets: by-day and by-action.
+  const byDay = new Map();
+  const byAction = new Map();
+  monthRows.forEach(r => {
+    const d = r.day;
+    const cnt = Number(r.count) || 0;
+    byDay.set(d, (byDay.get(d) || 0) + cnt);
+    byAction.set(r.action, (byAction.get(r.action) || 0) + cnt);
+  });
+  const monthLabel = _historyState.month.slice(0,7);
+  const sheets = {
+    'Month by day': [
+      ['Day', 'Events'],
+      ...Array.from(byDay.entries()).sort((a,b) => a[0].localeCompare(b[0])).map(([d, c]) => [d, c])
+    ],
+    'Month by action': [
+      ['Action', 'Events'],
+      ...Array.from(byAction.entries()).sort((a,b) => b[1] - a[1]).map(([a, c]) => [a, c])
+    ],
+    ['Day ' + _historyState.day]: [
+      ['Time', 'Actor ID', 'Actor role', 'Action', 'Entity type', 'Entity ID', 'Details', 'Source'],
+      ...dayRows.map(r => [
+        new Date(r.created_at).toLocaleString('en-PH'),
+        r.actor_id || '',
+        r.actor_role || '',
+        r.action,
+        r.entity_type || '',
+        r.entity_id || '',
+        r.details ? (typeof r.details === 'string' ? r.details : JSON.stringify(r.details)) : '',
+        r.is_archived ? 'archive' : 'live'
+      ])
+    ]
+  };
+  const filename = `tpn-history-${monthLabel}.xlsx`;
+  TPN.exportSheetsToXLSX(filename, sheets).catch(e => {
+    try { toast('Export failed: ' + (e.message || e)); } catch(_){}
+    console.error('history export:', e);
+  });
 }
 
 /* ════════════════════════════════════════════════════
