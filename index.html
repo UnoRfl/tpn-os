@@ -3114,6 +3114,7 @@ function renderAdminSidebar() {
   if (tier === 'director' || tier === 'ceo' || tier === 'admin') {
     navItems.push({ section: 'OPERATIONS' });
     navItems.push({ id: 'audit', label: 'Audit Log', icon: '📜' });
+    navItems.push({ id: 'history', label: 'History', icon: '📆' });
   }
 
   document.getElementById('portalNav').innerHTML = navItems.map(it => {
@@ -3185,6 +3186,7 @@ function route(r, opts) {
     case 'table-qr': renderTableQR(main); break;
     case 'menu-manager': renderMenuManager(main); break;
     case 'notifications': renderNotifications(main, 'admin'); break;
+    case 'history': renderHistory(main); break;
   }
   window.scrollTo({ top: 0, behavior: 'instant' });
 }
@@ -3896,6 +3898,7 @@ function renderOrders(main) {
       <div class="order-lane-header"><div class="order-lane-title">${lane.label}</div><div class="order-lane-count">${laneOrders.length}</div></div>`;
     if (!laneOrders.length) html += '<div class="portal-empty-lane"><div style="font-size:28px;margin-bottom:6px;">' + (lane.id==='done'?'✓':lane.id==='received'?'🕐':lane.id==='preparing'?'👨‍🍳':'🔔') + '</div><div style="font-size:12px;color:var(--ink-faint);">' + (lane.id==='received'?'Walang bagong order':'Wala sa estadong ito') + '</div></div>';
     else laneOrders.forEach(o => {
+      const canVoid = currentUser && ['manager','admin','director','ceo'].includes(currentUser.tier);
       html += `<div class="order-card">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:6px;margin-bottom:6px;">
           <div class="order-ref">${E(o.id)}</div>
@@ -3905,12 +3908,13 @@ function renderOrders(main) {
         <div class="order-items">${E(o.items)}</div>
         ${(o.paymentMethod&&o.paymentMethod!=="cash")?"<div style=\"font-size:11px;color:var(--amber);margin-bottom:3px;\">\uD83D\uDCB3 "+({gcash:"GCash QR",paymaya:"PayMaya QR",card:"Card Terminal"})[o.paymentMethod]+"</div>":""}
         <div class="order-row-foot">
-          <div class="order-total">₱${o.total.toFixed(2)}</div>
+          <div class="order-total">₱${N(o.total, 2)}</div>
           <div class="order-time-wrap">
             ${(() => { const age = getOrderAge(o); return '<span class="order-time order-time-' + age.level + '">' + (age.level==='urgent'?'🔴 ':age.level==='warn'?'🟡 ':'') + age.label + '</span>'; })()}
           </div>
         </div>
-        ${lane.next ? `<button class="order-advance" onclick="advanceOrder('${o.id}','${lane.next}')">${lane.nextLabel}</button>` : ''}
+        ${lane.next ? `<button class="order-advance" onclick="advanceOrder('${E(o.id)}','${E(lane.next)}')">${E(lane.nextLabel)}</button>` : ''}
+        ${canVoid && lane.id !== 'done' ? `<button class="order-advance" style="margin-top:6px;background:transparent;color:var(--danger);border:1px solid var(--danger);" onclick="openVoidItemsModal('${E(o.dbId||o.id)}')">🚫 Void items</button>` : ''}
       </div>`;
     });
     html += '</div>';
@@ -4908,6 +4912,226 @@ async function renderMessagesAdmin(main) {
 function setMsgAdminTab(tab) {
   _msgAdminTab = tab;
   route('messages-admin');
+}
+
+/* ════════════════════════════════════════════════════
+   VOID ITEMS — manager+ only
+   ════════════════════════════════════════════════════ */
+async function openVoidItemsModal(orderDbId) {
+  if (!orderDbId) { toast('Order id missing'); return; }
+  // Fetch fresh items so we see current void state.
+  let order;
+  try { order = await TPN.getOrder(orderDbId); }
+  catch(e){ toast('Could not load order: ' + (e.message||e)); return; }
+  const items = (order.order_items || []).slice().sort((a,b)=>String(a.name_snapshot).localeCompare(String(b.name_snapshot)));
+  const rows = items.map(it => {
+    const voided = !!it.voided_at;
+    return `<div class="void-row" data-item="${E(it.id)}" style="display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--line);">
+      <div style="flex:1;min-width:0;">
+        <div style="font-weight:600;color:${voided ? 'var(--ink-muted)' : 'var(--ink)'};text-decoration:${voided ? 'line-through' : 'none'};">
+          ${E(it.quantity)}× ${E(it.name_snapshot)}${it.pax_size ? ' ('+E(it.pax_size)+')' : ''}
+        </div>
+        <div style="font-size:12px;color:var(--ink-muted);">₱${N(it.total_price,2)}${voided ? ' · voided — ' + E(it.void_reason||'') : ''}</div>
+      </div>
+      <div style="flex-shrink:0;">
+        ${voided
+          ? `<button class="btn-secondary" onclick="unvoidItem('${E(it.id)}','${E(orderDbId)}')">Undo void</button>`
+          : `<button class="btn-secondary" style="color:var(--danger);border-color:var(--danger);" onclick="promptVoidItem('${E(it.id)}','${E(orderDbId)}','${E((it.name_snapshot||'').replace(/'/g,"&#39;"))}')">Void</button>`}
+      </div>
+    </div>`;
+  }).join('');
+  showModal(`
+    <div class="modal-title">Void items · ${E(order.order_number || '')}</div>
+    <div class="modal-sub">Manager-only action. Voiding removes the item from the order total but keeps the record for the audit log.</div>
+    <div class="modal-content" style="max-height:60vh;overflow-y:auto;">${rows || '<div style="padding:20px;color:var(--ink-muted);text-align:center;">No items on this order.</div>'}</div>
+    <div class="modal-actions">
+      <button class="btn-next" onclick="closeModal()">Done</button>
+    </div>`);
+}
+
+async function promptVoidItem(itemId, orderDbId, itemName) {
+  const reason = window.prompt('Void reason (min 3 characters) — this is logged:\n\nItem: ' + itemName, '');
+  if (reason === null) return;   // cancelled
+  if (!reason || reason.trim().length < 3) { toast('Void reason must be at least 3 characters.'); return; }
+  try {
+    await TPN.voidOrderItem(itemId, reason.trim());
+    toast('✓ Item voided — order total recomputed.');
+    // Refresh the modal + underlying order in local state.
+    try {
+      const fresh = await TPN.getOrder(orderDbId);
+      const existing = portalState.orders.find(x => x.dbId === orderDbId);
+      if (existing) Object.assign(existing, dbOrderToPortalOrder(fresh));
+      rerenderCurrent();
+    } catch(_){}
+    openVoidItemsModal(orderDbId);
+  } catch(e) {
+    const map = {
+      insufficient_privileges: 'You need manager access to void items.',
+      void_reason_required:    'Void reason must be at least 3 characters.',
+      already_voided:          'That item is already voided.',
+      wrong_branch:            'You can only void items in your own branch.',
+      order_terminal:          'This order is closed — cannot edit.',
+      item_not_found:          'Item not found (may have been deleted).'
+    };
+    const key = (e && (e.message || e.code || '')).toString();
+    const friendly = Object.entries(map).find(([k]) => key.includes(k));
+    toast(friendly ? friendly[1] : 'Could not void: ' + (e.message||e));
+  }
+}
+
+async function unvoidItem(itemId, orderDbId) {
+  if (!window.confirm('Un-void this item? It will be added back to the order total.')) return;
+  try {
+    await TPN.unvoidOrderItem(itemId);
+    toast('✓ Item restored.');
+    try {
+      const fresh = await TPN.getOrder(orderDbId);
+      const existing = portalState.orders.find(x => x.dbId === orderDbId);
+      if (existing) Object.assign(existing, dbOrderToPortalOrder(fresh));
+      rerenderCurrent();
+    } catch(_){}
+    openVoidItemsModal(orderDbId);
+  } catch(e) { toast('Could not un-void: ' + (e.message||e)); }
+}
+
+/* ════════════════════════════════════════════════════
+   AUDIT HISTORY — manager+ only. Day picker + monthly rollup.
+   ════════════════════════════════════════════════════ */
+let _historyState = { day: null, month: null };
+
+function _pad2(n) { return String(n).padStart(2,'0'); }
+function _todayManila() {
+  // Approximate Manila date; server enforces the real bucket.
+  const now = new Date();
+  const off = now.getTimezoneOffset() + 8*60;   // Manila is UTC+8
+  const local = new Date(now.getTime() + off*60000);
+  return `${local.getFullYear()}-${_pad2(local.getMonth()+1)}-${_pad2(local.getDate())}`;
+}
+
+async function renderHistory(main) {
+  const today = _todayManila();
+  _historyState.day   = _historyState.day   || today;
+  _historyState.month = _historyState.month || today.slice(0,7) + '-01';
+  main.innerHTML = `
+    <div class="portal-header">
+      <div>
+        <h1>History</h1>
+        <div class="portal-header-sub">Audit trail across your branch. Rows older than 31 days are archived automatically once the monthly job has run.</div>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn-ghost" onclick="triggerAuditArchive()" title="Move rows &gt; 31 days into the archive + refresh the summary">↳ Archive now</button>
+      </div>
+    </div>
+    <div class="panel" style="padding:20px;margin-bottom:16px;">
+      <div style="display:flex;gap:14px;align-items:end;flex-wrap:wrap;">
+        <label style="display:flex;flex-direction:column;gap:4px;">
+          <span style="font-size:11px;color:var(--ink-muted);text-transform:uppercase;letter-spacing:0.08em;">Day</span>
+          <input type="date" id="historyDay" value="${E(_historyState.day)}" max="${E(today)}" style="padding:8px 10px;border:1px solid var(--line);border-radius:6px;font-size:14px;">
+        </label>
+        <label style="display:flex;flex-direction:column;gap:4px;">
+          <span style="font-size:11px;color:var(--ink-muted);text-transform:uppercase;letter-spacing:0.08em;">Month rollup</span>
+          <input type="month" id="historyMonth" value="${E(_historyState.month.slice(0,7))}" max="${E(today.slice(0,7))}" style="padding:8px 10px;border:1px solid var(--line);border-radius:6px;font-size:14px;">
+        </label>
+        <button class="btn-secondary" onclick="loadHistory()">Reload</button>
+      </div>
+    </div>
+    <div id="historyMonthCard"  class="panel" style="padding:20px;margin-bottom:16px;">Loading month rollup…</div>
+    <div id="historyDayCard"    class="panel" style="padding:20px;">Loading day detail…</div>`;
+  document.getElementById('historyDay').addEventListener('change', (e) => { _historyState.day = e.target.value; loadHistory(); });
+  document.getElementById('historyMonth').addEventListener('change', (e) => { _historyState.month = e.target.value + '-01'; loadHistory(); });
+  loadHistory();
+}
+
+async function loadHistory() {
+  const monthCard = document.getElementById('historyMonthCard');
+  const dayCard   = document.getElementById('historyDayCard');
+  if (!monthCard || !dayCard) return;
+  monthCard.innerHTML = '<div style="color:var(--ink-muted);">Loading month rollup…</div>';
+  dayCard.innerHTML   = '<div style="color:var(--ink-muted);">Loading day detail…</div>';
+  // Month rollup
+  try {
+    const rows = await TPN.getAuditDailyCounts(_historyState.month);
+    // Aggregate by day for the top chart, and by action for a breakdown.
+    const byDay = new Map();
+    const byAction = new Map();
+    let total = 0;
+    rows.forEach(r => {
+      const day = r.day;
+      const cnt = Number(r.count) || 0;
+      total += cnt;
+      byDay.set(day, (byDay.get(day) || 0) + cnt);
+      byAction.set(r.action, (byAction.get(r.action) || 0) + cnt);
+    });
+    const days = Array.from(byDay.entries()).sort((a,b) => a[0].localeCompare(b[0]));
+    const max = Math.max(1, ...days.map(d => d[1]));
+    const bars = days.map(([day, cnt]) => `
+      <div style="display:flex;align-items:center;gap:8px;">
+        <div style="flex-shrink:0;width:74px;font-size:11px;color:var(--ink-muted);font-variant-numeric:tabular-nums;">${E(day)}</div>
+        <div style="flex:1;background:var(--line);height:10px;border-radius:5px;overflow:hidden;">
+          <div style="width:${Math.round(cnt/max*100)}%;height:100%;background:var(--gold);"></div>
+        </div>
+        <div style="flex-shrink:0;width:44px;text-align:right;font-size:12px;color:var(--ink);font-variant-numeric:tabular-nums;">${cnt}</div>
+      </div>`).join('');
+    const actionRows = Array.from(byAction.entries())
+      .sort((a,b) => b[1] - a[1]).slice(0, 12)
+      .map(([action, cnt]) => `<tr><td style="font-family:monospace;font-size:12px;color:var(--ink);">${E(action)}</td><td style="text-align:right;font-variant-numeric:tabular-nums;">${cnt}</td></tr>`)
+      .join('');
+    monthCard.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:14px;">
+        <div style="font-family:'Playfair Display',serif;font-size:18px;font-weight:700;color:var(--ink);">${E(_historyState.month.slice(0,7))} · ${total} events</div>
+        <div style="font-size:12px;color:var(--ink-muted);">${days.length} day${days.length===1?'':'s'} with activity</div>
+      </div>
+      <div style="display:grid;grid-template-columns:2fr 1fr;gap:24px;">
+        <div style="display:flex;flex-direction:column;gap:5px;">${bars || '<div style="color:var(--ink-muted);">No activity this month.</div>'}</div>
+        <div><div style="font-size:11px;color:var(--ink-muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px;">Top actions</div>
+          <table class="data-table"><tbody>${actionRows || '<tr><td style="color:var(--ink-muted);">—</td></tr>'}</tbody></table>
+        </div>
+      </div>`;
+  } catch(e) {
+    monthCard.innerHTML = `<div style="color:var(--danger);">Could not load monthly rollup: ${E(e.message||e)}</div>`;
+  }
+  // Day detail
+  try {
+    const rows = await TPN.listAuditForDay(_historyState.day);
+    if (!rows.length) {
+      dayCard.innerHTML = `<div style="color:var(--ink-muted);text-align:center;padding:24px;">No audit rows on ${E(_historyState.day)}.</div>`;
+    } else {
+      const lookupIds = Array.from(new Set(rows.map(r => r.actor_id).filter(Boolean)));
+      let names = {};
+      if (lookupIds.length) {
+        try {
+          const staffRows = portalState.staff.filter(s => lookupIds.includes(s.id));
+          staffRows.forEach(s => names[s.id] = s.name);
+        } catch(_){}
+      }
+      const tbody = rows.map(r => `<tr>
+        <td style="font-family:monospace;font-size:11px;color:var(--ink-muted);white-space:nowrap;">${E(new Date(r.created_at).toLocaleTimeString('en-GB'))}</td>
+        <td>${E(names[r.actor_id] || r.actor_id || 'system')}${r.actor_role ? ' <span style="font-size:11px;color:var(--ink-muted);">('+E(r.actor_role)+')</span>' : ''}</td>
+        <td style="font-family:monospace;font-size:12px;">${E(r.action)}</td>
+        <td>${E(r.entity_type||'')}${r.entity_id ? ' <span style="font-size:11px;color:var(--ink-muted);">'+E(String(r.entity_id).slice(0,8))+'</span>' : ''}</td>
+        <td style="text-align:right;">${r.is_archived ? '<span style="font-size:10px;color:var(--ink-muted);">archived</span>' : ''}</td>
+      </tr>`).join('');
+      dayCard.innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:14px;">
+          <div style="font-family:'Playfair Display',serif;font-size:18px;font-weight:700;color:var(--ink);">${E(_historyState.day)} · ${rows.length} events</div>
+        </div>
+        <div class="data-table-wrap"><table class="data-table"><thead><tr>
+          <th style="width:70px;">Time</th><th>Actor</th><th>Action</th><th>Entity</th><th></th>
+        </tr></thead><tbody>${tbody}</tbody></table></div>`;
+    }
+  } catch(e) {
+    dayCard.innerHTML = `<div style="color:var(--danger);">Could not load day: ${E(e.message||e)}</div>`;
+  }
+}
+
+async function triggerAuditArchive() {
+  if (!window.confirm('Move audit rows older than 31 days into the archive and refresh the monthly summary?')) return;
+  try {
+    const res = await TPN.archiveAuditLog(31);
+    const r = Array.isArray(res) ? res[0] : res;
+    toast(`✓ Archive done — rolled up ${r?.rolled_up ?? 0}, archived ${r?.archived ?? 0}, deleted ${r?.deleted ?? 0}`);
+    loadHistory();
+  } catch(e) { toast('Archive failed: ' + (e.message||e)); }
 }
 
 /* ════════════════════════════════════════════════════

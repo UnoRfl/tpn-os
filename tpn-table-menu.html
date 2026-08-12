@@ -281,6 +281,10 @@
   .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 
   @media(max-width:380px){.featured-card{width:140px}.pay-methods-grid{grid-template-columns:1fr}}
+/* UnoSys: menu load skeletons */
+.skel-card { width:120px;height:96px;background:linear-gradient(90deg,rgba(0,0,0,0.05) 25%,rgba(0,0,0,0.09) 50%,rgba(0,0,0,0.05) 75%);background-size:200% 100%;animation:skel 1.4s infinite;border-radius:12px;flex-shrink:0;margin-right:10px; }
+.skel-row  { height:78px;margin-bottom:12px;background:linear-gradient(90deg,rgba(0,0,0,0.05) 25%,rgba(0,0,0,0.09) 50%,rgba(0,0,0,0.05) 75%);background-size:200% 100%;animation:skel 1.4s infinite;border-radius:14px; }
+@keyframes skel { 0% { background-position:200% 0; } 100% { background-position:-200% 0; } }
 </style>
 </head>
 <body>
@@ -566,23 +570,98 @@ function saveSessionOrders() {
 }
 
 let menuData = [];
+let _menuLoadState = 'idle';  // 'idle' | 'loading' | 'ready' | 'error'
 
-async function loadMenuFromDB() {
-  try {
-    menuData = await TPN.loadGroupedMenu(BRANCH_ID);
-    if (document.getElementById('cats-scroll')) renderCategoryChips();
-    if (document.getElementById('menu-grid')) renderMenu();
-    if (document.getElementById('featured-scroll')) renderFeatured();
-  } catch(e) { console.error('loadMenuFromDB:', e); }
+function renderMenuLoadingState(state, err) {
+  const grid = document.getElementById('menu-grid');
+  const chips = document.getElementById('cats-scroll');
+  const featured = document.getElementById('featured-scroll');
+  if (state === 'loading') {
+    if (chips)    chips.innerHTML    = `<div style="padding:12px 16px;color:var(--text-muted);font-size:13px;">Loading menu…</div>`;
+    if (featured) featured.innerHTML = `
+      <div class="skel-card"></div><div class="skel-card"></div><div class="skel-card"></div>`;
+    if (grid) grid.innerHTML = `
+      <div style="padding:24px 20px;">
+        <div class="skel-row"></div><div class="skel-row"></div>
+        <div class="skel-row"></div><div class="skel-row"></div>
+      </div>`;
+  } else if (state === 'error') {
+    if (grid) grid.innerHTML = `
+      <div style="padding:40px 20px;text-align:center;">
+        <div style="font-size:44px;margin-bottom:12px;">📶</div>
+        <div style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:6px;">Menu didn't load</div>
+        <div style="font-size:13px;color:var(--text-muted);margin-bottom:16px;line-height:1.5;">
+          ${E(err && err.message ? err.message : 'Connection to the kitchen failed.')}
+        </div>
+        <button class="add-mini-btn" style="padding:12px 28px;" onclick="retryMenuLoad()">Try Again</button>
+      </div>`;
+  }
 }
+
+async function loadMenuFromDB(attempt = 1) {
+  _menuLoadState = 'loading';
+  if (attempt === 1 && !menuData.length) renderMenuLoadingState('loading');
+  try {
+    if (!window.TPN || typeof TPN.loadGroupedMenu !== 'function') {
+      // Supabase client hasn't finished loading yet — retry shortly.
+      throw new Error('Menu library not ready — retrying');
+    }
+    const fresh = await TPN.loadGroupedMenu(BRANCH_ID);
+    if (!Array.isArray(fresh) || fresh.length === 0) {
+      // Empty menu is a valid state (nothing available), but also possible
+      // symptom of the branch filter being too strict. Retry once without filter.
+      if (attempt === 1) {
+        const unfiltered = await TPN.loadGroupedMenu(null);
+        if (unfiltered.length) { menuData = unfiltered; }
+        else { menuData = []; }
+      } else {
+        menuData = fresh;
+      }
+    } else {
+      menuData = fresh;
+    }
+    _menuLoadState = 'ready';
+    // Re-render every menu surface now that data is in.
+    if (document.getElementById('cats-scroll'))     renderCategoryChips();
+    if (document.getElementById('featured-scroll')) renderFeatured();
+    if (document.getElementById('menu-grid'))       renderMenu();
+  } catch (e) {
+    console.error('loadMenuFromDB attempt', attempt, e);
+    if (attempt < 4) {
+      const backoff = Math.min(500 * Math.pow(2, attempt - 1), 4000);
+      setTimeout(() => loadMenuFromDB(attempt + 1), backoff);
+    } else {
+      _menuLoadState = 'error';
+      renderMenuLoadingState('error', e);
+    }
+  }
+}
+
+function retryMenuLoad() { loadMenuFromDB(1); }
 
 document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('header-table-label').textContent = `Table ${TABLE_NUM} · ${BRANCH}`;
   if(guestInfoLocked && sessionOrders.length){ guestName=sessionOrders[0].name; guestPax=sessionOrders[0].pax; }
-  applyLang(); renderCategoryChips(); renderFeatured(); renderMenu(); updateRunningBar();
+  applyLang();
+  updateRunningBar();
+  // UnoSys: show a proper loading state first — do NOT render the menu
+  // with empty data (that used to flash "no results" for a full second
+  // on 3G phones after a QR scan). Fetch first, render second.
+  renderMenuLoadingState('loading');
   loadMenuFromDB();
   // Re-attach realtime listeners to any in-flight orders after refresh
   resubscribeStoredOrders();
+});
+
+// UnoSys: retry menu load when the tab comes back to focus, in case the
+// customer put their phone away between scanning and ordering.
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && _menuLoadState !== 'ready') {
+    loadMenuFromDB();
+  }
+});
+window.addEventListener('online', () => {
+  if (_menuLoadState !== 'ready') loadMenuFromDB();
 });
 
 const T = {
@@ -808,9 +887,17 @@ function resubscribeStoredOrders(){
 function orderMore(){ document.getElementById('confirm-screen').classList.remove('show'); showToast('🛒 Keep adding dishes and hit Send again!'); }
 async function callStaff(){
   if(!TABLE_UUID){ showToast('⚠️ Table not registered.'); return; }
-  showToast('🤚 Staff notified — on their way!');
-  try { await sb.rpc('signal_call_staff', { p_table_id: TABLE_UUID }); }
-  catch(e){ console.error('callStaff failed:', e); }
+  try {
+    // signal_call_staff now returns FALSE when a 90-second cooldown is
+    // active — we surface that to the customer instead of double-pinging.
+    const { data, error } = await sb.rpc('signal_call_staff', { p_table_id: TABLE_UUID });
+    if (error) throw error;
+    if (data === false) { showToast('⏳ Already called — staff will be right there.'); return; }
+    showToast('🤚 Staff notified — on their way!');
+  } catch(e){
+    console.error('callStaff failed:', e);
+    showToast('⚠️ Could not reach staff — try flagging someone.');
+  }
 }
 
 function openBillScreen(){
@@ -836,12 +923,17 @@ function submitBillRequest(){
 async function notifyBillRequest(method){
   if(!TABLE_UUID){ showToast('⚠️ Table not registered.'); return; }
   try {
-    await sb.rpc('signal_bill_request', {
+    const { data, error } = await sb.rpc('signal_bill_request', {
       p_table_id: TABLE_UUID,
       p_payment_method: method,
       p_total: sessionTotal
     });
-  } catch(e){ console.error('bill request failed:', e); }
+    if (error) throw error;
+    if (data === false) { showToast('⏳ Already requested — hang tight.'); }
+  } catch(e){
+    console.error('bill request failed:', e);
+    showToast('⚠️ Bill request failed — please flag a server.');
+  }
 }
 function showBillSentConfirmation(method){
   const payLabels={cash:'Cash',card:'Card Terminal',gcash:'GCash',paymaya:'PayMaya'};

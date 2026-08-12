@@ -825,6 +825,66 @@ TPN.logout = async function () {
   await _origLogout();
 };
 
+// ═════════════════════════════════════════════════════════════
+// UnoSys: Manager-only void order item. Server enforces role via
+// void_order_item() SECURITY DEFINER fn (sql/11). Returns the
+// updated item, or throws with one of these error names:
+//   insufficient_privileges   (not manager+)
+//   void_reason_required      (< 3 chars)
+//   item_not_found
+//   already_voided
+//   wrong_branch
+//   order_terminal            (order is completed/cancelled)
+// ═════════════════════════════════════════════════════════════
+TPN.voidOrderItem = async function (itemId, reason) {
+  const { data, error } = await sb.rpc('void_order_item', { p_item_id: itemId, p_reason: reason });
+  if (error) throw error;
+  return data;
+};
+TPN.unvoidOrderItem = async function (itemId) {
+  const { data, error } = await sb.rpc('unvoid_order_item', { p_item_id: itemId });
+  if (error) throw error;
+  return data;
+};
+
+// ═════════════════════════════════════════════════════════════
+// UnoSys: Audit log — daily/monthly rollups for the History tab.
+// audit_daily_counts is manager+ only (enforced server-side).
+// ═════════════════════════════════════════════════════════════
+TPN.getAuditDailyCounts = async function (monthDate, branchId = null) {
+  const { data, error } = await sb.rpc('audit_daily_counts', {
+    p_month: monthDate, p_branch_id: branchId
+  });
+  if (error) throw error;
+  return data || [];
+};
+
+// Full audit rows for a specific day (uses the unified view — hot + archive).
+TPN.listAuditForDay = async function (day, branchId = null, limit = 500) {
+  const start = new Date(day + 'T00:00:00+08:00').toISOString();
+  const end   = new Date(new Date(day + 'T00:00:00+08:00').getTime() + 86400000).toISOString();
+  let q = sb.from('v_audit_log_all')
+    .select('*, actor:staff!audit_log_actor_id_fkey(full_name, role)')
+    .gte('created_at', start).lt('created_at', end)
+    .order('created_at', { ascending: false })
+    .limit(limit);
+  // The view can't be joined to staff via FK — do a two-step lookup instead if needed.
+  const { data, error } = await sb.from('v_audit_log_all')
+    .select('*')
+    .gte('created_at', start).lt('created_at', end)
+    .order('created_at', { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return data || [];
+};
+
+// Trigger the monthly archive on demand (also runnable via pg_cron).
+TPN.archiveAuditLog = async function (daysToKeep = 31) {
+  const { data, error } = await sb.rpc('audit_log_archive_old', { p_days_to_keep: daysToKeep });
+  if (error) throw error;
+  return data;
+};
+
 // Restore session on load
 sb.auth.onAuthStateChange((event) => {
   if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') TPN.loadProfile();
