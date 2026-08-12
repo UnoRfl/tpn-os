@@ -878,6 +878,25 @@ TPN.listAuditForDay = async function (day, branchId = null, limit = 500) {
   return data || [];
 };
 
+// ═════════════════════════════════════════════════════════════
+// UnoSys: Restaurant performance report. One RPC → one JSON blob
+// with all sections needed for the Performance dashboard.
+// Manager+ only (enforced server-side). Returns {} on any error
+// so the UI can render its empty-state without crashing.
+// ═════════════════════════════════════════════════════════════
+TPN.getSalesPerformanceMonth = async function (monthDate, branchId = null) {
+  try {
+    const { data, error } = await sb.rpc('sales_performance_month', {
+      p_month: monthDate, p_branch_id: branchId
+    });
+    if (error) throw error;
+    return data || {};
+  } catch (e) {
+    console.warn('getSalesPerformanceMonth:', e.message || e);
+    return {};
+  }
+};
+
 // Trigger the monthly archive on demand (also runnable via pg_cron).
 TPN.archiveAuditLog = async function (daysToKeep = 31) {
   const { data, error } = await sb.rpc('audit_log_archive_old', { p_days_to_keep: daysToKeep });

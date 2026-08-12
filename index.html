@@ -1197,6 +1197,98 @@
 
   .data-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; border-radius: 12px; }
   .data-table { width: 100%; border-collapse: collapse; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; min-width: 600px; }
+  /* ═══════════════════════════════════════════════════════════
+     UnoSys: Performance dashboard styles
+     ═══════════════════════════════════════════════════════════ */
+  .perf-stat-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px; margin-bottom: 16px;
+  }
+  .perf-stat {
+    background: linear-gradient(180deg, var(--surface) 0%, var(--surface-2) 100%);
+    border: 1px solid var(--line);
+    border-radius: 10px; padding: 16px 18px;
+    box-shadow: inset 0 1px 0 rgba(255, 248, 232, 0.5);
+    transition: border-color .15s ease, box-shadow .15s ease;
+  }
+  .perf-stat:hover { border-color: var(--gold); box-shadow: 0 3px 12px rgba(184, 128, 15, 0.08), inset 0 1px 0 rgba(255, 248, 232, 0.5); }
+  .perf-stat-hero {
+    background: linear-gradient(180deg, rgba(184, 128, 15, 0.06) 0%, rgba(184, 128, 15, 0.02) 100%);
+    border-color: rgba(184, 128, 15, 0.3);
+  }
+  .perf-stat-label {
+    font-size: 11px; color: var(--ink-muted);
+    text-transform: uppercase; letter-spacing: 0.12em; font-weight: 700;
+    margin-bottom: 6px;
+  }
+  .perf-stat-value {
+    font-family: 'Playfair Display', serif;
+    font-size: 26px; font-weight: 700; color: var(--ink);
+    line-height: 1.1; margin-bottom: 4px;
+    font-variant-numeric: tabular-nums;
+  }
+  .perf-stat-delta { font-size: 11px; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+  .perf-panel { padding: 20px; margin-bottom: 16px; }
+  .perf-panel-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 14px; gap: 12px; flex-wrap: wrap; }
+  .perf-panel-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 18px; font-weight: 700; color: var(--ink);
+  }
+  .perf-panel-sub { font-size: 12px; color: var(--ink-muted); }
+
+  .perf-split { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 820px) { .perf-split { grid-template-columns: 1fr; } }
+
+  /* Daily bar chart */
+  .perf-daily-chart {
+    display: flex; align-items: flex-end; gap: 3px;
+    height: 180px; padding: 4px 0 22px;
+    position: relative;
+  }
+  .perf-daily-bar {
+    flex: 1; display: flex; flex-direction: column;
+    align-items: center; justify-content: flex-end;
+    height: 100%; position: relative;
+    min-width: 8px;
+  }
+  .perf-daily-bar-fill {
+    width: 100%; min-height: 2px;
+    background: linear-gradient(180deg, var(--gold) 0%, var(--gold-light) 100%);
+    border-radius: 3px 3px 0 0;
+    transition: filter .15s ease;
+  }
+  .perf-daily-bar:hover .perf-daily-bar-fill { filter: brightness(1.15); }
+  .perf-daily-bar-label {
+    position: absolute; bottom: -18px;
+    font-size: 9px; color: var(--ink-faint);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Peak hour chart */
+  .perf-hours-chart {
+    display: flex; align-items: flex-end; gap: 4px;
+    height: 160px; padding: 4px 0 22px;
+  }
+  .perf-hour-bar {
+    flex: 1; display: flex; flex-direction: column;
+    align-items: center; justify-content: flex-end;
+    height: 100%; position: relative; min-width: 14px;
+  }
+  .perf-hour-bar-fill {
+    width: 100%; min-height: 2px;
+    background: linear-gradient(180deg, var(--brick) 0%, #6c1409 100%);
+    border-radius: 3px 3px 0 0;
+    transition: filter .15s ease;
+  }
+  .perf-hour-bar:hover .perf-hour-bar-fill { filter: brightness(1.2); }
+  .perf-hour-bar-label {
+    position: absolute; bottom: -18px;
+    font-size: 10px; color: var(--ink-muted);
+    font-variant-numeric: tabular-nums;
+    text-transform: lowercase;
+  }
+
   .data-table thead { background: var(--surface-2); }
   .data-table th { text-align: left; padding: 12px 16px; font-size: 11px; font-weight: 700; color: var(--ink-muted); letter-spacing: 0.1em; text-transform: uppercase; }
   .data-table td { padding: 14px 16px; border-top: 1px solid var(--line-soft); font-size: 13px; color: var(--ink); vertical-align: middle; }
@@ -3169,6 +3261,7 @@ function renderAdminSidebar() {
   navItems.push({ id: 'accounts', label: 'Accounts', icon: '👤', badge: portalState.staff.filter(s => s.accountState === 'pending' || s.accountState === 'recommended').length || null });
   if (tier === 'director' || tier === 'ceo' || tier === 'admin') {
     navItems.push({ section: 'OPERATIONS' });
+    navItems.push({ id: 'performance', label: 'Performance', icon: '📈' });
     navItems.push({ id: 'audit', label: 'Audit Log', icon: '📜' });
     navItems.push({ id: 'history', label: 'History', icon: '📆' });
   }
@@ -3242,6 +3335,7 @@ function route(r, opts) {
     case 'table-qr': renderTableQR(main); break;
     case 'menu-manager': renderMenuManager(main); break;
     case 'notifications': renderNotifications(main, 'admin'); break;
+    case 'performance': renderPerformance(main); break;
     case 'history': renderHistory(main); break;
   }
   window.scrollTo({ top: 0, behavior: 'instant' });
@@ -4551,7 +4645,7 @@ async function refreshMenuManager() {
           <td>${it.is_available ? '<span style="color:var(--success);">✓ Available</span>' : '<span style="color:var(--danger);">✗ Off menu</span>'}</td>
           <td class="table-actions">
             <button class="btn-secondary" onclick="showMenuItemModal('${E(it.id)}')">✎ Edit</button>
-            <button class="btn-secondary" onclick="toggleMenuAvail('${E(it.id)}', ${!it.is_available})">${it.is_available ? '✕ 86 it' : '↻ Restore'}</button>
+            <button class="btn-secondary" onclick="toggleMenuAvail('${E(it.id)}', ${!it.is_available})">${it.is_available ? '✕ Sold Out' : '↻ Restock'}</button>
             <button class="btn-secondary danger" onclick="deleteMenuItem('${E(it.id)}', '${safeName}')">Delete</button>
           </td>
         </tr>`;
@@ -5062,6 +5156,328 @@ function _todayManila() {
   const off = now.getTimezoneOffset() + 8*60;   // Manila is UTC+8
   const local = new Date(now.getTime() + off*60000);
   return `${local.getFullYear()}-${_pad2(local.getMonth()+1)}-${_pad2(local.getDate())}`;
+}
+
+/* ════════════════════════════════════════════════════
+   PERFORMANCE — restaurant analytics dashboard
+   Monthly revenue, top dishes, categories, peak hours,
+   payment mix, void analysis. Manager+ only.
+   ════════════════════════════════════════════════════ */
+let _perfState = { month: null };
+
+function _peso(n) {
+  const v = Number(n) || 0;
+  return '₱' + v.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+function _pesoCompact(n) {
+  const v = Number(n) || 0;
+  if (v >= 1000000) return '₱' + (v/1000000).toFixed(1) + 'M';
+  if (v >= 10000)   return '₱' + (v/1000).toFixed(1) + 'k';
+  return '₱' + Math.round(v).toLocaleString('en-PH');
+}
+function _hourLabel(h) {
+  const hh = ((h % 12) || 12);
+  return hh + (h < 12 ? 'a' : 'p');
+}
+function _pctChange(cur, prev) {
+  cur = Number(cur) || 0; prev = Number(prev) || 0;
+  if (prev === 0) return cur > 0 ? { text: 'new', dir: 'up' } : { text: '—', dir: 'flat' };
+  const pct = ((cur - prev) / prev) * 100;
+  return {
+    text: (pct > 0 ? '+' : '') + pct.toFixed(1) + '%',
+    dir: pct > 0.5 ? 'up' : pct < -0.5 ? 'down' : 'flat'
+  };
+}
+function _prettyOrderType(t) {
+  return ({ dine_in: 'Dine-in', pickup: 'Pickup', delivery: 'Delivery' })[t] || t;
+}
+function _prettyPayment(m) {
+  return ({ cash: 'Cash', card: 'Card', gcash: 'GCash', maya: 'Maya', bank: 'Bank Transfer', unspecified: 'Unspecified' })[m] || m;
+}
+
+async function renderPerformance(main) {
+  const today = _todayManila();
+  _perfState.month = _perfState.month || today.slice(0,7);
+  main.innerHTML = `
+    <div class="portal-header">
+      <div>
+        <h1>Performance</h1>
+        <div class="portal-header-sub">Monthly revenue, top dishes, peak hours — the numbers that tell you how the shop is doing. All roads lead here.</div>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <label style="display:flex;align-items:center;gap:6px;">
+          <span style="font-size:11px;color:var(--ink-muted);text-transform:uppercase;letter-spacing:0.08em;">Month</span>
+          <input type="month" id="perfMonth" value="${E(_perfState.month)}" max="${E(today.slice(0,7))}" style="padding:8px 10px;border:1px solid var(--line);border-radius:6px;font-size:14px;">
+        </label>
+        <button class="btn-secondary" onclick="loadPerformance()">↻ Reload</button>
+        <button class="btn-secondary" onclick="exportPerformanceCSV()">⬇ Export CSV</button>
+      </div>
+    </div>
+    <div id="perfBody"><div class="panel" style="padding:40px;text-align:center;color:var(--ink-muted);">Crunching the numbers…</div></div>`;
+  document.getElementById('perfMonth').addEventListener('change', (e) => {
+    _perfState.month = e.target.value;
+    loadPerformance();
+  });
+  loadPerformance();
+}
+
+async function loadPerformance() {
+  const body = document.getElementById('perfBody');
+  if (!body) return;
+  body.innerHTML = '<div class="panel" style="padding:40px;text-align:center;color:var(--ink-muted);">Crunching the numbers…</div>';
+  try {
+    const monthDate = _perfState.month + '-01';
+    const data = await TPN.getSalesPerformanceMonth(monthDate);
+    if (!data || !data.overview) {
+      body.innerHTML = `<div class="panel" style="padding:24px;color:var(--danger);">No data returned. Are you a manager? (This view requires manager tier or above.)</div>`;
+      return;
+    }
+    window._lastPerfData = data;   // for CSV export
+    body.innerHTML = _renderPerfBody(data);
+  } catch(e) {
+    body.innerHTML = `<div class="panel" style="padding:24px;color:var(--danger);">Could not load performance data: ${E(e.message || e)}</div>`;
+  }
+}
+
+function _renderPerfBody(data) {
+  const ov   = data.overview       || {};
+  const prev = data.prev_overview  || {};
+  const daily = data.daily         || [];
+  const items = data.top_items     || [];
+  const cats  = data.categories    || [];
+  const otypes = data.order_types  || [];
+  const hours = data.hours         || [];
+  const pays  = data.payment_methods || [];
+  const voids = data.void_reasons  || [];
+
+  const revDelta = _pctChange(ov.revenue, prev.revenue);
+  const ordDelta = _pctChange(ov.orders,  prev.orders);
+  const aovDelta = _pctChange(ov.avg_order, prev.avg_order);
+
+  const maxDaily = Math.max(1, ...daily.map(d => Number(d.revenue) || 0));
+  const maxHour  = Math.max(1, ...hours.map(h => Number(h.orders)  || 0));
+
+  const totalCatRev = cats.reduce((s, c) => s + (Number(c.revenue) || 0), 0);
+  const totalTypeRev = otypes.reduce((s, o) => s + (Number(o.revenue) || 0), 0);
+
+  return `
+    <!-- ── STAT CARDS ────────────────────────────────────────── -->
+    <div class="perf-stat-grid">
+      ${_statCard('Revenue',      _pesoCompact(ov.revenue),       revDelta, 'gold')}
+      ${_statCard('Orders',       String(ov.orders || 0),         ordDelta, 'ink')}
+      ${_statCard('Avg Order',    _peso(ov.avg_order),            aovDelta, 'ink')}
+      ${_statCard('Best Day',     ov.best_day ? _pesoCompact(ov.best_day_revenue) : '—',
+                                  { text: ov.best_day || '—', dir: 'flat' }, 'ink')}
+      ${_statCard('Peak Hour',    ov.peak_hour !== undefined && ov.peak_hour !== null ? _hourLabel(ov.peak_hour) : '—',
+                                  { text: (ov.peak_hour_orders || 0) + ' orders', dir: 'flat' }, 'ink')}
+      ${_statCard('Void Rate',    (Number(ov.void_rate) || 0).toFixed(2) + '%',
+                                  { text: _peso(ov.void_amount) + ' voided', dir: (Number(ov.void_rate) || 0) > 5 ? 'down' : 'flat' }, 'ink')}
+    </div>
+
+    <!-- ── REVENUE BY DAY ────────────────────────────────────── -->
+    <div class="panel perf-panel">
+      <div class="perf-panel-head">
+        <div class="perf-panel-title">Revenue by day</div>
+        <div class="perf-panel-sub">${daily.filter(d => (Number(d.revenue)||0) > 0).length} of ${daily.length} days had activity</div>
+      </div>
+      <div class="perf-daily-chart">
+        ${daily.map(d => {
+          const rev = Number(d.revenue) || 0;
+          const h   = Math.max(2, Math.round(rev / maxDaily * 100));
+          const dayNum = Number((d.day || '').slice(-2)) || 0;
+          return `<div class="perf-daily-bar" title="${E(d.day)} · ${_peso(rev)} · ${d.orders || 0} orders">
+                    <div class="perf-daily-bar-fill" style="height:${h}%;"></div>
+                    <div class="perf-daily-bar-label">${dayNum}</div>
+                  </div>`;
+        }).join('')}
+      </div>
+    </div>
+
+    <!-- ── TOP ITEMS + CATEGORIES ────────────────────────────── -->
+    <div class="perf-split">
+      <div class="panel perf-panel">
+        <div class="perf-panel-head">
+          <div class="perf-panel-title">Top dishes</div>
+          <div class="perf-panel-sub">By revenue this month</div>
+        </div>
+        ${items.length === 0 ? _emptyMini('No sales yet this month.') : `
+          <table class="data-table" style="border:none;">
+            <thead><tr>
+              <th style="width:32px;">#</th><th>Item</th>
+              <th style="text-align:right;">Qty</th>
+              <th style="text-align:right;">Revenue</th>
+              <th style="text-align:right;">Share</th>
+            </tr></thead>
+            <tbody>
+              ${items.map((it, i) => {
+                const share = ov.revenue > 0 ? (Number(it.revenue)/Number(ov.revenue)*100) : 0;
+                return `<tr>
+                  <td style="color:var(--ink-muted);font-variant-numeric:tabular-nums;">${i+1}</td>
+                  <td style="font-weight:600;color:var(--ink);">${E(it.name)}</td>
+                  <td style="text-align:right;font-variant-numeric:tabular-nums;">${it.qty}</td>
+                  <td style="text-align:right;font-variant-numeric:tabular-nums;">${_peso(it.revenue)}</td>
+                  <td style="text-align:right;font-variant-numeric:tabular-nums;color:var(--ink-muted);">${share.toFixed(1)}%</td>
+                </tr>`;
+              }).join('')}
+            </tbody>
+          </table>`}
+      </div>
+
+      <div class="panel perf-panel">
+        <div class="perf-panel-head">
+          <div class="perf-panel-title">Sales by category</div>
+          <div class="perf-panel-sub">Where the money's coming from</div>
+        </div>
+        ${cats.length === 0 ? _emptyMini('No category data.') : `
+          <div style="display:flex;flex-direction:column;gap:12px;">
+            ${cats.map(c => {
+              const rev = Number(c.revenue) || 0;
+              const pct = totalCatRev > 0 ? (rev / totalCatRev * 100) : 0;
+              return `<div>
+                <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;">
+                  <span style="font-weight:600;color:var(--ink);font-size:13px;">${E(c.category)}</span>
+                  <span style="font-size:12px;color:var(--ink-muted);font-variant-numeric:tabular-nums;">${_peso(rev)} <span style="color:var(--ink-faint);">·</span> ${pct.toFixed(1)}%</span>
+                </div>
+                <div style="background:var(--line);height:8px;border-radius:4px;overflow:hidden;">
+                  <div style="width:${pct}%;height:100%;background:linear-gradient(90deg, var(--gold) 0%, var(--gold-light) 100%);"></div>
+                </div>
+              </div>`;
+            }).join('')}
+          </div>`}
+      </div>
+    </div>
+
+    <!-- ── ORDER TYPES + PAYMENT METHODS ─────────────────────── -->
+    <div class="perf-split">
+      <div class="panel perf-panel">
+        <div class="perf-panel-head">
+          <div class="perf-panel-title">Order types</div>
+          <div class="perf-panel-sub">Dine-in vs takeaway</div>
+        </div>
+        ${otypes.length === 0 ? _emptyMini('No order type data.') : `
+          <div style="display:flex;flex-direction:column;gap:14px;">
+            ${otypes.map(o => {
+              const rev = Number(o.revenue) || 0;
+              const pct = totalTypeRev > 0 ? (rev / totalTypeRev * 100) : 0;
+              return `<div>
+                <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;">
+                  <span style="font-weight:600;color:var(--ink);font-size:13px;">${E(_prettyOrderType(o.type))}</span>
+                  <span style="font-size:12px;color:var(--ink-muted);font-variant-numeric:tabular-nums;">${o.orders} orders · ${_peso(rev)}</span>
+                </div>
+                <div style="background:var(--line);height:8px;border-radius:4px;overflow:hidden;">
+                  <div style="width:${pct}%;height:100%;background:var(--brick);"></div>
+                </div>
+              </div>`;
+            }).join('')}
+          </div>`}
+      </div>
+
+      <div class="panel perf-panel">
+        <div class="perf-panel-head">
+          <div class="perf-panel-title">Payment methods</div>
+          <div class="perf-panel-sub">How customers pay</div>
+        </div>
+        ${pays.length === 0 ? _emptyMini('No payment data.') : `
+          <table class="data-table" style="border:none;">
+            <tbody>
+              ${pays.map(p => `<tr>
+                <td style="font-weight:600;color:var(--ink);">${E(_prettyPayment(p.method))}</td>
+                <td style="text-align:right;font-variant-numeric:tabular-nums;color:var(--ink-muted);">${p.orders} orders</td>
+                <td style="text-align:right;font-variant-numeric:tabular-nums;font-weight:600;">${_peso(p.revenue)}</td>
+              </tr>`).join('')}
+            </tbody>
+          </table>`}
+      </div>
+    </div>
+
+    <!-- ── PEAK HOURS ────────────────────────────────────────── -->
+    <div class="panel perf-panel">
+      <div class="perf-panel-head">
+        <div class="perf-panel-title">Peak hours</div>
+        <div class="perf-panel-sub">Orders by hour of day (all days combined)</div>
+      </div>
+      <div class="perf-hours-chart">
+        ${hours.map(h => {
+          const orders = Number(h.orders) || 0;
+          const heightPct = Math.max(2, Math.round(orders / maxHour * 100));
+          return `<div class="perf-hour-bar" title="${_hourLabel(h.hour)} · ${orders} orders · ${_peso(h.revenue)}">
+                    <div class="perf-hour-bar-fill" style="height:${heightPct}%;"></div>
+                    <div class="perf-hour-bar-label">${h.hour % 3 === 0 ? _hourLabel(h.hour) : ''}</div>
+                  </div>`;
+        }).join('')}
+      </div>
+    </div>
+
+    <!-- ── VOIDS ─────────────────────────────────────────────── -->
+    ${voids.length > 0 ? `
+      <div class="panel perf-panel">
+        <div class="perf-panel-head">
+          <div class="perf-panel-title">Void reasons</div>
+          <div class="perf-panel-sub">${ov.void_count || 0} voids totaling ${_peso(ov.void_amount)} this month</div>
+        </div>
+        <table class="data-table" style="border:none;">
+          <thead><tr>
+            <th>Reason</th>
+            <th style="text-align:right;">Count</th>
+            <th style="text-align:right;">Amount</th>
+          </tr></thead>
+          <tbody>
+            ${voids.map(v => `<tr>
+              <td style="color:var(--ink);">${E(v.reason)}</td>
+              <td style="text-align:right;font-variant-numeric:tabular-nums;">${v.count}</td>
+              <td style="text-align:right;font-variant-numeric:tabular-nums;">${_peso(v.amount)}</td>
+            </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>` : ''}
+  `;
+}
+
+function _statCard(label, value, delta, tone) {
+  const dirColor = delta.dir === 'up'   ? 'var(--success)'
+                 : delta.dir === 'down' ? 'var(--danger)'
+                 : 'var(--ink-muted)';
+  const dirArrow = delta.dir === 'up' ? '↑' : delta.dir === 'down' ? '↓' : '';
+  return `<div class="perf-stat ${tone === 'gold' ? 'perf-stat-hero' : ''}">
+    <div class="perf-stat-label">${E(label)}</div>
+    <div class="perf-stat-value">${E(value)}</div>
+    <div class="perf-stat-delta" style="color:${dirColor};">${dirArrow} ${E(delta.text)}</div>
+  </div>`;
+}
+function _emptyMini(msg) {
+  return `<div style="padding:32px 12px;text-align:center;color:var(--ink-muted);font-size:13px;">${E(msg)}</div>`;
+}
+
+function exportPerformanceCSV() {
+  const d = window._lastPerfData;
+  if (!d) { try { toast('Load a month first, then export.'); } catch(e){} return; }
+  const rows = [];
+  rows.push(['section','key','value_1','value_2']);
+  const ov = d.overview || {};
+  rows.push(['overview','revenue', ov.revenue, '']);
+  rows.push(['overview','orders',  ov.orders, '']);
+  rows.push(['overview','avg_order', ov.avg_order, '']);
+  rows.push(['overview','best_day',  ov.best_day, ov.best_day_revenue]);
+  rows.push(['overview','peak_hour', ov.peak_hour, ov.peak_hour_orders]);
+  rows.push(['overview','void_rate', ov.void_rate, ov.void_amount]);
+  (d.daily || []).forEach(r => rows.push(['daily', r.day, r.revenue, r.orders]));
+  (d.top_items || []).forEach(r => rows.push(['top_items', r.name, r.qty, r.revenue]));
+  (d.categories || []).forEach(r => rows.push(['categories', r.category, r.revenue, r.qty]));
+  (d.order_types || []).forEach(r => rows.push(['order_types', r.type, r.orders, r.revenue]));
+  (d.hours || []).forEach(r => rows.push(['hours', r.hour, r.orders, r.revenue]));
+  (d.payment_methods || []).forEach(r => rows.push(['payment_methods', r.method, r.orders, r.revenue]));
+  (d.void_reasons || []).forEach(r => rows.push(['void_reasons', r.reason, r.count, r.amount]));
+  const csv = rows.map(r => r.map(v => {
+    if (v === null || v === undefined) return '';
+    const s = String(v);
+    return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  }).join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `tpn-performance-${_perfState.month}.csv`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }
 
 async function renderHistory(main) {
