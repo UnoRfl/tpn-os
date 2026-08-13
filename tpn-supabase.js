@@ -917,6 +917,98 @@ TPN.archiveAuditLog = async function (daysToKeep = 31) {
   return data;
 };
 
+// ═════════════════════════════════════════════════════════════
+// UnoSys: Discount templates (sql/15).
+// Manager+ can create / edit / delete. Legal-locked templates
+// (with a non-null legal_law) can only be deactivated, not deleted
+// — RLS enforces this. requires_id templates prompt the cashier
+// for a physical ID number at apply time.
+// ═════════════════════════════════════════════════════════════
+TPN.listDiscountTemplates = async function (activeOnly = false) {
+  let q = sb.from('discount_templates').select('*').order('legal_law', { nullsFirst: false }).order('name');
+  if (activeOnly) q = q.eq('is_active', true);
+  const { data, error } = await q;
+  if (error) throw error;
+  return data || [];
+};
+TPN.createDiscountTemplate = async function (payload) {
+  const row = {
+    code:          payload.code,
+    name:          payload.name,
+    description:   payload.description || null,
+    kind:          payload.kind || 'percent',
+    value:         Number(payload.value),
+    requires_id:   !!payload.requires_id,
+    min_subtotal:  payload.min_subtotal != null ? Number(payload.min_subtotal) : 0,
+    max_discount:  payload.max_discount != null && payload.max_discount !== '' ? Number(payload.max_discount) : null,
+    stackable:     payload.stackable !== false,
+    is_active:     payload.is_active !== false,
+    icon:          payload.icon || '💸',
+    vat_treatment: payload.vat_treatment === 'net_of_vat' ? 'net_of_vat' : 'gross',
+    created_by:    (TPN._user && TPN._user.id) || null
+  };
+  const { data, error } = await sb.from('discount_templates').insert(row).select().single();
+  if (error) throw error;
+  await TPN.logAudit('discount_template.create', 'discount_template', data.id, { code: data.code, name: data.name });
+  return data;
+};
+TPN.updateDiscountTemplate = async function (id, patch) {
+  const clean = {};
+  ['code','name','description','kind','value','requires_id','min_subtotal','max_discount','stackable','is_active','icon','vat_treatment']
+    .forEach(k => { if (patch[k] !== undefined) clean[k] = patch[k]; });
+  if (clean.value != null) clean.value = Number(clean.value);
+  if (clean.min_subtotal != null) clean.min_subtotal = Number(clean.min_subtotal);
+  if (clean.max_discount === '' ) clean.max_discount = null;
+  if (clean.max_discount != null) clean.max_discount = Number(clean.max_discount);
+  const { data, error } = await sb.from('discount_templates').update(clean).eq('id', id).select().single();
+  if (error) throw error;
+  await TPN.logAudit('discount_template.update', 'discount_template', id, clean);
+  return data;
+};
+TPN.deleteDiscountTemplate = async function (id) {
+  const { error } = await sb.from('discount_templates').delete().eq('id', id);
+  if (error) throw error;
+  await TPN.logAudit('discount_template.delete', 'discount_template', id, {});
+};
+
+// ═════════════════════════════════════════════════════════════
+// Applied discounts on a specific order.
+// applyDiscount → apply_discount RPC (supervisor+, server-computed amount)
+// removeDiscount → remove_discount RPC (manager+, soft-delete)
+// Error names surfaced from the server:
+//   insufficient_privileges, template_not_found, template_inactive,
+//   id_ref_required, order_not_found, order_terminal,
+//   below_min_subtotal, not_stackable, already_removed
+// ═════════════════════════════════════════════════════════════
+TPN.listAppliedDiscounts = async function (orderId, opts) {
+  opts = opts || {};
+  let q = sb.from('applied_discounts')
+    .select('*, template:discount_templates(id, code, name, icon, legal_law)')
+    .eq('order_id', orderId)
+    .order('applied_at', { ascending: true });
+  if (!opts.includeRemoved) q = q.is('removed_at', null);
+  const { data, error } = await q;
+  if (error) throw error;
+  return data || [];
+};
+TPN.applyDiscount = async function (orderId, templateId, idRef) {
+  const { data, error } = await sb.rpc('apply_discount', {
+    p_order_id: orderId,
+    p_template_id: templateId,
+    p_id_ref: idRef || null
+  });
+  if (error) throw error;
+  return data;
+};
+TPN.removeDiscount = async function (appliedId, reason) {
+  const { data, error } = await sb.rpc('remove_discount', {
+    p_applied_id: appliedId,
+    p_reason: reason || null
+  });
+  if (error) throw error;
+  return data;
+};
+
 // Restore session on load
 sb.auth.onAuthStateChange((event) => {
   if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') TPN.loadProfile();
