@@ -3249,6 +3249,7 @@ function renderAdminSidebar() {
   navItems.push({ id: 'orders', label: 'Live Orders', icon: '📋', badge: portalState.orders.filter(o => o.status !== 'done').length || null });
   navItems.push({ id: 'kds', label: 'Kitchen Display', icon: '🍳', badge: portalState.orders.filter(o => o.status === 'received' || o.status === 'preparing').length || null });
   navItems.push({ id: 'floor', label: 'Dine-In Floor', icon: '🪑', external: 'tpn-dine-in-floor' });
+  navItems.push({ id: 'kitchen-station', label: 'Kitchen Station', icon: '👨‍🍳', external: 'tpn-kitchen-station' });
 
   navItems.push({ section: 'TEAM' });
   navItems.push({ id: 'staff-board', label: 'Staff Board', icon: '🎯' });
@@ -3257,6 +3258,7 @@ function renderAdminSidebar() {
   navItems.push({ id: 'notifications', label: 'Notifications', icon: '🔔', badge: portalState.unreadNotifCount || null });
   navItems.push({ id: 'messages-admin', label: 'Messages', icon: '✉️', badge: window._tpnUnreadMsgs || null });
   navItems.push({ id: 'menu-manager', label: 'Menu Manager', icon: '🍽️' });
+  navItems.push({ id: 'discounts', label: 'Discounts & Promos', icon: '💸' });
   navItems.push({ id: 'table-qr', label: 'Table QR Codes', icon: '📲' });
   navItems.push({ id: 'accounts', label: 'Accounts', icon: '👤', badge: portalState.staff.filter(s => s.accountState === 'pending' || s.accountState === 'recommended').length || null });
   if (tier === 'director' || tier === 'ceo' || tier === 'admin') {
@@ -3334,6 +3336,7 @@ function route(r, opts) {
     case 'audit': renderAudit(main); break;
     case 'table-qr': renderTableQR(main); break;
     case 'menu-manager': renderMenuManager(main); break;
+    case 'discounts': renderDiscounts(main); break;
     case 'notifications': renderNotifications(main, 'admin'); break;
     case 'performance': renderPerformance(main); break;
     case 'history': renderHistory(main); break;
@@ -3933,6 +3936,9 @@ function dbOrderToPortalOrder(o) {
     items: (o.order_items || []).map(i => `${i.quantity}× ${i.name_snapshot}`).join(', '),
     itemsList: (o.order_items || []).map(i => ({ qty: i.quantity, name: i.name_snapshot, pax: i.pax_size, notes: i.notes })),
     total: Number(o.total),
+    subtotal: Number(o.subtotal || 0),
+    discountAmount: Number(o.discount_amount || 0),
+    serviceCharge:  Number(o.service_charge  || 0),
     status: mapDbStatusToUi(o.status),
     time: 'just now',
     placedAt:     new Date(o.placed_at).getTime(),
@@ -4049,6 +4055,7 @@ function renderOrders(main) {
     if (!laneOrders.length) html += '<div class="portal-empty-lane"><div style="font-size:28px;margin-bottom:6px;">' + (lane.id==='done'?'✓':lane.id==='received'?'🕐':lane.id==='preparing'?'👨‍🍳':'🔔') + '</div><div style="font-size:12px;color:var(--ink-faint);">' + (lane.id==='received'?'Walang bagong order':'Wala sa estadong ito') + '</div></div>';
     else laneOrders.forEach(o => {
       const canVoid = currentUser && ['manager','admin','director','ceo'].includes(currentUser.tier);
+      const canDiscount = currentUser && ['supervisor','manager','admin','director','ceo'].includes(currentUser.tier);
       html += `<div class="order-card">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:6px;margin-bottom:6px;">
           <div class="order-ref">${E(o.id)}</div>
@@ -4057,6 +4064,7 @@ function renderOrders(main) {
         <div class="order-customer">${E(o.customer)}</div>
         <div class="order-items">${E(o.items)}</div>
         ${(o.paymentMethod&&o.paymentMethod!=="cash")?"<div style=\"font-size:11px;color:var(--amber);margin-bottom:3px;\">\uD83D\uDCB3 "+({gcash:"GCash QR",paymaya:"PayMaya QR",card:"Card Terminal"})[o.paymentMethod]+"</div>":""}
+        ${Number(o.discountAmount||0) > 0 ? `<div style="font-size:11px;color:var(--green,#2d7a4f);margin-bottom:3px;">💸 Discount: −₱${N(o.discountAmount,2)}</div>` : ''}
         <div class="order-row-foot">
           <div class="order-total">₱${N(o.total, 2)}</div>
           <div class="order-time-wrap">
@@ -4064,6 +4072,7 @@ function renderOrders(main) {
           </div>
         </div>
         ${lane.next ? `<button class="order-advance" onclick="advanceOrder('${E(o.id)}','${E(lane.next)}')">${E(lane.nextLabel)}</button>` : ''}
+        ${canDiscount && lane.id !== 'done' ? `<button class="order-advance" style="margin-top:6px;background:transparent;color:var(--brick,#8B1A0E);border:1px solid var(--brick,#8B1A0E);" onclick="openDiscountPicker('${E(o.dbId||o.id)}')">💸 Discount</button>` : ''}
         ${canVoid && lane.id !== 'done' ? `<button class="order-advance" style="margin-top:6px;background:transparent;color:var(--danger);border:1px solid var(--danger);" onclick="openVoidItemsModal('${E(o.dbId||o.id)}')">🚫 Void items</button>` : ''}
       </div>`;
     });
@@ -5142,6 +5151,297 @@ async function unvoidItem(itemId, orderDbId) {
     } catch(_){}
     openVoidItemsModal(orderDbId);
   } catch(e) { toast('Could not un-void: ' + (e.message||e)); }
+}
+
+/* ════════════════════════════════════════════════════
+   DISCOUNTS & PROMOS — manager+ template CRUD, plus the
+   shared discount picker used from Live Orders and the
+   dine-in floor Close Table modal.
+   ════════════════════════════════════════════════════ */
+let _discountState = { templates: [], loading: false };
+
+async function _loadDiscountTemplates(force) {
+  if (!force && _discountState.templates.length) return _discountState.templates;
+  _discountState.loading = true;
+  try {
+    _discountState.templates = await TPN.listDiscountTemplates(false);
+  } catch(e) {
+    console.warn('listDiscountTemplates:', e);
+    _discountState.templates = [];
+  } finally {
+    _discountState.loading = false;
+  }
+  return _discountState.templates;
+}
+
+async function renderDiscounts(main) {
+  const u = currentUser;
+  const canEdit = ['manager','admin','director','ceo'].includes(u.tier);
+  main.innerHTML = `
+    <div class="portal-header">
+      <div>
+        <h1>Discounts & Promos</h1>
+        <div class="portal-header-sub">Reusable discount presets. Apply them at checkout from Live Orders or the Dine-In Floor.</div>
+      </div>
+      ${canEdit ? '<button class="btn-next" onclick="openDiscountTemplateEditor(null)">+ New template</button>' : ''}
+    </div>
+    <div id="discountList" class="panel"><div style="padding:24px;color:var(--ink-muted);text-align:center;">Loading templates…</div></div>`;
+  await _loadDiscountTemplates(true);
+  _renderDiscountList();
+}
+
+function _renderDiscountList() {
+  const el = document.getElementById('discountList');
+  if (!el) return;
+  const u = currentUser;
+  const canEdit = u && ['manager','admin','director','ceo'].includes(u.tier);
+  const list = _discountState.templates;
+  if (!list.length) {
+    el.innerHTML = '<div style="padding:32px;text-align:center;color:var(--ink-muted);">No templates yet. Create one to get started.</div>';
+    return;
+  }
+  const rows = list.map(t => {
+    const legalBadge = t.legal_law ? `<span class="portal-nav-badge" style="background:var(--brick,#8B1A0E);color:#fff;">🔒 ${E(t.legal_law)}</span>` : '';
+    const activeBadge = t.is_active
+      ? '<span class="portal-nav-badge" style="background:#2d7a4f;color:#fff;">Active</span>'
+      : '<span class="portal-nav-badge" style="background:var(--ink-muted);color:#fff;">Off</span>';
+    const valLabel = t.kind === 'percent' ? `${Number(t.value)}% off` : `−₱${N(t.value,2)}`;
+    const vatBadge = t.kind === 'percent' && t.vat_treatment === 'net_of_vat'
+      ? '<span style="font-size:11px;color:var(--ink-muted);">🧾 Net of VAT</span>' : '';
+    return `<div style="padding:14px 16px;border-bottom:1px solid var(--line-soft);display:flex;gap:14px;align-items:flex-start;">
+      <div style="font-size:28px;line-height:1;flex-shrink:0;">${E(t.icon || '💸')}</div>
+      <div style="flex:1;min-width:0;">
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:4px;">
+          <strong style="color:var(--ink);">${E(t.name)}</strong>
+          ${legalBadge} ${activeBadge}
+          ${t.requires_id ? '<span style="font-size:11px;color:var(--ink-muted);">📇 ID required</span>' : ''}
+          ${!t.stackable ? '<span style="font-size:11px;color:var(--ink-muted);">🚫 Non-stackable</span>' : ''}
+          ${vatBadge}
+        </div>
+        <div style="font-size:12px;color:var(--ink-muted);margin-bottom:4px;">${E(t.code)} · <strong style="color:var(--ink);">${valLabel}</strong>${t.min_subtotal>0?` · min ₱${N(t.min_subtotal,2)}`:''}${t.max_discount?` · cap ₱${N(t.max_discount,2)}`:''}</div>
+        ${t.description ? `<div style="font-size:12px;color:var(--ink-muted);">${E(t.description)}</div>` : ''}
+      </div>
+      ${canEdit ? `<div style="flex-shrink:0;display:flex;gap:6px;flex-direction:column;">
+        <button class="btn-secondary" onclick="openDiscountTemplateEditor('${E(t.id)}')">Edit</button>
+        ${!t.legal_law ? `<button class="btn-secondary danger" onclick="deleteDiscountTemplate('${E(t.id)}','${E((t.name||'').replace(/'/g,"&#39;"))}')">Delete</button>` : ''}
+      </div>` : ''}
+    </div>`;
+  }).join('');
+  el.innerHTML = rows;
+}
+
+function openDiscountTemplateEditor(id) {
+  const existing = id ? _discountState.templates.find(t => t.id === id) : null;
+  const locked = !!(existing && existing.legal_law);
+  const t = existing || { code:'', name:'', description:'', kind:'percent', value:10, requires_id:false, min_subtotal:0, max_discount:'', stackable:true, is_active:true, icon:'💸', vat_treatment:'gross' };
+  showModal(`
+    <div class="modal-title">${existing ? 'Edit template' : 'New discount template'}</div>
+    ${locked ? '<div class="modal-sub" style="color:var(--brick,#8B1A0E);">🔒 Legal-mandated template. Only activation, cap, minimum, and description can be changed.</div>' : '<div class="modal-sub">Preset used at checkout. Cashier applies it in one tap.</div>'}
+    <div class="modal-content" style="max-height:60vh;overflow-y:auto;">
+      <div class="form-row"><label>Icon</label><input id="dt_icon" maxlength="4" style="width:60px;" value="${E(t.icon||'💸')}"/></div>
+      <div class="form-row"><label>Name*</label><input id="dt_name" ${locked?'disabled':''} value="${E(t.name)}" placeholder="e.g. Loyalty 10%" /></div>
+      <div class="form-row"><label>Code*</label><input id="dt_code" ${locked?'disabled':''} value="${E(t.code)}" placeholder="loyalty-10 (unique slug)" /></div>
+      <div class="form-row full"><label>Description</label><textarea id="dt_desc" rows="2" placeholder="Short note that shows in the picker. Optional.">${E(t.description||'')}</textarea></div>
+      <div class="form-row"><label>Discount type*</label>
+        <select id="dt_kind" ${locked?'disabled':''} onchange="_toggleDiscountKindHelp()">
+          <option value="percent" ${t.kind==='percent'?'selected':''}>Percent off (%)</option>
+          <option value="fixed" ${t.kind==='fixed'?'selected':''}>Fixed peso off (₱)</option>
+        </select>
+      </div>
+      <div class="form-row"><label>Value*</label>
+        <input id="dt_value" ${locked?'disabled':''} type="number" step="0.01" min="0" value="${E(t.value)}" />
+        <div id="dt_kind_help" style="grid-column:1 / -1;font-size:11px;color:var(--ink-muted);margin-top:-8px;">${t.kind==='percent'?'Enter 0–100. Example: 20 = 20% off.':'Enter peso amount. Example: 50 = ₱50 off.'}</div>
+      </div>
+      <div class="form-row full"><label>VAT treatment${locked?'':' (percent discounts only)'}</label>
+        <select id="dt_vat" ${locked?'disabled':''}>
+          <option value="gross" ${t.vat_treatment!=='net_of_vat'?'selected':''}>Gross — apply to full subtotal (most promos)</option>
+          <option value="net_of_vat" ${t.vat_treatment==='net_of_vat'?'selected':''}>Net of VAT — strip 12% VAT first (BIR-correct for SC / PWD)</option>
+        </select>
+        <div style="grid-column:1 / -1;font-size:11px;color:var(--ink-muted);margin-top:-8px;">
+          Gross is what StoreHub does — pick it for loyalty, promos, staff meals. Choose Net of VAT only if you're issuing formal BIR receipts for Senior Citizen or PWD.
+        </div>
+      </div>
+      <div class="form-row"><label>Min. subtotal (₱)</label><input id="dt_min" type="number" step="0.01" min="0" value="${E(t.min_subtotal||0)}" placeholder="0 = no minimum" /></div>
+      <div class="form-row"><label>Max. discount cap (₱)</label><input id="dt_max" type="number" step="0.01" min="0" value="${t.max_discount!=null?E(t.max_discount):''}" placeholder="(no cap)" /></div>
+      <div class="form-row full"><label style="cursor:pointer;"><input id="dt_reqid" ${locked?'disabled':''} type="checkbox" ${t.requires_id?'checked':''}/> Requires physical ID at checkout (SC / PWD / Solo Parent)</label></div>
+      <div class="form-row full"><label style="cursor:pointer;"><input id="dt_stack" ${locked?'disabled':''} type="checkbox" ${t.stackable?'checked':''}/> Can be combined with other discounts on the same order</label></div>
+      <div class="form-row full"><label style="cursor:pointer;"><input id="dt_active" type="checkbox" ${t.is_active?'checked':''}/> Active — appears in the checkout picker</label></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn-next" onclick="saveDiscountTemplate('${existing ? E(existing.id) : ''}', ${locked?'true':'false'})">${existing ? 'Save' : 'Create'}</button>
+    </div>`);
+}
+
+function _toggleDiscountKindHelp() {
+  const kind = document.getElementById('dt_kind')?.value;
+  const help = document.getElementById('dt_kind_help');
+  if (!help) return;
+  help.textContent = kind === 'percent'
+    ? 'Enter 0–100. Example: 20 = 20% off.'
+    : 'Enter peso amount. Example: 50 = ₱50 off.';
+}
+
+async function saveDiscountTemplate(id, locked) {
+  const g = (x) => document.getElementById(x);
+  const payload = {
+    icon:          g('dt_icon').value.trim() || '💸',
+    name:          g('dt_name').value.trim(),
+    code:          g('dt_code').value.trim().toLowerCase().replace(/\s+/g,'-'),
+    description:   g('dt_desc').value.trim(),
+    kind:          g('dt_kind').value,
+    value:         Number(g('dt_value').value),
+    min_subtotal:  Number(g('dt_min').value || 0),
+    max_discount:  g('dt_max').value === '' ? null : Number(g('dt_max').value),
+    requires_id:   g('dt_reqid').checked,
+    stackable:     g('dt_stack').checked,
+    is_active:     g('dt_active').checked,
+    vat_treatment: g('dt_vat').value === 'net_of_vat' ? 'net_of_vat' : 'gross'
+  };
+  if (!payload.name || !payload.code) { toast('Name and code are required.'); return; }
+  if (isNaN(payload.value) || payload.value < 0) { toast('Value must be a non-negative number.'); return; }
+  if (payload.kind === 'percent' && payload.value > 100) { toast('Percent value cannot exceed 100.'); return; }
+  try {
+    if (id) {
+      if (locked === true) {
+        delete payload.name; delete payload.code; delete payload.kind;
+        delete payload.value; delete payload.requires_id; delete payload.stackable;
+        delete payload.vat_treatment;
+      }
+      await TPN.updateDiscountTemplate(id, payload);
+      toast('✓ Template updated');
+    } else {
+      await TPN.createDiscountTemplate(payload);
+      toast('✓ Template created');
+    }
+    closeModal();
+    await _loadDiscountTemplates(true);
+    _renderDiscountList();
+  } catch(e) {
+    const msg = (e && e.message) || String(e);
+    if (msg.includes('duplicate')) toast('That code is already in use.');
+    else if (msg.includes('discount_value_bounds')) toast('Value is out of range (percent must be 0–100).');
+    else toast('Save failed: ' + msg);
+  }
+}
+
+async function deleteDiscountTemplate(id, name) {
+  if (!window.confirm(`Delete template "${name}"? This cannot be undone.`)) return;
+  try {
+    await TPN.deleteDiscountTemplate(id);
+    toast('✓ Deleted');
+    await _loadDiscountTemplates(true);
+    _renderDiscountList();
+  } catch(e) { toast('Delete failed: ' + ((e && e.message) || e)); }
+}
+
+/* ─── Shared discount picker used from Orders board + Dine-In Floor ─── */
+async function openDiscountPicker(orderDbId, opts) {
+  opts = opts || {};
+  if (!orderDbId) { toast('Order id missing'); return; }
+  let order, applied;
+  try {
+    order   = await TPN.getOrder(orderDbId);
+    applied = await TPN.listAppliedDiscounts(orderDbId);
+  } catch(e) { toast('Could not load order: ' + (e.message||e)); return; }
+  const templates = await _loadDiscountTemplates(false);
+  const active    = templates.filter(t => t.is_active);
+  const u = currentUser;
+  const canRemove = u && ['manager','admin','director','ceo'].includes(u.tier);
+
+  const appliedRows = applied.length
+    ? applied.map(a => `<div style="display:flex;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line-soft);">
+        <div style="flex:1;min-width:0;">
+          <div style="font-weight:600;color:var(--ink);">${E(a.name_snapshot)}${a.legal_law?` <span style="font-size:10px;color:var(--ink-muted);">(${E(a.legal_law)})</span>`:''}</div>
+          <div style="font-size:11px;color:var(--ink-muted);">−₱${N(a.amount_applied,2)}${a.id_ref?` · ID ${E(a.id_ref)}`:''}</div>
+        </div>
+        ${canRemove ? `<button class="btn-secondary danger" onclick="removeAppliedDiscount('${E(a.id)}','${E(orderDbId)}')">Remove</button>` : ''}
+      </div>`).join('')
+    : '<div style="padding:12px;color:var(--ink-muted);text-align:center;font-size:12px;">No discounts on this order yet.</div>';
+
+  const templateRows = active.length
+    ? active.map(t => {
+        const valLabel = t.kind === 'percent' ? `${Number(t.value)}% off` : `−₱${N(t.value,2)}`;
+        return `<button class="btn-secondary" style="width:100%;text-align:left;padding:12px;margin-bottom:6px;display:flex;gap:10px;align-items:center;" onclick="applyDiscountFromPicker('${E(orderDbId)}','${E(t.id)}',${t.requires_id?'true':'false'},'${E((t.name||'').replace(/'/g,"&#39;"))}')">
+          <span style="font-size:24px;">${E(t.icon||'💸')}</span>
+          <span style="flex:1;">
+            <span style="display:block;font-weight:600;color:var(--ink);">${E(t.name)} <span style="font-weight:400;color:var(--ink-muted);font-size:12px;">${valLabel}</span></span>
+            ${t.legal_law ? `<span style="font-size:11px;color:var(--brick,#8B1A0E);">🔒 ${E(t.legal_law)}</span>` : ''}
+            ${t.description ? `<span style="display:block;font-size:11px;color:var(--ink-muted);">${E(t.description)}</span>` : ''}
+          </span>
+        </button>`;
+      }).join('')
+    : '<div style="padding:12px;color:var(--ink-muted);text-align:center;font-size:12px;">No active templates. Manager can create some in Discounts & Promos.</div>';
+
+  const currentTotal = Number(order.total || 0);
+  const currentDisc  = Number(order.discount_amount || 0);
+
+  showModal(`
+    <div class="modal-title">Discounts · ${E(order.order_number || '')}</div>
+    <div class="modal-sub">Subtotal ₱${N(order.subtotal,2)} · Current discount −₱${N(currentDisc,2)} · <strong>Total ₱${N(currentTotal,2)}</strong></div>
+    <div class="modal-content" style="max-height:60vh;overflow-y:auto;">
+      <div style="font-size:11px;font-weight:700;color:var(--ink-muted);letter-spacing:.08em;margin:4px 0 6px;">APPLIED</div>
+      ${appliedRows}
+      <div style="font-size:11px;font-weight:700;color:var(--ink-muted);letter-spacing:.08em;margin:18px 0 6px;">ADD DISCOUNT</div>
+      ${templateRows}
+    </div>
+    <div class="modal-actions">
+      <button class="btn-next" onclick="closeModal()">Done</button>
+    </div>`);
+}
+
+async function applyDiscountFromPicker(orderDbId, templateId, requiresId, tName) {
+  let idRef = null;
+  if (requiresId === true || requiresId === 'true') {
+    idRef = window.prompt(`Enter the physical ID number for "${tName}" (min 3 chars):`, '');
+    if (idRef === null) return;
+    if (!idRef || idRef.trim().length < 3) { toast('ID number is required (min 3 chars).'); return; }
+    idRef = idRef.trim();
+  }
+  try {
+    await TPN.applyDiscount(orderDbId, templateId, idRef);
+    toast('✓ Discount applied');
+    try {
+      const fresh = await TPN.getOrder(orderDbId);
+      const existing = portalState.orders.find(x => x.dbId === orderDbId);
+      if (existing) Object.assign(existing, dbOrderToPortalOrder(fresh));
+      rerenderCurrent();
+    } catch(_){}
+    openDiscountPicker(orderDbId);
+  } catch(e) {
+    const msg = (e && (e.message || e.code) || '').toString();
+    const map = {
+      insufficient_privileges: 'You need supervisor+ to apply discounts.',
+      template_inactive:       'That template is turned off.',
+      template_not_found:      'Template not found.',
+      id_ref_required:         'This discount requires a physical ID number.',
+      order_terminal:          'This order is already closed.',
+      below_min_subtotal:      'Order is below the minimum subtotal for this discount.',
+      not_stackable:           'This discount cannot be combined with the ones already applied.'
+    };
+    const friendly = Object.entries(map).find(([k]) => msg.includes(k));
+    toast(friendly ? friendly[1] : 'Apply failed: ' + msg);
+  }
+}
+
+async function removeAppliedDiscount(appliedId, orderDbId) {
+  const reason = window.prompt('Reason for removing this discount (optional):', '') || '';
+  try {
+    await TPN.removeDiscount(appliedId, reason.trim());
+    toast('✓ Discount removed');
+    try {
+      const fresh = await TPN.getOrder(orderDbId);
+      const existing = portalState.orders.find(x => x.dbId === orderDbId);
+      if (existing) Object.assign(existing, dbOrderToPortalOrder(fresh));
+      rerenderCurrent();
+    } catch(_){}
+    openDiscountPicker(orderDbId);
+  } catch(e) {
+    const msg = (e && (e.message || e.code) || '').toString();
+    if (msg.includes('insufficient_privileges')) toast('You need manager+ to remove a discount.');
+    else if (msg.includes('order_terminal')) toast('This order is already closed.');
+    else toast('Remove failed: ' + msg);
+  }
 }
 
 /* ════════════════════════════════════════════════════
