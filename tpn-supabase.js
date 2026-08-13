@@ -13,9 +13,22 @@
 const SUPABASE_URL      = (window.TPN_CONFIG && window.TPN_CONFIG.SUPABASE_URL)      || 'https://YOUR-PROJECT-REF.supabase.co';
 const SUPABASE_ANON_KEY = (window.TPN_CONFIG && window.TPN_CONFIG.SUPABASE_ANON_KEY) || 'PASTE-YOUR-ANON-KEY-HERE';
 
+// Customer-facing surfaces must never inherit a lingering staff session.
+// If a staff member (or Uno testing on his own phone) had ever signed in
+// on this origin, persistSession would restore their JWT and RLS would
+// route anon dine-in inserts through the AUTHENTICATED policy path —
+// which requires branch_id = private.my_branch(), causing "permission
+// denied for table orders" toasts on the QR menu. Isolating the client
+// (no persist + different storage key) guarantees the QR menu always
+// acts as a true anonymous customer, without disturbing the staff app
+// session in other tabs.
+const _TPN_CUSTOMER_SURFACE = /tpn-table-menu/i.test(location.pathname);
+
 // Init client
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-  auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false }
+  auth: _TPN_CUSTOMER_SURFACE
+    ? { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false, storageKey: 'sb-tpn-anon' }
+    : { persistSession: true,  autoRefreshToken: true,  detectSessionInUrl: false }
 });
 
 const TPN = {
@@ -897,110 +910,101 @@ TPN.getSalesPerformanceMonth = async function (monthDate, branchId = null) {
   }
 };
 
-// ═════════════════════════════════════════════════════════════
-// UnoSys: DISCOUNTS
-// - listDiscountPresets: everyone (staff picker)
-// - listAllDiscountPresets: manager+ (management view — includes
-//   inactive / expired for editing)
-// - upsertDiscountPreset / deleteDiscountPreset: manager+
-// - applyDiscount / removeDiscount: staff
-// ═════════════════════════════════════════════════════════════
-TPN.listDiscountPresets = async function (branchId = null) {
-  try {
-    const { data, error } = await sb.rpc('list_active_discount_presets', { p_branch_id: branchId });
-    if (error) throw error;
-    return data || [];
-  } catch (e) { console.warn('listDiscountPresets:', e.message||e); return []; }
-};
-
-TPN.listAllDiscountPresets = async function () {
-  try {
-    const { data, error } = await sb.from('discount_presets')
-      .select('*').order('sort_order', { ascending: true }).order('name');
-    if (error) throw error;
-    return data || [];
-  } catch (e) { console.warn('listAllDiscountPresets:', e.message||e); return []; }
-};
-
-TPN.upsertDiscountPreset = async function (preset) {
-  // preset can be a new object (no id) or an existing one (with id) — Supabase upsert handles both.
-  const payload = { ...preset, updated_at: new Date().toISOString() };
-  if (!payload.created_by && TPN._user) payload.created_by = TPN._user.id;
-  const { data, error } = await sb.from('discount_presets')
-    .upsert(payload).select().maybeSingle();
-  if (error) throw error;
-  return data;
-};
-
-TPN.deleteDiscountPreset = async function (id) {
-  const { error } = await sb.from('discount_presets').delete().eq('id', id);
-  if (error) throw error;
-  return true;
-};
-
-TPN.applyDiscount = async function (orderId, presetId, reference = null, customValue = null) {
-  const { data, error } = await sb.rpc('apply_discount', {
-    p_order_id:     orderId,
-    p_preset_id:    presetId,
-    p_reference:    reference,
-    p_custom_value: customValue
-  });
-  if (error) throw error;
-  return data;
-};
-
-TPN.removeDiscount = async function (orderId) {
-  const { data, error } = await sb.rpc('remove_discount', { p_order_id: orderId });
-  if (error) throw error;
-  return data;
-};
-
-// ═════════════════════════════════════════════════════════════
-// UnoSys: Excel export. Dynamically loads SheetJS on first use so
-// we don't ship a heavy library to every page load. Takes a
-// dictionary of { sheetName: aoa } where aoa = array of arrays
-// (first row = headers). Writes an .xlsx and triggers a download.
-// ═════════════════════════════════════════════════════════════
-TPN._sheetJSLoading = null;
-TPN._ensureSheetJS = function () {
-  if (typeof window.XLSX !== 'undefined') return Promise.resolve();
-  if (TPN._sheetJSLoading) return TPN._sheetJSLoading;
-  TPN._sheetJSLoading = new Promise((resolve, reject) => {
-    const s = document.createElement('script');
-    s.src = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
-    s.onload  = () => resolve();
-    s.onerror = () => reject(new Error('Could not load xlsx library'));
-    document.head.appendChild(s);
-  });
-  return TPN._sheetJSLoading;
-};
-
-TPN.exportSheetsToXLSX = async function (filename, sheets) {
-  await TPN._ensureSheetJS();
-  const wb = window.XLSX.utils.book_new();
-  for (const [name, aoa] of Object.entries(sheets)) {
-    const ws = window.XLSX.utils.aoa_to_sheet(aoa);
-    // Auto-size columns based on the max content length in each column.
-    const widths = [];
-    aoa.forEach(row => {
-      row.forEach((cell, i) => {
-        const len = (cell === null || cell === undefined) ? 0 : String(cell).length;
-        widths[i] = Math.max(widths[i] || 0, Math.min(60, len + 2));
-      });
-    });
-    ws['!cols'] = widths.map(w => ({ wch: w }));
-    // Freeze the header row.
-    ws['!freeze'] = { xSplit: 0, ySplit: 1 };
-    // Truncate sheet name to Excel's 31-char limit and strip invalid chars.
-    const safeName = String(name).replace(/[\\/?*\[\]:]/g, ' ').slice(0, 31);
-    window.XLSX.utils.book_append_sheet(wb, ws, safeName);
-  }
-  window.XLSX.writeFile(wb, filename);
-};
-
 // Trigger the monthly archive on demand (also runnable via pg_cron).
 TPN.archiveAuditLog = async function (daysToKeep = 31) {
   const { data, error } = await sb.rpc('audit_log_archive_old', { p_days_to_keep: daysToKeep });
+  if (error) throw error;
+  return data;
+};
+
+// ═════════════════════════════════════════════════════════════
+// UnoSys: Discount templates (sql/15).
+// Manager+ can create / edit / delete. Legal-locked templates
+// (with a non-null legal_law) can only be deactivated, not deleted
+// — RLS enforces this. requires_id templates prompt the cashier
+// for a physical ID number at apply time.
+// ═════════════════════════════════════════════════════════════
+TPN.listDiscountTemplates = async function (activeOnly = false) {
+  let q = sb.from('discount_templates').select('*').order('legal_law', { nullsFirst: false }).order('name');
+  if (activeOnly) q = q.eq('is_active', true);
+  const { data, error } = await q;
+  if (error) throw error;
+  return data || [];
+};
+TPN.createDiscountTemplate = async function (payload) {
+  const row = {
+    code:          payload.code,
+    name:          payload.name,
+    description:   payload.description || null,
+    kind:          payload.kind || 'percent',
+    value:         Number(payload.value),
+    requires_id:   !!payload.requires_id,
+    min_subtotal:  payload.min_subtotal != null ? Number(payload.min_subtotal) : 0,
+    max_discount:  payload.max_discount != null && payload.max_discount !== '' ? Number(payload.max_discount) : null,
+    stackable:     payload.stackable !== false,
+    is_active:     payload.is_active !== false,
+    icon:          payload.icon || '💸',
+    vat_treatment: payload.vat_treatment === 'net_of_vat' ? 'net_of_vat' : 'gross',
+    created_by:    (TPN._user && TPN._user.id) || null
+  };
+  const { data, error } = await sb.from('discount_templates').insert(row).select().single();
+  if (error) throw error;
+  await TPN.logAudit('discount_template.create', 'discount_template', data.id, { code: data.code, name: data.name });
+  return data;
+};
+TPN.updateDiscountTemplate = async function (id, patch) {
+  const clean = {};
+  ['code','name','description','kind','value','requires_id','min_subtotal','max_discount','stackable','is_active','icon','vat_treatment']
+    .forEach(k => { if (patch[k] !== undefined) clean[k] = patch[k]; });
+  if (clean.value != null) clean.value = Number(clean.value);
+  if (clean.min_subtotal != null) clean.min_subtotal = Number(clean.min_subtotal);
+  if (clean.max_discount === '' ) clean.max_discount = null;
+  if (clean.max_discount != null) clean.max_discount = Number(clean.max_discount);
+  const { data, error } = await sb.from('discount_templates').update(clean).eq('id', id).select().single();
+  if (error) throw error;
+  await TPN.logAudit('discount_template.update', 'discount_template', id, clean);
+  return data;
+};
+TPN.deleteDiscountTemplate = async function (id) {
+  const { error } = await sb.from('discount_templates').delete().eq('id', id);
+  if (error) throw error;
+  await TPN.logAudit('discount_template.delete', 'discount_template', id, {});
+};
+
+// ═════════════════════════════════════════════════════════════
+// Applied discounts on a specific order.
+// applyDiscount → apply_discount RPC (supervisor+, server-computed amount)
+// removeDiscount → remove_discount RPC (manager+, soft-delete)
+// Error names surfaced from the server:
+//   insufficient_privileges, template_not_found, template_inactive,
+//   id_ref_required, order_not_found, order_terminal,
+//   below_min_subtotal, not_stackable, already_removed
+// ═════════════════════════════════════════════════════════════
+TPN.listAppliedDiscounts = async function (orderId, opts) {
+  opts = opts || {};
+  let q = sb.from('applied_discounts')
+    .select('*, template:discount_templates(id, code, name, icon, legal_law)')
+    .eq('order_id', orderId)
+    .order('applied_at', { ascending: true });
+  if (!opts.includeRemoved) q = q.is('removed_at', null);
+  const { data, error } = await q;
+  if (error) throw error;
+  return data || [];
+};
+TPN.applyDiscount = async function (orderId, templateId, idRef) {
+  const { data, error } = await sb.rpc('apply_discount', {
+    p_order_id: orderId,
+    p_template_id: templateId,
+    p_id_ref: idRef || null
+  });
+  if (error) throw error;
+  return data;
+};
+TPN.removeDiscount = async function (appliedId, reason) {
+  const { data, error } = await sb.rpc('remove_discount', {
+    p_applied_id: appliedId,
+    p_reason: reason || null
+  });
   if (error) throw error;
   return data;
 };

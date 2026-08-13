@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js?v=20260813"></script>
+<script src="tpn-supabase.js?v=20260813"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
+<meta name="theme-color" content="#1a0a00">
+<title>Tyo Paeng Nyo · Kitchen Station</title>
+<script>
+  (function(){
+    var p = window.location.pathname;
+    if (/\.html$/.test(p)) {
+      history.replaceState(null, '', p.replace(/\.html$/, '') + window.location.search + window.location.hash);
+    }
+  })();
+  window.addEventListener('error', function(ev){ console.error('[Kitchen uncaught]', ev.error || ev.message); });
+  window.addEventListener('unhandledrejection', function(ev){ console.error('[Kitchen unhandled]', ev.reason); });
+  window.E = function(v){
+    if (v === null || v === undefined) return '';
+    const M = { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' };
+    return String(v).replace(/[&<>"']/g, c => M[c]);
+  };
+  window.N = function(v, d){
+    const n = Number(v); d = (typeof d === 'number') ? d : 2;
+    return Number.isFinite(n) ? n.toFixed(d) : (0).toFixed(d);
+  };
+</script>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --brick: #8B1A0E; --brick-dark: #6a1208; --brick-light: #c4392a;
+    --gold: #c8922a; --gold-light: #e8b84b;
+    --cream: #fdf6ec; --cream-dark: #f5ead8;
+    --charcoal: #1a0a00; --text: #2d1a0a; --text-muted: #7a5c3a;
+    --surface: #fff8f0; --border: #e8d5b8;
+    --green: #2d7a4f; --green-light: #e8f5e0;
+    --amber: #c8922a; --amber-light: #fff8e8;
+    --red: #8B1A0E; --red-light: #fff0ee;
+    --blue: #1a4a7a;
+    --gray: #9e9e9e; --gray-light: #f5f5f5;
+    --shadow: 0 2px 16px rgba(26,10,0,0.10);
+    --radius: 14px;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { font-size: 16px; -webkit-tap-highlight-color: transparent; }
+  body { font-family: 'DM Sans', sans-serif; background: var(--charcoal); color: #fff; min-height: 100vh; }
+
+  /* ── TOPBAR ── */
+  .topbar {
+    background: #0f0700; padding: 0 20px; height: 64px;
+    display: flex; align-items: center; justify-content: space-between;
+    position: sticky; top: 0; z-index: 100;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.4);
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+  }
+  .topbar-left { display: flex; align-items: center; gap: 14px; }
+  .topbar-logo { font-family: 'Playfair Display', serif; font-size: 20px; color: #fff; font-weight: 700; }
+  .topbar-sub { font-size: 12px; color: var(--gold-light); font-weight: 500; }
+  .topbar-right { display: flex; align-items: center; gap: 10px; }
+  .topbar-badge { background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); color: #fff; font-size: 11px; font-weight: 600; padding: 5px 12px; border-radius: 20px; }
+  .topbar-badge.role { background: var(--brick); border-color: var(--brick-light); }
+  .topbar-btn { background: var(--brick); border: none; color: #fff; font-size: 12px; font-weight: 700; padding: 8px 14px; border-radius: 8px; cursor: pointer; font-family: inherit; transition: background 0.2s; }
+  .topbar-btn:hover { background: var(--brick-light); }
+  .topbar-btn.secondary { background: rgba(255,255,255,0.1); }
+  .topbar-btn.secondary:hover { background: rgba(255,255,255,0.18); }
+
+  /* ── STATS STRIP ── */
+  .stats-bar {
+    display: flex; gap: 0; background: #14090a;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    padding: 12px 20px; overflow-x: auto; scrollbar-width: none;
+  }
+  .stats-bar::-webkit-scrollbar { display: none; }
+  .stat-chip {
+    display: flex; align-items: baseline; gap: 8px; padding: 6px 18px;
+    border-right: 1px solid rgba(255,255,255,0.06); white-space: nowrap;
+  }
+  .stat-chip:last-child { border-right: none; }
+  .stat-num { font-family: 'Playfair Display', serif; font-size: 26px; font-weight: 700; }
+  .stat-num.new     { color: var(--red-light); }
+  .stat-num.cooking { color: var(--gold-light); }
+  .stat-num.ready   { color: #7ed99a; }
+  .stat-label { font-size: 11px; font-weight: 700; color: rgba(255,255,255,0.55); letter-spacing: 0.08em; text-transform: uppercase; }
+  .connection {
+    margin-left: auto; display: flex; align-items: center; gap: 6px;
+    font-size: 11px; color: rgba(255,255,255,0.5); font-weight: 500;
+  }
+  .conn-dot { width: 8px; height: 8px; border-radius: 50%; background: #7ed99a; box-shadow: 0 0 6px #7ed99a; }
+  .conn-dot.offline { background: var(--red); box-shadow: 0 0 6px var(--red); }
+
+  /* ── LANES ── */
+  .lanes-wrap { padding: 20px 16px 100px; }
+  .lanes {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;
+    max-width: 1600px; margin: 0 auto;
+  }
+  @media (max-width: 1100px) { .lanes { grid-template-columns: 1fr; } }
+
+  .lane {
+    background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06);
+    border-radius: var(--radius); padding: 14px; min-height: 60vh;
+    display: flex; flex-direction: column;
+  }
+  .lane-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 4px 4px 12px; border-bottom: 2px solid rgba(255,255,255,0.08); margin-bottom: 12px;
+  }
+  .lane-title { font-family: 'Playfair Display', serif; font-size: 20px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+  .lane-count { background: rgba(255,255,255,0.1); font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 12px; }
+  .lane.received .lane-title { color: var(--red-light); }
+  .lane.received      { border-top: 3px solid var(--red); }
+  .lane.preparing .lane-title { color: var(--gold-light); }
+  .lane.preparing     { border-top: 3px solid var(--amber); }
+  .lane.ready .lane-title { color: #7ed99a; }
+  .lane.ready         { border-top: 3px solid var(--green); }
+
+  .lane-empty {
+    text-align: center; color: rgba(255,255,255,0.35); padding: 40px 20px;
+    font-size: 13px; font-style: italic;
+  }
+
+  /* ── TICKETS ── */
+  .ticket {
+    background: #fff; color: var(--text); border-radius: 12px; padding: 14px 14px 12px;
+    margin-bottom: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    border-left: 4px solid var(--gray);
+  }
+  .ticket.new       { border-left-color: var(--red); }
+  .ticket.preparing { border-left-color: var(--amber); }
+  .ticket.ready     { border-left-color: var(--green); }
+  .ticket.warn      { animation: warnPulse 1.6s infinite; }
+  .ticket.urgent    { border-left-color: #e63946; animation: urgentPulse 1s infinite; }
+  @keyframes warnPulse   { 0%,100%{box-shadow:0 2px 8px rgba(0,0,0,0.15)} 50%{box-shadow:0 2px 16px rgba(200,146,42,0.5)} }
+  @keyframes urgentPulse { 0%,100%{box-shadow:0 2px 8px rgba(0,0,0,0.15)} 50%{box-shadow:0 2px 20px rgba(230,57,70,0.6)} }
+
+  .ticket-head { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 8px; gap: 10px; }
+  .ticket-ref { font-family: 'Playfair Display', serif; font-size: 22px; font-weight: 900; line-height: 1; color: var(--text); }
+  .ticket-cust { font-size: 12px; color: var(--text-muted); margin-top: 3px; }
+  .ticket-badge { font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 6px; letter-spacing: 0.05em; }
+  .badge-new       { background: var(--red-light); color: var(--brick); }
+  .badge-preparing { background: var(--amber-light); color: var(--amber); }
+  .badge-ready     { background: var(--green-light); color: var(--green); }
+  .ticket-age { font-size: 11px; font-weight: 700; margin-top: 4px; }
+  .age-fresh  { color: var(--text-muted); }
+  .age-warn   { color: var(--amber); }
+  .age-urgent { color: #e63946; }
+
+  .ticket-items { margin: 10px 0; padding: 10px 0; border-top: 1px dashed var(--border); border-bottom: 1px dashed var(--border); }
+  .ticket-item { display: flex; align-items: baseline; gap: 8px; padding: 3px 0; font-size: 15px; }
+  .item-qty { font-weight: 900; color: var(--brick); min-width: 30px; font-family: 'Playfair Display', serif; font-size: 18px; }
+  .item-name { flex: 1; font-weight: 600; }
+  .item-pax { font-size: 11px; color: var(--text-muted); font-weight: 500; }
+  .item-note { font-size: 11px; color: var(--amber); margin-left: 38px; font-style: italic; }
+  .ticket-special {
+    background: var(--amber-light); border-radius: 8px; padding: 8px 10px;
+    font-size: 12px; color: var(--amber-dark, #7d5a1a); margin: 8px 0;
+    border-left: 3px solid var(--amber);
+  }
+  .ticket-btn {
+    width: 100%; padding: 12px; border: none; border-radius: 8px; font-family: inherit;
+    font-size: 14px; font-weight: 700; cursor: pointer; margin-top: 8px;
+    transition: transform 0.1s, box-shadow 0.15s;
+  }
+  .ticket-btn:hover { transform: translateY(-1px); box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
+  .ticket-btn:active { transform: translateY(0); }
+  .ticket-btn.start { background: var(--amber); color: #fff; }
+  .ticket-btn.ready { background: var(--green); color: #fff; }
+  .ticket-btn.done  { background: var(--charcoal); color: #fff; }
+  .ticket-btn:disabled { opacity: 0.55; cursor: wait; }
+
+  /* ── TOAST ── */
+  .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(20px); background: #fff; color: var(--text); padding: 12px 24px; border-radius: 30px; font-size: 14px; font-weight: 600; z-index: 999; opacity: 0; transition: all 0.3s; pointer-events: none; box-shadow: 0 4px 20px rgba(0,0,0,0.4); }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  @media (max-width: 640px) {
+    .stat-num { font-size: 22px; }
+    .stat-chip { padding: 6px 12px; }
+    .ticket-ref { font-size: 20px; }
+    .item-qty { font-size: 16px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- AUTH GATE -->
+<style>
+  #tpn-auth-gate {
+    position: fixed; inset: 0; z-index: 9999;
+    background: var(--charcoal); color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    flex-direction: column; gap: 16px;
+    font-family: 'DM Sans', sans-serif;
+  }
+  #tpn-auth-gate .g-title { font-family: 'Playfair Display', serif; font-size: 22px; color: var(--gold-light); }
+  #tpn-auth-gate .g-sub   { font-size: 14px; color: rgba(255,255,255,0.7); text-align: center; max-width: 320px; }
+  #tpn-auth-gate .g-spin  { width: 34px; height: 34px; border: 3px solid rgba(255,255,255,0.15); border-top-color: var(--gold); border-radius: 50%; animation: gspin 0.9s linear infinite; }
+  @keyframes gspin { to { transform: rotate(360deg); } }
+  #tpn-auth-gate .g-btn { margin-top: 12px; background: var(--brick); color: #fff; border: none; padding: 10px 22px; border-radius: 10px; font-weight: 700; cursor: pointer; }
+  body.tpn-authed #tpn-auth-gate { display: none; }
+  body:not(.tpn-authed) > *:not(#tpn-auth-gate):not(script) { visibility: hidden; }
+</style>
+<div id="tpn-auth-gate">
+  <div class="g-title">Tyo Paeng Nyo · Kitchen Station</div>
+  <div class="g-spin"></div>
+  <div class="g-sub" id="tpn-auth-msg">Checking your login…</div>
+  <button class="g-btn" id="tpn-auth-btn" style="display:none;" onclick="window.location.href='index.html'">Go to Staff Login</button>
+</div>
+
+<!-- TOPBAR -->
+<header class="topbar">
+  <div class="topbar-left">
+    <div>
+      <div class="topbar-logo">Kitchen Station</div>
+      <div class="topbar-sub">Las Piñas · <span id="current-time">—</span></div>
+    </div>
+  </div>
+  <div class="topbar-right">
+    <div class="topbar-badge role" id="role-badge">Kitchen</div>
+    <button class="topbar-btn secondary" onclick="window.location.reload()">↺ Refresh</button>
+    <button class="topbar-btn secondary" onclick="window.location.href='index.html'">← Back</button>
+  </div>
+</header>
+
+<!-- STATS -->
+<div class="stats-bar">
+  <div class="stat-chip"><span class="stat-num new" id="stat-new">0</span><span class="stat-label">Received</span></div>
+  <div class="stat-chip"><span class="stat-num cooking" id="stat-cooking">0</span><span class="stat-label">Cooking</span></div>
+  <div class="stat-chip"><span class="stat-num ready" id="stat-ready">0</span><span class="stat-label">Ready</span></div>
+  <div class="connection" id="connection-status">
+    <span class="conn-dot"></span><span>Live</span>
+  </div>
+</div>
+
+<!-- LANES -->
+<div class="lanes-wrap">
+  <div class="lanes">
+    <div class="lane received">
+      <div class="lane-header">
+        <div class="lane-title">🔔 Received</div>
+        <div class="lane-count" id="count-received">0</div>
+      </div>
+      <div id="lane-received"></div>
+    </div>
+    <div class="lane preparing">
+      <div class="lane-header">
+        <div class="lane-title">👨‍🍳 Preparing</div>
+        <div class="lane-count" id="count-preparing">0</div>
+      </div>
+      <div id="lane-preparing"></div>
+    </div>
+    <div class="lane ready">
+      <div class="lane-header">
+        <div class="lane-title">✓ Ready for Pickup</div>
+        <div class="lane-count" id="count-ready">0</div>
+      </div>
+      <div id="lane-ready"></div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ─── STATE ────────────────────────────────────────────────────────
+let kitchenOrders = [];   // Live in-memory model, populated from Supabase
+let _lastKnownCount = 0;
+let _audioCtx = null;
+
+// ─── AUTH GATE ────────────────────────────────────────────────────
+async function tpnAuthGate() {
+  const msg = document.getElementById('tpn-auth-msg');
+  const btn = document.getElementById('tpn-auth-btn');
+  try {
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) {
+      msg.textContent = 'You need to be signed in to view the kitchen station.';
+      btn.style.display = 'inline-block';
+      return false;
+    }
+    const profile = await TPN.loadProfile();
+    if (!profile) {
+      msg.textContent = 'Your account is not linked to a staff profile.';
+      btn.style.display = 'inline-block';
+      return false;
+    }
+    if (profile.employment_status && profile.employment_status !== 'active') {
+      msg.textContent = 'Your account is not active. Contact a manager.';
+      btn.style.display = 'inline-block';
+      return false;
+    }
+    // Kitchen tier and higher can view. Dining tier can't (they use the floor).
+    if (!TPN.hasRole('kitchen')) {
+      msg.textContent = 'The kitchen station is for kitchen staff and above. Your role: ' + (profile.role || 'unknown') + '.';
+      btn.style.display = 'inline-block';
+      return false;
+    }
+    document.body.classList.add('tpn-authed');
+    const badge = document.getElementById('role-badge');
+    if (badge) badge.textContent = (profile.role || 'staff').replace(/\b\w/g, c => c.toUpperCase());
+    return true;
+  } catch (e) {
+    console.error('Auth gate:', e);
+    msg.textContent = 'Could not verify your login. Try refreshing.';
+    btn.style.display = 'inline-block';
+    return false;
+  }
+}
+
+// ─── INIT ─────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', async () => {
+  const ok = await tpnAuthGate();
+  if (!ok) return;
+
+  await loadOrdersFromSupabase();
+  subscribeToRealtime();
+  render();
+
+  // Clock tick — big screens like the timestamp visible
+  setInterval(updateClock, 1000); updateClock();
+
+  // Rerender every 15s so age counters stay fresh
+  setInterval(render, 15000);
+});
+
+function updateClock() {
+  const el = document.getElementById('current-time');
+  if (!el) return;
+  const now = new Date();
+  el.textContent = now.toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit' });
+}
+
+// ─── DATA LAYER ───────────────────────────────────────────────────
+async function loadOrdersFromSupabase() {
+  try {
+    const orders = await TPN.listActiveOrders(null);
+    kitchenOrders = (orders || []).map(dbOrderToKitchenOrder);
+    _lastKnownCount = kitchenOrders.length;
+  } catch (e) { console.error('load orders:', e); }
+}
+
+function dbOrderToKitchenOrder(o) {
+  return {
+    dbId:       o.id,
+    ref:        o.order_number,
+    table:      o.restaurant_tables?.table_number || null,
+    type:       o.order_type,
+    customer:   o.customer_name || 'Guest',
+    status:     mapDbStatusToLane(o.status),
+    placedAt:   o.placed_at ? new Date(o.placed_at).getTime() : Date.now(),
+    specialReq: o.notes || '',
+    items: (o.order_items || [])
+      .filter(i => !i.voided_at)
+      .map(i => ({ qty: i.quantity, name: i.name_snapshot, pax: i.pax_size, notes: i.notes }))
+  };
+}
+function mapDbStatusToLane(s) {
+  return ({
+    pending:    'received',
+    confirmed:  'received',
+    preparing:  'preparing',
+    ready:      'ready',
+    served:     'done',
+    completed:  'done',
+    cancelled:  'done'
+  })[s] || 'received';
+}
+
+function subscribeToRealtime() {
+  TPN.subscribeOrders(null, async (payload) => {
+    try {
+      if (payload.eventType === 'INSERT') {
+        const full = await TPN.getOrder(payload.new.id);
+        if (!kitchenOrders.find(o => o.dbId === full.id)) {
+          kitchenOrders.push(dbOrderToKitchenOrder(full));
+          playOrderChime();
+          showToast(`🔔 New order · ${full.order_number || '—'}`);
+          render();
+        }
+      } else if (payload.eventType === 'UPDATE') {
+        const updated = payload.new;
+        const existing = kitchenOrders.find(o => o.dbId === updated.id);
+        if (existing) {
+          const newLane = mapDbStatusToLane(updated.status);
+          if (existing.status !== newLane) {
+            existing.status = newLane;
+            render();
+          }
+        } else if (['confirmed','pending','preparing','ready'].includes(updated.status)) {
+          // Might've been created outside our knowledge — fetch full
+          try {
+            const full = await TPN.getOrder(updated.id);
+            kitchenOrders.push(dbOrderToKitchenOrder(full));
+            render();
+          } catch(_){}
+        }
+      } else if (payload.eventType === 'DELETE') {
+        const idx = kitchenOrders.findIndex(o => o.dbId === payload.old.id);
+        if (idx !== -1) { kitchenOrders.splice(idx, 1); render(); }
+      }
+    } catch(e) { console.warn('realtime:', e); }
+  });
+
+  // Connection status: on window offline, dim the dot
+  window.addEventListener('offline', () => {
+    const el = document.getElementById('connection-status');
+    if (el) el.innerHTML = '<span class="conn-dot offline"></span><span>Offline</span>';
+  });
+  window.addEventListener('online', () => {
+    const el = document.getElementById('connection-status');
+    if (el) el.innerHTML = '<span class="conn-dot"></span><span>Live</span>';
+    loadOrdersFromSupabase().then(render);
+  });
+}
+
+// ─── RENDER ───────────────────────────────────────────────────────
+function ageInfo(o) {
+  const mins = Math.floor((Date.now() - (o.placedAt || Date.now())) / 60000);
+  const label = mins < 1 ? 'just now' : mins + ' min ago';
+  let level = 'fresh';
+  if (o.status === 'received'  && mins >= 5)  level = 'warn';
+  if (o.status === 'received'  && mins >= 15) level = 'urgent';
+  if (o.status === 'preparing' && mins >= 20) level = 'warn';
+  if (o.status === 'preparing' && mins >= 35) level = 'urgent';
+  if (o.status === 'ready'     && mins >= 10) level = 'warn';
+  if (o.status === 'ready'     && mins >= 20) level = 'urgent';
+  return { label, mins, level };
+}
+
+function render() {
+  const lanes = {
+    received:  kitchenOrders.filter(o => o.status === 'received' ).sort((a,b)=> a.placedAt - b.placedAt),
+    preparing: kitchenOrders.filter(o => o.status === 'preparing').sort((a,b)=> a.placedAt - b.placedAt),
+    ready:     kitchenOrders.filter(o => o.status === 'ready'    ).sort((a,b)=> a.placedAt - b.placedAt),
+  };
+
+  // Stats
+  document.getElementById('stat-new').textContent      = lanes.received.length;
+  document.getElementById('stat-cooking').textContent  = lanes.preparing.length;
+  document.getElementById('stat-ready').textContent    = lanes.ready.length;
+  document.getElementById('count-received').textContent  = lanes.received.length;
+  document.getElementById('count-preparing').textContent = lanes.preparing.length;
+  document.getElementById('count-ready').textContent     = lanes.ready.length;
+
+  // Lanes
+  renderLane('lane-received',  lanes.received,  'received');
+  renderLane('lane-preparing', lanes.preparing, 'preparing');
+  renderLane('lane-ready',     lanes.ready,     'ready');
+}
+
+function renderLane(elId, orders, laneKind) {
+  const el = document.getElementById(elId);
+  if (!el) return;
+  if (!orders.length) {
+    const emptyMsg = {
+      received:  '🕐  Walang bagong order',
+      preparing: '👨‍🍳  Wala pang niluluto',
+      ready:     '✓  Walang naghihintay'
+    }[laneKind];
+    el.innerHTML = `<div class="lane-empty">${emptyMsg}</div>`;
+    return;
+  }
+  el.innerHTML = orders.map(o => renderTicket(o, laneKind)).join('');
+}
+
+function renderTicket(o, laneKind) {
+  const age = ageInfo(o);
+  const cls = laneKind + (age.level === 'warn' ? ' warn' : age.level === 'urgent' ? ' urgent' : '');
+  const badgeCls = { received: 'badge-new', preparing: 'badge-preparing', ready: 'badge-ready' }[laneKind];
+  const badgeLabel = { received: 'NEW', preparing: 'COOKING', ready: 'READY' }[laneKind];
+
+  const items = (o.items || []).length
+    ? o.items.map(it => `
+        <div class="ticket-item">
+          <span class="item-qty">${E(it.qty)}×</span>
+          <span class="item-name">${E(it.name)}${it.pax ? ` <span class="item-pax">(${E(it.pax)})</span>` : ''}</span>
+        </div>
+        ${it.notes ? `<div class="item-note">📝 ${E(it.notes)}</div>` : ''}`).join('')
+    : '<div class="ticket-item"><span class="item-name" style="color:var(--text-muted);font-style:italic;">No items</span></div>';
+
+  const header = o.table ? `TABLE ${E(o.table)}` : (o.type || 'ORDER').toString().toUpperCase().replace('_',' ');
+
+  // Advance-only actions. No void, no discount, no financial info here.
+  let action = '';
+  if (laneKind === 'received') {
+    action = `<button class="ticket-btn start" data-id="${E(o.dbId)}" onclick="advance('${E(o.dbId)}','preparing',this)">Start Cooking →</button>`;
+  } else if (laneKind === 'preparing') {
+    action = `<button class="ticket-btn ready" data-id="${E(o.dbId)}" onclick="advance('${E(o.dbId)}','ready',this)">Mark Ready ✓</button>`;
+  } else if (laneKind === 'ready') {
+    // Kitchen doesn't mark served/done — that's the dining staff's job.
+    action = `<div style="text-align:center;font-size:11px;color:var(--text-muted);padding:8px 0 2px;font-style:italic;">Waiting for dining pickup</div>`;
+  }
+
+  return `<div class="ticket ${cls}">
+    <div class="ticket-head">
+      <div>
+        <div class="ticket-ref">${E(header)}</div>
+        <div class="ticket-cust">${E(o.customer)}</div>
+        <div class="ticket-age age-${age.level}">${age.level==='urgent'?'🔴 ':age.level==='warn'?'🟡 ':''}${E(age.label)}</div>
+      </div>
+      <div style="text-align:right;">
+        <span class="ticket-badge ${badgeCls}">${badgeLabel}</span>
+      </div>
+    </div>
+    <div class="ticket-items">${items}</div>
+    ${o.specialReq ? `<div class="ticket-special">⚠️ ${E(o.specialReq)}</div>` : ''}
+    ${action}
+  </div>`;
+}
+
+// ─── ACTIONS ──────────────────────────────────────────────────────
+// Advance-only. Same DB status mapping index.html and the floor use so
+// the KDS, floor panel, and this station stay in sync via realtime.
+async function advance(dbId, nextLane, btnEl) {
+  const o = kitchenOrders.find(x => x.dbId === dbId);
+  if (!o) return;
+  const uiToDb = { received: 'confirmed', preparing: 'preparing', ready: 'ready', done: 'completed' };
+  const dbStatus = uiToDb[nextLane] || nextLane;
+  const prev = o.status;
+
+  // Optimistic
+  o.status = nextLane;
+  if (btnEl) { btnEl.disabled = true; btnEl.textContent = 'Saving…'; }
+  render();
+
+  try {
+    await TPN.updateOrderStatus(dbId, dbStatus);
+    showToast(`✅ ${o.ref || dbId.slice(0,6)} → ${nextLane}`);
+  } catch (e) {
+    console.error('advance:', e);
+    o.status = prev;
+    render();
+    showToast(`⚠️ Could not save — ${e.message || 'retry'}`);
+  }
+}
+
+// ─── AUDIO CHIME on new order ─────────────────────────────────────
+function playOrderChime() {
+  try {
+    _audioCtx = _audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    const ctx = _audioCtx;
+    const now = ctx.currentTime;
+    [880, 1174, 1568].forEach((freq, i) => {
+      const osc  = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine'; osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0, now + i * 0.13);
+      gain.gain.linearRampToValueAtTime(0.18, now + i * 0.13 + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.13 + 0.28);
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.start(now + i * 0.13); osc.stop(now + i * 0.13 + 0.32);
+    });
+  } catch(e) { /* audio not available */ }
+}
+
+// ─── TOAST ────────────────────────────────────────────────────────
+let _toastTimer = null;
+function showToast(msg) {
+  const el = document.getElementById('toast');
+  if (!el) return;
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => el.classList.remove('show'), 2200);
+}
+</script>
+</body>
+</html>
