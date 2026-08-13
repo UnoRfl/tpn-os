@@ -13,9 +13,22 @@
 const SUPABASE_URL      = (window.TPN_CONFIG && window.TPN_CONFIG.SUPABASE_URL)      || 'https://YOUR-PROJECT-REF.supabase.co';
 const SUPABASE_ANON_KEY = (window.TPN_CONFIG && window.TPN_CONFIG.SUPABASE_ANON_KEY) || 'PASTE-YOUR-ANON-KEY-HERE';
 
+// Customer-facing surfaces must never inherit a lingering staff session.
+// If a staff member (or Uno testing on his own phone) had ever signed in
+// on this origin, persistSession would restore their JWT and RLS would
+// route anon dine-in inserts through the AUTHENTICATED policy path —
+// which requires branch_id = private.my_branch(), causing "permission
+// denied for table orders" toasts on the QR menu. Isolating the client
+// (no persist + different storage key) guarantees the QR menu always
+// acts as a true anonymous customer, without disturbing the staff app
+// session in other tabs.
+const _TPN_CUSTOMER_SURFACE = /tpn-table-menu/i.test(location.pathname);
+
 // Init client
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-  auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false }
+  auth: _TPN_CUSTOMER_SURFACE
+    ? { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false, storageKey: 'sb-tpn-anon' }
+    : { persistSession: true,  autoRefreshToken: true,  detectSessionInUrl: false }
 });
 
 const TPN = {
