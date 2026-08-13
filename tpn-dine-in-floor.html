@@ -866,13 +866,25 @@ function setOrderFilter(f) {
   renderTab();
 }
 
-function advanceOrder(ref) {
+// UnoSys sync fix (sql/15 era): advanceOrder used to only mutate local state,
+// which meant the floor panel and the KDS/Orders board would drift the moment
+// a floor manager tapped "→ Preparing". Now every advance pushes through
+// TPN.updateOrderStatus with optimistic UI + rollback, matching index.html.
+async function advanceOrder(ref) {
   const order = dineInOrders.find(o => o.ref === ref);
   if (!order) return;
   const pipeline = ['received', 'preparing', 'ready', 'done'];
   const idx = pipeline.indexOf(order.status);
-  if (idx < pipeline.length - 1) order.status = pipeline[idx + 1];
-  // Update table state
+  if (idx >= pipeline.length - 1) return;
+  const nextStatus = pipeline[idx + 1];
+  const prevStatus = order.status;
+
+  // Same mapping used in index.html advanceOrder() so both stay in step.
+  const uiToDb = { received: 'confirmed', preparing: 'preparing', ready: 'ready', done: 'completed' };
+  const dbStatus = uiToDb[nextStatus] || nextStatus;
+
+  // Optimistic update — flip local state + table roll-up first, then persist.
+  order.status = nextStatus;
   const branch = branches.find(b => b.name === order.branch);
   if (branch) {
     const key = branch.id + '_' + order.table;
@@ -883,9 +895,24 @@ function advanceOrder(ref) {
       if (allReady && tbl.status !== 'bill-requested') tbl.status = 'ready';
     }
   }
-  showToast(`✅ Order ${ref} advanced to ${order.status}.`);
   updateBadges();
   renderTab();
+
+  if (!order.dbId) {
+    // Legacy / seed row without a DB id — nothing to sync, just show local update.
+    showToast(`✅ Order ${ref} advanced to ${nextStatus}.`);
+    return;
+  }
+  try {
+    await TPN.updateOrderStatus(order.dbId, dbStatus);
+    showToast(`✅ Order ${ref} → ${nextStatus}`);
+  } catch (e) {
+    console.error('advanceOrder sync failed:', e);
+    order.status = prevStatus;   // rollback
+    updateBadges();
+    renderTab();
+    showToast(`⚠️ Could not update — ${e.message || 'try again'}`);
+  }
 }
 
 function markBillReady(tableNum, branchId) {
@@ -912,22 +939,162 @@ function clearTable(tableNum, branchId) {
   renderTab();
 }
 
-function closeTable(tableNum, branchId) {
+async function closeTable(tableNum, branchId) {
   const key = branchId + '_' + tableNum;
   const tbl = tableStates[key];
   if (!tbl) return;
-  const total = tbl.sessionTotal;
+
+  // Pull the live DB numbers for every active order at this table so subtotal /
+  // discount / total reflect any voids or discounts applied since page load.
+  const orderIds = (tbl.orders || []).filter(o => o.dbId && o.status !== 'done').map(o => o.dbId);
+  let subtotalSum = 0, discountSum = 0, totalSum = 0;
+  const applied = [];
+  if (orderIds.length) {
+    for (const id of orderIds) {
+      try {
+        const full = await TPN.getOrder(id);
+        subtotalSum += Number(full.subtotal || 0);
+        discountSum += Number(full.discount_amount || 0);
+        totalSum    += Number(full.total || 0);
+        const ad = await TPN.listAppliedDiscounts(id);
+        ad.forEach(a => applied.push(Object.assign({}, a, { _orderId: id })));
+      } catch(e) { console.warn('closeTable refresh failed for', id, e); }
+    }
+  } else {
+    totalSum = tbl.sessionTotal || 0;
+    subtotalSum = totalSum;
+  }
+  tbl.sessionTotal = totalSum;
+
+  const orderIdsJson = JSON.stringify(orderIds).replace(/"/g,'&quot;');
+  const appliedBlock = applied.length
+    ? applied.map(a => `<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:12px;color:var(--text-muted);"><span>💸 ${E(a.name_snapshot)}${a.legal_law?` (${E(a.legal_law)})`:''}</span><strong>−₱${Number(a.amount_applied).toFixed(2)}</strong></div>`).join('')
+    : `<div style="font-size:12px;color:var(--text-muted);font-style:italic;padding:4px 0;">No discounts applied.</div>`;
+
+  const canDiscount = TPN.hasRole && TPN.hasRole('supervisor');
+  const discountBtn = canDiscount && orderIds.length
+    ? `<button class="topbar-btn" style="width:100%;margin-bottom:10px;background:transparent;color:var(--brick);border:1px solid var(--brick);" onclick='openFloorDiscountPicker(${orderIdsJson}, "Table ${tableNum}", () => closeTable(${tableNum}, "${branchId}"))'>💸 Apply / manage discounts</button>`
+    : '';
+
   openModal('Close Table ' + tableNum, `
     <p style="margin-bottom:14px;color:var(--text-muted)">Confirm payment received and close this table session.</p>
     <div style="background:var(--cream);border-radius:12px;padding:16px;margin-bottom:10px">
-      <div style="display:flex;justify-content:space-between;margin-bottom:8px;font-size:14px"><span>Guest</span><strong>${tbl.guest}</strong></div>
-      <div style="display:flex;justify-content:space-between;margin-bottom:8px;font-size:14px"><span>Pax</span><strong>${tbl.pax}</strong></div>
-      <div style="display:flex;justify-content:space-between;font-size:16px"><span>Total Paid</span><strong style="color:var(--brick)">₱${total.toFixed(2)}</strong></div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:8px;font-size:14px"><span>Guest</span><strong>${E(tbl.guest||'—')}</strong></div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:8px;font-size:14px"><span>Pax</span><strong>${tbl.pax||1}</strong></div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:6px;font-size:14px;color:var(--text-muted);"><span>Subtotal</span><span>₱${subtotalSum.toFixed(2)}</span></div>
+      <div style="padding:6px 0;border-top:1px dashed var(--line,#e5d9c8);border-bottom:1px dashed var(--line,#e5d9c8);margin:6px 0;">
+        ${appliedBlock}
+        ${discountSum>0?`<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px;font-weight:700;"><span>Total discount</span><span style="color:var(--brick)">−₱${discountSum.toFixed(2)}</span></div>`:''}
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:16px"><span>Total Paid</span><strong style="color:var(--brick)">₱${totalSum.toFixed(2)}</strong></div>
     </div>
+    ${discountBtn}
   `, [
     { label: 'Cancel', cls: 'secondary', fn: 'closeModal()' },
     { label: '✓ Confirm & Close Table', cls: 'primary', fn: `clearTable(${tableNum}, '${branchId}'); closeModal();` }
   ]);
+}
+
+// ─── FLOOR-SIDE DISCOUNT PICKER ─────────────────────────────────
+let _floorDiscountTemplates = null;
+async function _ensureFloorDiscountTemplates(force) {
+  if (_floorDiscountTemplates && !force) return _floorDiscountTemplates;
+  try {
+    _floorDiscountTemplates = await TPN.listDiscountTemplates(true);
+  } catch (e) { console.warn('load templates:', e); _floorDiscountTemplates = []; }
+  return _floorDiscountTemplates;
+}
+
+async function openFloorDiscountPicker(orderDbIds, label, onDone) {
+  if (!orderDbIds || !orderDbIds.length) { showToast('No active orders to apply discount to.'); return; }
+  const templates = await _ensureFloorDiscountTemplates(false);
+  const active    = (templates || []).filter(t => t.is_active);
+
+  const applied = [];
+  for (const id of orderDbIds) {
+    try {
+      const ad = await TPN.listAppliedDiscounts(id);
+      ad.forEach(a => applied.push(Object.assign({}, a, { _orderId: id })));
+    } catch(_){}
+  }
+  const canRemove = TPN.hasRole && TPN.hasRole('manager');
+
+  const appliedRows = applied.length
+    ? applied.map(a => `<div style="display:flex;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line-soft,#eee);">
+        <div style="flex:1;min-width:0;">
+          <div style="font-weight:600;">${E(a.name_snapshot)}${a.legal_law?` <span style="font-size:10px;color:var(--text-muted);">(${E(a.legal_law)})</span>`:''}</div>
+          <div style="font-size:11px;color:var(--text-muted);">−₱${Number(a.amount_applied).toFixed(2)}${a.id_ref?` · ID ${E(a.id_ref)}`:''}</div>
+        </div>
+        ${canRemove ? `<button class="topbar-btn secondary" onclick="removeFloorAppliedDiscount('${E(a.id)}', '${E(JSON.stringify(orderDbIds).replace(/'/g,'&#39;'))}', '${E(label)}')">Remove</button>` : ''}
+      </div>`).join('')
+    : `<div style="padding:12px;color:var(--text-muted);text-align:center;font-size:12px;">No discounts on this bill yet.</div>`;
+
+  const templateRows = active.length
+    ? active.map(t => {
+        const valLabel = t.kind === 'percent' ? `${Number(t.value)}% off` : `−₱${Number(t.value).toFixed(2)}`;
+        const vatBadge = t.kind === 'percent' && t.vat_treatment === 'net_of_vat' ? '<span style="font-size:11px;color:var(--text-muted);">🧾 Net of VAT</span>' : '';
+        return `<button class="topbar-btn secondary" style="width:100%;text-align:left;padding:12px;margin-bottom:6px;display:flex;gap:10px;align-items:center;" onclick='applyFloorDiscount(${JSON.stringify(orderDbIds).replace(/'/g,"&#39;")}, "${E(t.id)}", ${t.requires_id?'true':'false'}, "${E((t.name||'').replace(/"/g,'\\"'))}", "${E(label)}")'>
+          <span style="font-size:24px;">${E(t.icon||'💸')}</span>
+          <span style="flex:1;">
+            <span style="display:block;font-weight:600;">${E(t.name)} <span style="font-weight:400;color:var(--text-muted);font-size:12px;">${valLabel}</span></span>
+            ${t.legal_law ? `<span style="font-size:11px;color:var(--brick);">🔒 ${E(t.legal_law)}</span> ` : ''}${vatBadge}
+            ${t.description ? `<span style="display:block;font-size:11px;color:var(--text-muted);">${E(t.description)}</span>` : ''}
+          </span>
+        </button>`;
+      }).join('')
+    : '<div style="padding:12px;color:var(--text-muted);text-align:center;font-size:12px;">No active templates. Manager can create some in Discounts & Promos.</div>';
+
+  openModal(`Discounts · ${label}`, `
+    <div style="margin-bottom:10px;font-size:12px;color:var(--text-muted);">Will apply to ${orderDbIds.length} order${orderDbIds.length>1?'s':''} at this ${label.startsWith('Table')?'table':'bill'}.</div>
+    <div style="font-size:11px;font-weight:700;color:var(--text-muted);letter-spacing:.08em;margin:4px 0 6px;">APPLIED</div>
+    ${appliedRows}
+    <div style="font-size:11px;font-weight:700;color:var(--text-muted);letter-spacing:.08em;margin:18px 0 6px;">ADD DISCOUNT</div>
+    ${templateRows}
+  `, [
+    { label: 'Done', cls: 'primary', fn: `closeModal(); (${(onDone||function(){}).toString()})();` }
+  ]);
+}
+
+async function applyFloorDiscount(orderDbIds, templateId, requiresId, tName, label) {
+  let idRef = null;
+  if (requiresId === true || requiresId === 'true') {
+    idRef = window.prompt(`Enter the physical ID number for "${tName}" (min 3 chars):`, '');
+    if (idRef === null) return;
+    if (!idRef || idRef.trim().length < 3) { showToast('ID number is required (min 3 chars).'); return; }
+    idRef = idRef.trim();
+  }
+  let ok = 0, fail = 0, lastErr = '';
+  for (const id of orderDbIds) {
+    try { await TPN.applyDiscount(id, templateId, idRef); ok++; }
+    catch (e) { fail++; lastErr = (e && (e.message || e.code) || '').toString(); }
+  }
+  if (fail === 0) showToast(`✓ Discount applied to ${ok} order${ok>1?'s':''}`);
+  else if (ok > 0) showToast(`⚠️ Applied to ${ok}, ${fail} failed (${_friendlyDiscountErr(lastErr)})`);
+  else showToast(`⚠️ Discount failed: ${_friendlyDiscountErr(lastErr)}`);
+  closeModal();
+  openFloorDiscountPicker(orderDbIds, label, null);
+}
+
+async function removeFloorAppliedDiscount(appliedId, orderIdsJson, label) {
+  const reason = window.prompt('Reason for removing this discount (optional):', '') || '';
+  try { await TPN.removeDiscount(appliedId, reason.trim()); showToast('✓ Discount removed'); }
+  catch (e) {
+    const msg = _friendlyDiscountErr((e && (e.message || e.code) || '').toString());
+    showToast(`⚠️ Remove failed: ${msg}`); return;
+  }
+  const ids = JSON.parse(orderIdsJson.replace(/&#39;/g,"'"));
+  closeModal();
+  openFloorDiscountPicker(ids, label, null);
+}
+
+function _friendlyDiscountErr(msg) {
+  if (msg.includes('insufficient_privileges')) return 'You need supervisor+ to apply, manager+ to remove.';
+  if (msg.includes('template_inactive')) return 'That template is turned off.';
+  if (msg.includes('id_ref_required')) return 'This discount requires a physical ID.';
+  if (msg.includes('order_terminal')) return 'Order already closed.';
+  if (msg.includes('below_min_subtotal')) return 'Below the minimum subtotal.';
+  if (msg.includes('not_stackable')) return 'Cannot combine with existing discounts.';
+  return msg || 'unknown error';
 }
 
 async function toggleMenuItem(idx) {
