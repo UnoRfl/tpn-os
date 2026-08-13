@@ -19,6 +19,9 @@ In Supabase SQL Editor:
 4. `sql/04-signals.sql` — call-staff / bill-request signals
 5. `sql/05-anon-orders.sql` — lets anonymous customers place orders
 6. `sql/06-menu-fields.sql` — adds emoji + featured columns for menu items
+7. `sql/07-single-branch.sql` … `sql/14-restaurant-performance.sql` — in order
+8. `sql/15a-display-roles.sql` — **run this one ON ITS OWN, alone.** It adds the two display-device roles to the `staff_role` enum, and Postgres refuses to add an enum value and use it in the same transaction. The SQL Editor runs your whole paste as one transaction, so pasting 15a and 15b together makes 15b fail.
+9. `sql/15b-void-requests.sql` — void request workflow + the guard rails that keep display accounts from voiding
 
 ### 2. Disable public signups
 Supabase Dashboard → **Authentication → Providers → Email** → find **"Enable signups"** (or "Enable email signups") → **toggle OFF**.
@@ -121,6 +124,41 @@ GitHub Pages auto-redeploys in ~30 seconds.
 | View orders/inquiries | Authenticated staff (branch-scoped) | Supabase (RLS-gated) |
 | Manage menu | Manager+ | Supabase (RLS-gated) |
 | **Create staff accounts** | **Manager+ (can only grant roles ≤ own level)** | **Edge Function** |
+| Create a display device account | Admin+ only | Edge Function |
+| Void an item / order | **Manager+ only** | Supabase (SECURITY DEFINER fn) |
+| Request a void | Any active staff account, incl. display screens | Supabase (SECURITY DEFINER fn) |
+| Approve / deny a void request | **Manager+ only** (supervisor excluded) | Supabase (SECURITY DEFINER fn) |
+
+## Roles
+
+The `staff_role` enum, lowest privilege first:
+
+```
+kitchen_display, dine_in_display, dining, kitchen,
+supervisor, manager, admin, director, ceo
+```
+
+Position matters. `private.has_role(min_role)` compares positions in this
+enum, so a role's place in that list *is* its permission set. The two
+`*_display` roles sit at the bottom deliberately: they're shared logins for
+the wall-mounted screens, so every `has_role()` check fails for them —
+including `has_role('manager')`, which is what gates voiding.
+
+Three places mirror this list and must stay in lockstep with the database:
+`tpn-supabase.js` (`TPN.ROLE_HIERARCHY`), `index.html` (`DISPLAY_ROLES` /
+`ROLE_LABELS`), and `supabase/functions/create-staff/index.ts`
+(`ROLE_HIERARCHY`). Drift between them is a security bug, not a cosmetic one.
+
+### Display device accounts
+
+`kitchen_display` and `dine_in_display` are accounts for screens, not
+people — one shared login per mounted device. On sign-in they go straight
+to their own surface (Kitchen Station / Dine-In Floor) and cannot reach the
+staff portal at all. They can read and advance tickets. They cannot void,
+cancel, open orders, touch money columns, or see any staff data.
+
+To void anything they file a **void request**, which only manager+ can
+approve. See WHATS-NEW.md for the full workflow.
 
 ## What's still simplified for MVP
 

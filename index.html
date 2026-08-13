@@ -3131,10 +3131,56 @@ function verifyTwoFA() {
   enterPortal();
 }
 
+/* ════════════════════════════════════════════════════
+   DISPLAY DEVICE ACCOUNTS
+   kitchen_display / dine_in_display are shared logins for the
+   wall-mounted screens, not people. They never see the portal —
+   no schedules, no attendance, no messages, no accounts. They are
+   bounced straight to their own surface and that is all they get.
+   ════════════════════════════════════════════════════ */
+const DISPLAY_ROLES = ['kitchen_display', 'dine_in_display'];
+const ROLE_LABELS = {
+  kitchen_display: 'Kitchen Display',
+  dine_in_display: 'Dine-In Display',
+  dining:          'Dining Staff',
+  kitchen:         'Kitchen Staff',
+  supervisor:      'Supervisor',
+  manager:         'Manager',
+  admin:           'Admin',
+  director:        'Director',
+  ceo:             'CEO'
+};
+function roleDisplayLabel(role) {
+  return ROLE_LABELS[role] || String(role || '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+}
+function isDisplayTier(tier) { return DISPLAY_ROLES.includes(tier); }
+function displayHomeFor(tier) {
+  if (tier === 'kitchen_display') return 'tpn-kitchen-station';
+  if (tier === 'dine_in_display') return 'tpn-dine-in-floor';
+  return null;
+}
+// Returns true if we redirected (caller should stop doing portal work).
+function redirectDisplayAccount(tier) {
+  const home = displayHomeFor(tier);
+  if (!home) return false;
+  // Clear any stale portal route so a later human login on the same
+  // device doesn't land somewhere odd.
+  try {
+    localStorage.removeItem(TPN_ROUTE_KEY_ADMIN);
+    localStorage.removeItem(TPN_ROUTE_KEY_STAFF);
+  } catch(e) {}
+  window.location.replace(home);
+  return true;
+}
+
 function enterPortal() {
   if (!currentUser) return;
-  const validAdmin = ['dashboard','inquiries','orders','kds','staff-board','schedules','menu-manager','table-qr','accounts','audit','attendance-admin','messages-admin'];
-  const validStaff = ['staff-home','kds','orders','staff-schedule','staff-attendance','staff-messages','staff-settings'];
+
+  // Screens go straight to their surface. Nothing below runs for them.
+  if (redirectDisplayAccount(currentUser.tier)) return;
+
+  const validAdmin = ['dashboard','inquiries','orders','kds','staff-board','schedules','menu-manager','table-qr','accounts','audit','attendance-admin','messages-admin','void-requests'];
+  const validStaff = ['staff-home','kds','orders','staff-schedule','staff-attendance','staff-messages','staff-settings','staff-void-requests'];
 
   if (['dining', 'kitchen'].includes(currentUser.tier)) {
     showPortalPage('portal-staff');
@@ -3166,6 +3212,54 @@ function enterPortal() {
   loadStaffFromSupabase().catch(e => console.error('staff load:', e));
   startMessageSync().catch(e => console.error('message sync:', e));
   startNotificationSync().catch(e => console.error('notification sync:', e));
+  startVoidRequestSync().catch(e => console.error('void request sync:', e));
+}
+
+/* ════════════════════════════════════════════════════
+   VOID REQUEST SYNC
+   Keeps the manager sidebar badge live and toasts when a new
+   request lands. Also tells a requester the verdict in realtime.
+   ════════════════════════════════════════════════════ */
+let _voidReqUnsub = null;
+window._tpnPendingVoids = 0;
+
+function isVoidApprover() {
+  return currentUser && ['manager','admin','director','ceo'].includes(currentUser.tier);
+}
+
+async function refreshVoidBadge() {
+  if (!isVoidApprover()) { window._tpnPendingVoids = 0; return; }
+  try { window._tpnPendingVoids = await TPN.pendingVoidRequestCount(); }
+  catch(e) { window._tpnPendingVoids = 0; }
+  if (currentUser && !['dining','kitchen'].includes(currentUser.tier)) renderAdminSidebar();
+}
+
+async function startVoidRequestSync() {
+  await refreshVoidBadge();
+  if (_voidReqUnsub) _voidReqUnsub();
+  _voidReqUnsub = TPN.subscribeVoidRequests(async (payload) => {
+    const row = payload?.new;
+    if (!row) return;
+
+    if (payload.eventType === 'INSERT' && isVoidApprover()) {
+      await refreshVoidBadge();
+      toast('🚫 New void request — needs your approval');
+      if (currentRoute === 'void-requests') route('void-requests');
+      return;
+    }
+
+    if (payload.eventType === 'UPDATE') {
+      if (isVoidApprover()) await refreshVoidBadge();
+      // If I'm the one who asked, tell me what happened.
+      if (row.requested_by === currentUser?.id && row.status !== 'pending') {
+        const what = row.item_name || ('order ' + (row.order_number || ''));
+        if (row.status === 'approved')  toast('✓ Void approved — ' + what);
+        if (row.status === 'denied')    toast('✗ Void denied — ' + what);
+      }
+      if (currentRoute === 'void-requests') route('void-requests');
+      if (currentRoute === 'staff-void-requests') routeStaff('staff-void-requests');
+    }
+  });
 }
 
 // Poll unread message count + subscribe for realtime new messages
@@ -3217,6 +3311,9 @@ async function tryRestoreSession() {
       return false;
     }
     currentUser = staffToPortalUser(staff);
+    // A screen account that lands back on index.html (bookmark, "← Back")
+    // gets sent home again rather than into the portal.
+    if (redirectDisplayAccount(currentUser.tier)) return true;
     enterPortal();
     return true;
   } catch (e) {
@@ -3248,6 +3345,15 @@ function renderAdminSidebar() {
   navItems.push({ id: 'inquiries', label: 'Inquiries', icon: '📩', badge: newInquiries || null });
   navItems.push({ id: 'orders', label: 'Live Orders', icon: '📋', badge: portalState.orders.filter(o => o.status !== 'done').length || null });
   navItems.push({ id: 'kds', label: 'Kitchen Display', icon: '🍳', badge: portalState.orders.filter(o => o.status === 'received' || o.status === 'preparing').length || null });
+  // Manager and up see the approval queue. A supervisor sees the same tab
+  // but only their own requests — they can ask, not approve, same rule as
+  // void_order_item() in the DB.
+  navItems.push({
+    id: 'void-requests',
+    label: ['manager','admin','director','ceo'].includes(tier) ? 'Void Requests' : 'My Void Requests',
+    icon: '🚫',
+    badge: window._tpnPendingVoids || null
+  });
   navItems.push({ id: 'floor', label: 'Dine-In Floor', icon: '🪑', external: 'tpn-dine-in-floor' });
   navItems.push({ id: 'kitchen-station', label: 'Kitchen Station', icon: '👨‍🍳', external: 'tpn-kitchen-station' });
 
@@ -3338,6 +3444,7 @@ function route(r, opts) {
     case 'menu-manager': renderMenuManager(main); break;
     case 'discounts': renderDiscounts(main); break;
     case 'notifications': renderNotifications(main, 'admin'); break;
+    case 'void-requests': renderVoidRequests(main, 'admin'); break;
     case 'performance': renderPerformance(main); break;
     case 'history': renderHistory(main); break;
   }
@@ -3511,6 +3618,26 @@ function renderStaffBoard(main) {
         </div>
       </div>`;
     });
+
+    // Display devices are screens, not people — shown for visibility but
+    // never draggable, since dragging one into a staff role would hand a
+    // wall-mounted tablet real staff permissions.
+    const screens = branchStaff.filter(s => DISPLAY_ROLES.includes(s.role));
+    if (screens.length) {
+      html += `<div class="role-slot" style="background:rgba(90,110,140,0.07);border-style:dashed;">
+        <div class="role-slot-header"><span class="role-slot-icon">🖥️</span><span>Display Devices</span></div>
+        <div class="role-slot-bin" style="pointer-events:none;">
+          ${screens.map(s => `
+            <div class="staff-chip" data-staff="${E(s.id)}" style="opacity:0.9;">
+              <div class="staff-chip-avatar">🖥️</div>
+              <div class="staff-chip-info">
+                <div class="staff-chip-name">${E(s.name)}</div>
+                <div class="staff-chip-meta">${E(roleDisplayLabel(s.role))} · cannot void</div>
+              </div>
+            </div>`).join('')}
+        </div>
+      </div>`;
+    }
 
     html += '</div>';
   });
@@ -4073,7 +4200,11 @@ function renderOrders(main) {
         </div>
         ${lane.next ? `<button class="order-advance" onclick="advanceOrder('${E(o.id)}','${E(lane.next)}')">${E(lane.nextLabel)}</button>` : ''}
         ${canDiscount && lane.id !== 'done' ? `<button class="order-advance" style="margin-top:6px;background:transparent;color:var(--brick,#8B1A0E);border:1px solid var(--brick,#8B1A0E);" onclick="openDiscountPicker('${E(o.dbId||o.id)}')">💸 Discount</button>` : ''}
-        ${canVoid && lane.id !== 'done' ? `<button class="order-advance" style="margin-top:6px;background:transparent;color:var(--danger);border:1px solid var(--danger);" onclick="openVoidItemsModal('${E(o.dbId||o.id)}')">🚫 Void items</button>` : ''}
+        ${lane.id !== 'done' ? (canVoid
+          ? `<button class="order-advance" style="margin-top:6px;background:transparent;color:var(--danger);border:1px solid var(--danger);" onclick="openVoidItemsModal('${E(o.dbId||o.id)}')">🚫 Void items</button>`
+          /* Below manager: same modal, but every button files a request
+             that a manager has to approve. */
+          : `<button class="order-advance" style="margin-top:6px;background:transparent;color:var(--ink-muted);border:1px solid var(--line);" onclick="openVoidItemsModal('${E(o.dbId||o.id)}')">🚫 Request void</button>`) : ''}
       </div>`;
     });
     html += '</div>';
@@ -4405,13 +4536,22 @@ async function reinstateAccount(id) {
 }
 function showCreateStaffModal() {
   const u = currentUser;
+  const isAdminPlus = ['admin','director','ceo'].includes(u.tier);
   // Only admin+ can promote to admin/director/ceo tiers
-  const highTierOptions = ['admin','director','ceo'].includes(u.tier) ? `
+  const highTierOptions = isAdminPlus ? `
     <option value="supervisor">Supervisor</option>
     <option value="manager">Manager</option>
     <option value="admin">Admin</option>
     ${['director','ceo'].includes(u.tier) ? '<option value="director">Director</option>' : ''}
     ${u.tier === 'ceo' ? '<option value="ceo">CEO</option>' : ''}
+  ` : '';
+  // Display device accounts are infrastructure, not people. Admin+ only,
+  // because they're set up once per screen and go live immediately.
+  const displayOptions = isAdminPlus ? `
+    <optgroup label="Display devices (screens, not people)">
+      <option value="kitchen_display">Kitchen Display — kitchen screen</option>
+      <option value="dine_in_display">Dine-In Display — dining floor screen</option>
+    </optgroup>
   ` : '';
   const branchOpts = portalState.branches.map(b => `<option value="${b.id}">${b.name}</option>`).join('');
   showModal(`
@@ -4434,10 +4574,11 @@ function showCreateStaffModal() {
       </div>
       <div class="form-row" style="margin-top:14px;">
         <div><label class="form-label">Role</label>
-          <select class="form-input" id="newStaffRole">
+          <select class="form-input" id="newStaffRole" onchange="onNewStaffRoleChange()">
             <option value="dining">Dining (Service)</option>
             <option value="kitchen">Kitchen</option>
             ${highTierOptions}
+            ${displayOptions}
           </select>
         </div>
         <div><label class="form-label">Branch</label>
@@ -4445,6 +4586,7 @@ function showCreateStaffModal() {
         </div>
       </div>
       <p style="margin-top:14px;font-size:12px;color:var(--ink-muted);">Share the temporary password with the staff member directly. They should change it in Settings after signing in.</p>
+      <div id="newStaffDisplayNote" style="display:none;margin-top:12px;padding:12px;background:rgba(184,128,15,0.10);border:1px solid rgba(184,128,15,0.35);border-radius:8px;font-size:12.5px;color:var(--ink);line-height:1.55;"></div>
       <div id="createStaffError" style="display:none;margin-top:12px;padding:10px;background:rgba(200,40,40,0.08);border:1px solid rgba(200,40,40,0.25);border-radius:6px;color:#c02828;font-size:13px;"></div>
     </div>
     <div class="modal-actions">
@@ -4453,6 +4595,35 @@ function showCreateStaffModal() {
     </div>`);
   // Prefill branch to current admin's branch if any
   if (u.branch) document.getElementById('newStaffBranch').value = u.branch;
+}
+
+// Swaps the modal copy when a display-device role is picked, so whoever is
+// setting up a screen understands what they're actually creating.
+function onNewStaffRoleChange() {
+  const role = document.getElementById('newStaffRole')?.value;
+  const note = document.getElementById('newStaffDisplayNote');
+  const nameEl = document.getElementById('newStaffName');
+  if (!note) return;
+  const info = {
+    kitchen_display: {
+      suggest: 'Kitchen Screen',
+      where:   'the Kitchen Station',
+      extra:   'It sees tickets and can advance them (Start Cooking → Mark Ready). It cannot void, cannot open new orders, and cannot see schedules, attendance, messages, or anyone\'s records.'
+    },
+    dine_in_display: {
+      suggest: 'Dining Floor Screen',
+      where:   'the Dine-In Floor panel',
+      extra:   'It sees tables, orders and call-staff signals. It cannot void, cannot 86 menu items, cannot open new orders, and cannot see schedules, attendance, messages, or anyone\'s records.'
+    }
+  }[role];
+
+  if (!info) { note.style.display = 'none'; return; }
+  note.style.display = 'block';
+  note.innerHTML = `<strong>This is a device account, not a person.</strong><br>
+    One shared login for the screen mounted in that area. On sign-in it goes straight to ${info.where} and cannot reach the staff portal at all.<br><br>
+    ${info.extra}<br><br>
+    To void anything, the screen files a <strong>void request</strong> that only a manager or higher can approve.`;
+  if (nameEl && !nameEl.value.trim()) nameEl.value = info.suggest;
 }
 
 // Public signups are disabled in Supabase Auth settings.
@@ -5074,42 +5245,94 @@ function setMsgAdminTab(tab) {
 }
 
 /* ════════════════════════════════════════════════════
-   VOID ITEMS — manager+ only
+   VOID ITEMS
+   Manager+ voids directly. Everyone below manager — dining,
+   kitchen, supervisor, and the two display-screen accounts —
+   gets the same modal but the buttons file a REQUEST instead,
+   which lands in a manager's Void Requests tab.
    ════════════════════════════════════════════════════ */
+// The order currently open in the void modal. Item names are looked up
+// from here rather than being interpolated into onclick attributes —
+// dish names contain apostrophes and quotes, and double-escaping them
+// through E() produced literal "&#39;" in the prompt text.
+let _voidModalOrder = null;
+function _voidItemName(itemId) {
+  const it = (_voidModalOrder?.order_items || []).find(x => x.id === itemId);
+  if (!it) return 'this item';
+  return `${it.quantity}× ${it.name_snapshot}${it.pax_size ? ' (' + it.pax_size + ')' : ''}`;
+}
+
 async function openVoidItemsModal(orderDbId) {
   if (!orderDbId) { toast('Order id missing'); return; }
   // Fetch fresh items so we see current void state.
   let order;
   try { order = await TPN.getOrder(orderDbId); }
   catch(e){ toast('Could not load order: ' + (e.message||e)); return; }
+  _voidModalOrder = order;
+
+  const canVoid = isVoidApprover();
+
+  // Which items already have a request waiting, so we don't offer a duplicate.
+  let pendingByItem = {}, wholeOrderPending = false;
+  try {
+    const reqs = await TPN.listVoidRequests({ status: 'pending', limit: 200 });
+    reqs.filter(r => r.order_id === orderDbId).forEach(r => {
+      if (r.scope === 'order') wholeOrderPending = true;
+      else if (r.order_item_id) pendingByItem[r.order_item_id] = r;
+    });
+  } catch(e) { /* non-fatal — worst case the RPC rejects the duplicate */ }
+
   const items = (order.order_items || []).slice().sort((a,b)=>String(a.name_snapshot).localeCompare(String(b.name_snapshot)));
   const rows = items.map(it => {
-    const voided = !!it.voided_at;
-    return `<div class="void-row" data-item="${E(it.id)}" style="display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--line);">
+    const voided  = !!it.voided_at;
+    const waiting = !!pendingByItem[it.id];
+
+    let action;
+    if (voided) {
+      action = canVoid
+        ? `<button class="btn-secondary" onclick="unvoidItem('${E(it.id)}','${E(orderDbId)}')">↺ Undo void</button>`
+        : `<span style="font-size:12px;color:var(--ink-muted);">voided</span>`;
+    } else if (waiting) {
+      action = `<span style="font-size:12px;color:var(--gold,#b8800f);font-weight:700;">⏳ Awaiting manager</span>`;
+    } else if (canVoid) {
+      action = `<button class="btn-secondary danger" onclick="promptVoidItem('${E(it.id)}','${E(orderDbId)}')">Void</button>`;
+    } else {
+      action = `<button class="btn-secondary" onclick="promptRequestVoid('${E(orderDbId)}','${E(it.id)}')">Request void</button>`;
+    }
+
+    return `<div class="void-row" data-item="${E(it.id)}" style="display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--line);align-items:center;">
       <div style="flex:1;min-width:0;">
         <div style="font-weight:600;color:${voided ? 'var(--ink-muted)' : 'var(--ink)'};text-decoration:${voided ? 'line-through' : 'none'};">
           ${E(it.quantity)}× ${E(it.name_snapshot)}${it.pax_size ? ' ('+E(it.pax_size)+')' : ''}
         </div>
         <div style="font-size:12px;color:var(--ink-muted);">₱${N(it.total_price,2)}${voided ? ' · voided — ' + E(it.void_reason||'') : ''}</div>
       </div>
-      <div style="flex-shrink:0;">
-        ${voided
-          ? `<button class="btn-secondary" onclick="unvoidItem('${E(it.id)}','${E(orderDbId)}')">↺ Undo void</button>`
-          : `<button class="btn-secondary danger" onclick="promptVoidItem('${E(it.id)}','${E(orderDbId)}','${E((it.name_snapshot||'').replace(/'/g,"&#39;"))}')">Void</button>`}
-      </div>
+      <div style="flex-shrink:0;">${action}</div>
     </div>`;
   }).join('');
+
+  const wholeOrderBtn = wholeOrderPending
+    ? `<div style="margin-top:14px;padding:10px;border-radius:8px;background:rgba(184,128,15,0.10);border:1px solid rgba(184,128,15,0.35);font-size:13px;color:var(--ink);">⏳ A whole-order void request is already waiting for a manager.</div>`
+    : (canVoid
+        ? `<button class="btn-secondary danger" style="margin-top:14px;width:100%;" onclick="promptVoidWholeOrder('${E(orderDbId)}','${E(order.order_number||'')}')">Void the entire order</button>`
+        : `<button class="btn-secondary" style="margin-top:14px;width:100%;" onclick="promptRequestVoid('${E(orderDbId)}',null)">Request whole-order void</button>`);
+
   showModal(`
-    <div class="modal-title">Void items · ${E(order.order_number || '')}</div>
-    <div class="modal-sub">Manager-only action. Voiding removes the item from the order total but keeps the record for the audit log.</div>
-    <div class="modal-content" style="max-height:60vh;overflow-y:auto;">${rows || '<div style="padding:20px;color:var(--ink-muted);text-align:center;">No items on this order.</div>'}</div>
+    <div class="modal-title">${canVoid ? 'Void items' : 'Request a void'} · ${E(order.order_number || '')}</div>
+    <div class="modal-sub">${canVoid
+      ? 'Voiding removes the item from the order total but keeps the record for the audit log.'
+      : 'You cannot void directly. Your request goes to the managers on duty — they approve or deny it, and you get notified either way.'}</div>
+    <div class="modal-content" style="max-height:60vh;overflow-y:auto;">
+      ${rows || '<div style="padding:20px;color:var(--ink-muted);text-align:center;">No items on this order.</div>'}
+      ${items.length ? wholeOrderBtn : ''}
+    </div>
     <div class="modal-actions">
       <button class="btn-next" onclick="closeModal()">Done</button>
     </div>`);
 }
 
-async function promptVoidItem(itemId, orderDbId, itemName) {
-  const reason = window.prompt('Void reason (min 3 characters) — this is logged:\n\nItem: ' + itemName, '');
+async function promptVoidItem(itemId, orderDbId) {
+  const reason = window.prompt('Void reason (min 3 characters) — this is logged:\n\nItem: ' + _voidItemName(itemId), '');
   if (reason === null) return;   // cancelled
   if (!reason || reason.trim().length < 3) { toast('Void reason must be at least 3 characters.'); return; }
   try {
@@ -5151,6 +5374,225 @@ async function unvoidItem(itemId, orderDbId) {
     } catch(_){}
     openVoidItemsModal(orderDbId);
   } catch(e) { toast('Could not un-void: ' + (e.message||e)); }
+}
+
+/* ════════════════════════════════════════════════════
+   VOID REQUESTS — the path for everyone below manager
+   ════════════════════════════════════════════════════ */
+
+// itemId === null → request the whole order be voided/cancelled.
+async function promptRequestVoid(orderDbId, itemId) {
+  const what = itemId
+    ? ('Item: ' + _voidItemName(itemId))
+    : 'This will ask a manager to cancel the ENTIRE order.';
+  const reason = window.prompt(
+    'Why does this need to be voided? (min 3 characters)\n' +
+    'A manager sees this and decides.\n\n' + what, '');
+  if (reason === null) return;
+  if (!reason || reason.trim().length < 3) { toast('Give a reason of at least 3 characters.'); return; }
+  try {
+    await TPN.requestVoid({ orderId: orderDbId, itemId: itemId || null, reason: reason.trim() });
+    toast('✓ Sent to the managers on duty.');
+    if (typeof openVoidItemsModal === 'function') openVoidItemsModal(orderDbId);
+  } catch(e) {
+    toast(TPN.voidRequestErrorText(e));
+  }
+}
+
+// Manager+ voiding a whole order. Goes through the same request→approve
+// pipeline so there is one audit shape for whole-order voids, self-approved.
+async function promptVoidWholeOrder(orderDbId, orderNumber) {
+  const reason = window.prompt(
+    'Void the ENTIRE order ' + (orderNumber || '') + '?\n' +
+    'Every remaining item is voided and the order is marked cancelled.\n\n' +
+    'Reason (min 3 characters) — this is logged:', '');
+  if (reason === null) return;
+  if (!reason || reason.trim().length < 3) { toast('Reason must be at least 3 characters.'); return; }
+  try {
+    const req = await TPN.requestVoid({ orderId: orderDbId, itemId: null, reason: reason.trim() });
+    await TPN.approveVoidRequest(req.id, 'Self-approved by ' + (currentUser?.name || 'manager'));
+    toast('✓ Order voided and cancelled.');
+    closeModal();
+    try {
+      const fresh = await TPN.getOrder(orderDbId);
+      const existing = portalState.orders.find(x => x.dbId === orderDbId);
+      if (existing) Object.assign(existing, dbOrderToPortalOrder(fresh));
+      rerenderCurrent();
+    } catch(_){}
+    refreshVoidBadge();
+  } catch(e) {
+    toast(TPN.voidRequestErrorText(e));
+  }
+}
+
+let _voidReqFilter = 'pending';
+function setVoidReqFilter(f) {
+  _voidReqFilter = f;
+  if (currentRoute === 'staff-void-requests') routeStaff('staff-void-requests');
+  else route('void-requests');
+}
+
+function _voidReqStatusChip(r) {
+  const status = typeof r === 'string' ? r : r.status;
+  const map = {
+    pending:   ['⏳ Pending',  'rgba(184,128,15,0.15)', '#8a6208'],
+    approved:  ['✓ Approved',  'rgba(30,140,70,0.15)',  '#1e7a46'],
+    denied:    ['✗ Denied',    'rgba(200,40,40,0.12)',  '#c02828'],
+    cancelled: ['— Withdrawn', 'rgba(120,120,120,0.12)','#666']
+  };
+  let [label, bg, fg] = map[status] || [status, 'rgba(0,0,0,0.06)', '#555'];
+  // 'cancelled' means two different things. The requester withdrew it →
+  // "Withdrawn". Or the order got completed/cancelled before a manager
+  // looked at it and the DB swept it closed → that's not a withdrawal, and
+  // labelling it one makes it look like the staff member changed their mind.
+  if (status === 'cancelled' && typeof r === 'object'
+      && r.reviewed_by && r.requested_by && r.reviewed_by !== r.requested_by) {
+    label = '— Order closed first';
+  }
+  return `<span style="display:inline-block;padding:3px 10px;border-radius:999px;background:${bg};color:${fg};font-size:11px;font-weight:700;letter-spacing:0.04em;">${label}</span>`;
+}
+
+function _timeAgo(iso) {
+  if (!iso) return '';
+  const mins = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
+  if (mins < 1)  return 'just now';
+  if (mins < 60) return mins + 'm ago';
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24)  return hrs + 'h ago';
+  return Math.floor(hrs / 24) + 'd ago';
+}
+
+// mode: 'admin' (approver view) | 'staff' (my own requests)
+async function renderVoidRequests(main, mode) {
+  const approver = mode === 'admin' && isVoidApprover();
+  const filters = ['pending','approved','denied','all'];
+
+  main.innerHTML = `
+    <div class="portal-header">
+      <div>
+        <h1>${approver ? 'Void Requests' : 'My Void Requests'}</h1>
+        <div class="portal-header-sub">${approver
+          ? 'Staff and floor screens cannot void anything themselves. Every void passes through here.'
+          : 'Voids you have asked a manager to approve.'}</div>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
+      ${filters.map(f => `<button class="btn-secondary${_voidReqFilter === f ? ' active' : ''}"
+        style="${_voidReqFilter === f ? 'background:var(--brick,#8b1a0e);color:#fff;border-color:var(--brick,#8b1a0e);' : ''}"
+        onclick="setVoidReqFilter('${f}')">${f.charAt(0).toUpperCase() + f.slice(1)}</button>`).join('')}
+    </div>
+    <div id="voidReqBody"><div class="panel" style="padding:24px;color:var(--ink-muted);">Loading…</div></div>`;
+
+  let rows = [];
+  try {
+    rows = await TPN.listVoidRequests({
+      status:   _voidReqFilter === 'all' ? null : _voidReqFilter,
+      limit:    200,
+      mineOnly: !approver
+    });
+  } catch(e) {
+    document.getElementById('voidReqBody').innerHTML =
+      `<div class="panel" style="padding:24px;color:var(--danger,#c02828);">Could not load void requests: ${E(e.message||e)}</div>`;
+    return;
+  }
+
+  if (!rows.length) {
+    document.getElementById('voidReqBody').innerHTML = `
+      <div class="panel" style="padding:40px;text-align:center;color:var(--ink-muted);">
+        <div style="font-size:36px;margin-bottom:10px;">🚫</div>
+        <div style="font-weight:600;color:var(--ink);margin-bottom:4px;">Nothing here</div>
+        <div style="font-size:13px;">${_voidReqFilter === 'pending'
+          ? 'No void requests are waiting.'
+          : 'No ' + _voidReqFilter + ' void requests.'}</div>
+      </div>`;
+    return;
+  }
+
+  document.getElementById('voidReqBody').innerHTML = rows.map(r => {
+    const isWhole = r.scope === 'order';
+    const title   = isWhole
+      ? `Entire order ${E(r.order_number || '')}`
+      : `${E(r.item_qty || 1)}× ${E(r.item_name || 'item')}`;
+    const amount  = r.item_amount != null ? `₱${N(r.item_amount, 2)}` : '';
+    const who     = E(r.requested_by_name || 'Unknown');
+    const whoRole = r.requested_by_role ? roleDisplayLabel(r.requested_by_role) : '';
+
+    const actions = (approver && r.status === 'pending')
+      ? `<div style="display:flex;gap:8px;margin-top:12px;">
+           <button class="btn-next" onclick="approveVoidReq('${E(r.id)}')">✓ Approve void</button>
+           <button class="btn-secondary danger" onclick="denyVoidReq('${E(r.id)}')">✗ Deny</button>
+         </div>`
+      : (!approver && r.status === 'pending')
+        ? `<div style="margin-top:12px;"><button class="btn-secondary" onclick="withdrawVoidReq('${E(r.id)}')">Withdraw request</button></div>`
+        : '';
+
+    // reviewed_by_name comes through the staff join, which is RLS-scoped —
+    // a dining staffer can read themselves but not the manager's row, so the
+    // name may be null even when reviewed_at is set. Fall back to the note.
+    const verdict = (r.status !== 'pending' && (r.reviewed_by_name || r.reviewed_at))
+      ? `<div style="margin-top:8px;font-size:12px;color:var(--ink-muted);">
+           ${r.status === 'approved' ? 'Approved' : r.status === 'denied' ? 'Denied' : 'Closed'}
+           ${r.reviewed_by_name ? 'by <strong>' + E(r.reviewed_by_name) + '</strong> · ' : ''}${_timeAgo(r.reviewed_at)}
+           ${r.review_note ? '<br>Note: ' + E(r.review_note) : ''}
+         </div>`
+      : '';
+
+    return `<div class="panel" style="padding:16px;margin-bottom:12px;${r.status === 'pending' ? 'border-left:3px solid var(--gold,#b8800f);' : ''}">
+      <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap;">
+        <div style="flex:1;min-width:200px;">
+          <div style="font-weight:700;color:var(--ink);font-size:15px;">
+            ${isWhole ? '🧾 ' : ''}${title} ${amount ? `<span style="color:var(--ink-muted);font-weight:600;">· ${amount}</span>` : ''}
+          </div>
+          <div style="font-size:12px;color:var(--ink-muted);margin-top:3px;">
+            ${isWhole ? '' : 'Order ' + E(r.order_number || '') + ' · '}Asked by <strong>${who}</strong>${whoRole ? ' (' + E(whoRole) + ')' : ''} · ${_timeAgo(r.requested_at)}
+          </div>
+        </div>
+        <div>${_voidReqStatusChip(r)}</div>
+      </div>
+      <div style="margin-top:10px;padding:10px 12px;background:var(--bg,#faf7f2);border:1px solid var(--line);border-radius:8px;font-size:13px;color:var(--ink);">
+        <span style="color:var(--ink-muted);font-size:11px;text-transform:uppercase;letter-spacing:0.1em;font-weight:700;">Reason</span><br>${E(r.reason || '')}
+      </div>
+      ${verdict}
+      ${actions}
+    </div>`;
+  }).join('');
+}
+
+async function approveVoidReq(id) {
+  if (!window.confirm('Approve this void? The item comes off the order total and the order is recalculated. This is logged against your name.')) return;
+  const note = window.prompt('Optional note for the record (leave blank to skip):', '');
+  try {
+    await TPN.approveVoidRequest(id, note && note.trim() ? note.trim() : null);
+    toast('✓ Void approved.');
+    await refreshVoidBadge();
+    route('void-requests');
+    try { await loadOrdersFromSupabase?.(); } catch(_){}
+  } catch(e) { toast(TPN.voidRequestErrorText(e)); }
+}
+
+async function denyVoidReq(id) {
+  const note = window.prompt('Why are you denying this? The person who asked will see it:', '');
+  if (note === null) return;
+  try {
+    await TPN.denyVoidRequest(id, note && note.trim() ? note.trim() : null);
+    toast('Request denied.');
+    await refreshVoidBadge();
+    route('void-requests');
+  } catch(e) { toast(TPN.voidRequestErrorText(e)); }
+}
+
+async function withdrawVoidReq(id) {
+  if (!window.confirm('Withdraw this void request?')) return;
+  try {
+    await TPN.cancelVoidRequest(id);
+    toast('Request withdrawn.');
+    // A supervisor sees this list inside the ADMIN portal, dining/kitchen
+    // staff see it in the staff portal. Re-render whichever one is open —
+    // calling routeStaff() unconditionally would paint into the hidden
+    // staff pane and leave the supervisor staring at a stale list.
+    if (currentRoute === 'staff-void-requests') routeStaff('staff-void-requests');
+    else route('void-requests');
+  } catch(e) { toast(TPN.voidRequestErrorText(e)); }
 }
 
 /* ════════════════════════════════════════════════════
@@ -5232,7 +5674,7 @@ function _renderDiscountList() {
 
 function openDiscountTemplateEditor(id) {
   const existing = id ? _discountState.templates.find(t => t.id === id) : null;
-  const locked = !!(existing && existing.legal_law);   // legal_law templates can only be toggled + capped
+  const locked = !!(existing && existing.legal_law);
   const t = existing || { code:'', name:'', description:'', kind:'percent', value:10, requires_id:false, min_subtotal:0, max_discount:'', stackable:true, is_active:true, icon:'💸', vat_treatment:'gross' };
   showModal(`
     <div class="modal-title">${existing ? 'Edit template' : 'New discount template'}</div>
@@ -5242,7 +5684,6 @@ function openDiscountTemplateEditor(id) {
       <div class="form-row"><label>Name*</label><input id="dt_name" ${locked?'disabled':''} value="${E(t.name)}" placeholder="e.g. Loyalty 10%" /></div>
       <div class="form-row"><label>Code*</label><input id="dt_code" ${locked?'disabled':''} value="${E(t.code)}" placeholder="loyalty-10 (unique slug)" /></div>
       <div class="form-row full"><label>Description</label><textarea id="dt_desc" rows="2" placeholder="Short note that shows in the picker. Optional.">${E(t.description||'')}</textarea></div>
-
       <div class="form-row"><label>Discount type*</label>
         <select id="dt_kind" ${locked?'disabled':''} onchange="_toggleDiscountKindHelp()">
           <option value="percent" ${t.kind==='percent'?'selected':''}>Percent off (%)</option>
@@ -5253,7 +5694,6 @@ function openDiscountTemplateEditor(id) {
         <input id="dt_value" ${locked?'disabled':''} type="number" step="0.01" min="0" value="${E(t.value)}" />
         <div id="dt_kind_help" style="grid-column:1 / -1;font-size:11px;color:var(--ink-muted);margin-top:-8px;">${t.kind==='percent'?'Enter 0–100. Example: 20 = 20% off.':'Enter peso amount. Example: 50 = ₱50 off.'}</div>
       </div>
-
       <div class="form-row full"><label>VAT treatment${locked?'':' (percent discounts only)'}</label>
         <select id="dt_vat" ${locked?'disabled':''}>
           <option value="gross" ${t.vat_treatment!=='net_of_vat'?'selected':''}>Gross — apply to full subtotal (most promos)</option>
@@ -5263,10 +5703,8 @@ function openDiscountTemplateEditor(id) {
           Gross is what StoreHub does — pick it for loyalty, promos, staff meals. Choose Net of VAT only if you're issuing formal BIR receipts for Senior Citizen or PWD.
         </div>
       </div>
-
       <div class="form-row"><label>Min. subtotal (₱)</label><input id="dt_min" type="number" step="0.01" min="0" value="${E(t.min_subtotal||0)}" placeholder="0 = no minimum" /></div>
       <div class="form-row"><label>Max. discount cap (₱)</label><input id="dt_max" type="number" step="0.01" min="0" value="${t.max_discount!=null?E(t.max_discount):''}" placeholder="(no cap)" /></div>
-
       <div class="form-row full"><label style="cursor:pointer;"><input id="dt_reqid" ${locked?'disabled':''} type="checkbox" ${t.requires_id?'checked':''}/> Requires physical ID at checkout (SC / PWD / Solo Parent)</label></div>
       <div class="form-row full"><label style="cursor:pointer;"><input id="dt_stack" ${locked?'disabled':''} type="checkbox" ${t.stackable?'checked':''}/> Can be combined with other discounts on the same order</label></div>
       <div class="form-row full"><label style="cursor:pointer;"><input id="dt_active" type="checkbox" ${t.is_active?'checked':''}/> Active — appears in the checkout picker</label></div>
@@ -5307,7 +5745,6 @@ async function saveDiscountTemplate(id, locked) {
   if (payload.kind === 'percent' && payload.value > 100) { toast('Percent value cannot exceed 100.'); return; }
   try {
     if (id) {
-      // For legal-locked, drop the fields the server would reject changes on anyway.
       if (locked === true) {
         delete payload.name; delete payload.code; delete payload.kind;
         delete payload.value; delete payload.requires_id; delete payload.stackable;
@@ -5406,7 +5843,6 @@ async function applyDiscountFromPicker(orderDbId, templateId, requiresId, tName)
   try {
     await TPN.applyDiscount(orderDbId, templateId, idRef);
     toast('✓ Discount applied');
-    // Refresh local portal order so the tile / lane reflects the new total.
     try {
       const fresh = await TPN.getOrder(orderDbId);
       const existing = portalState.orders.find(x => x.dbId === orderDbId);
@@ -6480,6 +6916,7 @@ function renderStaffSidebar() {
     items.push({ id: 'orders', label: 'Live Orders', icon: '📋', badge: portalState.orders.filter(o => o.status !== 'done').length || null });
   }
   items.push(
+    { id: 'staff-void-requests', label: 'My Void Requests', icon: '🚫' },
     { id: 'staff-schedule', label: 'My Schedule', icon: '📅' },
     { id: 'staff-attendance', label: 'My Attendance', icon: '✓' },
     { id: 'staff-notifications', label: 'Notifications', icon: '🔔', badge: portalState.unreadNotifCount || null },
@@ -6527,6 +6964,7 @@ function routeStaff(r, opts) {
     case 'staff-attendance': renderStaffAttendance(main); break;
     case 'staff-messages': renderStaffMessages(main); break;
     case 'staff-notifications': renderNotifications(main, 'staff'); break;
+    case 'staff-void-requests': renderVoidRequests(main, 'staff'); break;
     case 'staff-settings': renderStaffSettings(main); break;
     default: renderStaffHome(main);
   }
@@ -6931,7 +7369,7 @@ async function submitComposeMessage() {
 
 function renderStaffSettings(main) {
   const u = currentUser;
-  const roleLabel = ({ dining: 'Dining Staff', kitchen: 'Kitchen Staff', supervisor: 'Supervisor', manager: 'Manager', admin: 'Admin', director: 'Director', ceo: 'CEO' })[u.tier] || u.tier;
+  const roleLabel = roleDisplayLabel(u.tier);
   main.innerHTML = `<div class="portal-header"><div><h1>Settings</h1><div class="portal-header-sub">Your account, your security, your choice.</div></div></div>
     <div class="panel" style="margin-bottom:20px;">
       <div class="panel-header"><div class="panel-title">Account</div></div>

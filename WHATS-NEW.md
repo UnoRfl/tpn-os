@@ -1,64 +1,142 @@
 # What's new in this build
 
-Two big features this round: **persistent schedules** and a proper **pending-account workflow**.
+Two things this round, and they're the same thing seen from two sides:
+**display device accounts** for the wall screens, and a **void request
+workflow** so those screens (and every staff member below manager) can ask
+for a void instead of doing one.
 
-## Persistent schedules (Tier 1)
+---
 
-**New database table** `public.schedules` — one row per (staff, week), day-shifts stored as a jsonb map so any cell can be updated on its own. RLS: staff can read their own row, manager+ can read/write all rows for staff in their branch.
+## Display device accounts
 
-**Admin: Schedules editor.** New "Schedules" tab in the manager sidebar between Staff Board and Menu Manager. Every active staff member appears as a row with 7 day columns. Click any cell, type a shift like `9:45a-6p` or leave blank/OFF, tab out — it saves. Green border flashes on success, red on error. Prev/Next/This-Week navigation. "Copy from prev week" bulk-clones last week's shifts across all active staff.
+Two new roles: **`kitchen_display`** and **`dine_in_display`**.
 
-**Per-staff notes.** Click the note button on any row to attach a message that only that staff sees on their My Schedule tab.
+These are accounts for *screens*, not people. One shared login for the
+tablet/TV in the kitchen, one for the tablet/TV on the dining floor. Real
+staff keep their own personal accounts for schedules, time-in, messages
+and announcements — those are untouched.
 
-**Staff: My Schedule.** No longer hardcoded — pulls the current week's row from Supabase and renders the day grid. Prev/Next/This-Week buttons let staff scroll ahead or check previous weeks. If no schedule is posted yet, shows a friendly empty state.
+**What a display account does when it signs in:** nothing but its own
+surface. `kitchen_display` lands on the Kitchen Station. `dine_in_display`
+lands on the Dine-In Floor panel. Neither can open the staff portal at all
+— if one somehow lands on `index.html`, it gets bounced straight back.
 
-**SQL migration** `sql/08-schedules.sql` — run this in Supabase SQL Editor before using the new tabs.
+**What a display account cannot do:**
 
-## Pending-account validation workflow
+- Void anything (the point of the exercise)
+- Cancel an order
+- Open a new order or add a line to one
+- Change totals, discounts, service charge, or payment fields
+- 86 a menu item, add a table, or open branch settings
+- See schedules, attendance, messages, staff records, inquiries, revenue
+  or the audit log
+- Read branch-wide broadcast messages or notifications about other people
 
-**Manager-created accounts now start as `pending`.** They cannot sign in until validated. Admin+ created accounts still start `active` (Admin/Director/CEO are trusted).
+The dine-in screen shows **Covers Tonight** where a manager sees **Session
+Revenue** — a screen in a public dining room shouldn't display takings.
 
-**Login refuses non-active accounts** with a clear message:
-- Pending → "Your account is awaiting validation…"
-- Suspended / Recommended / Disabled → status-specific rejection
+**Where the lock actually lives.** The two roles are inserted at the
+*bottom* of the `staff_role` enum, below `dining`. `private.has_role()`
+compares enum positions, so every `has_role()` check in the database fails
+for them automatically. On top of that, migration 15b closes the policies
+that gated on *branch alone* rather than role — that's what would otherwise
+have let a screen run a plain `UPDATE order_items SET voided_at = now()`
+and quietly drop an order total to zero.
 
-**Session restore also refuses non-active accounts.** If a signed-in user gets suspended by admin, their next page refresh silently signs them out.
+**Creating one:** Accounts → + Add Staff → Role → *Display devices*.
+Admin, Director or CEO only — a screen is infrastructure, set up once, and
+it goes live immediately rather than sitting in the pending queue.
 
-**Create Staff flow** in the Accounts panel now reads `initial_status` from the edge function response and jumps to the correct tab (Pending or Active) after creating the account.
+---
 
-**Edge function must be redeployed** — see setup below.
+## Void requests
 
-## Backend additions (`tpn-supabase.js`)
+Before this, `void_order_item()` was manager+ only and there was no other
+path. Anyone below manager had to physically find a manager with a device.
 
-New schedule helpers:
-- `TPN.weekStartISO(date)` — Monday of a given date as `YYYY-MM-DD`
-- `TPN.getSchedule(staffId, weekStart)`
-- `TPN.listSchedulesForWeek(weekStart, branchId?)`
-- `TPN.upsertSchedule({ staffId, weekStart, shifts, notes })`
-- `TPN.deleteSchedule(id)`
+Now everyone below manager — dining, kitchen, supervisor, and both display
+screens — files a **request** instead:
 
-All persistent actions log to `audit_log` on success.
+1. Staff or screen taps **✕ / Request void**, types a reason (min 3 chars).
+2. Every manager+ in that branch gets a high-priority notification, and the
+   sidebar badge lights up under **Void Requests**.
+3. A manager approves or denies, with an optional note.
+4. Approval is what actually performs the void, recorded under the
+   **manager's** name in the audit log. The requester is notified either
+   way, in realtime, on whatever surface they're looking at.
+
+Two scopes: a **single item**, or the **whole order** (walkout, duplicate
+ticket) — approving a whole-order request voids every remaining line and
+marks the order cancelled.
+
+Supervisors can file requests but cannot approve them. This deliberately
+matches the existing rule in `void_order_item()`.
+
+**Managers still void directly** from Live Orders, unchanged. Whole-order
+voids by a manager run through the same request→approve pipeline so there's
+one audit shape for them.
+
+**Where to find it:**
+
+- Manager+ → sidebar **Void Requests** (with pending count badge)
+- Supervisor → same tab, showing only their own requests
+- Dining/kitchen staff → **My Void Requests** in the staff sidebar
+- Kitchen Station → small **✕** on each ticket line
+- Dine-In Floor → **✕** in the order detail modal
 
 ---
 
 ## Setup checklist (in order)
 
-1. **Extract the zip and overwrite local files** (keep your own `config.js` — don't overwrite it).
-2. **Run the new SQL migration** in Supabase SQL Editor:
-   ```
-   sql/08-schedules.sql
-   ```
-3. **Redeploy the edge function** so new accounts start as `pending`:
-   - Supabase Dashboard → Edge Functions → `create-staff` → replace the code with the contents of `supabase/functions/create-staff/index.ts` → Deploy.
-4. **Push to GitHub:**
+1. **Run the SQL migrations — 15a ON ITS OWN, FIRST.**
+
+   In Supabase SQL Editor, paste `sql/15a-display-roles.sql`, run it, wait
+   for Success. Nothing else in that window.
+
+   Postgres won't let you add an enum value and use it in the same
+   transaction, and the SQL Editor runs your whole paste as one
+   transaction. If you run them together, 15b fails.
+
+   Then, separately, run `sql/15b-void-requests.sql`.
+
+2. **Redeploy the edge function** so it knows the new roles:
+   Supabase Dashboard → Edge Functions → `create-staff` → replace with
+   `supabase/functions/create-staff/index.ts` → Deploy.
+
+3. **Create the two screen accounts** as Admin/Director/CEO:
+   Portal → Accounts → + Add Staff → Role → Display devices.
+   Use addresses like `kitchen-screen@tyopaengnyo.com`.
+
+4. **Sign each screen in once** on its device and leave it signed in.
+
+5. **Push to GitHub:**
    ```
    git add .
-   git commit -m "persistent schedules + pending-account workflow"
+   git commit -m "display device accounts + void request workflow"
    git push
    ```
 
-## Still not wired (next session)
+### Verify it worked
 
-- Staff attendance — still placeholder (needs clock-in/out flow + attendance table)
-- Payment webhooks — waiting on uncle's paid Supabase and GCash Business API
+Signed in as a display account, this must fail:
+
+```sql
+update public.order_items set voided_at = now() where id = '<any id>';
+-- ERROR: permission denied for table order_items
+```
+
+And the enum order should read bottom-to-top:
+
+```sql
+select unnest(enum_range(null::public.staff_role));
+-- kitchen_display, dine_in_display, dining, kitchen,
+-- supervisor, manager, admin, director, ceo
+```
+
+---
+
+## Still not wired
+
+- Payment webhooks — waiting on the paid Supabase transfer and GCash
+  Business API
 - SMS 2FA

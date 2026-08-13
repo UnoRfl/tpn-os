@@ -291,6 +291,21 @@
   #tpn-auth-gate .g-btn { margin-top: 12px; background: var(--brick); color: #fff; border: none; padding: 10px 22px; border-radius: 10px; font-weight: 700; font-family: 'DM Sans', sans-serif; cursor: pointer; }
   body.tpn-authed #tpn-auth-gate { display: none; }
   body:not(.tpn-authed) > *:not(#tpn-auth-gate):not(script) { visibility: hidden; }
+
+  /* ── Void request affordance in the order detail modal ──
+     Quiet by design: on a floor screen this is a rare, deliberate
+     action, not something to hit by accident during service. */
+  .detail-void-btn {
+    flex-shrink: 0; margin-left: 8px;
+    background: transparent; color: var(--text-muted);
+    border: 1px solid var(--border);
+    width: 28px; height: 28px; line-height: 1; border-radius: 8px;
+    font-size: 13px; cursor: pointer; transition: all 0.15s;
+    font-family: 'DM Sans', sans-serif;
+  }
+  .detail-void-btn:hover:not([disabled]) { background: var(--brick); color: #fff; border-color: var(--brick); }
+  .detail-void-btn[disabled] { cursor: default; opacity: 0.8; }
+  .detail-item { display: flex; align-items: center; }
 </style>
 <div id="tpn-auth-gate">
   <div class="g-title">Tyo Paeng Nyo</div>
@@ -310,7 +325,7 @@
   <div class="topbar-right">
     <div class="topbar-badge" id="role-badge">Manager</div>
     <button class="topbar-btn secondary" onclick="window.location.reload()">↺ Refresh</button>
-    <button class="topbar-btn" onclick="openAddTableModal()">+ Table</button>
+    <button class="topbar-btn" data-manager-only onclick="openAddTableModal()">+ Table</button>
   </div>
 </header>
 
@@ -318,8 +333,8 @@
 <div class="tab-nav" id="tab-nav">
   <button class="tab-btn active" onclick="showTab('floor')" id="tab-floor">🪑 Floor Map <span class="badge" id="badge-occupied">0</span></button>
   <button class="tab-btn" onclick="showTab('orders')" id="tab-orders">📋 Dine-In Orders <span class="badge amber" id="badge-orders">0</span></button>
-  <button class="tab-btn" onclick="showTab('menu')" id="tab-menu">🍽️ Menu Status</button>
-  <button class="tab-btn" onclick="showTab('settings')" id="tab-settings">⚙️ Settings</button>
+  <button class="tab-btn" data-manager-only onclick="showTab('menu')" id="tab-menu">🍽️ Menu Status</button>
+  <button class="tab-btn" data-manager-only onclick="showTab('settings')" id="tab-settings">⚙️ Settings</button>
 </div>
 
 <!-- CONTENT -->
@@ -384,6 +399,61 @@ function seedTableStates() { /* intentionally empty — real data only */ }
 // Menu availability — loaded from Supabase menu_items table via loadMenuFromDB()
 let menuAvailability = [];
 
+// True when signed in as the shared 'dine_in_display' screen account
+// rather than as a person. Set by tpnAuthGate().
+let IS_DISPLAY_ACCOUNT = false;
+// order_item ids with a void request already awaiting a manager.
+let _pendingVoidItemIds = new Set();
+
+/* ── DISPLAY MODE ──────────────────────────────────────────────
+   The screen account gets the floor at a glance and the ability to
+   move tickets along. It does NOT get the levers that move money or
+   change the menu: no 86-ing items, no adding tables, no branch
+   settings, and no revenue drilldown. Those are hidden here in the UI
+   and refused by RLS in the database — the hiding is courtesy, the
+   RLS is the actual control.
+   ────────────────────────────────────────────────────────────── */
+function applyDisplayMode() {
+  document.querySelectorAll('[data-manager-only]').forEach(el => { el.style.display = 'none'; });
+}
+
+/* ── VOID REQUESTS ─────────────────────────────────────────────
+   Nobody voids from this panel. Requests go to the portal's Void
+   Requests tab where a manager+ approves or denies them.
+   ────────────────────────────────────────────────────────────── */
+function _voidItemLabel(orderDbId, itemId) {
+  const o = dineInOrders.find(x => x.dbId === orderDbId);
+  const it = o && (o.items || []).find(x => x.id === itemId);
+  return it ? `${it.qty}× ${it.name}` : 'this item';
+}
+
+async function requestVoid(orderDbId, itemId) {
+  const itemName = _voidItemLabel(orderDbId, itemId);
+  const reason = window.prompt(
+    'Ask a manager to void this line?\n\n' + itemName +
+    '\n\nReason (min 3 characters) — the manager sees this:', '');
+  if (reason === null) return;
+  if (!reason || reason.trim().length < 3) {
+    showToast('⚠️ Give a reason of at least 3 characters.');
+    return;
+  }
+  try {
+    await TPN.requestVoid({ orderId: orderDbId, itemId, reason: reason.trim() });
+    _pendingVoidItemIds.add(itemId);
+    showToast('📨 Sent — waiting for a manager to approve.');
+    closeModal();
+  } catch (e) {
+    showToast('⚠️ ' + TPN.voidRequestErrorText(e));
+  }
+}
+
+async function refreshPendingVoids() {
+  try {
+    const reqs = await TPN.listVoidRequests({ status: 'pending', limit: 200, mineOnly: true });
+    _pendingVoidItemIds = new Set(reqs.map(r => r.order_item_id).filter(Boolean));
+  } catch (e) { /* non-fatal */ }
+}
+
 // ─── AUTH GATE ───
 async function tpnAuthGate() {
   const msg = document.getElementById('tpn-auth-msg');
@@ -407,16 +477,36 @@ async function tpnAuthGate() {
       btn.style.display = 'inline-block';
       return false;
     }
-    if (!TPN.hasRole('manager')) {
+    // Two ways in:
+    //   1. dine_in_display — the dedicated screen account for the dining floor
+    //   2. manager and higher — the original audience
+    // dine_in_display sits BELOW dining in the enum, so hasRole() refuses
+    // it everywhere else. This is the one surface it is allowed on, and it
+    // runs in a reduced mode (see applyDisplayMode).
+    IS_DISPLAY_ACCOUNT = (profile.role === 'dine_in_display');
+    if (!IS_DISPLAY_ACCOUNT && !TPN.hasRole('manager')) {
       msg.textContent = 'The floor panel is for manager+ staff only. Your account: ' + (profile.role || 'unknown') + '.';
       btn.style.display = 'inline-block';
       return false;
     }
+    // A kitchen screen must never end up here — it has its own surface.
+    if (profile.role === 'kitchen_display') {
+      window.location.replace('tpn-kitchen-station');
+      return false;
+    }
     // Reveal content
     document.body.classList.add('tpn-authed');
+    if (IS_DISPLAY_ACCOUNT) {
+      document.body.classList.add('tpn-display-mode');
+      applyDisplayMode();
+    }
     // Reflect the role in the badge
     const badge = document.getElementById('role-badge');
-    if (badge) badge.textContent = (profile.role || 'staff').replace(/\b\w/g, c => c.toUpperCase());
+    if (badge) {
+      badge.textContent = IS_DISPLAY_ACCOUNT
+        ? 'Dine-In Display'
+        : (profile.role || 'staff').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+    }
     return true;
   } catch (e) {
     console.error('Auth gate error:', e);
@@ -444,9 +534,30 @@ document.addEventListener('DOMContentLoaded', async () => {
   updateBadges();
   renderTab();
   await loadOrdersFromSupabase();
+  await refreshPendingVoids();
   loadMenuFromDB();
   subscribeToRealtime();
   checkCallStaff();
+
+  // Watch our own void requests so the ⏳ clears and staff hear the
+  // verdict without anyone touching the screen.
+  TPN.subscribeVoidRequests(async (payload) => {
+    const row = payload?.new;
+    if (!row) return;
+    const me = TPN.currentUser();
+    if (!me || row.requested_by !== me.id) return;
+    await refreshPendingVoids();
+    if (payload.eventType === 'UPDATE' && row.status !== 'pending') {
+      const what = row.item_name || 'the order';
+      if (row.status === 'approved') showToast('✅ Void approved — ' + what);
+      if (row.status === 'denied')   showToast('❌ Void denied — ' + what +
+        (row.review_note ? ' (' + row.review_note + ')' : ''));
+      dineInOrders = [];
+      await loadOrdersFromSupabase();
+      renderTab();
+      updateBadges();
+    }
+  });
 });
 
 // ─── Cache: DB branch UUID lookup ───
@@ -543,8 +654,11 @@ function integrateOrder(dbOrder, branch) {
     name:      dbOrder.customer_name || 'Guest',
     pax:       1,
     specialReq: dbOrder.notes || '',
+    // id + voided flag are carried so the floor can file a void REQUEST
+    // against a specific line. The floor screen can never void directly.
     items:     (dbOrder.order_items || []).map(oi => ({
-                  name: oi.name_snapshot, qty: oi.quantity, price: oi.unit_price
+                  id: oi.id, name: oi.name_snapshot, qty: oi.quantity,
+                  price: oi.unit_price, voided: !!oi.voided_at
                 })),
     total:     dbOrder.total,
     timestamp: dbOrder.placed_at,
@@ -592,6 +706,12 @@ function dismissCallAlert() { document.getElementById('call-alert').classList.re
 
 // ─── TABS ───
 function showTab(tab) {
+  // Menu Status and Settings change the menu and the branch config —
+  // manager territory. The screen account is bounced back to the floor.
+  if (IS_DISPLAY_ACCOUNT && (tab === 'menu' || tab === 'settings')) {
+    showToast('That section is for managers.');
+    tab = 'floor';
+  }
   currentTab = tab;
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   document.getElementById('tab-' + tab).classList.add('active');
@@ -641,12 +761,16 @@ function renderFloor() {
     <div class="stat-tile stat-clickable" onclick="showOccupiedTablesList('${branch.id}')"><div class="stat-label">Tables Occupied</div><div class="stat-value">${occupied}/${branch.tables}</div><div class="stat-sub">Tap to view occupied →</div></div>
     <div class="stat-tile red stat-clickable" onclick="showTab('orders')"><div class="stat-label">Active Orders</div><div class="stat-value">${activeOrd}</div><div class="stat-sub">Tap to view orders →</div></div>
     <div class="stat-tile amber stat-clickable" onclick="showBillRequestedList('${branch.id}')"><div class="stat-label">Bill Requested</div><div class="stat-value">${billReq}</div><div class="stat-sub">Tap to view tables →</div></div>
-    <div class="stat-tile green stat-clickable" onclick="showRevenueModal(${totalRev})"><div class="stat-label">Session Revenue</div><div class="stat-value">₱${totalRev.toLocaleString()}</div><div class="stat-sub">Tap for breakdown →</div></div>
+    ${IS_DISPLAY_ACCOUNT
+      /* A wall screen in the dining room is visible to guests. Revenue
+         does not belong on it. */
+      ? `<div class="stat-tile green"><div class="stat-label">Covers Tonight</div><div class="stat-value">${dineInOrders.length}</div><div class="stat-sub">orders this session</div></div>`
+      : `<div class="stat-tile green stat-clickable" onclick="showRevenueModal(${totalRev})"><div class="stat-label">Session Revenue</div><div class="stat-value">₱${totalRev.toLocaleString()}</div><div class="stat-sub">Tap for breakdown →</div></div>`}
   </div>
   <div class="section-header">
     <div class="section-title">Floor Map</div>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
-      <button class="action-btn secondary" onclick="openAddTableModal()">+ Add Table</button>
+      ${IS_DISPLAY_ACCOUNT ? '' : `<button class="action-btn secondary" onclick="openAddTableModal()">+ Add Table</button>`}
     </div>
   </div>
   <div class="branch-selector" id="branch-selector">`;
@@ -690,8 +814,9 @@ function renderFloor() {
         <div class="table-actions">
           ${status !== 'empty' ? `
             <button class="t-btn view" onclick="event.stopPropagation(); openTableModal(${i}, '${branch.id}')">View</button>
+            ${IS_DISPLAY_ACCOUNT ? '' : `
             ${tbl.billRequested ? `<button class="t-btn bill" onclick="event.stopPropagation(); closeTable(${i}, '${branch.id}')">Close Table</button>` : `<button class="t-btn advance" onclick="event.stopPropagation(); markBillReady(${i}, '${branch.id}')">Bill</button>`}
-            <button class="t-btn clear" onclick="event.stopPropagation(); clearTable(${i}, '${branch.id}')">Clear</button>
+            <button class="t-btn clear" onclick="event.stopPropagation(); clearTable(${i}, '${branch.id}')">Clear</button>`}
           ` : `<button class="t-btn view" onclick="event.stopPropagation(); openQRModal(${i}, '${branch.name}', '${qrUrl}')">Open QR</button>`}
         </div>
       </div>
@@ -879,6 +1004,15 @@ async function advanceOrder(ref) {
   const nextStatus = pipeline[idx + 1];
   const prevStatus = order.status;
 
+  // 'done' maps to DB status 'completed', which means payment was taken.
+  // A shared wall screen doesn't get to say that — the server refuses it
+  // too (display_cannot_close_orders), this just avoids the round trip and
+  // the optimistic flicker.
+  if (IS_DISPLAY_ACCOUNT && nextStatus === 'done') {
+    showToast('Closing an order is a staff/manager action.');
+    return;
+  }
+
   // Same mapping used in index.html advanceOrder() so both stay in step.
   const uiToDb = { received: 'confirmed', preparing: 'preparing', ready: 'ready', done: 'completed' };
   const dbStatus = uiToDb[nextStatus] || nextStatus;
@@ -996,9 +1130,6 @@ async function closeTable(tableNum, branchId) {
 }
 
 // ─── FLOOR-SIDE DISCOUNT PICKER ─────────────────────────────────
-// Loads active discount_templates once and reuses. Applies a chosen
-// template to every passed-in orderDbId (usually all active orders at
-// one table). Manager+ can remove already-applied discounts.
 let _floorDiscountTemplates = null;
 async function _ensureFloorDiscountTemplates(force) {
   if (_floorDiscountTemplates && !force) return _floorDiscountTemplates;
@@ -1013,7 +1144,6 @@ async function openFloorDiscountPicker(orderDbIds, label, onDone) {
   const templates = await _ensureFloorDiscountTemplates(false);
   const active    = (templates || []).filter(t => t.is_active);
 
-  // Aggregate applied across all orders
   const applied = [];
   for (const id of orderDbIds) {
     try {
@@ -1251,16 +1381,32 @@ function openOrderModal(ref) {
   <div style="font-size:13px;font-weight:700;color:var(--text-muted);letter-spacing:0.07em;text-transform:uppercase;margin-bottom:10px">Items</div>
   <div class="order-detail-items">`;
   order.items.forEach(item => {
-    content += `<div class="detail-item">
-      <div class="detail-item-emoji">${item.emoji}</div>
+    const waiting = item.id && _pendingVoidItemIds.has(item.id);
+    // Everyone here files a REQUEST — including managers, so that every
+    // void on the floor leaves the same paper trail. Approval happens in
+    // the portal's Void Requests tab.
+    const ask = (item.id && !item.voided)
+      ? (waiting
+          ? `<button class="detail-void-btn" disabled title="A manager has been notified">⏳</button>`
+          // Only ids in the attribute — dish names carry apostrophes and
+          // quotes; requestVoid() looks the name up from state.
+          : `<button class="detail-void-btn" title="Ask a manager to void this line"
+               onclick="requestVoid('${E(order.dbId)}','${E(item.id)}')">✕</button>`)
+      : '';
+    content += `<div class="detail-item" style="${item.voided ? 'opacity:0.5;' : ''}">
+      <div class="detail-item-emoji">${item.emoji || '🍽️'}</div>
       <div class="detail-item-info">
-        <div class="detail-item-name">${E(item.name)}${item.variant ? ' — ' + E(item.variant) : ''}</div>
-        <div class="detail-item-meta">Qty: ${item.qty} × ₱${item.price}</div>
+        <div class="detail-item-name" style="${item.voided ? 'text-decoration:line-through;' : ''}">${E(item.name)}${item.variant ? ' — ' + E(item.variant) : ''}</div>
+        <div class="detail-item-meta">Qty: ${item.qty} × ₱${item.price}${item.voided ? ' · voided' : ''}</div>
       </div>
       <div class="detail-item-price">₱${(item.price * item.qty).toFixed(2)}</div>
+      ${ask}
     </div>`;
   });
   content += `</div>`;
+  content += `<div style="margin-top:10px;font-size:11.5px;color:var(--text-muted);line-height:1.5;">
+    ✕ asks a manager to void a line — it does not void it. Approve or deny in the staff portal under <strong>Void Requests</strong>.
+  </div>`;
   if (order.allergies?.length) {
     content += `<div style="margin-top:12px"><div style="font-size:12px;font-weight:700;color:var(--text-muted);margin-bottom:6px">ALLERGIES / DIETARY</div>`;
     order.allergies.forEach(a => { content += `<span class="order-flag flag-allergy" style="display:inline-block;margin:2px">⚠️ ${a}</span>`; });
@@ -1268,9 +1414,11 @@ function openOrderModal(ref) {
   }
   if (order.specialReq) content += `<div style="margin-top:10px;background:var(--amber-light);border-radius:8px;padding:10px;font-size:13px;color:var(--amber)">📝 <strong>Special request:</strong> ${order.specialReq}</div>`;
 
+  // A screen advances tickets but never closes them (see advanceOrder).
+  const canAdvance = nextStatus && !(IS_DISPLAY_ACCOUNT && nextStatus === 'done');
   openModal(`Order ${order.ref}`, content, [
     { label: 'Close', cls: 'secondary', fn: 'closeModal()' },
-    ...(nextStatus ? [{ label: `→ Mark as ${nextStatus.charAt(0).toUpperCase() + nextStatus.slice(1)}`, cls: 'primary', fn: `advanceOrder('${ref}'); closeModal();` }] : [])
+    ...(canAdvance ? [{ label: `→ Mark as ${nextStatus.charAt(0).toUpperCase() + nextStatus.slice(1)}`, cls: 'primary', fn: `advanceOrder('${ref}'); closeModal();` }] : [])
   ]);
 }
 

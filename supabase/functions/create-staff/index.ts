@@ -19,7 +19,17 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
 
-const ROLE_HIERARCHY = ['dining','kitchen','supervisor','manager','admin','director','ceo']
+// MUST match the staff_role enum order in Postgres
+// (sql/01-schema.sql + sql/15a-display-roles.sql).
+// kitchen_display / dine_in_display are shared device logins for the wall
+// screens. They sit at the BOTTOM so every private.has_role() check fails
+// for them — no voiding, no menu edits, no staff records.
+const ROLE_HIERARCHY = [
+  'kitchen_display','dine_in_display',
+  'dining','kitchen','supervisor','manager','admin','director','ceo'
+]
+
+const DISPLAY_ROLES = ['kitchen_display','dine_in_display']
 
 function json(data: unknown, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -88,6 +98,15 @@ Deno.serve(async (req) => {
       return json({ error: `You can only grant roles at or below your own level` }, 403)
     }
 
+    // Display screens are infrastructure, not staff. They are set up once,
+    // they are shared logins that never change password, and they must be
+    // usable the instant they're created (a wall screen can't "wait for
+    // validation"). So: admin+ only, and they skip the pending workflow.
+    const isDisplay = DISPLAY_ROLES.includes(role)
+    if (isDisplay && callerLevel < ROLE_HIERARCHY.indexOf('admin')) {
+      return json({ error: 'Only admin, director, or CEO can create a display device account.' }, 403)
+    }
+
     // ── Step 3: Use service_role to create the user ──
     const admin = createClient(supabaseUrl, serviceKey, {
       auth: { autoRefreshToken: false, persistSession: false }
@@ -110,6 +129,8 @@ Deno.serve(async (req) => {
     // Now update it with the correct role, branch, and profile fields.
     // Business rule: accounts created BY a manager start as 'pending' and need CEO/admin/director validation.
     // Accounts created BY an admin+ (admin, director, ceo) are already trusted → 'active'.
+    // Display accounts are always created by admin+ (checked above), so they
+    // are always 'active'.
     const initialStatus = callerLevel >= ROLE_HIERARCHY.indexOf('admin') ? 'active' : 'pending';
 
     let branchId: string | null = null
@@ -149,7 +170,16 @@ Deno.serve(async (req) => {
       metadata: { email, role, branch_code: branch_code || null, initial_status: initialStatus, created_by_edge_fn: true }
     }).select().maybeSingle()
 
-    return json({ ok: true, user_id: created.user.id, initial_status: initialStatus })
+    return json({
+      ok: true,
+      user_id: created.user.id,
+      initial_status: initialStatus,
+      is_display: isDisplay,
+      // Where this account should be pointed once it signs in.
+      display_home: role === 'kitchen_display' ? 'tpn-kitchen-station'
+                  : role === 'dine_in_display' ? 'tpn-dine-in-floor'
+                  : null
+    })
   } catch (e) {
     console.error('create-staff error:', e)
     return json({ error: (e as Error).message || 'Unknown error' }, 500)

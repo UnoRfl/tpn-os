@@ -62,10 +62,33 @@ const TPN = {
 
   currentUser() { return this._user; },
 
+  // Role hierarchy — MUST match the order of the staff_role enum in Postgres
+  // (sql/01-schema.sql + sql/15a-display-roles.sql). private.has_role() in the
+  // database compares enum positions, so any drift here is a security bug.
+  // The two *_display roles sit at the BOTTOM on purpose: they are shared
+  // device logins for the wall screens, so every hasRole() check fails for
+  // them — including hasRole('manager'), which is what gates voiding.
+  ROLE_HIERARCHY: ['kitchen_display','dine_in_display','dining','kitchen','supervisor','manager','admin','director','ceo'],
+  DISPLAY_ROLES:  ['kitchen_display','dine_in_display'],
+
   hasRole(minRole) {
     if (!this._user) return false;
-    const H = ['dining','kitchen','supervisor','manager','admin','director','ceo'];
+    const H = this.ROLE_HIERARCHY;
     return H.indexOf(this._user.role) >= H.indexOf(minRole);
+  },
+
+  // True when the signed-in account is a wall-mounted screen, not a person.
+  isDisplayAccount(role) {
+    const r = role || (this._user && this._user.role);
+    return !!r && this.DISPLAY_ROLES.indexOf(r) !== -1;
+  },
+
+  // Which surface a display account belongs on. Null for real people.
+  displayHome(role) {
+    const r = role || (this._user && this._user.role);
+    if (r === 'kitchen_display') return 'tpn-kitchen-station';
+    if (r === 'dine_in_display') return 'tpn-dine-in-floor';
+    return null;
   },
 
   // ═════ BRANCHES ═════════════════════════════════════════════
@@ -858,6 +881,104 @@ TPN.unvoidOrderItem = async function (itemId) {
   const { data, error } = await sb.rpc('unvoid_order_item', { p_item_id: itemId });
   if (error) throw error;
   return data;
+};
+
+// ═════════════════════════════════════════════════════════════
+// UnoSys: VOID REQUESTS (sql/15b)
+//
+// Everyone below manager — dining, kitchen, supervisor, and the two
+// display-screen accounts — cannot void. They file a request instead,
+// which notifies every manager+ in the branch. Approval is what
+// actually performs the void, under the manager's own identity.
+//
+// Error names thrown by request_void:
+//   no_staff_profile / account_not_active
+//   void_reason_required      (< 3 chars)
+//   order_not_found / item_not_found / item_order_mismatch
+//   already_voided
+//   request_already_pending   (one open request per item / per order)
+//   wrong_branch
+//   order_terminal
+// ═════════════════════════════════════════════════════════════
+
+// Pass itemId = null to request voiding the WHOLE order.
+TPN.requestVoid = async function ({ orderId, itemId = null, reason }) {
+  const { data, error } = await sb.rpc('request_void', {
+    p_order_id: orderId,
+    p_item_id:  itemId,
+    p_reason:   reason
+  });
+  if (error) throw error;
+  return data;
+};
+
+// Friendly message for any error the void-request RPCs can throw.
+TPN.voidRequestErrorText = function (e) {
+  const map = {
+    insufficient_privileges: 'You need manager access to do that.',
+    no_staff_profile:        'This login is not linked to a staff profile.',
+    account_not_active:      'This account is not active. Ask a manager to validate it.',
+    void_reason_required:    'Give a reason of at least 3 characters.',
+    order_not_found:         'That order no longer exists.',
+    item_not_found:          'That item no longer exists.',
+    item_order_mismatch:     'That item does not belong to this order.',
+    already_voided:          'That item is already voided.',
+    request_already_pending: 'A void request for this is already waiting for a manager.',
+    request_not_found:       'That request no longer exists.',
+    request_not_pending:     'That request has already been handled.',
+    wrong_branch:            'That order belongs to a different branch.',
+    order_terminal:          'This order is already closed or cancelled.'
+  };
+  const key = String((e && (e.message || e.code)) || '');
+  const hit = Object.keys(map).find(k => key.indexOf(k) !== -1);
+  return hit ? map[hit] : ('Something went wrong: ' + (key || 'unknown error'));
+};
+
+// status: 'pending' | 'approved' | 'denied' | 'cancelled' | null (all)
+TPN.listVoidRequests = async function ({ status = null, limit = 100, mineOnly = false } = {}) {
+  let q = sb.from('v_void_requests').select('*').order('requested_at', { ascending: false }).limit(limit);
+  if (status) q = q.eq('status', status);
+  if (mineOnly && TPN._user) q = q.eq('requested_by', TPN._user.id);
+  const { data, error } = await q;
+  if (error) throw error;
+  return data || [];
+};
+
+TPN.pendingVoidRequestCount = async function () {
+  const { data, error } = await sb.rpc('pending_void_request_count');
+  if (error) { console.warn('pendingVoidRequestCount:', error.message); return 0; }
+  return Number(data) || 0;
+};
+
+TPN.approveVoidRequest = async function (requestId, note = null) {
+  const { data, error } = await sb.rpc('approve_void_request', {
+    p_request_id: requestId, p_note: note
+  });
+  if (error) throw error;
+  return data;
+};
+
+TPN.denyVoidRequest = async function (requestId, note = null) {
+  const { data, error } = await sb.rpc('deny_void_request', {
+    p_request_id: requestId, p_note: note
+  });
+  if (error) throw error;
+  return data;
+};
+
+TPN.cancelVoidRequest = async function (requestId) {
+  const { data, error } = await sb.rpc('cancel_void_request', { p_request_id: requestId });
+  if (error) throw error;
+  return data;
+};
+
+// Realtime: fires on insert/update so a manager's badge updates without
+// a refresh, and the requesting screen learns the verdict immediately.
+TPN.subscribeVoidRequests = function (callback) {
+  const ch = sb.channel('void-requests-' + Math.random().toString(36).slice(2))
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'void_requests' }, callback)
+    .subscribe();
+  return () => sb.removeChannel(ch);
 };
 
 // ═════════════════════════════════════════════════════════════

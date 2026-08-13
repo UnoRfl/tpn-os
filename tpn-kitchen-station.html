@@ -200,6 +200,25 @@
   #tpn-auth-gate .g-btn { margin-top: 12px; background: var(--brick); color: #fff; border: none; padding: 10px 22px; border-radius: 10px; font-weight: 700; cursor: pointer; }
   body.tpn-authed #tpn-auth-gate { display: none; }
   body:not(.tpn-authed) > *:not(#tpn-auth-gate):not(script) { visibility: hidden; }
+
+  /* ── Void request affordance on each ticket line ──
+     Deliberately small and quiet: on a wall screen this is a rare,
+     deliberate action, not something to fat-finger mid-service. */
+  .ticket-item { display: flex; align-items: center; gap: 6px; }
+  .item-void-btn {
+    margin-left: auto; flex-shrink: 0;
+    background: transparent; color: rgba(255,255,255,0.30);
+    border: 1px solid rgba(255,255,255,0.16);
+    width: 26px; height: 26px; line-height: 1; border-radius: 7px;
+    font-size: 13px; cursor: pointer; transition: all 0.15s;
+  }
+  .item-void-btn:hover { background: var(--brick); color: #fff; border-color: var(--brick-light); }
+  .item-void-wait { margin-left: auto; flex-shrink: 0; font-size: 14px; opacity: 0.85; }
+
+  /* A wall screen has nowhere to go "back" to — it is the only surface
+     that account can see. Hide the escape hatch so nobody strands it on
+     a login page mid-service. */
+  body.tpn-display-mode .topbar-btn.back-to-portal { display: none; }
 </style>
 <div id="tpn-auth-gate">
   <div class="g-title">Tyo Paeng Nyo · Kitchen Station</div>
@@ -219,7 +238,7 @@
   <div class="topbar-right">
     <div class="topbar-badge role" id="role-badge">Kitchen</div>
     <button class="topbar-btn secondary" onclick="window.location.reload()">↺ Refresh</button>
-    <button class="topbar-btn secondary" onclick="window.location.href='index.html'">← Back</button>
+    <button class="topbar-btn secondary back-to-portal" onclick="window.location.href='index.html'">← Back</button>
   </div>
 </header>
 
@@ -267,6 +286,12 @@
 let kitchenOrders = [];   // Live in-memory model, populated from Supabase
 let _lastKnownCount = 0;
 let _audioCtx = null;
+// True when signed in as the shared 'kitchen_display' screen account
+// rather than as a person. Set by tpnAuthGate().
+let IS_DISPLAY_ACCOUNT = false;
+// order_item ids with a void request already awaiting a manager, so we
+// don't offer to file a duplicate.
+let _pendingVoidItemIds = new Set();
 
 // ─── AUTH GATE ────────────────────────────────────────────────────
 async function tpnAuthGate() {
@@ -290,15 +315,31 @@ async function tpnAuthGate() {
       btn.style.display = 'inline-block';
       return false;
     }
-    // Kitchen tier and higher can view. Dining tier can't (they use the floor).
-    if (!TPN.hasRole('kitchen')) {
+    // Two ways in:
+    //   1. kitchen_display — the dedicated screen account for this station
+    //   2. kitchen tier and higher — real staff checking the board
+    // Dining tier can't (they use the floor). kitchen_display sits BELOW
+    // dining in the enum, so hasRole() correctly refuses it everywhere
+    // else — this is the one surface it is explicitly allowed on.
+    IS_DISPLAY_ACCOUNT = (profile.role === 'kitchen_display');
+    if (!IS_DISPLAY_ACCOUNT && !TPN.hasRole('kitchen')) {
       msg.textContent = 'The kitchen station is for kitchen staff and above. Your role: ' + (profile.role || 'unknown') + '.';
       btn.style.display = 'inline-block';
       return false;
     }
+    // A dine-in screen must never end up here — it has its own surface.
+    if (profile.role === 'dine_in_display') {
+      window.location.replace('tpn-dine-in-floor');
+      return false;
+    }
     document.body.classList.add('tpn-authed');
+    if (IS_DISPLAY_ACCOUNT) document.body.classList.add('tpn-display-mode');
     const badge = document.getElementById('role-badge');
-    if (badge) badge.textContent = (profile.role || 'staff').replace(/\b\w/g, c => c.toUpperCase());
+    if (badge) {
+      badge.textContent = IS_DISPLAY_ACCOUNT
+        ? 'Kitchen Display'
+        : (profile.role || 'staff').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+    }
     return true;
   } catch (e) {
     console.error('Auth gate:', e);
@@ -314,8 +355,27 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (!ok) return;
 
   await loadOrdersFromSupabase();
+  await refreshPendingVoids();
   subscribeToRealtime();
   render();
+
+  // Watch our own void requests so the ⏳ clears and the cook is told
+  // the verdict without anyone touching the screen.
+  TPN.subscribeVoidRequests(async (payload) => {
+    const row = payload?.new;
+    if (!row) return;
+    const mine = TPN.currentUser() && row.requested_by === TPN.currentUser().id;
+    if (!mine) return;
+    await refreshPendingVoids();
+    if (payload.eventType === 'UPDATE' && row.status !== 'pending') {
+      const what = row.item_name || 'the order';
+      if (row.status === 'approved') showToast('✅ Void approved — ' + what);
+      if (row.status === 'denied')   showToast('❌ Void denied — ' + what +
+        (row.review_note ? ' (' + row.review_note + ')' : ''));
+      await loadOrdersFromSupabase();
+    }
+    render();
+  });
 
   // Clock tick — big screens like the timestamp visible
   setInterval(updateClock, 1000); updateClock();
@@ -352,7 +412,9 @@ function dbOrderToKitchenOrder(o) {
     specialReq: o.notes || '',
     items: (o.order_items || [])
       .filter(i => !i.voided_at)
-      .map(i => ({ qty: i.quantity, name: i.name_snapshot, pax: i.pax_size, notes: i.notes }))
+      // id is carried so the station can file a void REQUEST against a
+      // specific line. The station itself can never void — see requestVoid().
+      .map(i => ({ id: i.id, qty: i.quantity, name: i.name_snapshot, pax: i.pax_size, notes: i.notes }))
   };
 }
 function mapDbStatusToLane(s) {
@@ -471,12 +533,25 @@ function renderTicket(o, laneKind) {
   const badgeLabel = { received: 'NEW', preparing: 'COOKING', ready: 'READY' }[laneKind];
 
   const items = (o.items || []).length
-    ? o.items.map(it => `
+    ? o.items.map(it => {
+        const waiting = it.id && _pendingVoidItemIds.has(it.id);
+        // No void button — this station cannot void. It can only ASK.
+        const ask = it.id
+          ? (waiting
+              ? `<span class="item-void-wait" title="A manager has been notified">⏳</span>`
+              // Only ids in the attribute — dish names carry apostrophes
+              // and quotes; requestVoid() looks the name up from state.
+              : `<button class="item-void-btn" title="Ask a manager to void this line"
+                   onclick="requestVoid('${E(o.dbId)}','${E(it.id)}')">✕</button>`)
+          : '';
+        return `
         <div class="ticket-item">
           <span class="item-qty">${E(it.qty)}×</span>
           <span class="item-name">${E(it.name)}${it.pax ? ` <span class="item-pax">(${E(it.pax)})</span>` : ''}</span>
+          ${ask}
         </div>
-        ${it.notes ? `<div class="item-note">📝 ${E(it.notes)}</div>` : ''}`).join('')
+        ${it.notes ? `<div class="item-note">📝 ${E(it.notes)}</div>` : ''}`;
+      }).join('')
     : '<div class="ticket-item"><span class="item-name" style="color:var(--text-muted);font-style:italic;">No items</span></div>';
 
   const header = o.table ? `TABLE ${E(o.table)}` : (o.type || 'ORDER').toString().toUpperCase().replace('_',' ');
@@ -507,6 +582,46 @@ function renderTicket(o, laneKind) {
     ${o.specialReq ? `<div class="ticket-special">⚠️ ${E(o.specialReq)}</div>` : ''}
     ${action}
   </div>`;
+}
+
+// ─── VOID REQUESTS ────────────────────────────────────────────────
+// This station has no void power at all — not for the display account,
+// not for a kitchen staffer signed in on it. The server refuses either
+// way (void_order_item is manager+ only). What it CAN do is file a
+// request that pops up for every manager on duty.
+function _voidItemLabel(orderDbId, itemId) {
+  const o = kitchenOrders.find(x => x.dbId === orderDbId);
+  const it = o && (o.items || []).find(x => x.id === itemId);
+  return it ? `${it.qty}× ${it.name}${it.pax ? ' (' + it.pax + ')' : ''}` : 'this item';
+}
+
+async function requestVoid(orderDbId, itemId) {
+  const itemName = _voidItemLabel(orderDbId, itemId);
+  const reason = window.prompt(
+    'Ask a manager to void this line?\n\n' + itemName +
+    '\n\nReason (min 3 characters) — the manager sees this:', '');
+  if (reason === null) return;
+  if (!reason || reason.trim().length < 3) {
+    showToast('⚠️ Give a reason of at least 3 characters.');
+    return;
+  }
+  try {
+    await TPN.requestVoid({ orderId: orderDbId, itemId, reason: reason.trim() });
+    _pendingVoidItemIds.add(itemId);
+    render();
+    showToast('📨 Sent — waiting for a manager to approve.');
+  } catch (e) {
+    showToast('⚠️ ' + TPN.voidRequestErrorText(e));
+  }
+}
+
+// Which of my requests are still waiting. Runs on load and on realtime
+// updates so the ⏳ marker clears once a manager decides.
+async function refreshPendingVoids() {
+  try {
+    const reqs = await TPN.listVoidRequests({ status: 'pending', limit: 200, mineOnly: true });
+    _pendingVoidItemIds = new Set(reqs.map(r => r.order_item_id).filter(Boolean));
+  } catch (e) { /* non-fatal */ }
 }
 
 // ─── ACTIONS ──────────────────────────────────────────────────────
