@@ -145,6 +145,12 @@ grant select
 -- Reuse call_staff_at / bill_requested_at as the cooldown anchor: a
 -- second call within 90 seconds is silently swallowed (returns a
 -- boolean so the frontend can toast a friendly message).
+-- sql/04 declared these two as `returns void`; here they return boolean so
+-- the caller can detect the 90-second cooldown. Postgres will not change a
+-- return type in place, so drop first. Without these two lines this file
+--   ERROR: cannot change return type of existing function
+-- on any project that already ran sql/04.
+drop function if exists public.signal_call_staff(uuid);
 create or replace function public.signal_call_staff(p_table_id uuid)
 returns boolean
 language plpgsql security definer set search_path = ''
@@ -166,6 +172,8 @@ begin
   return true;
 end $$;
 
+drop function if exists public.signal_bill_request(uuid, text, numeric);
+drop function if exists public.signal_bill_request(uuid);
 create or replace function public.signal_bill_request(
   p_table_id uuid,
   p_payment_method text,
@@ -340,7 +348,13 @@ create table if not exists public.audit_log_archive (
 create index if not exists idx_audit_arch_created on public.audit_log_archive(created_at desc);
 create index if not exists idx_audit_arch_actor   on public.audit_log_archive(actor_id);
 create index if not exists idx_audit_arch_action  on public.audit_log_archive(action);
-create index if not exists idx_audit_arch_month   on public.audit_log_archive(date_trunc('month', created_at));
+-- date_trunc('month', timestamptz) is STABLE (it depends on TimeZone), so
+-- it cannot go in an index expression. Pinning the zone makes it
+-- IMMUTABLE. The original line raised
+--   ERROR: functions in index expression must be marked IMMUTABLE
+-- which is one of two reasons this file would not replay on a fresh
+-- project.
+create index if not exists idx_audit_arch_month   on public.audit_log_archive((date_trunc('month', created_at at time zone 'UTC')));
 
 alter table public.audit_log_archive enable row level security;
 
@@ -386,7 +400,7 @@ begin
   --    we bucket under 'null' branch.
   insert into public.audit_daily_summary (day, branch_id, action, actor_role, count, updated_at)
   select
-    (created_at at time zone 'Asia/Manila')::date as day,
+    (a.created_at at time zone 'Asia/Manila')::date as day,
     s.branch_id,
     a.action,
     a.actor_role,

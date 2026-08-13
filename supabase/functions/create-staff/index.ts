@@ -86,8 +86,8 @@ Deno.serve(async (req) => {
     if (!email || !password || !name || !role) {
       return json({ error: 'Missing required fields: email, password, name, role' }, 400)
     }
-    if (typeof password !== 'string' || password.length < 6) {
-      return json({ error: 'Password must be at least 6 characters' }, 400)
+    if (typeof password !== 'string' || password.length < 8) {
+      return json({ error: 'Password must be at least 8 characters' }, 400)
     }
     if (!ROLE_HIERARCHY.includes(role)) {
       return json({ error: `Invalid role: ${role}` }, 400)

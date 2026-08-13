@@ -22,6 +22,8 @@ In Supabase SQL Editor:
 7. `sql/07-single-branch.sql` … `sql/14-restaurant-performance.sql` — in order
 8. `sql/15a-display-roles.sql` — **run this one ON ITS OWN, alone.** It adds the two display-device roles to the `staff_role` enum, and Postgres refuses to add an enum value and use it in the same transaction. The SQL Editor runs your whole paste as one transaction, so pasting 15a and 15b together makes 15b fail.
 9. `sql/15b-void-requests.sql` — void request workflow + the guard rails that keep display accounts from voiding
+10. `sql/16-discounts.sql` — the discount subsystem (templates, applied discounts, apply/remove), versioned from production and given audit rows
+11. `sql/17-hardening.sql` — locks order totals to the recompute path, revokes TRUNCATE, audits the order lifecycle, clears the Supabase advisor warnings
 
 ### 2. Disable public signups
 Supabase Dashboard → **Authentication → Providers → Email** → find **"Enable signups"** (or "Enable email signups") → **toggle OFF**.
@@ -128,6 +130,9 @@ GitHub Pages auto-redeploys in ~30 seconds.
 | Void an item / order | **Manager+ only** | Supabase (SECURITY DEFINER fn) |
 | Request a void | Any active staff account, incl. display screens | Supabase (SECURITY DEFINER fn) |
 | Approve / deny a void request | **Manager+ only** (supervisor excluded) | Supabase (SECURITY DEFINER fn) |
+| Apply a discount | Supervisor+, own branch, audited | Supabase (SECURITY DEFINER fn) |
+| Remove an applied discount | Manager+, own branch, audited | Supabase (SECURITY DEFINER fn) |
+| Change an order total directly | **Nobody** — derived from items and discounts | Supabase (trigger) |
 
 ## Roles
 

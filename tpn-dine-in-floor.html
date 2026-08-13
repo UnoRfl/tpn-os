@@ -612,7 +612,11 @@ function subscribeToRealtime() {
       // Update existing order status
       const updated = payload.new;
       const existing = dineInOrders.find(o => o.dbId === updated.id);
-      if (existing) existing.status = updated.status;
+      // Mapped, for the same reason as integrateOrder().
+      if (existing) {
+        existing.status = mapDbStatusToUi(updated.status);
+        if (updated.total != null) existing.total = updated.total;
+      }
       updateBadges();
       if (currentTab === 'floor' || currentTab === 'orders') renderTab();
     }
@@ -643,6 +647,21 @@ function subscribeToRealtime() {
 }
 
 // Integrate a DB-shaped order into the local in-memory model
+// DB order_status → the four UI lane names this page works in.
+// Mirrors mapDbStatusToLane() in tpn-kitchen-station.html and
+// mapDbStatusToUi() in index.html — keep all three in step.
+function mapDbStatusToUi(s) {
+  return ({
+    pending:   'received',
+    confirmed: 'received',
+    preparing: 'preparing',
+    ready:     'ready',
+    served:    'done',
+    completed: 'done',
+    cancelled: 'done'
+  })[s] || 'received';
+}
+
 function integrateOrder(dbOrder, branch) {
   if (dineInOrders.find(o => o.dbId === dbOrder.id)) return;
   const uiOrder = {
@@ -662,7 +681,13 @@ function integrateOrder(dbOrder, branch) {
                 })),
     total:     dbOrder.total,
     timestamp: dbOrder.placed_at,
-    status:    dbOrder.status,
+    // MUST be mapped, not raw. Everything downstream on this page — the
+    // advance pipeline, the status pill, the filter chips, the table
+    // roll-up — compares against UI lane names. Storing the raw DB
+    // status ('pending' / 'confirmed') made indexOf() return -1, so a
+    // freshly loaded order showed no advance button at all and could
+    // never leave 'confirmed' from this surface.
+    status:    mapDbStatusToUi(dbOrder.status),
     type:      dbOrder.order_type
   };
   dineInOrders.push(uiOrder);
@@ -1125,8 +1150,69 @@ async function closeTable(tableNum, branchId) {
     ${discountBtn}
   `, [
     { label: 'Cancel', cls: 'secondary', fn: 'closeModal()' },
-    { label: '✓ Confirm & Close Table', cls: 'primary', fn: `clearTable(${tableNum}, '${branchId}'); closeModal();` }
+    { label: '✓ Confirm & Close Table', cls: 'primary', fn: `confirmCloseTable(${tableNum}, '${branchId}')` }
   ]);
+}
+
+/* ────────────────────────────────────────────────────────────────
+   Actually close the table.
+
+   This used to be `clearTable(); closeModal();` — purely local. No
+   order was written to 'completed' and neither signal was
+   acknowledged, so a refresh brought the table straight back,
+   occupied and still flagged for billing. The cash was taken and the
+   system never knew.
+
+   Now: every live order at the table is advanced to completed, both
+   table signals are cleared server-side, and only then is the local
+   state reset.
+   ──────────────────────────────────────────────────────────────── */
+async function confirmCloseTable(tableNum, branchId) {
+  const key = branchId + '_' + tableNum;
+  const tbl = tableStates[key];
+  if (!tbl) { closeModal(); return; }
+
+  const live = (tbl.orders || []).filter(o => o.dbId && o.status !== 'done');
+  let ok = 0, failed = 0, lastErr = '';
+
+  for (const o of live) {
+    try {
+      await TPN.updateOrderStatus(o.dbId, 'completed');
+      o.status = 'done';
+      ok++;
+    } catch (e) {
+      failed++;
+      lastErr = e.message || String(e);
+      console.error('close table — could not complete order', o.dbId, e);
+    }
+  }
+
+  // Clear the call-staff / bill-request flags on the table row itself,
+  // otherwise loadOrdersFromSupabase() re-raises them on next load.
+  try {
+    const branchUuid = branchUuidCache[branchId];
+    const tables = branchUuid ? await TPN.getTablesForBranch(branchUuid) : [];
+    const row = tables.find(t => Number(t.table_number) === Number(tableNum));
+    if (row) {
+      if (row.bill_requested_at) await TPN.ackBillRequest(row.id);
+      if (row.call_staff_at)     await TPN.ackCallStaff(row.id);
+    }
+  } catch (e) {
+    console.warn('close table — could not clear table signals:', e);
+  }
+
+  closeModal();
+
+  if (failed) {
+    // Leave the table on screen so nobody assumes it is settled.
+    showToast(`⚠️ Closed ${ok}/${live.length} order(s). ${lastErr}`);
+    updateBadges();
+    renderTab();
+    return;
+  }
+
+  clearTable(tableNum, branchId);
+  if (live.length) showToast(`✅ Table ${tableNum} closed · ${live.length} order(s) completed.`);
 }
 
 // ─── FLOOR-SIDE DISCOUNT PICKER ─────────────────────────────────

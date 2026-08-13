@@ -1,142 +1,183 @@
-# What's new in this build
+# What's new in this build — hardening release
 
-Two things this round, and they're the same thing seen from two sides:
-**display device accounts** for the wall screens, and a **void request
-workflow** so those screens (and every staff member below manager) can ask
-for a void instead of doing one.
+No new features. This release closes security holes, fixes defects, and
+brings the discount subsystem into the repository for the first time.
 
----
-
-## Display device accounts
-
-Two new roles: **`kitchen_display`** and **`dine_in_display`**.
-
-These are accounts for *screens*, not people. One shared login for the
-tablet/TV in the kitchen, one for the tablet/TV on the dining floor. Real
-staff keep their own personal accounts for schedules, time-in, messages
-and announcements — those are untouched.
-
-**What a display account does when it signs in:** nothing but its own
-surface. `kitchen_display` lands on the Kitchen Station. `dine_in_display`
-lands on the Dine-In Floor panel. Neither can open the staff portal at all
-— if one somehow lands on `index.html`, it gets bounced straight back.
-
-**What a display account cannot do:**
-
-- Void anything (the point of the exercise)
-- Cancel an order
-- Open a new order or add a line to one
-- Change totals, discounts, service charge, or payment fields
-- 86 a menu item, add a table, or open branch settings
-- See schedules, attendance, messages, staff records, inquiries, revenue
-  or the audit log
-- Read branch-wide broadcast messages or notifications about other people
-
-The dine-in screen shows **Covers Tonight** where a manager sees **Session
-Revenue** — a screen in a public dining room shouldn't display takings.
-
-**Where the lock actually lives.** The two roles are inserted at the
-*bottom* of the `staff_role` enum, below `dining`. `private.has_role()`
-compares enum positions, so every `has_role()` check in the database fails
-for them automatically. On top of that, migration 15b closes the policies
-that gated on *branch alone* rather than role — that's what would otherwise
-have let a screen run a plain `UPDATE order_items SET voided_at = now()`
-and quietly drop an order total to zero.
-
-**Creating one:** Accounts → + Add Staff → Role → *Display devices*.
-Admin, Director or CEO only — a screen is infrastructure, set up once, and
-it goes live immediately rather than sitting in the pending queue.
+Everything here was verified on a local PostgreSQL 16 cluster rebuilt
+from these migrations, with each permission exercised as each of the
+nine roles. Three defects were found in the first draft of this work and
+fixed before delivery — see "How this was tested" at the end.
 
 ---
 
-## Void requests
+## The headline: two real holes
 
-Before this, `void_order_item()` was manager+ only and there was no other
-path. Anyone below manager had to physically find a manager with a device.
+**1. Anyone in your branch could rewrite an order total.**
+`update orders set total = 1` persisted, for every role from dining
+upward. The update policy checks only the branch, and the guard trigger
+covered status and discounts but not `total` or `subtotal`. This is the
+same "pay ₱1 for a ₱1500 order" attack migration 11 was written to
+close — just reachable by writing the total instead of adding a cheap
+line.
 
-Now everyone below manager — dining, kitchen, supervisor, and both display
-screens — files a **request** instead:
+Fixed by locking both columns to the recompute path. A role check would
+have broken ordinary service, because those columns are legitimately
+written as a side effect of a **dining** staffer adding an item. So the
+recompute function now announces itself with a transaction-local flag
+and the guard trusts only that.
 
-1. Staff or screen taps **✕ / Request void**, types a reason (min 3 chars).
-2. Every manager+ in that branch gets a high-priority notification, and the
-   sidebar badge lights up under **Void Requests**.
-3. A manager approves or denies, with an optional note.
-4. Approval is what actually performs the void, recorded under the
-   **manager's** name in the audit log. The requester is notified either
-   way, in realtime, on whatever surface they're looking at.
+**2. `audit_log_archive_old()` had no role check.**
+Its two siblings both check manager+. This one did not, and it was
+granted to every signed-in account. Now guarded, with a minimum
+retention window so nobody can pass -1 and archive today's rows.
 
-Two scopes: a **single item**, or the **whole order** (walkout, duplicate
-ticket) — approving a whole-order request voids every remaining line and
-marks the order cancelled.
-
-Supervisors can file requests but cannot approve them. This deliberately
-matches the existing rule in `void_order_item()`.
-
-**Managers still void directly** from Live Orders, unchanged. Whole-order
-voids by a manager run through the same request→approve pipeline so there's
-one audit shape for them.
-
-**Where to find it:**
-
-- Manager+ → sidebar **Void Requests** (with pending count badge)
-- Supervisor → same tab, showing only their own requests
-- Dining/kitchen staff → **My Void Requests** in the staff sidebar
-- Kitchen Station → small **✕** on each ticket line
-- Dine-In Floor → **✕** in the order detail modal
+While fixing it we found it had **never worked at all** — an ambiguous
+`created_at` between two joined tables meant it always threw. So the
+"Archive now" button in History has been broken since it shipped. It
+works now.
 
 ---
 
-## Setup checklist (in order)
+## Also fixed
 
-1. **Run the SQL migrations — 15a ON ITS OWN, FIRST.**
+| # | What |
+|---|---|
+| 3 | The floor panel stored raw database statuses but compared against UI lane names, so a freshly loaded order showed **no advance button at all** and could never leave `confirmed` from that surface. |
+| 4 | **Close Table wrote nothing to the database.** No order was completed, no table signal cleared. A refresh brought the table back, occupied and still flagged for billing. It now completes the orders and clears the signals. |
+| 5 | The dining-floor screen could display "Table 4 is calling staff" but not dismiss it — `ack_call_staff` required `dining` and the screen role sits below that. Both ack functions now accept the floor screen, and gained a branch check they never had. |
+| 6 | **Every customer QR order was saved with a null menu item link and a null pax size.** The submit mapper read fields that do not exist on a cart line. Per-dish sales reporting has been silently empty; item-level special requests never reached the kitchen. |
+| 7 | `cancel_void_request` was the only void mutator that logged nothing. Now audited, and it notifies the requester if a manager withdrew their request. |
+| 8 | `unvoid_order_item` could restore an item onto a **closed** order and change its total after the fact. Now refuses terminal orders, like its counterpart. |
+| 9 | A failed order rollback silently deleted nothing (no DELETE policy), leaving orphan ₱0 orders. Now works, via a policy narrow enough to only ever reach an order with no lines. |
+| 10 | TRUNCATE was granted to `anon` and `authenticated` on 14 tables including `staff`. TRUNCATE bypasses RLS entirely. Revoked, and the default that re-grants it is switched off. |
 
-   In Supabase SQL Editor, paste `sql/15a-display-roles.sql`, run it, wait
-   for Success. Nothing else in that window.
+---
 
-   Postgres won't let you add an enum value and use it in the same
-   transaction, and the SQL Editor runs your whole paste as one
-   transaction. If you run them together, 15b fails.
+## New: discounts are audited, and finally in the repo
 
-   Then, separately, run `sql/15b-void-requests.sql`.
+`sql/16-discounts.sql` reconstructs the discount subsystem, which had
+been applied straight to production and existed in **no file** in this
+repository. A rebuild from this repo would have produced a database with
+no discounts at all, and nobody could review what those functions
+enforced.
 
-2. **Redeploy the edge function** so it knows the new roles:
-   Supabase Dashboard → Edge Functions → `create-staff` → replace with
-   `supabase/functions/create-staff/index.ts` → Deploy.
+Two things were added while versioning it:
 
-3. **Create the two screen accounts** as Admin/Director/CEO:
-   Portal → Accounts → + Add Staff → Role → Display devices.
-   Use addresses like `kitchen-screen@tyopaengnyo.com`.
+- **Audit rows on apply and remove.** Discounts are the biggest cash
+  shrinkage vector in a restaurant after voids, and the live functions
+  wrote nothing. Template edits were logged; discounting a live check
+  was not.
+- **A branch guard.** A supervisor in one branch could discount another
+  branch's check.
 
-4. **Sign each screen in once** on its device and leave it signed in.
+We also found **two generations of the discount system running at once**
+— an older `discount_presets` pair that wrote `orders.total` directly,
+behind the recompute chain's back. It was already broken (it wrote to an
+`audit_log.details` column that does not exist, so it threw on every
+call). Removed.
 
-5. **Push to GitHub:**
-   ```
-   git add .
-   git commit -m "display device accounts + void request workflow"
-   git push
-   ```
+---
 
-### Verify it worked
+## Order lifecycle is now audited
 
-Signed in as a display account, this must fail:
+Nothing recorded order completion, cancellation or payment. There was no
+way to answer "who closed this check, and for how much?".
+
+Deliberately narrow — only the financially significant transitions.
+Moving a ticket through the kitchen lanes writes nothing. Measured: one
+audit row per order created, three per discount applied.
+
+---
+
+## Security housekeeping
+
+- Password minimum raised from 6 to 8 characters, everywhere.
+- **30-minute idle timeout** on back-office sessions, with a 2-minute
+  warning. The wall screens are exempt on purpose — a screen that logs
+  itself out mid-service is worse than one nobody is watching.
+- Logout now tears down the void-request subscription and badge, which
+  previously survived a re-login as a different user.
+- All 18 trigger functions are no longer exposed as REST endpoints. Done
+  by shape rather than a hardcoded list, so future ones are covered too.
+- `search_path` pinned on the last unpinned function.
+
+### Two Supabase advisor warnings will remain, correctly
+
+`signal_call_staff` and `signal_bill_request` stay callable without
+signing in. That is how a customer at a table taps "Call staff" and
+"Bill". Both take only a table id and are rate-limited to one per 90
+seconds. **Do not "fix" these** or the customer buttons stop working.
+
+---
+
+## Setup
+
+1. **Run `sql/16-discounts.sql`** in the Supabase SQL Editor. Wait for
+   Success.
+2. **Run `sql/17-hardening.sql`.** Run it separately so a failure is easy
+   to read.
+3. **Redeploy the `create-staff` edge function** (password minimum).
+4. **In the Supabase dashboard → Authentication → Policies, turn on
+   "Leaked password protection".** This is the one warning in your list
+   that is a dashboard toggle, not code — it checks new passwords against
+   HaveIBeenPwned.
+5. Push the frontend (see below).
+
+### Verify
 
 ```sql
-update public.order_items set voided_at = now() where id = '<any id>';
--- ERROR: permission denied for table order_items
+-- must be 0
+select count(*) from information_schema.role_table_grants
+ where table_schema='public' and grantee in ('anon','authenticated')
+   and privilege_type='TRUNCATE';
+
+-- must WORK now (it never has)
+select * from public.audit_log_archive_old(31);
 ```
 
-And the enum order should read bottom-to-top:
+Signed in as a dining account, this must fail with `totals_are_derived`:
 
 ```sql
-select unnest(enum_range(null::public.staff_role));
--- kitchen_display, dine_in_display, dining, kitchen,
--- supervisor, manager, admin, director, ceo
+update public.orders set total = 1 where id = '<any order>';
 ```
+
+...while adding an order item must still work and still recompute.
 
 ---
 
-## Still not wired
+## Deliberately NOT in this release
 
-- Payment webhooks — waiting on the paid Supabase transfer and GCash
-  Business API
-- SMS 2FA
+These are architectural changes, not additions, and each needs its own
+testing cycle:
+
+**offline order queueing · structured modifiers · split bills · cash
+drawer and shift reconciliation · inventory · labor cost**
+
+Offline mode in particular is the single biggest remaining gap against
+how commercial restaurant POS systems work, and it is a change to the
+order pipeline rather than something that can be bolted on safely.
+
+Three more are account actions, not code: **nightly backups with a
+tested restore**, **error monitoring** (Sentry), and **a staging Supabase
+project** so migrations stop going straight into production by paste.
+
+---
+
+## How this was tested
+
+A PostgreSQL 16 cluster was built from scratch, Supabase's roles and
+default grants stubbed, and migrations 01→17 replayed. Every permission
+was then exercised as each of the nine roles.
+
+The first draft of migration 17 contained a **blocker**: a Postgres array
+append that resolved to the wrong operator and would have made the audit
+trigger throw on every order line, checkout, void, discount and payment
+— for every role. It was caught here, not in production. Two smaller
+regressions were caught the same way: a null-comparison that let an
+account with no staff row clear table signals, and the ambiguous column
+in the archive function.
+
+Migrations 01→17 now replay on a fresh database with **no workarounds**
+— two long-standing defects in `sql/11` that blocked any rebuild are
+fixed at source. Both 16 and 17 are idempotent across three consecutive
+runs.

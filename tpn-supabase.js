@@ -877,6 +877,21 @@ TPN.voidOrderItem = async function (itemId, reason) {
   if (error) throw error;
   return data;
 };
+// ═════════════════════════════════════════════════════════════
+// UnoSys: Table signal acknowledgement. Clears the call-staff and
+// bill-request flags on restaurant_tables. Dining+ and, since sql/17,
+// the dine_in_display screen — the surface mounted where customers
+// press "Call staff" needs to be able to dismiss what it displays.
+// ═════════════════════════════════════════════════════════════
+TPN.ackCallStaff = async function (tableId) {
+  const { error } = await sb.rpc('ack_call_staff', { p_table_id: tableId });
+  if (error) throw error;
+};
+TPN.ackBillRequest = async function (tableId) {
+  const { error } = await sb.rpc('ack_bill_request', { p_table_id: tableId });
+  if (error) throw error;
+};
+
 TPN.unvoidOrderItem = async function (itemId) {
   const { data, error } = await sb.rpc('unvoid_order_item', { p_item_id: itemId });
   if (error) throw error;

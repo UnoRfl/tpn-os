@@ -1,6 +1,6 @@
 # TPN OS — Session Handoff
 
-**Last updated:** Aug 13, 2026
+**Last updated:** Aug 13, 2026 (hardening release, migrations 16–17)
 **Deployed:** https://unorfl.github.io/tpn-os/
 **Repo:** https://github.com/UnoRfl/tpn-os
 **Supabase project ref:** `xjlqfpnzobfqxetgkkai` (single project, single branch)
@@ -142,6 +142,12 @@ These are ordered by user value. Only start these if the site is stable in produ
   - `display_cannot_close_orders` in `trg_guard_order_update()` is effectively unreachable via the app: the jsonb column comparison trips first because `TPN.updateOrderStatus` always sends the timestamp column alongside `status`. It's belt-and-braces for a hand-written UPDATE. Blocked either way; just don't expect that error name in logs.
   - `sql/11-security-hardening.sql` has two pre-existing bugs that block a **from-scratch** deploy (unrelated to this change): line ~343's index uses non-`IMMUTABLE` `date_trunc`, and `signal_call_staff` / `signal_bill_request` change return type without a `DROP FUNCTION` first. The live database is fine; only a fresh rebuild hits these.
 
+- **`orders.total` and `orders.subtotal` are locked.** They can only be written by `private.recompute_order_totals()`, which sets a transaction-local GUC (`tpn.recompute`) that `trg_guard_order_update` checks. A role check would break ordinary service — those columns are written as a side effect of a *dining* staffer adding an item. If you add another legitimate writer, it must set that flag the same way. Break-glass for a DBA: `alter table public.orders disable trigger trg_guard_order_update;`
+
+- **Audit rows for money belong inside the function that moves the money.** `apply_discount`, `remove_discount`, the void functions and `trg_audit_order_money` all write their own audit row server-side, so a caller who bypasses the UI cannot skip it. The 18 client-written `TPN.logAudit` actions are advisory only. Do not add a new financial action that relies on the browser to log it.
+
+- **Two Supabase advisor warnings are correct and must stay.** `signal_call_staff` and `signal_bill_request` are anon-callable by design — that is the customer "Call staff" / "Bill" buttons. Revoking them breaks the QR menu.
+
 - **Voiding has exactly two doors:** `public.void_order_item()` (manager+, direct) and `public.approve_void_request()` (manager+, via a request). Both SECURITY DEFINER, both write to `audit_log`. Don't add a third.
 
 - **Never assume Menu Manager categories match hardcoded lists** anywhere. All menu display code reads from `menu_items` + `menu_categories` tables.
@@ -171,7 +177,14 @@ sql/13-fix-audit-daily-counts.sql
 sql/14-restaurant-performance.sql
 sql/15a-display-roles.sql     ⚠️ RUN ALONE, FIRST — adds the two display roles to the enum
 sql/15b-void-requests.sql     void_requests table + RPCs + display guard rails
+sql/16-discounts.sql          discount subsystem, versioned from production + audited
+sql/17-hardening.sql          totals lock, TRUNCATE revoke, order audit, advisor cleanup
 ```
+
+As of migration 17, `sql/01` → `sql/17` replays on a **fresh** database
+with no workarounds. Two long-standing defects in `sql/11` that blocked
+any rebuild (a non-IMMUTABLE index expression, and two functions changing
+return type without a DROP) are fixed at source.
 
 Edge function to deploy once via Supabase CLI:
 ```

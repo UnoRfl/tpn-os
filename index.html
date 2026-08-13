@@ -2985,6 +2985,12 @@ function openStaffLogin() {
   document.body.style.overflow = 'hidden';
 }
 async function exitStaffPortal() {
+  if (typeof stopIdleTimeout === 'function') stopIdleTimeout();
+  // These two were left registered on logout, so a re-login as a
+  // different user on the same device kept the previous user's void
+  // subscription and badge count alive.
+  if (typeof _voidReqUnsub === 'function' && _voidReqUnsub) { try { _voidReqUnsub(); } catch(e){} _voidReqUnsub = null; }
+  window._tpnPendingVoids = 0;
   try { await TPN.logout(); } catch(e) {}
   document.querySelectorAll('.portal-page').forEach(p => p.classList.remove('active'));
   document.body.style.overflow = '';
@@ -3213,6 +3219,51 @@ function enterPortal() {
   startMessageSync().catch(e => console.error('message sync:', e));
   startNotificationSync().catch(e => console.error('notification sync:', e));
   startVoidRequestSync().catch(e => console.error('void request sync:', e));
+  startIdleTimeout();
+}
+
+/* ════════════════════════════════════════════════════
+   IDLE SESSION TIMEOUT
+
+   Back-office sessions previously never expired. A manager who signs in
+   on the shared office PC and walks away leaves the Accounts page, the
+   audit log and the void-approval queue open indefinitely.
+
+   The wall screens are exempt on purpose — they are meant to stay signed
+   in all shift, and a screen that logs itself out mid-service is worse
+   than one nobody is watching. They also cannot reach anything
+   sensitive, which is the point of the display roles.
+   ════════════════════════════════════════════════════ */
+const IDLE_LIMIT_MS = 30 * 60 * 1000;   // sign out after 30 minutes idle
+const IDLE_WARN_MS  = 2 * 60 * 1000;    // warn 2 minutes before
+let _idleTimer = null, _idleWarnTimer = null, _idleBound = false;
+
+function startIdleTimeout() {
+  if (!currentUser || isDisplayTier(currentUser.tier)) return;
+  if (!_idleBound) {
+    ['mousedown','keydown','touchstart','scroll','click'].forEach(evt =>
+      window.addEventListener(evt, resetIdleTimer, { passive: true }));
+    _idleBound = true;
+  }
+  resetIdleTimer();
+}
+
+function stopIdleTimeout() {
+  clearTimeout(_idleTimer); clearTimeout(_idleWarnTimer);
+  _idleTimer = _idleWarnTimer = null;
+}
+
+function resetIdleTimer() {
+  if (!currentUser) return;
+  clearTimeout(_idleTimer); clearTimeout(_idleWarnTimer);
+  _idleWarnTimer = setTimeout(() => {
+    toast('⏳ Signing you out in 2 minutes — tap anywhere to stay.');
+  }, Math.max(0, IDLE_LIMIT_MS - IDLE_WARN_MS));
+  _idleTimer = setTimeout(async () => {
+    stopIdleTimeout();
+    try { await exitStaffPortal(); } catch(e) { console.warn('idle logout:', e); }
+    toast('You were signed out after 30 minutes of inactivity.');
+  }, IDLE_LIMIT_MS);
 }
 
 /* ════════════════════════════════════════════════════
@@ -4568,7 +4619,7 @@ function showCreateStaffModal() {
       </div>
       <div class="form-row">
         <div><label class="form-label">Temporary Password</label>
-          <input type="text" class="form-input" id="newStaffPass" placeholder="min 6 chars" autocomplete="off"></div>
+          <input type="text" class="form-input" id="newStaffPass" placeholder="min 8 chars" autocomplete="off"></div>
         <div><label class="form-label">Phone (optional)</label>
           <input type="tel" class="form-input" id="newStaffPhone" placeholder="09171234567" autocomplete="off"></div>
       </div>
@@ -4644,7 +4695,7 @@ async function createStaff() {
 
   if (!name)  return showErr('Please enter the full name.');
   if (!email) return showErr('Please enter an email.');
-  if (!pass || pass.length < 6) return showErr('Password must be at least 6 characters.');
+  if (!pass || pass.length < 8) return showErr('Password must be at least 8 characters.');
 
   btn.disabled = true; btn.textContent = 'Creating…';
   hideErr();
@@ -7394,7 +7445,7 @@ function renderStaffSettings(main) {
 function openChangePasswordModal() {
   showModal(`
     <div class="modal-title">Change Password</div>
-    <div class="modal-sub">Enter a new password. Minimum 6 characters.</div>
+    <div class="modal-sub">Enter a new password. Minimum 8 characters.</div>
     <div class="modal-content" style="display:grid;gap:12px;">
       <div>
         <label class="form-label">New Password</label>
@@ -7418,7 +7469,7 @@ async function submitChangePassword() {
   const npw = document.getElementById('cpwNew').value;
   const cpw = document.getElementById('cpwConfirm').value;
   err.style.display = 'none';
-  if (npw.length < 6) { err.textContent = 'Password must be at least 6 characters.'; err.style.display = 'block'; return; }
+  if (npw.length < 8) { err.textContent = 'Password must be at least 8 characters.'; err.style.display = 'block'; return; }
   if (npw !== cpw)    { err.textContent = 'Passwords don\'t match.'; err.style.display = 'block'; return; }
   btn.disabled = true; btn.textContent = 'Updating…';
   try {

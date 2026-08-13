@@ -787,12 +787,21 @@ async function submitOrder(){
       orderType: 'dine_in',
       customerName: name,
       notes: specialReq || null,
+      // addToCart() stores the menu item id as `dishId` and the pax
+      // choice as `variant`. This mapper used to read `menuItemId` and
+      // `paxSize`, neither of which exists on a cart line — so every
+      // customer order was saved with a null menu_item_id and a null
+      // pax_size. That broke the menu-item link (no per-dish sales
+      // reporting, nothing for Performance's top-dishes table to join
+      // to) and dropped the pax size off the kitchen ticket. The
+      // per-line special request was never mapped either.
       items: cart.map(c => ({
-        menu_item_id: c.menuItemId || null,
+        menu_item_id: c.dishId || null,
         name: c.name,
         unit_price: c.price,
         quantity: c.qty,
-        pax_size: c.paxSize || null
+        pax_size: c.variant || null,
+        notes: (c.specialReq && c.specialReq.trim()) ? c.specialReq.trim() : null
       }))
     });
     // Local session tracking (survives customer refresh on this device)
