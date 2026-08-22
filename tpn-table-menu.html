@@ -343,6 +343,16 @@
   <div class="cats-scroll" id="cats-scroll"></div>
 </div>
 
+<!-- Returning guest strip. Hidden unless my_guest_profile() says this
+     browser has ordered here before. Deliberately warm and small: a regular
+     should feel recognised, not surveilled. -->
+<div id="welcome-back" style="display:none;margin:0 16px 4px;padding:12px 14px;
+     border:1px solid var(--gold,#C8952B);border-radius:12px;
+     background:linear-gradient(135deg,rgba(200,149,43,.13),rgba(200,149,43,.05));">
+  <div style="font-size:14px;font-weight:700;color:var(--text)" id="wb-title"></div>
+  <div style="font-size:12px;color:var(--text-muted);margin-top:3px;" id="wb-sub"></div>
+  <div id="wb-usuals" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;"></div>
+</div>
 <div class="menu-body" id="menu-body"></div>
 
 <button class="cart-fab" id="cart-fab" onclick="openCart()" aria-label="View cart">
@@ -637,6 +647,7 @@ async function loadMenuFromDB(attempt = 1) {
     if (document.getElementById('cats-scroll'))     renderCategoryChips();
     if (document.getElementById('featured-scroll')) renderFeatured();
     if (document.getElementById('menu-body'))       renderMenu();
+    loadReturningGuest();
   } catch (e) {
     console.error('loadMenuFromDB attempt', attempt, e);
     if (attempt < 4) {
@@ -650,6 +661,60 @@ async function loadMenuFromDB(attempt = 1) {
 }
 
 function retryMenuLoad() { loadMenuFromDB(1); }
+
+/* ── Returning guest ──────────────────────────────────────────
+   my_guest_profile() returns null on a first visit, so the strip simply
+   stays hidden. It deliberately carries no phone number, spend or flag —
+   that side of the profile is staff-only (sql/27). */
+async function loadReturningGuest() {
+  try {
+    if (!window.TPN || typeof TPN.getMyGuestProfile !== 'function') return;
+    const g = await TPN.getMyGuestProfile();
+    if (!g || !g.is_returning) return;
+
+    const box = document.getElementById('welcome-back');
+    if (!box) return;
+    const name = g.name ? String(g.name).split(' ')[0] : null;
+    document.getElementById('wb-title').textContent = lang === 'tl'
+      ? (name ? `Maligayang pagbabalik, ${name}!` : 'Maligayang pagbabalik!')
+      : (name ? `Welcome back, ${name}!` : 'Welcome back!');
+    document.getElementById('wb-sub').textContent = lang === 'tl'
+      ? `Ito na ang ika-${g.order_count} order mo sa amin. Salamat!`
+      : `This is your ${_ordinal(g.order_count)} order with us. Thank you!`;
+
+    const usuals = (g.usuals || []).slice(0, 3);
+    document.getElementById('wb-usuals').innerHTML = usuals.length
+      ? `<span style="font-size:11px;color:var(--text-muted);align-self:center;">${lang === 'tl' ? 'Usual mo:' : 'Your usual:'}</span>` +
+        usuals.map(u => {
+          const dish = _findDishByName(u.name);
+          return `<button class="cat-chip" style="font-size:12px;"
+                    ${dish ? `onclick="openDishModal('${E(dish.id)}')"` : 'disabled'}>${E(u.name)}</button>`;
+        }).join('')
+      : '';
+
+    // Save the regular from retyping their name at checkout.
+    if (name && !guestName) {
+      guestName = g.name;
+      const f = document.getElementById('guest-name');
+      if (f && !f.value) f.value = g.name;
+    }
+    box.style.display = 'block';
+  } catch (e) { /* never block the menu on a nicety */ }
+}
+
+function _ordinal(n) {
+  n = Number(n) || 0;
+  const s = ['th', 'st', 'nd', 'rd'], v = n % 100;
+  return n + (s[(v - 20) % 10] || s[v] || s[0]);
+}
+
+function _findDishByName(name) {
+  for (const cat of menuData) {
+    const hit = cat.items.find(i => i.name === name && i.available);
+    if (hit) return hit;
+  }
+  return null;
+}
 
 document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('header-table-label').textContent = `Table ${TABLE_NUM} · ${BRANCH}`;

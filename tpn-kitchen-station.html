@@ -640,7 +640,9 @@ async function advance(dbId, nextLane, btnEl) {
   render();
 
   try {
-    await TPN.updateOrderStatus(dbId, dbStatus);
+    // Through the RPC so the audit log says the tap came from the wall
+    // screen, not just "somebody moved this". sql/26.
+    await TPN.advanceOrderStatus(dbId, dbStatus, 'kitchen_screen');
     showToast(`✅ ${o.ref || dbId.slice(0,6)} → ${nextLane}`);
   } catch (e) {
     console.error('advance:', e);

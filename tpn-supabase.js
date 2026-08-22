@@ -1803,6 +1803,152 @@ TPN.prettyPayrollError = function (msg) {
   return msg;
 };
 
+
+/* ═══════════════════════════════════════════════════════════════
+   ORDER STATUS — go through the RPC so the audit log records which
+   screen the tap came from.
+
+   The database trigger (sql/26) logs the change either way, so this is
+   about attribution, not enforcement. If the RPC is unavailable for any
+   reason we fall back to the plain UPDATE rather than blocking the line —
+   a kitchen must never stop because an audit nicety failed.
+   ═══════════════════════════════════════════════════════════════ */
+TPN.advanceOrderStatus = async function (orderId, newStatus, source) {
+  try {
+    const { data, error } = await sb.rpc('advance_order_status', {
+      p_order_id: orderId, p_status: newStatus, p_source: source || null
+    });
+    if (error) throw error;
+    return data;
+  } catch (e) {
+    const msg = (e && e.message) || '';
+    // A real refusal must surface; only fall back when the RPC itself is
+    // missing (an older database) rather than swallowing a permission error.
+    if (/could not find|does not exist|schema cache/i.test(msg)) {
+      console.warn('[TPN] advance_order_status unavailable, falling back:', msg);
+      return await TPN.updateOrderStatus(orderId, newStatus);
+    }
+    throw new Error(TPN.prettyStatusError(msg));
+  }
+};
+
+TPN.prettyStatusError = function (msg) {
+  msg = msg || 'Could not move that order';
+  if (/order_already_closed/.test(msg))     return 'That order is already closed.';
+  if (/closing_requires_manager/.test(msg)) return 'Only a manager can close or cancel an order.';
+  if (/wrong_branch/.test(msg))             return 'That order belongs to another branch.';
+  if (/order_not_found/.test(msg))          return 'That order no longer exists.';
+  if (/permission_denied/.test(msg))        return 'You do not have permission to move orders.';
+  if (/cancel_requires_manager/.test(msg))  return 'Only a manager can cancel an order.';
+  return msg;
+};
+
+
+/* ═══════════════════════════════════════════════════════════════
+   GUESTS  (sql/27)
+   ═══════════════════════════════════════════════════════════════ */
+
+// Staff view: includes phone, flags and no-show count. Gated on orders.view.
+TPN.getGuestProfile = async function (deviceId, phone) {
+  const { data, error } = await sb.rpc('guest_profile', {
+    p_device: deviceId || null, p_phone: phone || null
+  });
+  if (error) throw error;
+  return data;
+};
+
+// The guest's own device: name, visit count and usuals. No phone, no flags.
+TPN.getMyGuestProfile = async function (deviceId) {
+  const { data, error } = await sb.rpc('my_guest_profile', {
+    p_device: deviceId || TPN.deviceId()
+  });
+  if (error) return null;      // a first visit is not an error
+  return data;
+};
+
+TPN.listGuests = async function (search, flaggedOnly, limit) {
+  const { data, error } = await sb.rpc('guest_list', {
+    p_search: search || null,
+    p_flagged_only: !!flaggedOnly,
+    p_limit: limit || 100
+  });
+  if (error) throw error;
+  return data || [];
+};
+
+TPN.flagGuest = async function (deviceId, reason, countNoShow) {
+  const { error } = await sb.rpc('flag_guest_device', {
+    p_device: deviceId, p_reason: reason || null, p_no_show: !!countNoShow
+  });
+  if (error) throw error;
+};
+
+TPN.unflagGuest = async function (deviceId) {
+  const { error } = await sb.rpc('unflag_guest_device', { p_device: deviceId });
+  if (error) throw error;
+};
+
+TPN.setGuestNote = async function (deviceId, note) {
+  const { error } = await sb.rpc('set_guest_note', { p_device: deviceId, p_note: note || null });
+  if (error) throw error;
+};
+
+
+/* ═══════════════════════════════════════════════════════════════
+   ADD-ONS  (sql/28)
+
+   Replaces the hardcoded `upsellRules` in index.html, which keyed on short
+   codes like 'tap' while menu_items.id is a uuid — so it never matched once
+   in production. Now the kitchen marks an item as an add-on in Menu Manager
+   and it starts appearing, with no deploy.
+   ═══════════════════════════════════════════════════════════════ */
+TPN.getAddonSuggestions = async function (excludeIds, limit) {
+  const { data, error } = await sb.rpc('addon_suggestions', {
+    p_exclude: (excludeIds || []).filter(Boolean),
+    p_limit:   limit || 4
+  });
+  if (error) { console.warn('addon_suggestions:', error.message); return []; }
+  return data || [];
+};
+
+/* ═══════════════════════════════════════════════════════════════
+   DAILY CLOSE  (sql/28)
+
+   NOTE ON WHAT THIS CAN SEE: orders.payment_method is what the customer
+   SELECTED, not a confirmed receipt — payment integration is another dev's
+   work and is not built. The close screen therefore says "declared" and
+   reconciles the drawer against declared cash only. When real payment
+   confirmation lands, expected_cash should move to confirmed receipts.
+   ═══════════════════════════════════════════════════════════════ */
+TPN.getDailyCloseReport = async function (date) {
+  const { data, error } = await sb.rpc('daily_close_report', { p_date: date || null });
+  if (error) throw error;
+  return data;
+};
+
+TPN.recordDailyClose = async function (date, countedCash, notes) {
+  const { data, error } = await sb.rpc('record_daily_close', {
+    p_date: date, p_counted_cash: Number(countedCash || 0), p_notes: notes || null
+  });
+  if (error) throw error;
+  return data;
+};
+
+TPN.listDailyCloses = async function (limit) {
+  const { data, error } = await sb.rpc('list_daily_closes', { p_limit: limit || 30 });
+  if (error) throw error;
+  return data || [];
+};
+
+/* Movement-based stock variance. NOT theoretical yield variance — that
+   needs recipes, and there is no recipe table yet. `found_short` is stock a
+   count discovered missing, which is the number worth chasing. */
+TPN.getInventoryVariance = async function (from, to) {
+  const { data, error } = await sb.rpc('inventory_variance', { p_from: from, p_to: to });
+  if (error) throw error;
+  return data || [];
+};
+
 // Restore session on load
 sb.auth.onAuthStateChange((event) => {
   if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {

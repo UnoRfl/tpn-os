@@ -1,6 +1,6 @@
 # TPN OS — Session Handoff
 
-**Last updated:** Aug 22, 2026 (rev 2 — customer ordering fixed properly, shared table bills, payroll, mobile; migrations 18–25)
+**Last updated:** Aug 22, 2026 (rev 4 — split bills, daily close, variance, working add-ons, low-stock alerts; migrations 18–28)
 **Deployed:** https://unorfl.github.io/tpn-os/
 **Repo:** https://github.com/UnoRfl/tpn-os
 **Supabase project ref:** `xjlqfpnzobfqxetgkkai` (single project, single branch)
@@ -235,6 +235,175 @@ tabs, which are still hardcoded English/Taglish. Those are a mechanical pass —
 wrap the string, add the key — but there are several hundred of them.
 `T('some.missing.key')` returns the key itself rather than blank, so a gap is
 visible in testing instead of rendering as an empty label.
+
+---
+
+## ⚠️ DAILY CLOSE READS *DECLARED* PAYMENTS, NOT RECEIPTS
+
+`orders.payment_method` is what the **customer selected at checkout**, not a
+confirmed receipt. Payment confirmation is not built — another developer owns
+it. So:
+
+- The close screen labels the breakdown **"declared"** and says so on screen.
+- `expected_cash` counts **declared cash only**, because cash is the one
+  figure a drawer count can actually verify.
+- **When real payment confirmation lands**, `expected_cash` must switch to
+  confirmed receipts, and the warning text in `renderDailyClose` and in
+  `daily_close_report`'s header comment should be removed together. Do not
+  remove one without the other.
+
+`daily_closes` snapshots the figures at close time, so a void the next morning
+cannot silently rewrite what was reconciled last night. Re-counting overwrites
+and re-audits.
+
+---
+
+## Stock variance is NOT a yield report (sql/28)
+
+`inventory_variance()` reports movements: delivered, used, wasted,
+`found_short` (a stock count discovered less), `found_over`, returned.
+
+**It cannot tell you what a dish *should* have consumed** — that needs recipes,
+and there is no recipe table. `found_short` is the leakage signal worth
+chasing. The UI states this limitation on screen and there is a test asserting
+that sentence is present; if you ever add recipes, that is when this becomes a
+real yield report and the caveat can go.
+
+---
+
+## The upsell that never fired (sql/28)
+
+`upsellRules` in index.html matched on short codes (`'tap'`, `'ur'`) while
+`menu_items.id` is a uuid, so `cartIds.includes('tap')` was **always false**.
+It never appeared once in production. The tell was
+`const sugItem = findItem(rule.suggest)` — assigned and never used.
+
+Replaced with `menu_items.is_addon` + `addon_suggestions()`, so the kitchen
+changes the offer in Menu Manager without a deploy. **Nothing is marked as an
+add-on yet** — tick `is_addon` on rice, drinks and sauces and it starts
+working.
+
+Placement is deliberate: inside the cart drawer, **not** a modal over the
+checkout button. An interstitial at the moment of payment is the most disliked
+pattern in food ordering and it costs completed orders. Ignoring an inline
+card costs one scroll.
+
+---
+
+## Prep targets (sql/28)
+
+`menu_items.prep_minutes` per dish; a ticket ages against its **slowest**
+item. Null falls back to the old generic thresholds, so an unconfigured menu
+behaves exactly as before and gets sharper as the numbers are filled in.
+
+---
+
+## Low-stock alerts fire on the CROSSING only
+
+`trg_low_stock_notify` fires when stock goes *from above* the reorder level
+*to at or below* it. Without that check, every later movement on an
+already-low item re-alerts and the feed becomes noise nobody reads. If you
+ever want a daily nag instead, that is a scheduled job, not this trigger.
+
+`private.fmt_qty()` exists because `to_char(8.000,'FM999999.99')` returns
+`"8."` — FM strips padding but keeps the decimal point, so alerts read
+"8. kg left (reorder at 10.)".
+
+---
+
+## Split bills on the floor panel
+
+Wired in this round. Note the floor panel's `tableStates` is keyed by
+**branch + table NUMBER** and carries order ids, not a table uuid — which is
+why there are two RPCs for the same breakdown:
+
+- `table_bill(table_id)` — for anything holding a table uuid
+- `order_bill_breakdown(order_id)` — what the floor panel actually uses
+
+Splitting stays staff-gated. `device_id` travels in the request payload and
+is not a secret, so a guest who could split by passing an id could move
+someone else's food onto a separate bill.
+
+---
+
+## Status changes are attributable (sql/26)
+
+Two layers, and the order matters:
+
+- **`trg_audit_order_status`** is a trigger, so *any* status change lands in
+  `audit_log` with the actor — including a plain `update orders set status=...`
+  from old client code. Verified. This is the layer that matters.
+- **`advance_order_status(id, status, source)`** is what the screens call. It
+  adds *which surface* acted: `portal_kds`, `portal_orders`, `kitchen_screen`,
+  `floor_panel`. Free text on purpose — a new surface should not need a
+  migration to start attributing itself.
+
+The trigger deliberately skips `completed`/`cancelled` because
+`trg_audit_order_money` already logs those with the money detail. Two rows per
+event makes the log harder to read, not safer.
+
+`TPN.advanceOrderStatus()` falls back to a plain UPDATE **only** when the RPC
+itself is missing (an older database). A permission error is re-thrown, not
+swallowed — a kitchen must not stop for an audit nicety, but it also must not
+silently ignore a refusal.
+
+All three surfaces already subscribed to `orders` realtime before this, so
+they were in sync; what was missing was the record of who did it.
+
+---
+
+## Guest memory (sql/27)
+
+`customer_devices` + `customer_device_items`, filled automatically by
+`submit_order()` — not by a separate call the client could forget.
+
+**Three privacy tiers, verified by probe:**
+
+| Caller | Sees |
+|---|---|
+| `anon` | nothing from the tables; `my_guest_profile()` only — first name, visit count, top 3 usuals |
+| staff (`orders.view`) | `guest_profile()` / `guest_list()` — phone, spend, flags, no-shows, every name used |
+| staff (`orders.manage`) | can flag, unflag, and write a note |
+
+**Two limits to repeat wherever this is surfaced** (the Guests tab says both
+on screen, deliberately):
+
+- Clearing the browser makes them a new guest. That is the correct trade for
+  something built on a value the guest controls.
+- One phone can be several people. That is why `known_names` accumulates
+  instead of overwriting.
+
+A flag is a note about behaviour (an uncollected pickup), **not** a credit
+score. It tells staff to ask for payment up front; it never changes a price,
+and every flag is audited with the actor's name.
+
+Guest spend is scored on **the batch that phone submitted**, not the running
+table total — otherwise one phone on a shared bill gets credited with
+everyone's food.
+
+---
+
+## Themes and Preferences
+
+Preferences live in `localStorage` (`tpn.prefs`), not the database: a shared
+counter terminal and a manager's laptop want different settings for the same
+person, and a preference is not worth a round trip on every load.
+`applyPrefs()` runs before first paint, so there is no white flash on the way
+into dark.
+
+Themes are a **token swap**, not a restyle — every surface already draws from
+the same CSS variables. `light` / `dark` / `night` / `system` are set on
+`<html data-theme>`. Night additionally desaturates the accents for a 1am
+closing shift. All three clear 7:1 on body text; there is a test that fails if
+that regresses.
+
+The two wall pages (`tpn-dine-in-floor`, `tpn-kitchen-station`) carry their
+own dark styling and are deliberately left out of the theme system.
+
+**If you add a component with a hardcoded colour, add a dark note for it.**
+The `html[data-theme="dark"] …` block near the end of the theme stylesheet is
+where the exceptions live — anything that leaned on white translucency reads
+as haze on a dark ground.
 
 ---
 

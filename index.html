@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="config.js?v=20260822b"></script>
-<script src="tpn-supabase.js?v=20260822b"></script>
+<script src="config.js?v=20260822d"></script>
+<script src="tpn-supabase.js?v=20260822d"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="description" content="Tyo Paeng Nyo — Authentic Filipino cuisine in Las Piñas since 2003. Order online, book events, or inquire about catering.">
 <meta name="theme-color" content="#8B1A0E">
@@ -929,8 +929,9 @@
   .portal-nav-section {
     font-size: 10.5px;
     /* was var(--ink-faint) — roughly 2.4:1 on this gradient, which is why the
-       category names disappeared into the background. --ink-soft clears 4.5:1. */
-    color: var(--ink-soft);
+       category names disappeared. Colouring the LETTERS (rather than adding a
+       panel behind them) keeps the sidebar calm and still clears 4.5:1. */
+    color: var(--brick);
     letter-spacing: 0.16em; text-transform: uppercase;
     font-weight: 800; padding: 15px 12px 7px;
   }
@@ -1663,27 +1664,28 @@
 .portal-nav-section.collapsible {
   display: flex; align-items: center; gap: 7px;
   cursor: pointer; user-select: none;
-  border: none; width: calc(100% - 8px);
-  margin: 2px 4px 0;
+  border: none; background: none;          /* no plate — the ink does the work */
+  width: calc(100% - 8px); margin: 2px 4px 0;
   font-family: inherit; text-align: left;
   border-radius: 7px;
-  transition: color 0.15s, background 0.15s;
-  /* A faint plate plus a hairline underneath so the header reads as a
-     divider between groups rather than as another nav row. */
-  background: rgba(255,255,255,0.34);
-  border-bottom: 1px solid rgba(139,26,14,0.14);
-  color: var(--ink-soft);
+  transition: color 0.15s;
+  /* Readability comes from the letters, not from a panel behind them:
+     --brick at weight 800 sits around 5:1 on this gradient. */
+  color: var(--brick);
   touch-action: manipulation;
 }
-.portal-nav-section.collapsible:hover {
-  color: var(--brick); background: rgba(255,255,255,0.62);
-}
+.portal-nav-section.collapsible:hover { color: var(--ink); }
 .portal-nav-section.collapsible:focus-visible {
-  outline: 2px solid var(--brick); outline-offset: 1px;
+  outline: 2px solid var(--brick); outline-offset: 2px;
 }
+/* The chevron gets its own fixed, centred box so it sits in the same place
+   on every row instead of drifting with the label width. */
 .portal-nav-chevron {
-  margin-left: auto; font-size: 9px; line-height: 1;
-  transition: transform 0.2s ease; opacity: 0.7;
+  margin-left: auto; flex: 0 0 16px;
+  width: 16px; height: 16px;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 8px; line-height: 1; opacity: 0.75;
+  transition: transform 0.2s ease;
 }
 .portal-nav-section.collapsed .portal-nav-chevron { transform: rotate(-90deg); }
 .portal-nav-group { overflow: hidden; max-height: 1200px; transition: max-height 0.22s ease, opacity 0.18s ease; }
@@ -1905,6 +1907,271 @@ button, .portal-nav-item, .btn-next, .btn-back, .btn-ghost,
 .mx-toggle.on { background: #2D7A4F; border-color: #2D7A4F; }
 .mx-toggle.on::after { transform: translateX(18px); }
 .mx-toggle:disabled { cursor: not-allowed; }
+</style>
+
+<style>
+/* ════════════════════════════════════════════════════
+   THEMES
+
+   Every surface in this app already draws from the same token set, so a
+   theme is a token swap rather than a restyle. Three of them:
+
+     light   the original warm daylight palette
+     dark    the same warmth pulled down — still brown/brick, not a
+             generic grey dashboard, because the brand should survive
+             the lights going off
+     night   dark, plus the accents desaturated and the whites pulled
+             off pure. For a closing shift on a wall screen at 1am,
+             where a bright panel is genuinely unpleasant.
+
+   Chosen on <html data-theme="...">. Everything below only redefines
+   variables; no component needs to know a theme exists.
+
+   The two full-screen wall pages carry their own dark styling already
+   and are left alone.
+   ════════════════════════════════════════════════════ */
+
+html[data-theme="dark"], html[data-theme="night"] {
+  --bg:         #1A1210;
+  --bg-2:       #221715;
+  --surface:    #251A17;
+  --surface-2:  #2F211D;
+  --surface-3:  #3A2924;
+
+  --ink:        #F5E7D0;
+  --ink-soft:   #DFCBAE;
+  --ink-muted:  #B49A7E;
+  --ink-faint:  #8A7159;
+
+  --line:       rgba(232, 196, 138, 0.16);
+  --line-soft:  rgba(232, 196, 138, 0.09);
+
+  --brick:      #E8734F;
+  --ember:      #C6532F;
+  --gold:       #D9A94A;
+
+  --shadow:     0 6px 20px rgba(0,0,0,0.45);
+  --shadow-sm:  0 2px 6px rgba(0,0,0,0.35);
+  --shadow-lg:  0 18px 44px rgba(0,0,0,0.55);
+  --shadow-warm:0 6px 20px rgba(0,0,0,0.5);
+
+  color-scheme: dark;
+}
+
+/* Night: same structure, softer light. Nothing is pure white and the
+   accents stop shouting. */
+html[data-theme="night"] {
+  --bg:        #140E0C;
+  --bg-2:      #1A1210;
+  --surface:   #1D1512;
+  --surface-2: #241A16;
+  --surface-3: #2C201B;
+
+  --ink:       #DCCBB4;
+  --ink-soft:  #C3B096;
+  --ink-muted: #9A8468;
+  --ink-faint: #74604B;
+
+  --brick:     #C86A4C;
+  --ember:     #A8492C;
+  --gold:      #B8913F;
+}
+
+/* Follow the operating system when nobody has chosen. */
+@media (prefers-color-scheme: dark) {
+  html[data-theme="system"] {
+    --bg: #1A1210; --bg-2: #221715; --surface: #251A17;
+    --surface-2: #2F211D; --surface-3: #3A2924;
+    --ink: #F5E7D0; --ink-soft: #DFCBAE; --ink-muted: #B49A7E; --ink-faint: #8A7159;
+    --line: rgba(232,196,138,0.16); --line-soft: rgba(232,196,138,0.09);
+    --brick: #E8734F; --ember: #C6532F; --gold: #D9A94A;
+    --shadow: 0 6px 20px rgba(0,0,0,0.45);
+    --shadow-sm: 0 2px 6px rgba(0,0,0,0.35);
+    --shadow-lg: 0 18px 44px rgba(0,0,0,0.55);
+    --shadow-warm: 0 6px 20px rgba(0,0,0,0.5);
+    color-scheme: dark;
+  }
+}
+
+/* ── Places that hardcoded a colour and therefore need a dark note ── */
+html[data-theme="dark"] body, html[data-theme="night"] body { background: var(--bg); color: var(--ink); }
+
+/* Panels that leaned on white translucency read as haze on a dark ground. */
+html[data-theme="dark"]  .portal-lang,
+html[data-theme="night"] .portal-lang { background: rgba(255,255,255,0.05); }
+html[data-theme="dark"]  .portal-nav-item.active,
+html[data-theme="night"] .portal-nav-item.active { background: rgba(232,115,79,0.12); }
+html[data-theme="dark"]  .portal-nav-item:hover,
+html[data-theme="night"] .portal-nav-item:hover { background: rgba(232,115,79,0.09); }
+html[data-theme="dark"]  .mx-toggle,
+html[data-theme="night"] .mx-toggle { background: var(--surface-3); }
+html[data-theme="dark"]  .mx-toggle::after,
+html[data-theme="night"] .mx-toggle::after { background: #E8DCC8; }
+html[data-theme="dark"]  table.matrix td.cell.locked,
+html[data-theme="night"] table.matrix td.cell.locked {
+  background: repeating-linear-gradient(45deg, transparent, transparent 4px,
+              rgba(255,255,255,0.045) 4px, rgba(255,255,255,0.045) 8px);
+}
+html[data-theme="dark"]  .tick.yes, html[data-theme="night"] .tick.yes { color: #6FBF8F; }
+html[data-theme="dark"]  .fin-tile-value.pos, html[data-theme="night"] .fin-tile-value.pos { color: #6FBF8F; }
+html[data-theme="dark"]  .fin-tile-value.neg, html[data-theme="night"] .fin-tile-value.neg { color: #F08A6B; }
+html[data-theme="dark"]  .task-prio.urgent, html[data-theme="night"] .task-prio.urgent { background: #C6532F; }
+html[data-theme="dark"]  .inv-badge, html[data-theme="night"] .inv-badge { background: #C6532F; }
+html[data-theme="dark"]  .form-input, html[data-theme="night"] .form-input {
+  background: var(--surface-2); color: var(--ink); border-color: var(--line);
+}
+html[data-theme="dark"]  .modal, html[data-theme="night"] .modal { background: var(--surface); }
+html[data-theme="dark"]  .modal-overlay, html[data-theme="night"] .modal-overlay {
+  background: rgba(0,0,0,0.68);
+}
+html[data-theme="dark"]  .portal-sidebar, html[data-theme="night"] .portal-sidebar {
+  background: linear-gradient(180deg, var(--surface-2) 0%, var(--bg) 100%);
+}
+/* A dark theme needs a dark scrollbar or the gutter glows. */
+html[data-theme="dark"]  .portal-sidebar, html[data-theme="night"] .portal-sidebar {
+  scrollbar-color: rgba(232,115,79,0.35) transparent;
+}
+html[data-theme="dark"]  .portal-sidebar::-webkit-scrollbar-thumb,
+html[data-theme="night"] .portal-sidebar::-webkit-scrollbar-thumb {
+  background: rgba(232,115,79,0.3);
+}
+
+/* ── Density ── */
+html[data-density="compact"] .portal-nav-item { padding: 7px 12px; font-size: 13px; }
+html[data-density="compact"] .portal-main     { padding: 20px 26px 44px; }
+html[data-density="compact"] .fin-tile        { padding: 10px 12px; }
+html[data-density="compact"] .fin-tile-value  { font-size: 18px; }
+html[data-density="compact"] .task-card       { padding: 9px; }
+html[data-density="compact"] table.matrix th,
+html[data-density="compact"] table.matrix td  { padding: 6px 8px; }
+
+/* Respect a reduced-motion preference and the "reduce motion" setting. */
+html[data-motion="off"] *, @media (prefers-reduced-motion: reduce) {
+  animation-duration: 0.001ms !important;
+  transition-duration: 0.001ms !important;
+}
+
+/* ── Preferences tab ── */
+.pref-group { border: 1px solid var(--line); border-radius: 12px; padding: 16px; margin-bottom: 14px; background: var(--bg); }
+.pref-group-title { font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--brick); font-weight: 800; margin-bottom: 12px; }
+.pref-row { display: flex; gap: 12px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--line-soft); }
+.pref-row:last-child { border-bottom: none; }
+.pref-row-body { flex: 1; min-width: 0; }
+.pref-row-label { font-size: 14px; font-weight: 600; }
+.pref-row-hint { font-size: 11.5px; color: var(--ink-faint); margin-top: 2px; line-height: 1.45; }
+.theme-swatches { display: flex; gap: 10px; flex-wrap: wrap; }
+.theme-swatch {
+  width: 92px; border: 2px solid var(--line); border-radius: 10px;
+  padding: 0; overflow: hidden; cursor: pointer; background: none;
+  font-family: inherit; touch-action: manipulation; transition: border-color .15s, transform .15s;
+}
+.theme-swatch:hover { transform: translateY(-2px); }
+.theme-swatch.on { border-color: var(--brick); box-shadow: 0 0 0 3px rgba(139,26,14,.14); }
+.theme-swatch-pv { height: 46px; display: flex; }
+.theme-swatch-pv i { flex: 1; display: block; }
+.theme-swatch-name { display: block; font-size: 11px; font-weight: 700; padding: 6px 0; color: var(--ink-soft); }
+</style>
+
+<style>
+/* ════════════════════════════════════════════════════
+   POLISH PASS
+
+   Small, systemic things rather than restyling. The parts that were
+   built at different times had drifted apart, and it showed.
+   ════════════════════════════════════════════════════ */
+
+/* Money and counts must line up in a column. Proportional digits make a
+   currency table look ragged even when the values are correct. */
+.fin-tile-value, .disc-val, table.matrix td, .task-card-meta,
+.mx-row-label + .perm-hint, .portal-nav-badge, .portal-nav-count,
+.modal-sub { font-variant-numeric: tabular-nums; }
+.panel table td, .panel table th { font-variant-numeric: tabular-nums; }
+
+/* Everything focusable gets a visible ring. Previously several controls
+   showed nothing at all under keyboard focus. */
+button:focus-visible, a:focus-visible, select:focus-visible,
+input:focus-visible, textarea:focus-visible, [tabindex]:focus-visible {
+  outline: 2px solid var(--brick);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* One shared card treatment. Panels were picking up different shadows
+   and radii depending on which pass built them. */
+.panel { border-radius: 12px; box-shadow: var(--shadow-sm); }
+.fin-tile, .task-card, .pref-group, .mx-row {
+  transition: border-color .15s ease, box-shadow .15s ease, transform .15s ease;
+}
+@media (hover: hover) and (pointer: fine) {
+  .fin-tile:hover { border-color: var(--gold); }
+  .task-card:hover { box-shadow: var(--shadow); border-color: var(--gold); }
+}
+
+/* Section headings across the new tabs, so a page header reads the same
+   whichever tab you are on. */
+.portal-header h1 { letter-spacing: -0.015em; line-height: 1.1; }
+.portal-header-sub { max-width: 62ch; line-height: 1.5; }
+
+/* Empty states were a bare grey sentence. Give them air and a little
+   structure so a genuinely empty tab looks finished, not broken. */
+.tpn-empty { padding: 44px 24px; text-align: center; }
+.tpn-empty-icon { font-size: 40px; opacity: .35; margin-bottom: 12px; line-height: 1; }
+.tpn-empty-title { font-size: 15px; font-weight: 700; color: var(--ink-soft); margin-bottom: 5px; }
+.tpn-empty-hint { font-size: 12.5px; color: var(--ink-faint); max-width: 42ch; margin: 0 auto; line-height: 1.55; }
+
+/* The discount picker row — one line, never wider than its panel. */
+.disc-row {
+  display: flex; align-items: center; gap: 9px;
+  width: 100%; max-width: 100%; box-sizing: border-box;
+  text-align: left; padding: 11px 12px; margin-bottom: 6px;
+  border: 1px solid var(--line); border-radius: 10px;
+  background: var(--surface); color: var(--ink);
+  font-family: inherit; font-size: 13px; cursor: pointer;
+  transition: border-color .14s, background .14s;
+  touch-action: manipulation;
+}
+.disc-row:hover { border-color: var(--gold); background: var(--surface-2); }
+.disc-icon { flex: 0 0 auto; font-size: 19px; line-height: 1; }
+/* min-width:0 is what stops a long name forcing the row wider than the
+   modal — that missing property is why this panel scrolled sideways. */
+.disc-name {
+  flex: 1 1 auto; min-width: 0;
+  font-weight: 600;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.disc-val {
+  flex: 0 0 auto; font-weight: 800; color: var(--brick);
+  font-size: 13px; white-space: nowrap;
+}
+
+/* Sticky table headers on the long tables, so the columns stay labelled
+   while you scroll a payroll run or a guest list. */
+.panel table thead th {
+  position: sticky; top: 0; z-index: 2;
+  background: var(--surface-2);
+  backdrop-filter: saturate(140%);
+}
+
+/* Scrollable regions get the same thin treatment as the sidebar rather
+   than the browser default. */
+.matrix-scroll, .panel, .modal, .modal-content {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(139,26,14,0.26) transparent;
+}
+.matrix-scroll::-webkit-scrollbar, .panel::-webkit-scrollbar,
+.modal::-webkit-scrollbar, .modal-content::-webkit-scrollbar { width: 9px; height: 9px; }
+.matrix-scroll::-webkit-scrollbar-thumb, .panel::-webkit-scrollbar-thumb,
+.modal::-webkit-scrollbar-thumb, .modal-content::-webkit-scrollbar-thumb {
+  background: rgba(139,26,14,0.24); border-radius: 5px;
+}
+html[data-theme="dark"]  .matrix-scroll, html[data-theme="night"] .matrix-scroll,
+html[data-theme="dark"]  .panel, html[data-theme="night"] .panel {
+  scrollbar-color: rgba(232,115,79,0.32) transparent;
+}
+
+/* A guest chip on a kitchen ticket must never push the ticket wider. */
+.kds-guest-chip { flex-wrap: wrap; min-width: 0; }
+.kds-guest-chip > span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
 </style>
 </head>
 <body>
@@ -2576,6 +2843,33 @@ let cart = (() => {
   } catch(e) {}
   return [];
 })();
+/* Add-on suggestions, from the database rather than a hardcoded list.
+   Fire-and-forget: an empty or failed lookup simply shows nothing, because
+   a missing suggestion must never block a checkout. */
+let _addonCache = null;
+async function loadAddonSuggestions() {
+  const slot = document.getElementById('addonSlot');
+  if (!slot || !cart.length) return;
+  try {
+    const inCart = cart.map(c => c.menuItemId || c.id).filter(Boolean);
+    if (!_addonCache) _addonCache = await TPN.getAddonSuggestions([], 8);
+    // Filter client-side so the list is cached but still respects the basket.
+    const picks = (_addonCache || []).filter(a => !inCart.includes(a.id)).slice(0, 2);
+    if (!picks.length) { slot.innerHTML = ''; return; }
+    slot.innerHTML = picks.map(a => {
+      const label = (TPN_LANG === 'tl' && a.name_tagalog) ? a.name_tagalog : a.name;
+      return `<div class="upsell">
+        <div class="upsell-icon">${a.addon_group === 'Drinks' ? '🥤' : a.addon_group === 'Rice' ? '🍚' : '➕'}</div>
+        <div>
+          <div class="upsell-title">${E(label)} — ₱${N(a.price, 0)}</div>
+          <div class="upsell-sub">${E(a.addon_group || (TPN_LANG === 'tl' ? 'Pwedeng idagdag' : 'Add to your order'))}</div>
+        </div>
+        <button class="upsell-add" onclick="addToCart('${E(a.id)}','single')">+ ${E(T('common.add'))}</button>
+      </div>`;
+    }).join('');
+  } catch (e) { /* nothing to suggest is a fine outcome */ }
+}
+
 function persistCart() {
   try { localStorage.setItem('tpn_cart_v1', JSON.stringify({ items: cart, _ts: Date.now() })); } catch(e) {}
 }
@@ -2662,6 +2956,7 @@ const TPN_STRINGS = {
   'sec.stock':     { en: 'SUPPLY & MENU',  tl: 'SUPPLY AT MENU' },
   'sec.ops':       { en: 'REPORTING',      tl: 'MGA REPORT' },
   'sec.access':    { en: 'ADMINISTRATION', tl: 'ADMINISTRASYON' },
+  'sec.you':       { en: 'YOU',            tl: 'IKAW' },
 
   /* ── sidebar items ───────────────────────────────── */
   'nav.dashboard':    { en: 'Dashboard',        tl: 'Dashboard' },
@@ -2803,7 +3098,132 @@ const TPN_STRINGS = {
   'pay.noRuns':    { en: 'No pay runs yet.',        tl: 'Wala pang pay run.' },
   'pay.fromRates': { en: 'Amounts come from each person\'s pay rate and their attendance in the period. Edit any line before approving.', tl: 'Ang halaga ay galing sa rate at attendance ng bawat isa. Pwede pang baguhin bago aprubahan.' },
   'pay.lockedNote':{ en: 'A paid run is locked. Reverse it if something was wrong.', tl: 'Ang bayad na run ay sarado na. I-reverse kung may mali.' },
-  'pay.reverse':   { en: 'Reverse',                 tl: 'I-reverse' }
+  'pay.reverse':   { en: 'Reverse',                 tl: 'I-reverse' },
+
+  /* ── preferences ─────────────────────────────────── */
+  'pref.title':        { en: 'Preferences',        tl: 'Mga Kagustuhan' },
+  'pref.sub':          { en: 'How this portal looks and behaves on this device.', tl: 'Kung paano gumagana at mukha ang portal sa device na ito.' },
+  'pref.appearance':   { en: 'APPEARANCE',         tl: 'ITSURA' },
+  'pref.working':      { en: 'WORKING STYLE',      tl: 'PARAAN NG TRABAHO' },
+  'pref.thisDevice':   { en: 'THIS DEVICE',        tl: 'ANG DEVICE NA ITO' },
+  'pref.theme':        { en: 'Theme',              tl: 'Tema' },
+  'pref.themeHint':    { en: 'Dark and Night are for evening shifts and wall screens. Night also softens the accent colours.', tl: 'Ang Dark at Night ay para sa gabi at sa mga wall screen. Ang Night ay mas malambot din ang kulay.' },
+  'pref.theme.light':  { en: 'Daylight',           tl: 'Maliwanag' },
+  'pref.theme.dark':   { en: 'Dark',               tl: 'Madilim' },
+  'pref.theme.night':  { en: 'Night',              tl: 'Gabi' },
+  'pref.theme.system': { en: 'Match OS',           tl: 'Sundan ang OS' },
+  'pref.density':      { en: 'Spacing',            tl: 'Pagitan' },
+  'pref.densityHint':  { en: 'Compact fits more rows on a small screen.', tl: 'Mas maraming laman ang Compact sa maliit na screen.' },
+  'pref.comfortable':  { en: 'Comfortable',        tl: 'Maluwag' },
+  'pref.compact':      { en: 'Compact',            tl: 'Siksik' },
+  'pref.language':     { en: 'Language',           tl: 'Wika' },
+  'pref.languageHint': { en: 'Applies everywhere in the portal straight away.', tl: 'Agad na gagamitin sa buong portal.' },
+  'pref.motion':       { en: 'Animations',         tl: 'Animation' },
+  'pref.motionHint':   { en: 'Turn off if the portal feels sluggish on an older tablet.', tl: 'I-off kung mabagal ang portal sa lumang tablet.' },
+  'pref.sound':        { en: 'Chime on a new order', tl: 'Tunog kapag may bagong order' },
+  'pref.soundHint':    { en: 'The kitchen queue plays a short sound when a ticket arrives.', tl: 'May maikling tunog ang kitchen queue kapag may dumating na tiket.' },
+  'pref.autoClear':    { en: 'Badges',             tl: 'Mga badge' },
+  'pref.autoClearHint':{ en: 'Manual keeps the red count until you clear it. Auto clears it when you open the tab.', tl: 'Sa Manual, nananatili ang pulang bilang hangga\'t hindi mo inaalis. Sa Auto, mawawala pagbukas mo ng tab.' },
+  'pref.manual':       { en: 'Manual',             tl: 'Manual' },
+  'pref.auto':         { en: 'Auto',               tl: 'Auto' },
+  'pref.landing':      { en: 'Open on sign-in',    tl: 'Bubuksan pag sign-in' },
+  'pref.landingHint':  { en: 'Which tab you land on. Kitchen staff usually want the queue.', tl: 'Aling tab ang unang bubukas. Karaniwan, ang pila para sa kusina.' },
+  'pref.on':           { en: 'On',                 tl: 'On' },
+  'pref.off':          { en: 'Off',                tl: 'Off' },
+  'pref.reset':        { en: 'Reset preferences',  tl: 'I-reset ang settings' },
+  'pref.resetHint':    { en: 'Puts everything on this device back to the defaults.', tl: 'Ibabalik lahat sa default sa device na ito.' },
+  'pref.wasReset':     { en: 'Preferences reset',  tl: 'Naibalik na sa default' },
+  'pref.signOutAll':   { en: 'Account security',   tl: 'Seguridad ng account' },
+  'pref.signOutAllHint':{ en: 'Change the password you sign in with.', tl: 'Baguhin ang password na ginagamit mo.' },
+  'pref.changePassword':{ en: 'Change password',   tl: 'Palitan ang password' },
+
+  /* ── guests ──────────────────────────────────────── */
+  'nav.guests':        { en: 'Guests',             tl: 'Mga Bisita' },
+  'nav.preferences':   { en: 'Preferences',        tl: 'Kagustuhan' },
+  'guests.title':      { en: 'Guests',             tl: 'Mga Bisita' },
+  'guests.sub':        { en: 'Who has ordered here before, what they usually get, and anyone worth a second look.', tl: 'Sino na ang umorder dati, ano ang usual nila, at sino ang dapat bantayan.' },
+  'guests.search':     { en: 'Search a name, number or device…', tl: 'Hanapin ang pangalan, numero o device…' },
+  'guests.flaggedOnly':{ en: 'Flagged only',       tl: 'Naka-flag lang' },
+  'guests.known':      { en: 'Known guests',       tl: 'Kilalang bisita' },
+  'guests.returning':  { en: 'returning',          tl: 'bumalik' },
+  'guests.totalSpend': { en: 'Lifetime spend',     tl: 'Kabuuang gastos' },
+  'guests.flagged':    { en: 'Flagged',            tl: 'Naka-flag' },
+  'guests.visits':     { en: 'Visits',             tl: 'Beses' },
+  'guests.spent':      { en: 'Spent',              tl: 'Nagastos' },
+  'guests.usual':      { en: 'Usual',              tl: 'Usual' },
+  'guests.lastSeen':   { en: 'Last seen',          tl: 'Huling dating' },
+  'guests.unnamed':    { en: 'Unnamed guest',      tl: 'Walang pangalan' },
+  'guests.regular':    { en: 'Regular',            tl: 'Suki' },
+  'guests.flag':       { en: 'FLAGGED',            tl: 'FLAGGED' },
+  'guests.noShows':    { en: 'no-shows',           tl: 'hindi sinundo' },
+  'guests.avg':        { en: 'avg',                tl: 'karaniwan' },
+  'guests.empty':      { en: 'Nobody yet. Guests appear here the first time they order from a phone.', tl: 'Wala pa. Lalabas dito ang bisita sa unang order nila mula sa cellphone.' },
+  'guests.note':       { en: 'Note for staff',     tl: 'Paalala para sa staff' },
+  'guests.notePlaceholder': { en: 'Allergic to peanuts · prefers Table 4', tl: 'Allergic sa mani · gusto sa Mesa 4' },
+  'guests.noteHint':   { en: 'Shows on their ticket. Keep it about the order, not the person.', tl: 'Lalabas sa tiket nila. Tungkol sa order, hindi sa tao.' },
+  'guests.flagging':   { en: 'Flag',               tl: 'Flag' },
+  'guests.currentlyFlagged': { en: 'Currently flagged', tl: 'Naka-flag ngayon' },
+  'guests.unflag':     { en: 'Remove flag',        tl: 'Alisin ang flag' },
+  'guests.flagThis':   { en: 'Flag this device',   tl: 'I-flag ang device' },
+  'guests.reasonPlaceholder': { en: 'Did not collect a pickup order', tl: 'Hindi sinundo ang pickup order' },
+  'guests.countNoShow':{ en: 'Count this as a no-show', tl: 'Ibilang na hindi sinundo' },
+  'guests.flagHint':   { en: 'A flag tells staff to ask for payment up front. It never changes a price, and it is recorded in the audit log with your name.', tl: 'Ang flag ay paalala na manghingi ng bayad bago ihanda. Hindi nito binabago ang presyo, at nasa audit log ito kasama ang pangalan mo.' },
+  'guests.since':      { en: 'first ordered',      tl: 'unang order' },
+  'guests.caveat':     { en: 'Based on the guest\'s own browser. Clearing it makes them a new guest, and one phone can be more than one person — which is why every name used is kept.', tl: 'Base sa browser ng bisita. Kapag nilinis nila ito, bago na sila; at pwedeng maraming tao sa isang cellphone — kaya lahat ng pangalan ay itinatago.' },
+  'guests.welcomeBack':{ en: 'Welcome back',       tl: 'Maligayang pagbabalik' },
+  'guests.yourUsual':  { en: 'Your usual',         tl: 'Ang usual mo' },
+
+  /* ── daily close ─────────────────────────────────── */
+  'nav.close':        { en: 'Daily Close',         tl: 'Pagsara ng Araw' },
+  'close.title':      { en: 'Daily Close',         tl: 'Pagsara ng Araw' },
+  'close.sub':        { en: 'Reconcile the day before you lock up, so a shortfall is found tonight and not next month.', tl: 'Tapatin ang bilang bago magsara, para makita agad ang kulang ngayong gabi at hindi sa susunod na buwan.' },
+  'close.date':       { en: 'Date',                tl: 'Petsa' },
+  'close.noSales':    { en: 'No sales recorded for this day.', tl: 'Walang naitalang benta sa araw na ito.' },
+  'close.noSalesHint':{ en: 'Pick another date, or check that orders were being taken in the system.', tl: 'Pumili ng ibang petsa, o tingnan kung dumaan sa sistema ang mga order.' },
+  'close.avgTicket':  { en: 'avg ticket',          tl: 'karaniwang order' },
+  'close.voids':      { en: 'Voided',              tl: 'Na-void' },
+  'close.lines':      { en: 'lines',               tl: 'linya' },
+  'close.cancelled':  { en: 'cancelled',           tl: 'kanselado' },
+  'close.declaredCash':{ en: 'Cash declared',      tl: 'Cash na dineklara' },
+  'close.inDrawer':   { en: 'should be in the drawer', tl: 'dapat nasa kahon' },
+  'close.declaredWarning': { en: 'These are the payment methods customers SELECTED, not confirmed receipts — payment confirmation is not wired up yet. Treat cash as the only figure worth counting against.', tl: 'Ito ang paraan ng bayad na PINILI ng customer, hindi kumpirmadong resibo — wala pa ang payment confirmation. Ang cash lang ang tunay na mabibilang.' },
+  'close.byMethod':   { en: 'BY METHOD (DECLARED)', tl: 'AYON SA BAYAD (DEKLARADO)' },
+  'close.byType':     { en: 'BY ORDER TYPE',       tl: 'AYON SA URI' },
+  'close.topItems':   { en: 'TOP ITEMS',           tl: 'PINAKAMABILI' },
+  'close.reconcile':  { en: 'CASH RECONCILIATION', tl: 'PAGTUTUOS NG CASH' },
+  'close.expected':   { en: 'Expected',            tl: 'Inaasahan' },
+  'close.counted':    { en: 'Counted',             tl: 'Nabilang' },
+  'close.variance':   { en: 'Difference',          tl: 'Pagkakaiba' },
+  'close.countHint':  { en: 'Count the drawer, enter the total, and the difference is worked out and recorded with your name.', tl: 'Bilangin ang kahon, ilagay ang total, at makikita at maitatala ang pagkakaiba kasama ang pangalan mo.' },
+  'close.countDrawer':{ en: 'Count the drawer',    tl: 'Bilangin ang kahon' },
+  'close.record':     { en: 'Record close',        tl: 'Itala ang pagsara' },
+  'close.recount':    { en: 'Recount',             tl: 'Bilangin muli' },
+  'close.closedAt':   { en: 'Closed',              tl: 'Sinara' },
+  'close.recloseHint':{ en: 'Recounting overwrites tonight\'s figures and is recorded again.', tl: 'Kapag binilang muli, mapapalitan ang bilang ngayong gabi at maitatala ulit.' },
+  'close.balanced':   { en: 'Balanced ✓',          tl: 'Tama ang bilang ✓' },
+  'close.over':       { en: 'over',                tl: 'sobra' },
+  'close.short':      { en: 'short',               tl: 'kulang' },
+  'close.recent':     { en: 'RECENT CLOSES',       tl: 'MGA NAKARAANG PAGSARA' },
+  'close.notesPlaceholder': { en: 'Checked twice · ₱20 note torn', tl: 'Dalawang beses binilang · punit ang ₱20' },
+
+  /* ── stock variance ──────────────────────────────── */
+  'nav.variance':     { en: 'Stock Variance',      tl: 'Pagkakaiba ng Stock' },
+  'var.title':        { en: 'Stock Variance',      tl: 'Pagkakaiba ng Stock' },
+  'var.sub':          { en: 'What came in, what went out, and how much only turned up missing at a stock count.', tl: 'Ano ang pumasok, ano ang lumabas, at gaano ang nawawala na nakita lang sa bilang.' },
+  'var.discovered':   { en: 'Found missing',       tl: 'Nawawala sa bilang' },
+  'var.itemsShort':   { en: 'items short',         tl: 'sangkap na kulang' },
+  'var.wasteValue':   { en: 'Wastage',             tl: 'Nasira' },
+  'var.combined':     { en: 'Total loss',          tl: 'Kabuuang lugi' },
+  'var.overPeriod':   { en: 'over the period',     tl: 'sa panahong ito' },
+  'var.in':           { en: 'In',                  tl: 'Pumasok' },
+  'var.used':         { en: 'Used',                tl: 'Nagamit' },
+  'var.wasted':       { en: 'Wasted',              tl: 'Nasira' },
+  'var.short':        { en: 'Short',               tl: 'Kulang' },
+  'var.onHand':       { en: 'On hand',             tl: 'Natitira' },
+  'var.lossValue':    { en: 'Loss',                tl: 'Lugi' },
+  'var.empty':        { en: 'No stock movements in this period.', tl: 'Walang galaw ng stock sa panahong ito.' },
+  'var.emptyHint':    { en: 'Record deliveries and usage in Inventory and this fills itself in.', tl: 'Itala ang delivery at nagamit sa Inventory at mapupuno ito.' },
+  'var.caveat':       { en: 'This is not a yield report. Working out what a dish SHOULD consume needs recipes, and there is no recipe table yet — so "Short" means stock a count discovered missing, which is the number worth chasing.', tl: 'Hindi ito yield report. Kailangan ng recipe para malaman ang dapat na nakonsumo, at wala pa tayong recipe — kaya ang "Kulang" ay ang nawawalang stock na nakita sa bilang, at ito ang dapat tingnan.' }
 };
 
 let TPN_LANG = (function () {
@@ -3090,30 +3510,24 @@ function updateCartUI() {
         </div>
       </div>`;
     });
-    // Smart Upsell — context-aware recommendations
-    const cartIds = cart.map(c => c.id);
-    const upsellRules = [
-      { trigger: ['tap','long','tos','cor','spam','bang'], suggest: 'ur', icon: '🍚', title: 'Unli Rice — ₱29', sub: 'Add all-you-can-eat rice (dine-in only)', dineOnly: true },
-      { trigger: ['sis','wg6','wg12','cala'], suggest: 'cal', icon: '🍋', title: 'Calamansi Juice — ₱55', sub: 'Perfect with sisig or wings' },
-      { trigger: ['kk','kal','bul','kkl'], suggest: 'gr', icon: '🍚', title: 'Garlic Rice — ₱39', sub: 'Classicong sabay sa stew' },
-      { trigger: ['lk','pa','bb','hum'], suggest: 'coke', icon: '🥤', title: 'Soft Drinks — ₱45', sub: 'Coke, Sprite o Royal — piliin sa checkout' },
-      { trigger: ['tap','long','tos','cor'], suggest: 'eg', icon: '🍳', title: 'Extra Egg — ₱25', sub: 'Dahil mas masarap na may extra' },
-      { trigger: ['sin','pak','lap'], suggest: 'gr', icon: '🍚', title: 'Garlic Rice — ₱39', sub: 'Sabay sa seafood, laging tama' },
-    ];
-    let shownUpsell = false;
-    for (const rule of upsellRules) {
-      if (shownUpsell) break;
-      const triggered = rule.trigger.some(id => cartIds.includes(id));
-      const alreadyHas = cartIds.includes(rule.suggest);
-      const dineOk = !rule.dineOnly || checkoutData.orderType === 'dinein';
-      if (triggered && !alreadyHas && dineOk) {
-        const sugItem = findItem(rule.suggest);
-        html += '<div class="upsell"><div class="upsell-icon">' + rule.icon + '</div><div><div class="upsell-title">' + rule.title + '</div><div class="upsell-sub">' + rule.sub + '</div></div><button class="upsell-add" onclick="addToCart(\'' + rule.suggest + '\',\'single\')">+ Add</button></div>';
-        shownUpsell = true;
-      }
-    }
+    // ── Add-ons ────────────────────────────────────────────────
+    // This block used to hold `upsellRules`, matching on short codes like
+    // 'tap' and 'ur'. menu_items.id is a uuid, so cartIds.includes('tap')
+    // was ALWAYS false and this card never appeared once in production —
+    // the giveaway being `const sugItem = findItem(rule.suggest)`, assigned
+    // and never used. Any claim that TPN upsells was untrue.
+    //
+    // Now the kitchen marks items as add-ons in Menu Manager and they show
+    // up here (sql/28), so changing the offer needs no deploy.
+    //
+    // Placement is deliberate: INSIDE the cart drawer, not a modal over the
+    // checkout button. An interstitial at the moment of payment is the most
+    // disliked pattern in food ordering and it costs completed orders.
+    // Ignoring this costs one scroll.
+    html += `<div id="addonSlot"></div>`;
   }
   itemsEl.innerHTML = html;
+  loadAddonSuggestions();
   const subtotal = cart.reduce((n, c) => n + c.price * c.qty, 0);
   document.getElementById('cartSubtotal').textContent = '₱' + subtotal.toFixed(2);
   document.getElementById('cartTotal').textContent = '₱' + subtotal.toFixed(2);
@@ -4223,6 +4637,7 @@ function renderAdminSidebar() {
     ]},
     { key: 'sec.stock', items: [
       { id: 'inventory',   perm: 'inventory.view',   key: 'nav.inventory',   icon: '📦', badge: badgeFor('inventory', window._tpnLowStock) },
+      { id: 'variance',    perm: 'inventory.view',   key: 'nav.variance',    icon: '📉' },
       { id: 'menu-manager',perm: 'menu.view',        key: 'nav.menuManager', icon: '🍽️' },
       { id: 'discounts',   perm: 'discounts.view',   key: 'nav.discounts',   icon: '💸' },
       { id: 'table-qr',    perm: 'tables.manage',    key: 'nav.tableQR',     icon: '📲' }
@@ -4230,12 +4645,14 @@ function renderAdminSidebar() {
     { key: 'sec.money', items: [
       { id: 'finance',     perm: 'finance.view',     key: 'nav.finance',     icon: '📊' },
       { id: 'payroll',     perm: 'payroll.view',     key: 'nav.payroll',     icon: '💵' },
+      { id: 'daily-close', perm: 'finance.view',     key: 'nav.close',       icon: '🧾' },
       { id: 'performance', perm: 'performance.view', key: 'nav.performance', icon: '📈' },
       { id: 'history',     perm: 'history.view',     key: 'nav.history',     icon: '📆' }
     ]},
     { key: 'sec.access', items: [
       { id: 'accounts',      perm: 'accounts.view', key: 'nav.accounts', icon: '👤',
         badge: badgeFor('accounts', portalState.staff.filter(s => s.accountState === 'pending' || s.accountState === 'recommended').length) },
+      { id: 'guests',        perm: 'orders.view',   key: 'nav.guests',   icon: '🧑‍🤝‍🧑' },
       { id: 'roles',         perm: 'roles.view',    key: 'nav.roles',    icon: '🔑' },
       { id: 'access-matrix', perm: 'roles.view',    key: 'nav.matrix',   icon: '🧩' },
       { id: 'audit',         perm: 'audit.view',    key: 'nav.audit',    icon: '📜' }
@@ -4244,8 +4661,13 @@ function renderAdminSidebar() {
 
   // Drop anything this account may not reach, then drop sections left empty.
   const visible = sections
-    .map(sec => ({ ...sec, items: sec.items.filter(it => can(it.perm)) }))
+    .map(sec => ({ ...sec, items: sec.items.filter(it => !it.perm || can(it.perm)) }))
     .filter(sec => sec.items.length);
+
+  // Preferences needs no permission: it changes nothing but this browser.
+  visible.push({ key: 'sec.you', items: [
+    { id: 'preferences', perm: null, key: 'nav.preferences', icon: '⚙️' }
+  ]});
 
   const collapsed = readCollapsedSections();
 
@@ -4300,7 +4722,13 @@ function saveLastRoute(kind, r) {
   try { localStorage.setItem(kind === 'staff' ? TPN_ROUTE_KEY_STAFF : TPN_ROUTE_KEY_ADMIN, r); } catch(e) {}
 }
 function readLastRoute(kind) {
-  try { return localStorage.getItem(kind === 'staff' ? TPN_ROUTE_KEY_STAFF : TPN_ROUTE_KEY_ADMIN); } catch(e) { return null; }
+  try {
+    // A chosen landing tab beats "wherever I was last time" — a kitchen
+    // lead who set the queue as their landing page means it.
+    const landing = (typeof getPref === 'function') ? getPref('landing') : null;
+    if (landing && landing !== 'dashboard') return landing;
+    return localStorage.getItem(kind === 'staff' ? TPN_ROUTE_KEY_STAFF : TPN_ROUTE_KEY_ADMIN);
+  } catch(e) { return null; }
 }
 function route(r, opts) {
   opts = opts || {};
@@ -4317,6 +4745,20 @@ function route(r, opts) {
     }
   } catch(e) {}
   document.querySelectorAll('#portalNav .portal-nav-item').forEach(el => el.classList.toggle('active', el.dataset.route === r));
+
+  // Preferences: some people want the red count to disappear the moment
+  // they look at the tab; others want it to stay until they say so.
+  try {
+    if (typeof getPref === 'function' && getPref('autoClearBadges') === 'on') {
+      const badgeEl = document.querySelector(`#portalNav .portal-nav-item[data-route="${r}"] .portal-nav-badge`);
+      if (badgeEl) {
+        const acks = readBadgeAcks();
+        acks[r] = parseInt(badgeEl.textContent, 10) || 0;
+        writeBadgeAcks(acks);
+      }
+    }
+  } catch (e) {}
+
   // close mobile sidebar
   document.getElementById('portalSidebar')?.classList.remove('open');
   const main = document.getElementById('portalMain');
@@ -4324,7 +4766,7 @@ function route(r, opts) {
     case 'dashboard': renderDashboard(main); break;
     case 'inquiries': renderInquiries(main); break;
     case 'orders': renderOrders(main); break;
-    case 'kds': renderKDS(main); break;
+    case 'kds': renderKDS(main); setTimeout(() => mountGuestChips('kds'), 60); break;
     case 'staff-board': renderStaffBoard(main); break;
     case 'schedules': renderSchedulesAdmin(main); break;
     case 'attendance-admin': renderAttendanceAdmin(main); break;
@@ -4344,6 +4786,10 @@ function route(r, opts) {
     case 'inventory': renderInventory(main); break;
     case 'finance': renderFinance(main); break;
     case 'payroll': renderPayroll(main); break;
+    case 'guests': renderGuests(main); break;
+    case 'daily-close': renderDailyClose(main); break;
+    case 'variance': renderVariance(main); break;
+    case 'preferences': renderPreferences(main); break;
   }
   window.scrollTo({ top: 0, behavior: 'instant' });
 }
@@ -5111,6 +5557,21 @@ function renderOrders(main) {
   html += '</div>';
   main.innerHTML = html;
 }
+/* Prep targets: menu_items.prep_minutes (sql/28) says how long a dish
+   should take, and a ticket is judged against its SLOWEST item. Until those
+   are filled in, prepTarget is 0 and getOrderAge falls back to the generic
+   thresholds exactly as before — so this changes nothing for an unconfigured
+   menu, and gets sharper as the kitchen fills the numbers in. */
+function orderPrepTarget(o) {
+  const items = o.itemsList || [];
+  let target = 0;
+  for (const it of items) {
+    const m = menuData.flatMap(c => c.items || []).find(x => x.id === it.menuItemId);
+    if (m && m.prepMinutes) target = Math.max(target, Number(m.prepMinutes));
+  }
+  return target;
+}
+
 function getOrderAge(o) {
   if (!o.placedAt) return { label: o.time || '—', level: 'fresh' };
   const mins = Math.floor((Date.now() - o.placedAt) / 60000);
@@ -5172,6 +5633,9 @@ function renderKDS(main) {
           <div>
             <div class="kds-ticket-ref">${o.table ? 'TABLE ' + o.table : o.type.toUpperCase()}</div>
             <div class="kds-ticket-cust">${E(o.customerName || o.customer)}</div>
+            <!-- Filled in after render by guestChipFor(); a returning guest or
+                 a flagged device is worth knowing before the food goes out. -->
+            <div class="kds-guest-chip" id="gchip-kds-${E(o.id)}" style="display:flex;gap:5px;margin-top:4px;"></div>
           </div>
           <div style="text-align:right;">
             ${statusBadge}
@@ -5192,9 +5656,27 @@ function renderKDS(main) {
 // KDS auto-refresh for age counters + new tickets
 setInterval(() => { if (currentRoute === 'kds' && currentUser) rerenderCurrent(); }, 15000);
 
+/* Guest chips are a second lookup, so they arrive after the tickets paint.
+   Deliberately fire-and-forget: a ticket must never wait on this, and a
+   failed lookup must leave the ticket exactly as it was. */
+function mountGuestChips(prefix) {
+  if (typeof guestChipFor !== 'function' || !TPN.can('orders.view')) return;
+  document.querySelectorAll(`[id^="gchip-${prefix}-"]`).forEach(el => {
+    if (el.dataset.done === '1') return;
+    el.dataset.done = '1';
+    const oid = el.id.replace(`gchip-${prefix}-`, '');
+    const o = portalState.orders.find(x => String(x.id) === oid);
+    if (!o) return;
+    guestChipFor(o.deviceId || null, o.customerPhone || null, el.id);
+  });
+}
+
 // Audio chime for new orders (Web Audio — no file needed)
 let _audioCtx = null;
 function playOrderChime() {
+  // Honour the Preferences toggle. A chime is welcome in a busy kitchen and
+  // maddening on a manager's laptop in a quiet office.
+  try { if (typeof getPref === 'function' && getPref('sound') === 'off') return; } catch (e) {}
   try {
     _audioCtx = _audioCtx || new (window.AudioContext || window.webkitAudioContext)();
     const ctx = _audioCtx;
@@ -5236,7 +5718,10 @@ async function advanceOrder(id, nextStatus) {
   o.status = nextStatus;   // optimistic
   rerenderCurrent();
   try {
-    await TPN.updateOrderStatus(o.dbId, dbStatus);
+    // Route through the RPC so the audit log records which screen acted.
+    // currentRoute tells us whether this tap came from the queue or the board.
+    await TPN.advanceOrderStatus(o.dbId, dbStatus,
+      currentRoute === 'kds' ? 'portal_kds' : 'portal_orders');
     toast(`${id} → ${nextStatus}`);
   } catch(e) {
     console.error('advanceOrder failed:', e);
@@ -6695,34 +7180,47 @@ async function openDiscountPicker(orderDbId, opts) {
   const appliedRows = applied.length
     ? applied.map(a => `<div style="display:flex;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line-soft);">
         <div style="flex:1;min-width:0;">
-          <div style="font-weight:600;color:var(--ink);">${E(a.name_snapshot)}${a.legal_law?` <span style="font-size:10px;color:var(--ink-muted);">(${E(a.legal_law)})</span>`:''}</div>
+          <div style="font-weight:600;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${E(a.name_snapshot)}${a.legal_law?` <span style="font-size:10px;color:var(--ink-muted);">(${E(a.legal_law)})</span>`:''}</div>
           <div style="font-size:11px;color:var(--ink-muted);">−₱${N(a.amount_applied,2)}${a.id_ref?` · ID ${E(a.id_ref)}`:''}</div>
         </div>
         ${canRemove ? `<button class="btn-secondary danger" onclick="removeAppliedDiscount('${E(a.id)}','${E(orderDbId)}')">Remove</button>` : ''}
       </div>`).join('')
     : '<div style="padding:12px;color:var(--ink-muted);text-align:center;font-size:12px;">No discounts on this order yet.</div>';
 
+  // One line per preset: icon, name, the law as a short chip, value on the
+  // right. The full description lives in Discounts & Promos -- repeating a
+  // paragraph of BIR wording here is what made this modal unusable.
   const templateRows = active.length
     ? active.map(t => {
-        const valLabel = t.kind === 'percent' ? `${Number(t.value)}% off` : `−₱${N(t.value,2)}`;
-        return `<button class="btn-secondary" style="width:100%;text-align:left;padding:12px;margin-bottom:6px;display:flex;gap:10px;align-items:center;" onclick="applyDiscountFromPicker('${E(orderDbId)}','${E(t.id)}',${t.requires_id?'true':'false'},'${E((t.name||'').replace(/'/g,"&#39;"))}')">
-          <span style="font-size:24px;">${E(t.icon||'💸')}</span>
-          <span style="flex:1;">
-            <span style="display:block;font-weight:600;color:var(--ink);">${E(t.name)} <span style="font-weight:400;color:var(--ink-muted);font-size:12px;">${valLabel}</span></span>
-            ${t.legal_law ? `<span style="font-size:11px;color:var(--brick,#8B1A0E);">🔒 ${E(t.legal_law)}</span>` : ''}
-            ${t.description ? `<span style="display:block;font-size:11px;color:var(--ink-muted);">${E(t.description)}</span>` : ''}
-          </span>
+        const valLabel = t.kind === 'percent' ? `${Number(t.value)}%` : `−₱${N(t.value,2)}`;
+        const lawChip  = t.legal_law
+          ? `<span style="flex:0 0 auto;font-size:9px;font-weight:700;letter-spacing:.04em;
+                 background:rgba(139,26,14,.10);color:var(--brick,#8B1A0E);
+                 padding:2px 6px;border-radius:4px;white-space:nowrap;">${E(t.legal_law)}</span>`
+          : '';
+        const idChip = t.requires_id
+          ? `<span style="flex:0 0 auto;font-size:9px;color:var(--ink-faint);white-space:nowrap;">ID</span>`
+          : '';
+        return `<button class="disc-row" title="${E(t.description || t.name)}"
+            onclick="applyDiscountFromPicker('${E(orderDbId)}','${E(t.id)}',${t.requires_id?'true':'false'},'${E((t.name||'').replace(/'/g,"&#39;"))}')">
+          <span class="disc-icon">${E(t.icon||'💸')}</span>
+          <span class="disc-name">${E(t.name)}</span>
+          ${lawChip}${idChip}
+          <span class="disc-val">${valLabel}</span>
         </button>`;
       }).join('')
-    : '<div style="padding:12px;color:var(--ink-muted);text-align:center;font-size:12px;">No active templates. Manager can create some in Discounts & Promos.</div>';
+    : '<div style="padding:14px;color:var(--ink-muted);text-align:center;font-size:12px;">No active presets. A manager can add them in Discounts &amp; Promos.</div>';
 
   const currentTotal = Number(order.total || 0);
   const currentDisc  = Number(order.discount_amount || 0);
 
   showModal(`
-    <div class="modal-title">Discounts · ${E(order.order_number || '')}</div>
-    <div class="modal-sub">Subtotal ₱${N(order.subtotal,2)} · Current discount −₱${N(currentDisc,2)} · <strong>Total ₱${N(currentTotal,2)}</strong></div>
-    <div class="modal-content" style="max-height:60vh;overflow-y:auto;">
+    <div class="modal-title">Discounts</div>
+    <div class="modal-sub" style="font-variant-numeric:tabular-nums;">
+      ${E(order.order_number || '')}<br>
+      Subtotal ₱${N(order.subtotal,2)} · Discount −₱${N(currentDisc,2)} · <strong>Total ₱${N(currentTotal,2)}</strong>
+    </div>
+    <div class="modal-content" style="max-height:56vh;overflow-y:auto;overflow-x:hidden;">
       <div style="font-size:11px;font-weight:700;color:var(--ink-muted);letter-spacing:.08em;margin:4px 0 6px;">APPLIED</div>
       ${appliedRows}
       <div style="font-size:11px;font-weight:700;color:var(--ink-muted);letter-spacing:.08em;margin:18px 0 6px;">ADD DISCOUNT</div>
@@ -8356,7 +8854,11 @@ function _renderTaskLanes() {
   ].filter(l => l.status !== 'done' || _taskState.showDone);
 
   if (!_taskState.tasks.length) {
-    el.innerHTML = `<div class="panel" style="padding:36px;text-align:center;color:var(--ink-muted);">${E(T('tasks.empty'))}</div>`;
+    el.innerHTML = `<div class="panel tpn-empty">
+      <div class="tpn-empty-icon">🗒️</div>
+      <div class="tpn-empty-title">${E(T('tasks.empty'))}</div>
+      <div class="tpn-empty-hint">${E(T('tasks.sub'))}</div>
+    </div>`;
     return;
   }
 
@@ -8579,7 +9081,11 @@ function _renderInventoryTable() {
   const items = _invState.items;
 
   if (!items.length) {
-    el.innerHTML = `<div class="panel" style="padding:36px;text-align:center;color:var(--ink-muted);">${E(T('inv.empty'))}</div>`;
+    el.innerHTML = `<div class="panel tpn-empty">
+      <div class="tpn-empty-icon">📦</div>
+      <div class="tpn-empty-title">${E(T('inv.empty'))}</div>
+      <div class="tpn-empty-hint">${E(T('inv.derived'))}</div>
+    </div>`;
     return;
   }
 
@@ -9318,7 +9824,11 @@ function _renderPayRuns() {
   const el = document.getElementById('payBody');
   if (!el) return;
   if (!_payState.runs.length) {
-    el.innerHTML = `<div class="panel" style="padding:36px;text-align:center;color:var(--ink-muted);">${E(T('pay.noRuns'))}</div>`;
+    el.innerHTML = `<div class="panel tpn-empty">
+      <div class="tpn-empty-icon">💵</div>
+      <div class="tpn-empty-title">${E(T('pay.noRuns'))}</div>
+      <div class="tpn-empty-hint">${E(T('pay.sub'))}</div>
+    </div>`;
     return;
   }
   el.innerHTML = _payState.runs.map(r => {
@@ -9587,6 +10097,781 @@ async function deletePayRun(id) {
 }
 
 
+
+/* ════════════════════════════════════════════════════════════════
+   PREFERENCES
+
+   Per-browser, not per-account. A shared terminal behind the counter
+   and a manager's laptop want different settings even for the same
+   person, and a preference is not worth a database round trip on every
+   page load. localStorage, applied before first paint.
+
+   Everything here is presentation only. Nothing in this file changes
+   what anyone is allowed to do — that lives in the permission system.
+   ════════════════════════════════════════════════════════════════ */
+
+const TPN_PREFS_KEY = 'tpn.prefs';
+
+const TPN_PREF_DEFAULTS = {
+  theme:        'light',   // light | dark | night | system
+  density:      'comfortable',
+  motion:       'on',
+  sound:        'on',      // chime on a new order
+  autoClearBadges: 'off',  // clear a tab's badge just by opening it
+  landing:      'dashboard'
+};
+
+function readPrefs() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(TPN_PREFS_KEY) || '{}') || {};
+    return Object.assign({}, TPN_PREF_DEFAULTS, raw);
+  } catch (e) { return Object.assign({}, TPN_PREF_DEFAULTS); }
+}
+
+function writePrefs(p) {
+  try { localStorage.setItem(TPN_PREFS_KEY, JSON.stringify(p)); } catch (e) {}
+}
+
+function getPref(k) { return readPrefs()[k]; }
+
+function setPref(k, v) {
+  const p = readPrefs();
+  p[k] = v;
+  writePrefs(p);
+  applyPrefs();
+  // Re-render so anything that reads a preference at render time (the sound
+  // toggle, badge behaviour) picks it up without a refresh.
+  if (k === 'density' || k === 'theme') { /* pure CSS, no re-render needed */ }
+  if (typeof currentRoute === 'string' && currentUser && typeof route === 'function'
+      && currentRoute === 'preferences') route('preferences', { replace: true });
+}
+
+// Push the preferences onto <html> so CSS can act on them.
+function applyPrefs() {
+  const p = readPrefs();
+  const el = document.documentElement;
+  el.setAttribute('data-theme',   p.theme);
+  el.setAttribute('data-density', p.density);
+  el.setAttribute('data-motion',  p.motion);
+}
+
+// Before first paint, so nobody sees a white flash on the way to dark.
+applyPrefs();
+
+// Follow the OS live while the theme is set to "system".
+try {
+  const mq = window.matchMedia('(prefers-color-scheme: dark)');
+  if (mq && mq.addEventListener) {
+    mq.addEventListener('change', () => { if (getPref('theme') === 'system') applyPrefs(); });
+  }
+} catch (e) {}
+
+
+/* ── The tab ─────────────────────────────────────────────────── */
+
+const THEME_CHOICES = [
+  { key: 'light',  name: 'Daylight', swatch: ['#F2E4C7', '#F7EDD3', '#8B1A0E'] },
+  { key: 'dark',   name: 'Dark',     swatch: ['#1A1210', '#2F211D', '#E8734F'] },
+  { key: 'night',  name: 'Night',    swatch: ['#140E0C', '#241A16', '#C86A4C'] },
+  { key: 'system', name: 'Match OS', swatch: ['#F2E4C7', '#1A1210', '#B49A7E'] }
+];
+
+function renderPreferences(main) {
+  const p = readPrefs();
+
+  const swatch = c => `<span class="theme-swatch-pv">${c.map(x => `<i style="background:${x}"></i>`).join('')}</span>`;
+
+  const seg = (key, opts) => `<div class="seg">${opts.map(o =>
+    `<button class="${p[key] === o.v ? 'on' : ''}" onclick="setPref('${key}','${o.v}')">${E(o.l)}</button>`
+  ).join('')}</div>`;
+
+  main.innerHTML = `
+    <div class="portal-header">
+      <div>
+        <h1>${E(T('pref.title'))}</h1>
+        <div class="portal-header-sub">${E(T('pref.sub'))}</div>
+      </div>
+    </div>
+
+    <div class="pref-group">
+      <div class="pref-group-title">${E(T('pref.appearance'))}</div>
+
+      <div class="pref-row" style="align-items:flex-start;">
+        <div class="pref-row-body">
+          <div class="pref-row-label">${E(T('pref.theme'))}</div>
+          <div class="pref-row-hint">${E(T('pref.themeHint'))}</div>
+        </div>
+      </div>
+      <div class="theme-swatches" style="padding:4px 0 12px;">
+        ${THEME_CHOICES.map(c => `
+          <button class="theme-swatch ${p.theme === c.key ? 'on' : ''}"
+                  onclick="setPref('theme','${c.key}')" aria-pressed="${p.theme === c.key}">
+            ${swatch(c.swatch)}
+            <span class="theme-swatch-name">${E(T('pref.theme.' + c.key) || c.name)}</span>
+          </button>`).join('')}
+      </div>
+
+      <div class="pref-row">
+        <div class="pref-row-body">
+          <div class="pref-row-label">${E(T('pref.density'))}</div>
+          <div class="pref-row-hint">${E(T('pref.densityHint'))}</div>
+        </div>
+        ${seg('density', [
+          { v: 'comfortable', l: T('pref.comfortable') },
+          { v: 'compact',     l: T('pref.compact') }
+        ])}
+      </div>
+
+      <div class="pref-row">
+        <div class="pref-row-body">
+          <div class="pref-row-label">${E(T('pref.language'))}</div>
+          <div class="pref-row-hint">${E(T('pref.languageHint'))}</div>
+        </div>
+        <div class="seg">
+          <button class="${TPN_LANG === 'en' ? 'on' : ''}" onclick="setLang('en')">English</button>
+          <button class="${TPN_LANG === 'tl' ? 'on' : ''}" onclick="setLang('tl')">Tagalog</button>
+        </div>
+      </div>
+
+      <div class="pref-row">
+        <div class="pref-row-body">
+          <div class="pref-row-label">${E(T('pref.motion'))}</div>
+          <div class="pref-row-hint">${E(T('pref.motionHint'))}</div>
+        </div>
+        ${seg('motion', [
+          { v: 'on',  l: T('pref.on') },
+          { v: 'off', l: T('pref.off') }
+        ])}
+      </div>
+    </div>
+
+    <div class="pref-group">
+      <div class="pref-group-title">${E(T('pref.working'))}</div>
+
+      <div class="pref-row">
+        <div class="pref-row-body">
+          <div class="pref-row-label">${E(T('pref.sound'))}</div>
+          <div class="pref-row-hint">${E(T('pref.soundHint'))}</div>
+        </div>
+        ${seg('sound', [
+          { v: 'on',  l: T('pref.on') },
+          { v: 'off', l: T('pref.off') }
+        ])}
+      </div>
+
+      <div class="pref-row">
+        <div class="pref-row-body">
+          <div class="pref-row-label">${E(T('pref.autoClear'))}</div>
+          <div class="pref-row-hint">${E(T('pref.autoClearHint'))}</div>
+        </div>
+        ${seg('autoClearBadges', [
+          { v: 'off', l: T('pref.manual') },
+          { v: 'on',  l: T('pref.auto') }
+        ])}
+      </div>
+
+      <div class="pref-row">
+        <div class="pref-row-body">
+          <div class="pref-row-label">${E(T('pref.landing'))}</div>
+          <div class="pref-row-hint">${E(T('pref.landingHint'))}</div>
+        </div>
+        <select class="form-input" style="max-width:190px;"
+                onchange="setPref('landing', this.value)">
+          ${_landingChoices().map(o =>
+            `<option value="${o.id}" ${p.landing === o.id ? 'selected' : ''}>${E(o.label)}</option>`).join('')}
+        </select>
+      </div>
+    </div>
+
+    <div class="pref-group">
+      <div class="pref-group-title">${E(T('pref.thisDevice'))}</div>
+      <div class="pref-row">
+        <div class="pref-row-body">
+          <div class="pref-row-label">${E(T('pref.reset'))}</div>
+          <div class="pref-row-hint">${E(T('pref.resetHint'))}</div>
+        </div>
+        <button class="btn-ghost" style="padding:8px 14px;font-size:12px;" onclick="resetPrefs()">
+          ${E(T('pref.reset'))}
+        </button>
+      </div>
+      <div class="pref-row">
+        <div class="pref-row-body">
+          <div class="pref-row-label">${E(T('pref.signOutAll'))}</div>
+          <div class="pref-row-hint">${E(T('pref.signOutAllHint'))}</div>
+        </div>
+        <button class="btn-ghost" style="padding:8px 14px;font-size:12px;" onclick="openChangePassword && openChangePassword()">
+          ${E(T('pref.changePassword'))}
+        </button>
+      </div>
+    </div>`;
+}
+
+// Only offer landing pages this person can actually reach.
+function _landingChoices() {
+  const all = [
+    { id: 'dashboard',    perm: 'dashboard.view',  key: 'nav.dashboard' },
+    { id: 'orders',       perm: 'orders.view',     key: 'nav.orders' },
+    { id: 'kds',          perm: 'kds.view',        key: 'nav.kds' },
+    { id: 'tasks',        perm: 'tasks.view',      key: 'nav.tasks' },
+    { id: 'inventory',    perm: 'inventory.view',  key: 'nav.inventory' },
+    { id: 'finance',      perm: 'finance.view',    key: 'nav.finance' },
+    { id: 'guests',       perm: 'orders.view',     key: 'nav.guests' }
+  ];
+  return all.filter(o => TPN.can(o.perm)).map(o => ({ id: o.id, label: T(o.key) }));
+}
+
+function resetPrefs() {
+  writePrefs(Object.assign({}, TPN_PREF_DEFAULTS));
+  applyPrefs();
+  toast(T('pref.wasReset'));
+  route('preferences', { replace: true });
+}
+
+
+/* ════════════════════════════════════════════════════════════════
+   GUESTS   (sql/27-customer-device-profiles.sql)
+
+   What a regular server already knows, made available to whoever is on
+   shift instead. Keyed on the guest's own browser id, which arrives with
+   every QR scan and every delivery checkout.
+
+   Two honest limits, stated so nobody over-trusts this:
+     * Clear the browser and you are a new guest. That is the correct
+       trade for something built on a value the guest controls.
+     * One phone can be several people. That is why known_names keeps
+       every name used rather than overwriting.
+
+   The flag is a judgement about behaviour (a pickup nobody collected),
+   not a credit score. It shows on the ticket so staff can ask for
+   payment up front; it never changes a price.
+   ════════════════════════════════════════════════════════════════ */
+
+const _guestState = { rows: [], search: '', flaggedOnly: false };
+
+async function renderGuests(main) {
+  if (!TPN.can('orders.view')) {
+    main.innerHTML = `<div class="panel" style="padding:40px;text-align:center;color:var(--ink-muted);">${E(T('common.noAccess'))}</div>`;
+    return;
+  }
+  main.innerHTML = `
+    <div class="portal-header">
+      <div>
+        <h1>${E(T('guests.title'))}</h1>
+        <div class="portal-header-sub">${E(T('guests.sub'))}</div>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px;">
+      <input class="form-input" style="flex:1;min-width:180px;max-width:320px;"
+             id="guestSearch" placeholder="${E(T('guests.search'))}"
+             value="${E(_guestState.search)}" oninput="_guestSearchDebounced(this.value)">
+      <label style="display:flex;gap:7px;align-items:center;font-size:12px;color:var(--ink-muted);cursor:pointer;">
+        <input type="checkbox" ${_guestState.flaggedOnly ? 'checked' : ''}
+               onchange="_guestFlaggedOnly(this.checked)"> ${E(T('guests.flaggedOnly'))}
+      </label>
+    </div>
+    <div id="guestBody"><div class="panel" style="padding:24px;text-align:center;color:var(--ink-muted);">${E(T('common.loading'))}</div></div>`;
+  await _loadGuests();
+}
+
+let _guestSearchTimer = null;
+function _guestSearchDebounced(v) {
+  _guestState.search = v;
+  clearTimeout(_guestSearchTimer);
+  _guestSearchTimer = setTimeout(_loadGuests, 260);
+}
+function _guestFlaggedOnly(v) { _guestState.flaggedOnly = !!v; _loadGuests(); }
+
+async function _loadGuests() {
+  try {
+    _guestState.rows = await TPN.listGuests(_guestState.search, _guestState.flaggedOnly);
+    _renderGuestList();
+  } catch (e) {
+    const el = document.getElementById('guestBody');
+    if (el) el.innerHTML = `<div class="panel" style="padding:26px;text-align:center;color:var(--brick);">${E(e.message || '')}</div>`;
+  }
+}
+
+function _renderGuestList() {
+  const el = document.getElementById('guestBody');
+  if (!el) return;
+  const rows = _guestState.rows;
+  if (!rows.length) {
+    el.innerHTML = `<div class="panel tpn-empty">
+      <div class="tpn-empty-icon">🧑‍🤝‍🧑</div>
+      <div class="tpn-empty-title">${E(_guestState.search || _guestState.flaggedOnly ? T('common.none') : T('guests.empty'))}</div>
+      ${(_guestState.search || _guestState.flaggedOnly) ? '' : `<div class="tpn-empty-hint">${E(T('guests.caveat'))}</div>`}
+    </div>`;
+    return;
+  }
+  const flagged  = rows.filter(r => r.is_flagged).length;
+  const repeat   = rows.filter(r => r.order_count > 1).length;
+  const spend    = rows.reduce((n, r) => n + Number(r.lifetime_spend || 0), 0);
+
+  el.innerHTML = `
+    <div class="fin-grid">
+      <div class="fin-tile"><div class="fin-tile-label">${E(T('guests.known'))}</div>
+        <div class="fin-tile-value">${rows.length}</div>
+        <div class="fin-tile-note">${repeat} ${E(T('guests.returning'))}</div></div>
+      <div class="fin-tile"><div class="fin-tile-label">${E(T('guests.totalSpend'))}</div>
+        <div class="fin-tile-value">₱${N(spend, 2)}</div></div>
+      <div class="fin-tile"><div class="fin-tile-label">${E(T('guests.flagged'))}</div>
+        <div class="fin-tile-value ${flagged ? 'neg' : ''}">${flagged}</div></div>
+    </div>
+    <div class="panel" style="overflow-x:auto;">
+      <table style="width:100%;border-collapse:collapse;font-size:13px;min-width:660px;">
+        <thead><tr style="background:var(--surface-2);">
+          ${['', T('guests.visits'), T('guests.spent'), T('guests.usual'), T('guests.lastSeen'), '']
+            .map((h, i) => `<th style="padding:9px 12px;text-align:${i===0?'left':(i===3?'left':'right')};font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-muted);white-space:nowrap;">${E(h)}</th>`).join('')}
+        </tr></thead>
+        <tbody>${rows.map(r => `<tr ${r.is_flagged ? 'style="background:rgba(139,26,14,.05);"' : ''}>
+          <td style="padding:10px 12px;border-bottom:1px solid var(--line-soft);">
+            <div style="font-weight:600;display:flex;gap:7px;align-items:center;flex-wrap:wrap;">
+              ${E(r.name || T('guests.unnamed'))}
+              ${r.is_flagged ? `<span class="inv-badge">${E(T('guests.flag'))}</span>` : ''}
+              ${r.order_count > 4 ? `<span style="font-size:9px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;background:rgba(201,149,43,.2);color:var(--gold);padding:2px 6px;border-radius:4px;">${E(T('guests.regular'))}</span>` : ''}
+            </div>
+            <div style="font-size:11px;color:var(--ink-faint);">
+              ${r.phone ? E(r.phone) + ' · ' : ''}<span title="${E(r.device_id)}">${E(String(r.device_id).slice(0, 8))}…</span>
+              ${r.no_show_count ? ' · ' + r.no_show_count + ' ' + E(T('guests.noShows')) : ''}
+            </div>
+            ${r.flag_reason ? `<div style="font-size:11px;color:var(--brick);margin-top:3px;">${E(r.flag_reason)}</div>` : ''}
+            ${r.staff_note  ? `<div style="font-size:11px;color:var(--ink-muted);margin-top:3px;">📝 ${E(r.staff_note)}</div>` : ''}
+          </td>
+          <td style="padding:10px 12px;border-bottom:1px solid var(--line-soft);text-align:right;font-weight:700;">${r.order_count}</td>
+          <td style="padding:10px 12px;border-bottom:1px solid var(--line-soft);text-align:right;">
+            ₱${N(r.lifetime_spend, 2)}
+            <div style="font-size:10px;color:var(--ink-faint);">₱${N(r.avg_spend, 2)} ${E(T('guests.avg'))}</div>
+          </td>
+          <td style="padding:10px 12px;border-bottom:1px solid var(--line-soft);color:var(--ink-muted);">${E(r.usual || '—')}</td>
+          <td style="padding:10px 12px;border-bottom:1px solid var(--line-soft);text-align:right;color:var(--ink-faint);white-space:nowrap;">
+            ${r.last_order_at ? E(_timeAgo(r.last_order_at)) : '—'}</td>
+          <td style="padding:10px 12px;border-bottom:1px solid var(--line-soft);text-align:right;white-space:nowrap;">
+            ${TPN.can('orders.manage') ? `<button class="btn-ghost" style="padding:4px 10px;font-size:11px;" onclick="openGuestEditor('${E(r.device_id)}')">${E(T('common.edit'))}</button>` : ''}
+          </td>
+        </tr>`).join('')}</tbody>
+      </table>
+    </div>
+    <div style="font-size:11px;color:var(--ink-faint);margin-top:10px;line-height:1.6;">${E(T('guests.caveat'))}</div>`;
+}
+
+function openGuestEditor(deviceId) {
+  const r = _guestState.rows.find(x => x.device_id === deviceId);
+  if (!r) return;
+  const m = document.getElementById('modal');
+  m.innerHTML = `
+    <div class="modal-title">${E(r.name || T('guests.unnamed'))}</div>
+    <div class="modal-sub">${r.order_count} ${E(T('guests.visits').toLowerCase())} · ₱${N(r.lifetime_spend,2)} ${E(T('guests.spent').toLowerCase())}${r.usual ? ' · ' + E(T('guests.usual').toLowerCase()) + ': ' + E(r.usual) : ''}</div>
+    <div class="modal-content">
+      <div style="margin-bottom:14px;">
+        <label class="form-label">${E(T('guests.note'))}</label>
+        <input type="text" class="form-input" id="gNote" value="${E(r.staff_note || '')}"
+               placeholder="${E(T('guests.notePlaceholder'))}">
+        <div class="pref-row-hint">${E(T('guests.noteHint'))}</div>
+      </div>
+      <div style="border-top:1px solid var(--line-soft);padding-top:12px;">
+        <label class="form-label">${E(T('guests.flagging'))}</label>
+        ${r.is_flagged ? `
+          <div style="font-size:12px;color:var(--brick);margin-bottom:8px;">
+            ${E(T('guests.currentlyFlagged'))}${r.flag_reason ? ' — ' + E(r.flag_reason) : ''}
+          </div>
+          <button class="btn-ghost" style="padding:7px 14px;font-size:12px;" onclick="doUnflagGuest('${E(deviceId)}')">${E(T('guests.unflag'))}</button>`
+        : `
+          <input type="text" class="form-input" id="gReason" placeholder="${E(T('guests.reasonPlaceholder'))}" style="margin-bottom:8px;">
+          <label style="display:flex;gap:8px;align-items:center;font-size:12px;color:var(--ink-muted);cursor:pointer;margin-bottom:10px;">
+            <input type="checkbox" id="gNoShow" checked> ${E(T('guests.countNoShow'))}
+          </label>
+          <button class="btn-ghost" style="padding:7px 14px;font-size:12px;color:var(--brick);" onclick="doFlagGuest('${E(deviceId)}')">${E(T('guests.flagThis'))}</button>`}
+        <div class="pref-row-hint" style="margin-top:10px;">${E(T('guests.flagHint'))}</div>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-back" onclick="closeModal()">${E(T('common.close'))}</button>
+      <button class="btn-next" onclick="saveGuestNote('${E(deviceId)}')">${E(T('common.save'))}</button>
+    </div>`;
+  document.getElementById('modalOverlay').classList.add('open');
+}
+
+async function saveGuestNote(deviceId) {
+  try {
+    await TPN.setGuestNote(deviceId, document.getElementById('gNote').value.trim());
+    closeModal(); toast(T('common.saved')); _loadGuests();
+  } catch (e) { toast('⚠️ ' + e.message); }
+}
+async function doFlagGuest(deviceId) {
+  try {
+    await TPN.flagGuest(deviceId,
+      document.getElementById('gReason').value.trim(),
+      document.getElementById('gNoShow').checked);
+    closeModal(); toast(T('guests.flagged')); _loadGuests();
+  } catch (e) { toast('⚠️ ' + e.message); }
+}
+async function doUnflagGuest(deviceId) {
+  try {
+    await TPN.unflagGuest(deviceId);
+    closeModal(); toast(T('common.saved')); _loadGuests();
+  } catch (e) { toast('⚠️ ' + e.message); }
+}
+
+/* A compact chip for an order ticket. Async because the profile is a
+   separate lookup — the caller drops it into a placeholder. */
+async function guestChipFor(deviceId, phone, mountId) {
+  if (!deviceId && !phone) return;
+  try {
+    const g = await TPN.getGuestProfile(deviceId, phone);
+    const el = document.getElementById(mountId);
+    if (!el || !g) return;
+    if (!g.is_returning && !g.is_flagged) return;   // nothing worth saying
+    const usual = (g.usuals && g.usuals[0]) ? g.usuals[0].name : null;
+    el.innerHTML = `
+      ${g.is_flagged ? `<span class="inv-badge" title="${E(g.flag_reason || '')}">${E(T('guests.flag'))}</span>` : ''}
+      ${g.is_returning ? `<span style="font-size:10px;font-weight:700;background:rgba(201,149,43,.18);color:var(--gold);padding:2px 7px;border-radius:999px;white-space:nowrap;"
+          title="${E(T('guests.since'))} ${E(_timeAgo(g.first_seen_at))}${usual ? ' · ' + E(T('guests.usual')) + ': ' + E(usual) : ''}">
+          ★ ${g.order_count}${usual ? ' · ' + E(usual) : ''}</span>` : ''}`;
+  } catch (e) { /* a missing chip must never break a ticket */ }
+}
+
+
+
+/* ════════════════════════════════════════════════════════════════
+   DAILY CLOSE   (sql/28)
+
+   One screen at end of shift, so a discrepancy is caught the same night
+   rather than surfacing in a monthly report nobody can reconstruct.
+
+   AN HONEST LIMIT, stated on the screen as well as here: payment
+   confirmation is not built yet (another developer has it). What we have
+   is the method the CUSTOMER SELECTED, so the breakdown is labelled
+   "declared" and the drawer is reconciled against declared cash only.
+   When confirmed receipts land, expected_cash moves to those and the
+   wording below should move with it.
+   ════════════════════════════════════════════════════════════════ */
+
+const _closeState = { date: null, report: null, history: [] };
+
+function _todayISO() { return new Date().toISOString().slice(0, 10); }
+
+async function renderDailyClose(main) {
+  if (!TPN.can('finance.view')) {
+    main.innerHTML = `<div class="panel tpn-empty"><div class="tpn-empty-title">${E(T('common.noAccess'))}</div></div>`;
+    return;
+  }
+  _closeState.date = _closeState.date || _todayISO();
+
+  main.innerHTML = `
+    <div class="portal-header">
+      <div>
+        <h1>${E(T('close.title'))}</h1>
+        <div class="portal-header-sub">${E(T('close.sub'))}</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;">
+        <div>
+          <label class="form-label">${E(T('close.date'))}</label>
+          <input type="date" class="form-input" id="closeDate" value="${_closeState.date}"
+                 max="${_todayISO()}" onchange="setCloseDate(this.value)">
+        </div>
+      </div>
+    </div>
+    <div id="closeBody"><div class="panel tpn-empty"><div class="tpn-empty-title">${E(T('common.loading'))}</div></div></div>`;
+
+  await _loadClose();
+}
+
+function setCloseDate(d) { _closeState.date = d; _loadClose(); }
+
+async function _loadClose() {
+  try {
+    const [report, history] = await Promise.all([
+      TPN.getDailyCloseReport(_closeState.date),
+      TPN.listDailyCloses(14).catch(() => [])
+    ]);
+    _closeState.report = report;
+    _closeState.history = history;
+    _renderClose();
+  } catch (e) {
+    const el = document.getElementById('closeBody');
+    if (el) el.innerHTML = `<div class="panel tpn-empty"><div class="tpn-empty-title" style="color:var(--brick);">${E(e.message || '')}</div></div>`;
+  }
+}
+
+function _renderClose() {
+  const el = document.getElementById('closeBody');
+  if (!el) return;
+  const r = _closeState.report || {};
+  const closed = _closeState.history.find(h => h.close_date === _closeState.date);
+  const canClose = TPN.can('finance.view');
+
+  if (!Number(r.order_count)) {
+    el.innerHTML = `<div class="panel tpn-empty">
+      <div class="tpn-empty-icon">🧾</div>
+      <div class="tpn-empty-title">${E(T('close.noSales'))}</div>
+      <div class="tpn-empty-hint">${E(T('close.noSalesHint'))}</div>
+    </div>` + _closeHistory();
+    return;
+  }
+
+  const method = (r.by_method || []).map(m => `
+    <div style="display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-bottom:1px solid var(--line-soft);font-size:13px;">
+      <span style="text-transform:capitalize;">${E(String(m.method).replace('_',' '))}
+        <span style="color:var(--ink-faint);font-size:11px;">· ${m.orders}</span></span>
+      <strong>₱${N(m.total,2)}</strong>
+    </div>`).join('');
+
+  const types = (r.by_type || []).map(t => `
+    <div style="display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-bottom:1px solid var(--line-soft);font-size:13px;">
+      <span style="text-transform:capitalize;">${E(String(t.type).replace('_',' '))}
+        <span style="color:var(--ink-faint);font-size:11px;">· ${t.orders}</span></span>
+      <strong>₱${N(t.total,2)}</strong>
+    </div>`).join('');
+
+  const top = (r.top_items || []).map(i => `
+    <div style="display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-bottom:1px solid var(--line-soft);font-size:13px;">
+      <span>${E(i.name)}</span>
+      <span style="color:var(--ink-muted);">${i.qty}× <strong style="color:var(--ink);">₱${N(i.total,2)}</strong></span>
+    </div>`).join('');
+
+  const voided = r.voided_items || {};
+  const cancelled = r.cancelled || {};
+  const declaredCash = Number(r.declared_cash || 0);
+
+  el.innerHTML = `
+    <div class="fin-grid">
+      <div class="fin-tile"><div class="fin-tile-label">${E(T('fin.net'))}</div>
+        <div class="fin-tile-value">₱${N(r.net_sales,2)}</div>
+        <div class="fin-tile-note">${r.order_count} ${E(T('fin.orders').toLowerCase())} · ₱${N(r.avg_ticket,2)} ${E(T('close.avgTicket'))}</div></div>
+      <div class="fin-tile"><div class="fin-tile-label">${E(T('fin.discounts'))}</div>
+        <div class="fin-tile-value">₱${N(r.discounts,2)}</div>
+        <div class="fin-tile-note">${E(T('fin.gross'))} ₱${N(r.gross_sales,2)}</div></div>
+      <div class="fin-tile"><div class="fin-tile-label">${E(T('close.voids'))}</div>
+        <div class="fin-tile-value ${Number(voided.value) ? 'neg' : ''}">₱${N(voided.value || 0,2)}</div>
+        <div class="fin-tile-note">${voided.lines || 0} ${E(T('close.lines'))} · ${cancelled.orders || 0} ${E(T('close.cancelled'))}</div></div>
+      <div class="fin-tile"><div class="fin-tile-label">${E(T('close.declaredCash'))}</div>
+        <div class="fin-tile-value">₱${N(declaredCash,2)}</div>
+        <div class="fin-tile-note">${E(T('close.inDrawer'))}</div></div>
+    </div>
+
+    <div class="fin-basis">⚠️ ${E(T('close.declaredWarning'))}</div>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;margin-bottom:18px;">
+      <div class="panel" style="padding:14px 16px;">
+        <div class="pref-group-title">${E(T('close.byMethod'))}</div>${method || '—'}</div>
+      <div class="panel" style="padding:14px 16px;">
+        <div class="pref-group-title">${E(T('close.byType'))}</div>${types || '—'}</div>
+      <div class="panel" style="padding:14px 16px;">
+        <div class="pref-group-title">${E(T('close.topItems'))}</div>${top || '—'}</div>
+    </div>
+
+    <div class="pref-group">
+      <div class="pref-group-title">${E(T('close.reconcile'))}</div>
+      ${closed ? `
+        <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:baseline;margin-bottom:10px;">
+          <div><div class="pref-row-hint">${E(T('close.expected'))}</div>
+            <div style="font-size:18px;font-weight:700;">₱${N(closed.expected_cash,2)}</div></div>
+          <div><div class="pref-row-hint">${E(T('close.counted'))}</div>
+            <div style="font-size:18px;font-weight:700;">₱${N(closed.counted_cash,2)}</div></div>
+          <div><div class="pref-row-hint">${E(T('close.variance'))}</div>
+            <div style="font-size:18px;font-weight:800;color:${Number(closed.variance) === 0 ? '#2D7A4F' : '#8B1A0E'};">
+              ${Number(closed.variance) > 0 ? '+' : ''}₱${N(closed.variance,2)}</div></div>
+        </div>
+        ${closed.notes ? `<div style="font-size:12px;color:var(--ink-muted);margin-bottom:10px;">📝 ${E(closed.notes)}</div>` : ''}
+        <div class="pref-row-hint">${E(T('close.closedAt'))} ${E(_timeAgo(closed.closed_at))}. ${E(T('close.recloseHint'))}</div>
+        ${canClose ? `<button class="btn-ghost" style="padding:7px 14px;font-size:12px;margin-top:10px;" onclick="openCloseTill()">${E(T('close.recount'))}</button>` : ''}
+      ` : `
+        <div class="pref-row-hint" style="margin-bottom:12px;">${E(T('close.countHint'))}</div>
+        ${canClose ? `<button class="btn-next" onclick="openCloseTill()">${E(T('close.countDrawer'))}</button>`
+                   : `<div class="pref-row-hint">${E(T('common.noAccess'))}</div>`}
+      `}
+    </div>
+
+    ${_closeHistory()}`;
+}
+
+function _closeHistory() {
+  const h = _closeState.history;
+  if (!h.length) return '';
+  return `<div class="panel" style="margin-top:18px;overflow-x:auto;">
+    <div style="padding:12px 16px;border-bottom:1px solid var(--line);" class="pref-group-title">${E(T('close.recent'))}</div>
+    <table style="width:100%;border-collapse:collapse;font-size:13px;min-width:520px;">
+      <thead><tr style="background:var(--surface-2);">
+        ${['', T('fin.net'), T('close.expected'), T('close.counted'), T('close.variance')]
+          .map((x,i) => `<th style="padding:9px 12px;text-align:${i?'right':'left'};font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-muted);white-space:nowrap;">${E(x)}</th>`).join('')}
+      </tr></thead>
+      <tbody>${h.map(d => {
+        const v = Number(d.variance || 0);
+        return `<tr style="cursor:pointer;" onclick="setCloseDate('${d.close_date}')">
+          <td style="padding:9px 12px;border-bottom:1px solid var(--line-soft);white-space:nowrap;">${E(d.close_date)}</td>
+          <td style="padding:9px 12px;border-bottom:1px solid var(--line-soft);text-align:right;">₱${N(d.net_sales,2)}</td>
+          <td style="padding:9px 12px;border-bottom:1px solid var(--line-soft);text-align:right;color:var(--ink-muted);">₱${N(d.expected_cash,2)}</td>
+          <td style="padding:9px 12px;border-bottom:1px solid var(--line-soft);text-align:right;color:var(--ink-muted);">₱${N(d.counted_cash,2)}</td>
+          <td style="padding:9px 12px;border-bottom:1px solid var(--line-soft);text-align:right;font-weight:700;color:${v===0?'#2D7A4F':'#8B1A0E'};">
+            ${v>0?'+':''}₱${N(v,2)}</td>
+        </tr>`;
+      }).join('')}</tbody>
+    </table>
+  </div>`;
+}
+
+function openCloseTill() {
+  const r = _closeState.report || {};
+  const expected = Number(r.declared_cash || 0);
+  const m = document.getElementById('modal');
+  m.innerHTML = `
+    <div class="modal-title">${E(T('close.countDrawer'))}</div>
+    <div class="modal-sub">${E(_closeState.date)} · ${E(T('close.expected'))} ₱${N(expected,2)}</div>
+    <div class="modal-content">
+      <div style="margin-bottom:12px;">
+        <label class="form-label">${E(T('close.counted'))}</label>
+        <input type="number" step="0.01" class="form-input" id="ccCounted"
+               value="${N(expected,2)}" oninput="_ccPreview()">
+        <div class="pref-row-hint" id="ccVar" style="margin-top:6px;"></div>
+      </div>
+      <div>
+        <label class="form-label">${E(T('common.notes'))}</label>
+        <input type="text" class="form-input" id="ccNotes" placeholder="${E(T('close.notesPlaceholder'))}">
+      </div>
+      <div class="pref-row-hint" style="margin-top:12px;">${E(T('close.declaredWarning'))}</div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-back" onclick="closeModal()">${E(T('common.cancel'))}</button>
+      <button class="btn-next" onclick="doCloseTill()">${E(T('close.record'))}</button>
+    </div>`;
+  document.getElementById('modalOverlay').classList.add('open');
+  _ccPreview();
+}
+
+// Show the variance as they type — finding a shortfall before you commit
+// beats discovering it in a report afterwards.
+function _ccPreview() {
+  const expected = Number((_closeState.report || {}).declared_cash || 0);
+  const counted  = Number((document.getElementById('ccCounted') || {}).value || 0);
+  const v = counted - expected;
+  const el = document.getElementById('ccVar');
+  if (!el) return;
+  el.innerHTML = v === 0
+    ? `<span style="color:#2D7A4F;font-weight:700;">${E(T('close.balanced'))}</span>`
+    : `<span style="color:#8B1A0E;font-weight:700;">${v > 0 ? '+' : ''}₱${N(v,2)} — ${E(v > 0 ? T('close.over') : T('close.short'))}</span>`;
+}
+
+async function doCloseTill() {
+  try {
+    const res = await TPN.recordDailyClose(
+      _closeState.date,
+      Number(document.getElementById('ccCounted').value || 0),
+      document.getElementById('ccNotes').value.trim() || null);
+    closeModal();
+    toast(Number(res.variance) === 0 ? T('close.balanced') : T('common.saved'));
+    _loadClose();
+  } catch (e) { toast('⚠️ ' + (e.message || '')); }
+}
+
+
+/* ════════════════════════════════════════════════════════════════
+   STOCK VARIANCE
+
+   Deliberately NOT called a yield report. Theoretical usage needs recipes
+   (how much pork a kare-kare uses) and there is no recipe table, so this
+   reports what IS knowable: everything that moved, and how much of the
+   loss was DISCOVERED by a stock count rather than recorded as it
+   happened. Discovered loss is the number worth chasing.
+   ════════════════════════════════════════════════════════════════ */
+
+const _varState = { from: null, to: null, rows: [] };
+
+async function renderVariance(main) {
+  if (!TPN.can('inventory.view')) {
+    main.innerHTML = `<div class="panel tpn-empty"><div class="tpn-empty-title">${E(T('common.noAccess'))}</div></div>`;
+    return;
+  }
+  if (!_varState.from) {
+    const d = new Date(); d.setDate(d.getDate() - 29);
+    _varState.from = d.toISOString().slice(0,10);
+    _varState.to = _todayISO();
+  }
+  main.innerHTML = `
+    <div class="portal-header">
+      <div>
+        <h1>${E(T('var.title'))}</h1>
+        <div class="portal-header-sub">${E(T('var.sub'))}</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;">
+        <div><label class="form-label">From</label>
+          <input type="date" class="form-input" id="varFrom" value="${_varState.from}" onchange="setVarRange()"></div>
+        <div><label class="form-label">To</label>
+          <input type="date" class="form-input" id="varTo" value="${_varState.to}" onchange="setVarRange()"></div>
+      </div>
+    </div>
+    <div id="varBody"><div class="panel tpn-empty"><div class="tpn-empty-title">${E(T('common.loading'))}</div></div></div>`;
+  await _loadVariance();
+}
+
+function setVarRange() {
+  _varState.from = document.getElementById('varFrom').value;
+  _varState.to   = document.getElementById('varTo').value;
+  _loadVariance();
+}
+
+async function _loadVariance() {
+  try {
+    _varState.rows = await TPN.getInventoryVariance(_varState.from, _varState.to);
+    _renderVariance();
+  } catch (e) {
+    const el = document.getElementById('varBody');
+    if (el) el.innerHTML = `<div class="panel tpn-empty"><div class="tpn-empty-title" style="color:var(--brick);">${E(e.message || '')}</div></div>`;
+  }
+}
+
+function _renderVariance() {
+  const el = document.getElementById('varBody');
+  if (!el) return;
+  const rows = _varState.rows;
+  if (!rows.length) {
+    el.innerHTML = `<div class="panel tpn-empty">
+      <div class="tpn-empty-icon">📉</div>
+      <div class="tpn-empty-title">${E(T('var.empty'))}</div>
+      <div class="tpn-empty-hint">${E(T('var.emptyHint'))}</div>
+    </div>`;
+    return;
+  }
+  const lost  = rows.reduce((n,r) => n + Number(r.discovered_loss_value || 0), 0);
+  const waste = rows.reduce((n,r) => n + Number(r.waste_value || 0), 0);
+  const worst = rows.filter(r => Number(r.discovered_loss_value) > 0).length;
+
+  el.innerHTML = `
+    <div class="fin-grid">
+      <div class="fin-tile"><div class="fin-tile-label">${E(T('var.discovered'))}</div>
+        <div class="fin-tile-value ${lost ? 'neg' : ''}">₱${N(lost,2)}</div>
+        <div class="fin-tile-note">${worst} ${E(T('var.itemsShort'))}</div></div>
+      <div class="fin-tile"><div class="fin-tile-label">${E(T('var.wasteValue'))}</div>
+        <div class="fin-tile-value ${waste ? 'neg' : ''}">₱${N(waste,2)}</div></div>
+      <div class="fin-tile"><div class="fin-tile-label">${E(T('var.combined'))}</div>
+        <div class="fin-tile-value ${(lost+waste) ? 'neg' : ''}">₱${N(lost+waste,2)}</div>
+        <div class="fin-tile-note">${E(T('var.overPeriod'))}</div></div>
+    </div>
+    <div class="fin-basis">${E(T('var.caveat'))}</div>
+    <div class="panel" style="overflow-x:auto;">
+      <table style="width:100%;border-collapse:collapse;font-size:13px;min-width:720px;">
+        <thead><tr style="background:var(--surface-2);">
+          ${['', T('var.in'), T('var.used'), T('var.wasted'), T('var.short'), T('var.onHand'), T('var.lossValue')]
+            .map((x,i) => `<th style="padding:9px 12px;text-align:${i?'right':'left'};font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-muted);white-space:nowrap;">${E(x)}</th>`).join('')}
+        </tr></thead>
+        <tbody>${rows.map(r => {
+          const loss = Number(r.discovered_loss_value || 0) + Number(r.waste_value || 0);
+          return `<tr ${loss > 0 ? 'style="background:rgba(139,26,14,.04);"' : ''}>
+            <td style="padding:9px 12px;border-bottom:1px solid var(--line-soft);">
+              <strong>${E(r.name)}</strong>
+              <span style="font-size:11px;color:var(--ink-faint);">${E(r.unit)}</span></td>
+            <td style="padding:9px 12px;border-bottom:1px solid var(--line-soft);text-align:right;color:#2D7A4F;">${N(r.delivered,2)}</td>
+            <td style="padding:9px 12px;border-bottom:1px solid var(--line-soft);text-align:right;color:var(--ink-muted);">${N(r.used,2)}</td>
+            <td style="padding:9px 12px;border-bottom:1px solid var(--line-soft);text-align:right;color:${Number(r.wasted)?'#B45309':'var(--ink-faint)'};">${N(r.wasted,2)}</td>
+            <td style="padding:9px 12px;border-bottom:1px solid var(--line-soft);text-align:right;font-weight:${Number(r.found_short)?'700':'400'};color:${Number(r.found_short)?'#8B1A0E':'var(--ink-faint)'};">${N(r.found_short,2)}</td>
+            <td style="padding:9px 12px;border-bottom:1px solid var(--line-soft);text-align:right;">${N(r.closing_stock,2)}</td>
+            <td style="padding:9px 12px;border-bottom:1px solid var(--line-soft);text-align:right;font-weight:700;color:${loss?'#8B1A0E':'var(--ink-faint)'};">₱${N(loss,2)}</td>
+          </tr>`;
+        }).join('')}</tbody>
+      </table>
+    </div>`;
+}
+
+
 function renderStaffSidebar() {
   const u = currentUser;
   const initials = u.name.split(' ').map(s => s[0]).join('').slice(0, 2).toUpperCase();
@@ -9612,7 +10897,8 @@ function renderStaffSidebar() {
     { id: 'staff-attendance', label: T('nav.attendance'), icon: '✓' },
     { id: 'staff-notifications', label: T('nav.notifications'), icon: '🔔', badge: portalState.unreadNotifCount || null },   // real unread: cleared by marking read, not acking
     { id: 'staff-messages', label: T('nav.messages'), icon: '✉️', badge: window._tpnUnreadMsgs || null },
-    { section: 'SETTINGS' },
+    { section: T('sec.you') },
+    { id: 'preferences', label: T('nav.preferences'), icon: '⚙️' },
     { id: 'staff-settings', label: 'Settings', icon: '⚙️' },
   );
   document.getElementById('staffNav').innerHTML = langSwitchHtml() + items.map(it => {
@@ -9649,7 +10935,7 @@ function routeStaff(r, opts) {
   } catch(e) {}
   switch (r) {
     case 'staff-home': renderStaffHome(main); break;
-    case 'kds': renderKDS(main); break;
+    case 'kds': renderKDS(main); setTimeout(() => mountGuestChips('kds'), 60); break;
     case 'orders': renderOrders(main); break;
     case 'staff-schedule': renderStaffSchedule(main); break;
     case 'staff-attendance': renderStaffAttendance(main); break;
@@ -9657,6 +10943,7 @@ function routeStaff(r, opts) {
     case 'staff-notifications': renderNotifications(main, 'staff'); break;
     case 'staff-void-requests': renderVoidRequests(main, 'staff'); break;
     case 'tasks': renderTasks(main); break;
+    case 'preferences': renderPreferences(main); break;
     case 'staff-settings': renderStaffSettings(main); break;
     default: renderStaffHome(main);
   }

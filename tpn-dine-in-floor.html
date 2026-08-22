@@ -1019,7 +1019,7 @@ function setOrderFilter(f) {
 // UnoSys sync fix (sql/15 era): advanceOrder used to only mutate local state,
 // which meant the floor panel and the KDS/Orders board would drift the moment
 // a floor manager tapped "→ Preparing". Now every advance pushes through
-// TPN.updateOrderStatus with optimistic UI + rollback, matching index.html.
+// TPN.advanceOrderStatus with optimistic UI + rollback, matching index.html.
 async function advanceOrder(ref) {
   const order = dineInOrders.find(o => o.ref === ref);
   if (!order) return;
@@ -1063,7 +1063,10 @@ async function advanceOrder(ref) {
     return;
   }
   try {
-    await TPN.updateOrderStatus(order.dbId, dbStatus);
+    // Through the RPC so the audit log records that the floor panel moved
+    // this — matters most when a manager drives the line from here because
+    // the kitchen screen is down. sql/26.
+    await TPN.advanceOrderStatus(order.dbId, dbStatus, 'floor_panel');
     showToast(`✅ Order ${ref} → ${nextStatus}`);
   } catch (e) {
     console.error('advanceOrder sync failed:', e);
@@ -1177,7 +1180,7 @@ async function confirmCloseTable(tableNum, branchId) {
 
   for (const o of live) {
     try {
-      await TPN.updateOrderStatus(o.dbId, 'completed');
+      await TPN.advanceOrderStatus(o.dbId, 'completed', 'floor_panel');
       o.status = 'done';
       ok++;
     } catch (e) {
@@ -1443,11 +1446,88 @@ function openTableModal(tableNum, branchId) {
   });
   content += `</div>`;
 
+  // Who-ordered-what, and the split control. Filled after the modal opens
+  // because it is a separate lookup — the table detail must never wait on it.
+  content += `<div id="tbl-guests" style="margin-top:14px"></div>`;
+
   const branchIdx = branches.findIndex(b => b.id === branchId);
   openModal(`Table ${tableNum} Details`, content, [
     { label: 'Close', cls: 'secondary', fn: 'closeModal()' },
     { label: tbl.billRequested ? '✓ Close Table' : '💳 Request Bill', cls: 'primary', fn: tbl.billRequested ? `clearTable(${tableNum}, '${branchId}'); closeModal();` : `markBillReady(${tableNum}, '${branchId}'); closeModal();` }
   ]);
+
+  loadTableGuests(tbl);
+}
+
+/* ─── SHARED BILL: who ordered what, and splitting it ───────────
+   Several phones at one table land on ONE bill (sql/24). Every line records
+   which phone added it, so a split is a grouping rather than a guess.
+
+   Splitting is staff-only on purpose: device_id travels in the request and
+   is not a secret, so if a guest could split by passing an id they could
+   move somebody else's food onto a separate bill. A guest asks; staff does.  */
+async function loadTableGuests(tbl) {
+  const mount = document.getElementById('tbl-guests');
+  if (!mount) return;
+  // tableStates is keyed by branch + table NUMBER and carries order ids, not
+  // a table uuid — so ask by order. Any live order on this table shares the
+  // one bill, so the first is enough.
+  const live = (tbl.orders || []).filter(o => o.dbId && o.status !== 'done');
+  if (!live.length || typeof TPN.getOrderBillBreakdown !== 'function') return;
+
+  try {
+    const bill = await TPN.getOrderBillBreakdown(live[0].dbId);
+    if (!bill || !bill.guests || bill.guests.length < 1) return;
+    const guests = bill.guests;
+    const splittable = guests.length > 1;
+
+    mount.innerHTML = `
+      <div style="font-size:13px;font-weight:700;color:var(--text-muted);letter-spacing:.07em;text-transform:uppercase;margin-bottom:10px">
+        Who ordered what (${guests.length} ${guests.length === 1 ? 'phone' : 'phones'})
+      </div>
+      ${guests.map(g => `
+        <div style="display:flex;gap:10px;align-items:center;background:var(--cream);border-radius:10px;padding:10px 12px;margin-bottom:6px">
+          <div style="flex:1;min-width:0">
+            <div style="font-size:13px;font-weight:700">${E(g.guest || 'Walk-in')}</div>
+            <div style="font-size:11px;color:var(--text-muted)">${g.lines} item${g.lines === 1 ? '' : 's'}</div>
+          </div>
+          <div style="font-weight:700;white-space:nowrap">₱${Number(g.subtotal).toFixed(2)}</div>
+          ${splittable && g.device_id ? `<button class="t-btn view"
+              onclick="confirmSplit('${E(bill.order_id)}','${E(g.device_id)}','${E((g.guest||'Walk-in').replace(/'/g,"&#39;"))}')"
+              title="Move this phone's items onto their own bill">Split</button>` : ''}
+        </div>`).join('')}
+      ${splittable
+        ? `<div style="font-size:11px;color:var(--text-muted);line-height:1.5;margin-top:4px">
+             Splitting moves that phone's items onto a separate bill. It is recorded in the audit log with your name.
+           </div>`
+        : `<div style="font-size:11px;color:var(--text-muted);margin-top:4px">
+             One phone on this bill — nothing to split.
+           </div>`}`;
+  } catch (e) {
+    // A missing breakdown must never break the table modal.
+    console.warn('table bill:', e.message || e);
+  }
+}
+
+function confirmSplit(orderId, deviceId, guestName) {
+  if (!confirm(`Move ${guestName}'s items onto their own bill?\n\nThe rest of the table stays together. This is recorded in the audit log.`)) return;
+  doSplit(orderId, deviceId);
+}
+
+async function doSplit(orderId, deviceId) {
+  try {
+    const res = await TPN.splitTableBill(orderId, deviceId);
+    showToast(`✓ Split — new bill ${res.new_order_number} · ₱${Number(res.new_total).toFixed(2)}`);
+    closeModal();
+    if (typeof loadOrdersFromSupabase === 'function') loadOrdersFromSupabase();
+  } catch (e) {
+    const m = e.message || '';
+    showToast('⚠️ ' + (
+      /split_would_empty_original/.test(m) ? 'Every open item belongs to that phone — nothing to split off.' :
+      /nothing_to_split/.test(m)           ? 'That phone has no open items on this bill.' :
+      /order_already_closed/.test(m)       ? 'That bill is already closed.' :
+      /permission_denied/.test(m)          ? 'You do not have permission to split a bill.' : m));
+  }
 }
 
 // ─── ORDER MODAL ───
