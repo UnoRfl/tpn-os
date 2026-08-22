@@ -238,6 +238,43 @@ visible in testing instead of rendering as an empty label.
 
 ---
 
+## ⚠️ BUMP THE ASSET VERSION ON EVERY RELEASE
+
+`index.html` loads its two scripts with a hand-written cache-buster:
+
+```html
+<script src="config.js?v=20260822"></script>
+<script src="tpn-supabase.js?v=20260822"></script>
+```
+
+**If you change `tpn-supabase.js` and do not bump that string, returning users
+get the new `index.html` against the OLD cached `tpn-supabase.js`.** GitHub
+Pages revalidates the HTML but the querystring-versioned JS is cached hard.
+
+This bit for real on the 22 Aug release. `index.html` called
+`await TPN.loadPermissions()` during login; the cached bundle predated that
+function; the sign-in button died with **"TPN.loadPermissions is not a
+function"** and nobody could get into the portal. The database was fine, the
+push was fine — it was a stale script.
+
+Two defences are now in place, and both should stay:
+
+1. **`preloadPermissions()` in `index.html` never throws.** It checks the
+   function exists, catches anything, and sets `TPN._permsFailed`. Sign-in
+   continues regardless. **Never call `TPN.loadPermissions()` directly from
+   the login path again** — go through the wrapper.
+2. **`TPN.can()` falls back to pre-19 tier gating** when permissions could not
+   be loaded (`TPN._fallbackCan`), so a failure looks like the old app instead
+   of an empty sidebar. That fallback is deliberately a bit generous, and
+   that is safe: `can()` only decides what the UI *offers*. RLS and the
+   SECURITY DEFINER functions are what actually refuse a write, so a fallback
+   showing one tab too many produces a Postgres refusal, not access.
+
+The general rule this teaches: **no new function may be a hard dependency of
+the login path.** Anything the sign-in flow awaits must degrade.
+
+---
+
 ## Known quirks / gotchas for the next session
 
 - **Always ask for current files before editing.** Uno pushes his own commits between sessions. Never assume Claude's copy matches live. Fetch via `curl https://raw.githubusercontent.com/UnoRfl/tpn-os/main/<file>` before proposing edits.

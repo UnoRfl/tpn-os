@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="config.js?v=20260812"></script>
-<script src="tpn-supabase.js?v=20260812"></script>
+<script src="config.js?v=20260822"></script>
+<script src="tpn-supabase.js?v=20260822"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="description" content="Tyo Paeng Nyo — Authentic Filipino cuisine in Las Piñas since 2003. Order online, book events, or inquire about catering.">
 <meta name="theme-color" content="#8B1A0E">
@@ -3505,9 +3505,9 @@ async function attemptLogin() {
       return;
     }
     currentUser = staffToPortalUser(staff);
-    // The sidebar is built from permissions, so they must be in hand
-    // before the first paint or every gated tab would be hidden.
-    await TPN.loadPermissions();
+    // Best-effort: the sidebar reads better with permissions in hand, but a
+    // failure here must never keep someone out of their own portal.
+    await preloadPermissions();
     enterPortal();
   } catch(e) {
     console.error('login error:', e);
@@ -3762,7 +3762,7 @@ async function tryRestoreSession() {
       return false;
     }
     currentUser = staffToPortalUser(staff);
-    await TPN.loadPermissions();
+    await preloadPermissions();
     // A screen account that lands back on index.html (bookmark, "← Back")
     // gets sent home again rather than into the portal.
     if (redirectDisplayAccount(currentUser.tier)) return true;
@@ -3779,6 +3779,43 @@ function togglePortalSidebar() {
   document.getElementById('staffSidebar')?.classList.toggle('open');
 }
 
+
+
+/* ════════════════════════════════════════════════════
+   PERMISSION PRELOAD — never allowed to block sign-in
+
+   Learned the hard way on the 22 Aug release: login called
+   `await TPN.loadPermissions()` unguarded, the browser was serving a
+   cached tpn-supabase.js from before that function existed, and the
+   sign-in button died with "TPN.loadPermissions is not a function".
+   Nobody could get into the portal.
+
+   Two rules now:
+     1. This never throws. Ever. Whatever happens, sign-in continues.
+     2. If permissions genuinely cannot be loaded, the portal falls
+        back to the pre-19 tier gating rather than showing an empty
+        sidebar — see TPN.can()'s failure branch in tpn-supabase.js.
+
+   That fallback is safe because can() only decides what the UI
+   OFFERS. Every write is still gated by RLS and by the SECURITY
+   DEFINER functions, so a fallback that shows one tab too many
+   produces a refusal from Postgres, not unauthorised access.
+   ════════════════════════════════════════════════════ */
+async function preloadPermissions() {
+  try {
+    if (!window.TPN || typeof TPN.loadPermissions !== 'function') {
+      // Almost always a stale cached tpn-supabase.js.
+      console.warn('[TPN] loadPermissions() unavailable — running on an old ' +
+                   'tpn-supabase.js? Falling back to tier-based navigation.');
+      if (window.TPN) TPN._permsFailed = true;
+      return;
+    }
+    await TPN.loadPermissions();
+  } catch (e) {
+    console.warn('[TPN] permission preload failed, falling back to tier-based navigation:', e);
+    if (window.TPN) TPN._permsFailed = true;
+  }
+}
 
 /* ════════════════════════════════════════════════════
    SIDEBAR SECTION FOLDING
@@ -7609,7 +7646,7 @@ async function setRoleCell(roleId, permKey, allowed, inputEl) {
     toast(allowed ? `Granted ${permKey}` : `Removed ${permKey}`);
     // If the caller just changed their OWN effective access, refresh it so
     // the sidebar stops offering something the database will now refuse.
-    await TPN.loadPermissions();
+    await preloadPermissions();
     if (typeof renderAdminSidebar === 'function') renderAdminSidebar();
   } catch (e) {
     if (cell) cell.allowed = prev;
@@ -7856,7 +7893,7 @@ async function matrixToggle(roleId, permKey, allowed) {
   _renderMatrixGrid(_rolesState.matrix);   // repaint immediately
   try {
     await TPN.setRolePermission(roleId, permKey, allowed);
-    await TPN.loadPermissions();
+    await preloadPermissions();
     if (typeof renderAdminSidebar === 'function') renderAdminSidebar();
   } catch (e) {
     if (cell) cell.allowed = prev;

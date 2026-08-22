@@ -1157,19 +1157,21 @@ TPN.removeDiscount = async function (appliedId, reason) {
    database is the security boundary.
    ═══════════════════════════════════════════════════════════════ */
 
-TPN._perms = null;   // Set of permission keys, or null until loaded
+TPN._perms       = null;    // Set of permission keys, or null until loaded
+TPN._permsFailed = false;   // true when we could not load them at all
 
 TPN.loadPermissions = async function () {
-  if (!this._user) { this._perms = new Set(); return this._perms; }
+  if (!this._user) { this._perms = new Set(); this._permsFailed = false; return this._perms; }
   const { data, error } = await sb.rpc('my_permissions');
   if (error) {
-    // Fail CLOSED on the UI side. If we cannot tell what this person may
-    // do, offer nothing rather than everything — the database would
-    // refuse the write anyway, so an optimistic guess only produces
-    // buttons that error when pressed.
-    console.warn('Could not load permissions:', error.message);
-    this._perms = new Set();
-    return this._perms;
+    // Could not determine what this person may do. Do NOT offer nothing --
+    // that reads as a broken portal. Flag it and let can() fall back to the
+    // tier gating this app used before migration 19. Safe, because can()
+    // only decides what the UI offers; RLS is what actually refuses writes.
+    console.warn('[TPN] my_permissions failed, falling back to tier gating:', error.message);
+    this._perms = null;
+    this._permsFailed = true;
+    return null;
   }
   // rpc() on a setof-scalar returns either an array of scalars or of
   // one-key objects depending on the PostgREST version. Handle both.
@@ -1177,13 +1179,47 @@ TPN.loadPermissions = async function () {
     (data || []).map(r => (typeof r === 'string' ? r : (r && (r.my_permissions ?? r.key))))
                 .filter(Boolean)
   );
+  this._permsFailed = false;
   return this._perms;
+};
+
+/* ── The degraded fallback ─────────────────────────────────────
+   Used ONLY when my_permissions could not be loaded (offline, a stale
+   cached bundle, an RPC error). It reproduces the tier gating this app
+   shipped with before migration 19, so a transient failure looks like
+   the old app rather than an empty sidebar.
+
+   Yes, this mirrors part of the permissions catalogue, and the project
+   rightly warns about mirrored lists drifting. It is tolerable here for
+   one reason: nothing depends on it being correct. It decides which tabs
+   to draw. Every write behind those tabs is still gated by RLS and by the
+   SECURITY DEFINER functions, so if this list is too generous the user
+   gets a refusal from Postgres, not access they should not have.
+   ──────────────────────────────────────────────────────────── */
+TPN.FALLBACK_CREW_KEYS = [
+  'dashboard.view', 'orders.view', 'orders.manage',
+  'kds.view', 'kds.advance', 'floor.view', 'kitchen_station.view',
+  'voids.request', 'schedules.view', 'attendance.view',
+  'messages.view', 'notifications.view', 'tasks.view',
+  'menu.view', 'staff.view'
+];
+TPN.FALLBACK_ADMIN_KEYS = [
+  'performance.view', 'history.view', 'audit.view',
+  'roles.view', 'roles.edit', 'accounts.deactivate',
+  'staff.assign', 'finance.edit', 'payroll.view', 'settings.manage'
+];
+
+TPN._fallbackCan = function (key) {
+  if (key === 'payroll.edit')                     return this.hasRole('ceo');
+  if (this.FALLBACK_ADMIN_KEYS.indexOf(key) !== -1) return this.hasRole('admin');
+  if (this.FALLBACK_CREW_KEYS.indexOf(key) !== -1)  return this.hasRole('dining');
+  return this.hasRole('manager');
 };
 
 TPN.can = function (key) {
   if (!this._user) return false;
   if (this._user.role === 'ceo') return true;      // mirrors the DB short-circuit
-  if (!this._perms) return false;                   // not loaded yet: offer nothing
+  if (this._permsFailed || !this._perms) return this._fallbackCan(key);
   return this._perms.has(key);
 };
 
@@ -1592,7 +1628,8 @@ sb.auth.onAuthStateChange((event) => {
     TPN.loadProfile().then(() => TPN.loadPermissions()).catch(() => {});
   }
   if (event === 'SIGNED_OUT') {
-    TPN._user = null; TPN._branches = null; TPN._menu = null; TPN._perms = null;
+    TPN._user = null; TPN._branches = null; TPN._menu = null;
+    TPN._perms = null; TPN._permsFailed = false;
   }
 });
 
