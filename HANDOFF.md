@@ -1,6 +1,6 @@
 # TPN OS — Session Handoff
 
-**Last updated:** Aug 13, 2026 (hardening release, migrations 16–17)
+**Last updated:** Aug 22, 2026 (access control, tasks, inventory, finance, real i18n — migrations 18–22)
 **Deployed:** https://unorfl.github.io/tpn-os/
 **Repo:** https://github.com/UnoRfl/tpn-os
 **Supabase project ref:** `xjlqfpnzobfqxetgkkai` (single project, single branch)
@@ -113,6 +113,128 @@ These are ordered by user value. Only start these if the site is stable in produ
 8. Multi-branch support (Bacoor, TGT Concession) — DB already supports it; just need UI branch switcher throughout. Only build when second branch actually opens.
 9. Full chat/reply threading on messages — current inbox is 1-way (manager → staff). Only build if staff-to-manager backchannel becomes a felt need.
 10. Analytics dashboard — top items, hour heatmap, category revenue splits. Current dashboard covers the essentials.
+
+---
+
+## What migrations 18–22 added (Aug 22, 2026)
+
+### The ordering bug — fixed
+Placing a **pickup or delivery** order from the public site failed with
+"new row violates row-level security policy", which reads to a user as a
+permissions error. Production was running the ORIGINAL `orders_anon_create`
+from `sql/01-schema.sql`, which permits anonymous inserts only when
+`order_type = 'dine_in'`. `sql/05-anon-orders.sql` was written to widen that
+and its effect was not present in the live database — either `01` was replayed
+after `05`, or `05` never ran. Verified by inserting as role `anon` before the
+fix: dine-in succeeded, pickup and delivery both returned 42501.
+
+`sql/18` restores the widening **and** pins what an anonymous caller may
+assert. The old policy would also have accepted `status = 'done'`,
+`payment_status = 'paid'` or a self-applied discount; nothing in the app does
+that, but the policy allowed it. It cannot now.
+
+**If you ever replay `sql/01` against production, you will reintroduce this
+bug.** Re-run `sql/18` afterwards.
+
+### Access control (`sql/19`)
+Read the "Two layers" table in README.md first. The short version: the enum is
+the lock, the permission grid is the UI. Four things worth knowing:
+
+- `private.can()` returns true for `ceo` before touching a table. Deliberate
+  lockout protection — do not "optimise" it away.
+- A permission cannot be attached to a role whose `base_tier` sits below the
+  permission's `min_tier`. The Access Matrix renders those cells hatched and
+  unclickable rather than as empty checkboxes, because the trigger would
+  refuse the write and a silently-failing checkbox is worse than a visibly
+  unavailable one.
+- The nine system roles cannot be deleted, rekeyed, re-tiered or deactivated.
+  Their permission grid IS editable — that is the intended way to tune access.
+- One shared audit trigger function across `access_roles`,
+  `access_role_permissions` and `staff_permission_overrides` **does not work**.
+  plpgsql resolves OLD/NEW field references against a concrete row type, so a
+  function containing both `old.id` and `old.role_id` dies with
+  `record "old" has no field "role_id"` the moment it fires on the wrong
+  table. Three separate functions, one per table. Found the hard way.
+
+### Tasks (`sql/20`)
+Many assignees per task, each carrying their own state. The task's own status
+is **derived** by `private.roll_up_task()` — nobody started → `todo`, anyone
+working → `in_progress`, everyone done → `done`. A task with no assignees keeps
+its hand-set status so an unassigned backlog item still works.
+
+- `tasks_read` and `ta_read` must **never** reference each other's table.
+  Doing so produced `42P17 infinite recursion detected in policy for relation
+  "tasks"` on the very first insert. `private.am_i_on_task()` and
+  `private.task_branch()` are SECURITY DEFINER precisely to break that cycle.
+- Two triggers, two functions: `state_changed_at` must be stamped BEFORE the
+  row lands, the roll-up must run AFTER it. Sharing one function across both
+  timings made the roll-up run twice and read a row that had not been written.
+
+### Inventory + finance (`sql/21`)
+`ingredients.current_stock` is derived from `stock_movements` by trigger, the
+same way `orders.total` is derived from `order_items`. **Never write it
+directly** — record an `adjust_up` / `adjust_down` movement so the history
+explains the number.
+
+- `quantity` is always a positive magnitude; `private.stock_direction()` is the
+  only place the sign convention lives.
+- There is no single signed `adjustment` type on purpose. `quantity` is
+  CHECK-constrained positive, so one adjustment type could only ever ADD stock,
+  making a downward stock-count correction impossible to record.
+- `finance_summary()` returns `cogs_basis` alongside the number. Cost of goods
+  is either MEASURED from stock usage or ESTIMATED as a percent of sales, and
+  the UI states which. Do not remove that — an estimate presented as a
+  measurement is how a P&L loses its credibility.
+- Monthly pay is prorated at `/30.4375` per day in the bucket; daily and hourly
+  pay read real `attendance` rows.
+
+### Board read helpers (`sql/22`)
+`staff` RLS is deliberately tight: below manager you can read exactly one staff
+row, your own. That is right for the staff table and wrong for a shared task
+board, and it broke two things in testing — a kitchen crew member could not see
+who else was on their task, and a supervisor with `tasks.assign` got an empty
+assignment picker. The fix is NOT to loosen staff RLS. `staff_directory()`,
+`task_board()` and `inventory_board()` expose the minimum a board needs
+(name, role, progress) through SECURITY DEFINER functions with their own
+explicit permission checks. None of them return email, phone or pay.
+
+### Function grants — the trap that caught this release (`sql/23`)
+`revoke all on function ... from anon` **does not close a function to
+anonymous callers.** There are two grants, not one:
+
+1. Postgres grants EXECUTE on every new function to `PUBLIC` by default.
+2. Supabase runs `ALTER DEFAULT PRIVILEGES` granting EXECUTE on new functions
+   in `public` to `anon` and `authenticated` **directly**.
+
+Revoking "from anon" removes (2) and leaves (1), so the function stays
+reachable at `/rest/v1/rpc/<name>` without a session. All eight new RPCs in
+migrations 19–22 shipped that way until the Supabase advisor flagged them.
+Nothing leaked — each checks `private.can()` first and an anonymous caller has
+no staff row — but the door was open. **Always `revoke ... from public, anon`.**
+
+Trigger functions were also world-executable. Revoking EXECUTE from every role
+does not break them: a trigger runs as the table owner. Verified after
+applying — stock still moves, task status still rolls up, access changes still
+audit.
+
+The two remaining anon-executable advisor warnings (`signal_call_staff`,
+`signal_bill_request`) are correct and must stay — they are the customer
+"Call staff" and "Bill" buttons on the QR menu.
+
+### Language (`index.html`)
+`setLang()` used to set `portalState.lang`, which nothing read, and then toast
+"Tagalog naka-set na". It now drives a real dictionary (`TPN_STRINGS`), a
+`T()` lookup, a `data-i18n` DOM pass and a re-render of the current route.
+There is now a switch on the public site too — it previously had none at all.
+
+**Coverage is honest, not total.** Fully translated: both navs, the login
+screen, all five new tabs, and every DB field that carries a `*_tagalog` /
+`label_tl` column. Not yet translated: the pre-existing public marketing copy
+(hero, About, Concessions, Events, the two inquiry forms) and the older portal
+tabs, which are still hardcoded English/Taglish. Those are a mechanical pass —
+wrap the string, add the key — but there are several hundred of them.
+`T('some.missing.key')` returns the key itself rather than blank, so a gap is
+visible in testing instead of rendering as an empty label.
 
 ---
 

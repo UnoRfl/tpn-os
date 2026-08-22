@@ -1629,6 +1629,126 @@
     .today-grid { grid-template-columns: 1fr; }
   }
 </style>
+
+<style>
+/* ════════════════════════════════════════════════════
+   COLLAPSIBLE SIDEBAR SECTIONS
+   The nav grew past a screen once Roles, Tasks, Inventory and
+   Finance landed, so category headers became buttons that fold.
+   State is per-user in localStorage, so a manager who only ever
+   uses Workspace does not re-close TEAM every morning.
+   ════════════════════════════════════════════════════ */
+.portal-nav-section.collapsible {
+  display: flex; align-items: center; gap: 6px;
+  cursor: pointer; user-select: none;
+  border: none; background: none; width: 100%;
+  font-family: inherit; text-align: left;
+  border-radius: 6px; transition: color 0.15s, background 0.15s;
+}
+.portal-nav-section.collapsible:hover { color: var(--brick); background: rgba(139,26,14,0.04); }
+.portal-nav-chevron {
+  margin-left: auto; font-size: 9px; line-height: 1;
+  transition: transform 0.2s ease; opacity: 0.7;
+}
+.portal-nav-section.collapsed .portal-nav-chevron { transform: rotate(-90deg); }
+.portal-nav-group { overflow: hidden; max-height: 1200px; transition: max-height 0.22s ease, opacity 0.18s ease; }
+.portal-nav-group.collapsed { max-height: 0 !important; opacity: 0; pointer-events: none; }
+.portal-nav-count {
+  font-size: 9px; font-weight: 700; padding: 1px 5px;
+  border-radius: 8px; background: var(--surface-3, rgba(0,0,0,0.06));
+  color: var(--ink-muted); letter-spacing: 0;
+}
+
+/* ════════════════════════════════════════════════════
+   ACCESS MATRIX  — the check / X grid
+   ════════════════════════════════════════════════════ */
+.matrix-scroll { overflow-x: auto; overflow-y: visible; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); }
+table.matrix { border-collapse: separate; border-spacing: 0; width: max-content; min-width: 100%; font-size: 13px; }
+table.matrix th, table.matrix td { padding: 9px 10px; border-bottom: 1px solid var(--line); }
+table.matrix thead th {
+  position: sticky; top: 0; z-index: 3;
+  background: var(--surface-2, #F6EEDF);
+  font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase;
+  font-weight: 700; color: var(--ink-muted); text-align: center;
+  border-bottom: 2px solid var(--line); white-space: nowrap;
+}
+table.matrix tbody th.perm {
+  position: sticky; left: 0; z-index: 2;
+  background: var(--bg); text-align: left; font-weight: 500;
+  min-width: 260px; max-width: 320px;
+  border-right: 1px solid var(--line);
+}
+table.matrix thead th.corner { position: sticky; left: 0; z-index: 4; text-align: left; }
+table.matrix tr.cat-row th {
+  position: sticky; left: 0; z-index: 2;
+  background: var(--surface-2, #F6EEDF); font-size: 10px;
+  letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--brick); font-weight: 700;
+}
+table.matrix td.cell { text-align: center; cursor: pointer; transition: background 0.12s; }
+table.matrix td.cell:hover { background: rgba(139,26,14,0.06); }
+table.matrix td.cell.locked { cursor: not-allowed; background: repeating-linear-gradient(45deg, transparent, transparent 4px, rgba(0,0,0,0.035) 4px, rgba(0,0,0,0.035) 8px); }
+.tick { font-weight: 700; font-size: 15px; line-height: 1; }
+.tick.yes { color: #2D7A4F; }
+.tick.no  { color: var(--ink-faint); opacity: 0.55; }
+.tick.locked { color: var(--ink-faint); opacity: 0.4; font-size: 12px; }
+.perm-label { display: block; }
+.perm-hint { display: block; font-size: 11px; color: var(--ink-faint); margin-top: 2px; line-height: 1.35; }
+.role-pill { display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px; border-radius: 999px; font-size: 11px; font-weight: 700; color: #fff; }
+.role-sys { font-size: 9px; opacity: 0.75; font-weight: 600; }
+
+/* ════════════════════════════════════════════════════
+   TASK BOARD
+   ════════════════════════════════════════════════════ */
+.task-lanes { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
+.task-lane { background: var(--surface-2, #F6EEDF); border: 1px solid var(--line); border-radius: 12px; padding: 12px; min-height: 120px; }
+.task-lane-head { display: flex; align-items: center; gap: 8px; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; font-weight: 700; color: var(--ink-muted); margin-bottom: 10px; }
+.task-card { background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 12px; margin-bottom: 10px; box-shadow: var(--shadow-sm); }
+.task-card:last-child { margin-bottom: 0; }
+.task-card-title { font-weight: 600; font-size: 14px; margin-bottom: 4px; line-height: 1.35; }
+.task-card-meta { font-size: 11px; color: var(--ink-faint); display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.task-prio { font-size: 9px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; padding: 2px 6px; border-radius: 4px; }
+.task-prio.urgent { background: #8B1A0E; color: #fff; }
+.task-prio.high   { background: #B45309; color: #fff; }
+.task-prio.normal { background: var(--surface-3, rgba(0,0,0,0.07)); color: var(--ink-muted); }
+.task-prio.low    { background: var(--surface-3, rgba(0,0,0,0.05)); color: var(--ink-faint); }
+.task-people { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 9px; }
+.task-person { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; padding: 3px 8px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface-2, #F6EEDF); }
+.task-person .dot { width: 7px; height: 7px; border-radius: 50%; flex: 0 0 auto; }
+.task-person .dot.assigned { background: var(--ink-faint); }
+.task-person .dot.working  { background: #B45309; }
+.task-person .dot.done     { background: #2D7A4F; }
+.task-overdue { color: #8B1A0E; font-weight: 700; }
+.task-mine { border-left: 3px solid var(--gold, #C8952B); }
+
+/* ════════════════════════════════════════════════════
+   INVENTORY + FINANCE
+   ════════════════════════════════════════════════════ */
+.inv-low { background: rgba(139,26,14,0.05); }
+.inv-badge { font-size: 9px; font-weight: 800; letter-spacing: 0.07em; text-transform: uppercase; padding: 2px 6px; border-radius: 4px; background: #8B1A0E; color: #fff; }
+.fin-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 18px; }
+.fin-tile { background: var(--bg); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; }
+.fin-tile-label { font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-faint); font-weight: 700; margin-bottom: 6px; }
+.fin-tile-value { font-size: 21px; font-weight: 700; line-height: 1.15; }
+.fin-tile-value.neg { color: #8B1A0E; }
+.fin-tile-value.pos { color: #2D7A4F; }
+.fin-tile-note { font-size: 11px; color: var(--ink-faint); margin-top: 5px; }
+.fin-basis { font-size: 11px; color: var(--ink-muted); background: var(--surface-2, #F6EEDF); border: 1px dashed var(--line); border-radius: 8px; padding: 8px 11px; margin-bottom: 14px; }
+.seg { display: inline-flex; background: var(--surface-2, #F6EEDF); border: 1px solid var(--line); border-radius: 8px; padding: 3px; gap: 2px; }
+.seg button { background: transparent; border: none; padding: 6px 13px; border-radius: 6px; font-size: 12px; font-weight: 600; color: var(--ink-muted); cursor: pointer; font-family: inherit; }
+.seg button.on { background: var(--bg); color: var(--brick); box-shadow: var(--shadow-sm); }
+</style>
+<style>
+  /* Language switch in the public nav — the marketing site had no way to
+     change language at all before this; only the login screen did, and
+     that toggle did nothing. */
+  .nav-lang { display: flex; gap: 2px; align-items: center; margin-left: 6px;
+              background: rgba(0,0,0,0.05); border-radius: 6px; padding: 2px; }
+  .nav-lang .lang-btn { padding: 4px 9px; font-size: 11px; letter-spacing: 0.04em; }
+  .mobile-lang { display: flex; gap: 4px; justify-content: center; margin-top: 14px;
+                 background: rgba(0,0,0,0.05); border-radius: 8px; padding: 4px; width: fit-content;
+                 margin-left: auto; margin-right: auto; }
+</style>
 </head>
 <body>
 <!-- Boot overlay — dismissed by hideBootOverlay() once first paint is stable. -->
@@ -1644,26 +1764,34 @@
 <nav id="mainNav">
   <div class="nav-logo" onclick="navigate('home')">Tyo Paeng <span>Nyo</span></div>
   <ul class="nav-links">
-    <li><a onclick="navigate('home')" data-nav="home" class="active">Home</a></li>
-    <li><a onclick="navigate('menu')" data-nav="menu">Menu</a></li>
-    <li><a onclick="navigate('restaurant')" data-nav="restaurant">Our Restaurant</a></li>
-    <li><a onclick="navigate('concessions')" data-nav="concessions">Concessions</a></li>
-    <li><a onclick="navigate('events')" data-nav="events">Events</a></li>
-    <li><a onclick="navigate('about')" data-nav="about">About</a></li>
-    <li><button class="cart-btn" onclick="toggleCart()">🛒 Cart <span class="cart-count" id="navCartCount">0</span></button></li>
-    <li><a class="nav-cta" onclick="navigate('menu')">Order Now</a></li>
+    <li><a onclick="navigate('home')" data-nav="home" data-i18n="nav.home" class="active">Home</a></li>
+    <li><a onclick="navigate('menu')" data-nav="menu" data-i18n="nav.menu">Menu</a></li>
+    <li><a onclick="navigate('restaurant')" data-nav="restaurant" data-i18n="nav.restaurant">Our Restaurant</a></li>
+    <li><a onclick="navigate('concessions')" data-nav="concessions" data-i18n="nav.concessions">Concessions</a></li>
+    <li><a onclick="navigate('events')" data-nav="events" data-i18n="nav.events">Events</a></li>
+    <li><a onclick="navigate('about')" data-nav="about" data-i18n="nav.about">About</a></li>
+    <li><button class="cart-btn" onclick="toggleCart()">🍽️ <span data-i18n="nav.tray">Tray</span> <span class="cart-count" id="navCartCount">0</span></button></li>
+    <li><a class="nav-cta" onclick="navigate('menu')" data-i18n="nav.orderNow">Order Now</a></li>
+    <li class="nav-lang">
+      <button class="lang-btn active" onclick="setLang('en')" title="English">EN</button>
+      <button class="lang-btn" onclick="setLang('tl')" title="Tagalog">TL</button>
+    </li>
   </ul>
   <button class="nav-toggle" onclick="toggleMobileMenu()">☰</button>
 </nav>
 
 <div class="mobile-menu" id="mobileMenu">
-  <a onclick="navigate('home');toggleMobileMenu()" data-nav-m="home" class="active">Home</a>
-  <a onclick="navigate('menu');toggleMobileMenu()" data-nav-m="menu">Menu</a>
-  <a onclick="navigate('restaurant');toggleMobileMenu()" data-nav-m="restaurant">Our Restaurant</a>
-  <a onclick="navigate('concessions');toggleMobileMenu()" data-nav-m="concessions">Concessions</a>
-  <a onclick="navigate('events');toggleMobileMenu()" data-nav-m="events">Events</a>
-  <a onclick="navigate('about');toggleMobileMenu()" data-nav-m="about">About</a>
-  <a onclick="toggleCart();toggleMobileMenu()">🛒 View Cart</a>
+  <a onclick="navigate('home');toggleMobileMenu()" data-nav-m="home" data-i18n="nav.home" class="active">Home</a>
+  <a onclick="navigate('menu');toggleMobileMenu()" data-nav-m="menu" data-i18n="nav.menu">Menu</a>
+  <a onclick="navigate('restaurant');toggleMobileMenu()" data-nav-m="restaurant" data-i18n="nav.restaurant">Our Restaurant</a>
+  <a onclick="navigate('concessions');toggleMobileMenu()" data-nav-m="concessions" data-i18n="nav.concessions">Concessions</a>
+  <a onclick="navigate('events');toggleMobileMenu()" data-nav-m="events" data-i18n="nav.events">Events</a>
+  <a onclick="navigate('about');toggleMobileMenu()" data-nav-m="about" data-i18n="nav.about">About</a>
+  <a onclick="toggleCart();toggleMobileMenu()">🍽️ <span data-i18n="nav.tray">Tray</span></a>
+  <div class="mobile-lang">
+    <button class="lang-btn active" onclick="setLang('en')">English</button>
+    <button class="lang-btn" onclick="setLang('tl')">Tagalog</button>
+  </div>
 </div>
 
 <!-- HOME -->
@@ -2169,11 +2297,11 @@
       <div class="login-foot">SECURE STAFF ACCESS</div>
     </div>
     <div class="login-form-side">
-      <button class="login-back" onclick="exitStaffPortal()">← Back to Site</button>
+      <button class="login-back" onclick="exitStaffPortal()" data-i18n="login.back">← Back to Site</button>
       <div class="login-form-wrap">
-        <div class="login-form-eyebrow">Staff Sign In</div>
-        <h2 class="login-form-title">Welcome.</h2>
-        <p class="login-form-sub">Sign in with your TPN staff account.</p>
+        <div class="login-form-eyebrow" data-i18n="login.eyebrow">Staff Sign In</div>
+        <h2 class="login-form-title" data-i18n="login.title">Welcome.</h2>
+        <p class="login-form-sub" data-i18n="login.sub">Sign in with your TPN staff account.</p>
         <div class="login-lang-toggle">
           <button class="lang-btn active" onclick="setLang('en')">English</button>
           <button class="lang-btn" onclick="setLang('tl')">Tagalog</button>
@@ -2297,6 +2425,279 @@ function persistCart() {
 let checkoutStep = 1;
 let checkoutData = { orderType: 'takeout', schedule: 'asap', paymentMethod: 'gcash' };
 let currentUser = null;
+
+/* ════════════════════════════════════════════════════
+   LANGUAGE  (English / Tagalog)
+
+   Before this, setLang() set a variable nothing read and showed a
+   toast claiming success. This is a real dictionary plus a DOM pass.
+
+   Three ways a string gets translated:
+     1. Markup:  <span data-i18n="nav.menu">Menu</span>
+        applyI18n() rewrites the text content.
+        data-i18n-ph does the same for a placeholder,
+        data-i18n-title for a title attribute.
+     2. JS:      T('nav.menu')
+        Returns the active language, falling back to English, then
+        to the key itself so a missing entry is obvious in testing
+        rather than rendering as blank.
+     3. DB text: menu items carry name_tagalog; ingredients carry
+        name_tagalog; roles and permissions carry label_tl. Those
+        come from the row, not from here — see TL() below.
+
+   Translation notes: this is the Tagalog a Las Piñas crew actually
+   speaks, not textbook Filipino. Loan words that are genuinely more
+   natural are kept as loan words ("order", "delivery", "stock",
+   "schedule") because translating them to "kautusan" / "paghahatid"
+   reads as a government form, not a restaurant. Money and counts
+   stay in numerals.
+   ════════════════════════════════════════════════════ */
+
+const TPN_STRINGS = {
+  /* ── shared chrome ───────────────────────────────── */
+  'common.save':      { en: 'Save',            tl: 'I-save' },
+  'common.cancel':    { en: 'Cancel',          tl: 'Kanselahin' },
+  'common.close':     { en: 'Close',           tl: 'Isara' },
+  'common.delete':    { en: 'Delete',          tl: 'Alisin' },
+  'common.edit':      { en: 'Edit',            tl: 'Baguhin' },
+  'common.add':       { en: 'Add',             tl: 'Magdagdag' },
+  'common.search':    { en: 'Search',          tl: 'Maghanap' },
+  'common.loading':   { en: 'Loading…',        tl: 'Naglo-load…' },
+  'common.none':      { en: 'Nothing here yet', tl: 'Wala pa dito' },
+  'common.today':     { en: 'Today',           tl: 'Ngayong araw' },
+  'common.week':      { en: 'This week',       tl: 'Ngayong linggo' },
+  'common.month':     { en: 'This month',      tl: 'Ngayong buwan' },
+  'common.day':       { en: 'Day',             tl: 'Araw' },
+  'common.weekly':    { en: 'Week',            tl: 'Linggo' },
+  'common.monthly':   { en: 'Month',           tl: 'Buwan' },
+  'common.total':     { en: 'Total',           tl: 'Kabuuan' },
+  'common.notes':     { en: 'Notes',           tl: 'Paalala' },
+  'common.saved':     { en: 'Saved',           tl: 'Naka-save na' },
+  'common.name':      { en: 'Name',            tl: 'Pangalan' },
+  'common.category':  { en: 'Category',        tl: 'Kategorya' },
+  'common.noAccess':  { en: "You don't have access to this.", tl: 'Wala kang access dito.' },
+
+  /* ── public site nav ─────────────────────────────── */
+  'nav.home':        { en: 'Home',           tl: 'Home' },
+  'nav.menu':        { en: 'Menu',           tl: 'Menu' },
+  'nav.restaurant':  { en: 'Our Restaurant', tl: 'Ang Kainan Namin' },
+  'nav.concessions': { en: 'Concessions',    tl: 'Konsesyon' },
+  'nav.events':      { en: 'Events',         tl: 'Okasyon' },
+  'nav.about':       { en: 'About',          tl: 'Tungkol Sa Amin' },
+  'nav.orderNow':    { en: 'Order Now',      tl: 'Umorder Na' },
+  'nav.tray':        { en: 'Tray',           tl: 'Tray' },
+
+  /* ── login ───────────────────────────────────────── */
+  'login.eyebrow':  { en: 'Staff Sign In',   tl: 'Sign In ng Staff' },
+  'login.title':    { en: 'Welcome.',        tl: 'Maligayang pagbabalik.' },
+  'login.sub':      { en: 'Sign in with your TPN staff account.', tl: 'Gamitin ang TPN staff account mo.' },
+  'login.email':    { en: 'Email',           tl: 'Email' },
+  'login.password': { en: 'Password',        tl: 'Password' },
+  'login.remember': { en: 'Remember this device', tl: 'Tandaan ang device na ito' },
+  'login.forgot':   { en: 'Forgot password?', tl: 'Nakalimutan ang password?' },
+  'login.submit':   { en: 'Sign In',         tl: 'Sign In' },
+  'login.back':     { en: '← Back to Site',  tl: '← Bumalik sa Site' },
+
+  /* ── sidebar sections ────────────────────────────── */
+  'sec.workspace': { en: 'WORKSPACE',      tl: 'TRABAHO' },
+  'sec.team':      { en: 'TEAM',           tl: 'TEAM' },
+  'sec.money':     { en: 'MONEY',          tl: 'PERA' },
+  'sec.stock':     { en: 'STOCK',          tl: 'STOCK' },
+  'sec.ops':       { en: 'OPERATIONS',     tl: 'OPERASYON' },
+  'sec.access':    { en: 'ACCESS',         tl: 'ACCESS' },
+
+  /* ── sidebar items ───────────────────────────────── */
+  'nav.dashboard':    { en: 'Dashboard',        tl: 'Dashboard' },
+  'nav.inquiries':    { en: 'Inquiries',        tl: 'Mga Tanong' },
+  'nav.orders':       { en: 'Live Orders',      tl: 'Mga Order' },
+  'nav.kds':          { en: 'Kitchen Queue',    tl: 'Pila sa Kusina' },
+  'nav.voids':        { en: 'Void Requests',    tl: 'Mga Void Request' },
+  'nav.myVoids':      { en: 'My Void Requests', tl: 'Void Request Ko' },
+  'nav.floor':        { en: 'Dine-In Floor',    tl: 'Dine-In Floor' },
+  'nav.station':      { en: 'Kitchen Screen',   tl: 'Screen sa Kusina' },
+  'nav.staffBoard':   { en: 'Staff Board',      tl: 'Staff Board' },
+  'nav.schedules':    { en: 'Schedules',        tl: 'Schedule' },
+  'nav.attendance':   { en: 'Attendance',       tl: 'Attendance' },
+  'nav.notifications':{ en: 'Notifications',    tl: 'Notification' },
+  'nav.messages':     { en: 'Messages',         tl: 'Mensahe' },
+  'nav.tasks':        { en: 'Task Board',       tl: 'Task Board' },
+  'nav.menuManager':  { en: 'Menu Manager',     tl: 'Menu Manager' },
+  'nav.discounts':    { en: 'Discounts & Promos', tl: 'Discount at Promo' },
+  'nav.tableQR':      { en: 'Table QR Codes',   tl: 'QR ng Mesa' },
+  'nav.accounts':     { en: 'Accounts',         tl: 'Mga Account' },
+  'nav.roles':        { en: 'Roles & Access',   tl: 'Roles at Access' },
+  'nav.matrix':       { en: 'Access Matrix',    tl: 'Talaan ng Access' },
+  'nav.inventory':    { en: 'Inventory',        tl: 'Inventory' },
+  'nav.finance':      { en: 'Finance',          tl: 'Pera at Gastos' },
+  'nav.performance':  { en: 'Performance',      tl: 'Performance' },
+  'nav.audit':        { en: 'Audit Log',        tl: 'Audit Log' },
+  'nav.history':      { en: 'History',          tl: 'Kasaysayan' },
+  'nav.logout':       { en: 'Out',              tl: 'Labas' },
+
+  /* ── roles & access ──────────────────────────────── */
+  'roles.title':      { en: 'Roles & Access',   tl: 'Roles at Access' },
+  'roles.sub':        { en: 'Build a role, then decide exactly what it reaches.', tl: 'Gumawa ng role, tapos piliin kung saan ito pwede pumasok.' },
+  'roles.new':        { en: '+ New Role',       tl: '+ Bagong Role' },
+  'roles.builtIn':    { en: 'Built-in',         tl: 'Built-in' },
+  'roles.custom':     { en: 'Custom',           tl: 'Sariling gawa' },
+  'roles.basedOn':    { en: 'Based on',         tl: 'Base sa' },
+  'roles.people':     { en: 'people',           tl: 'katao' },
+  'roles.canDo':      { en: 'can do',           tl: 'kayang gawin' },
+  'roles.baseTier':   { en: 'Permission floor', tl: 'Base na antas' },
+  'roles.baseHint':   { en: 'The database will never let this role do more than its floor allows, whatever you tick. Pick the lowest floor that still covers the job.', tl: 'Kahit ano ang i-tick mo, hindi papayagan ng database ang role na lumampas sa base nito. Piliin ang pinakamababang antas na kaya pa ang trabaho.' },
+  'roles.deleteSys':  { en: 'Built-in roles mirror the database and cannot be removed.', tl: 'Ang built-in na roles ay kasama sa database at hindi maaaring alisin.' },
+  'roles.confirmDel': { en: 'Remove this role? Anyone on it falls back to their base tier.', tl: 'Alisin ang role na ito? Babalik sa base tier ang mga nakaassign dito.' },
+
+  'matrix.title':   { en: 'Access Matrix',  tl: 'Talaan ng Access' },
+  'matrix.sub':     { en: 'Every role down the top, every permission down the side. Tap a cell to change it.', tl: 'Nasa itaas ang mga role, nasa gilid ang mga access. I-tap ang kahon para baguhin.' },
+  'matrix.locked':  { en: 'Locked: this permission needs a higher permission floor than the role has.', tl: 'Sarado: mas mataas ang kailangang antas nito kaysa sa role.' },
+  'matrix.readonly':{ en: 'You can see this grid but not change it.', tl: 'Pwede mong tingnan pero hindi baguhin.' },
+
+  /* ── tasks ───────────────────────────────────────── */
+  'tasks.title':     { en: 'Task Board',      tl: 'Task Board' },
+  'tasks.sub':       { en: 'Assign work to one person or several. Each person marks their own progress.', tl: 'Mag-assign ng trabaho sa isa o maraming tao. Bawat isa may sariling progress.' },
+  'tasks.new':       { en: '+ New Task',      tl: '+ Bagong Task' },
+  'tasks.todo':      { en: 'Not started',     tl: 'Hindi pa simula' },
+  'tasks.doing':     { en: 'Being done',      tl: 'Ginagawa' },
+  'tasks.blocked':   { en: 'Stuck',           tl: 'Naka-stuck' },
+  'tasks.done':      { en: 'Finished',        tl: 'Tapos na' },
+  'tasks.assignTo':  { en: 'Who is on it',    tl: 'Sino ang gagawa' },
+  'tasks.priority':  { en: 'Priority',        tl: 'Prayoridad' },
+  'tasks.due':       { en: 'Due',             tl: 'Deadline' },
+  'tasks.overdue':   { en: 'Overdue',         tl: 'Lampas na' },
+  'tasks.iStart':    { en: "I'm on it",       tl: 'Ako na dito' },
+  'tasks.iDone':     { en: 'Mark mine done',  tl: 'Tapos na ako' },
+  'tasks.iUndo':     { en: 'Not yet',         tl: 'Hindi pa' },
+  'tasks.showDone':  { en: 'Show finished',   tl: 'Ipakita ang tapos' },
+  'tasks.empty':     { en: 'No tasks on the board.', tl: 'Wala pang task sa board.' },
+
+  /* ── inventory ───────────────────────────────────── */
+  'inv.title':      { en: 'Inventory',           tl: 'Inventory' },
+  'inv.sub':        { en: 'Ingredients coming in, going out, and what is left.', tl: 'Ang sangkap na pumapasok, lumalabas, at ang natitira.' },
+  'inv.receive':    { en: '+ Receive Delivery',  tl: '+ Tanggapin ang Delivery' },
+  'inv.newItem':    { en: '+ New Ingredient',    tl: '+ Bagong Sangkap' },
+  'inv.onHand':     { en: 'On hand',             tl: 'Natitira' },
+  'inv.reorderAt':  { en: 'Reorder at',          tl: 'Mag-order kapag' },
+  'inv.low':        { en: 'LOW',                 tl: 'KAUNTI NA' },
+  'inv.unit':       { en: 'Unit',                tl: 'Yunit' },
+  'inv.lastCost':   { en: 'Last cost',           tl: 'Huling presyo' },
+  'inv.avgCost':    { en: 'Average cost',        tl: 'Karaniwang presyo' },
+  'inv.value':      { en: 'Stock value',         tl: 'Halaga ng stock' },
+  'inv.supplier':   { en: 'Supplier',            tl: 'Supplier' },
+  'inv.lastIn':     { en: 'Last delivery',       tl: 'Huling delivery' },
+  'inv.movement':   { en: 'Movement',            tl: 'Galaw ng stock' },
+  'inv.qty':        { en: 'Quantity',            tl: 'Dami' },
+  'inv.deliveryIn': { en: 'Delivery in',         tl: 'Dumating' },
+  'inv.usage':      { en: 'Used in service',     tl: 'Nagamit' },
+  'inv.wastage':    { en: 'Wasted / spoiled',    tl: 'Nasira / nalustay' },
+  'inv.adjustUp':   { en: 'Count found more',    tl: 'Sobra sa bilang' },
+  'inv.adjustDown': { en: 'Count found less',    tl: 'Kulang sa bilang' },
+  'inv.returnOut':  { en: 'Returned to supplier', tl: 'Ibinalik sa supplier' },
+  'inv.reference':  { en: 'DR / invoice no.',    tl: 'DR / invoice no.' },
+  'inv.empty':      { en: 'No ingredients yet. Add one to start tracking stock.', tl: 'Wala pang sangkap. Magdagdag para masimulan ang stock.' },
+  'inv.derived':    { en: 'Stock levels are calculated from movements, so they can never disagree with the history.', tl: 'Ang stock ay galing sa mga galaw, kaya hindi ito pwedeng mag-iba sa kasaysayan.' },
+
+  /* ── finance ─────────────────────────────────────── */
+  'fin.title':     { en: 'Finance',              tl: 'Pera at Gastos' },
+  'fin.sub':       { en: 'What came in, what it cost, and what was actually made.', tl: 'Ano ang pumasok, ano ang nagastos, at ano ang totoong kinita.' },
+  'fin.gross':     { en: 'Gross sales',          tl: 'Buong benta' },
+  'fin.discounts': { en: 'Discounts',            tl: 'Discount' },
+  'fin.net':       { en: 'Net sales',            tl: 'Netong benta' },
+  'fin.orders':    { en: 'Orders',               tl: 'Mga order' },
+  'fin.cogs':      { en: 'Cost of ingredients',  tl: 'Gastos sa sangkap' },
+  'fin.labour':    { en: 'Staff pay',            tl: 'Sahod ng staff' },
+  'fin.expenses':  { en: 'Other expenses',       tl: 'Ibang gastos' },
+  'fin.netIncome': { en: 'Actually made',        tl: 'Totoong kinita' },
+  'fin.addExpense':{ en: '+ Record Expense',     tl: '+ Itala ang Gastos' },
+  'fin.payRates':  { en: 'Pay rates',            tl: 'Sahod' },
+  'fin.costing':   { en: 'Costing rules',        tl: 'Paraan ng costing' },
+  'fin.perMonth':  { en: 'per month',            tl: 'kada buwan' },
+  'fin.perDay':    { en: 'per day worked',       tl: 'kada araw na pinasok' },
+  'fin.perHour':   { en: 'per hour',             tl: 'kada oras' },
+  'fin.estimate':  { en: 'This is an estimate, not a measurement.', tl: 'Tantiya lang ito, hindi eksakto.' },
+  'fin.measured':  { en: 'Measured from real stock usage.', tl: 'Galing sa totoong nagamit na stock.' }
+};
+
+let TPN_LANG = (function () {
+  try { return localStorage.getItem('tpn.lang') || 'en'; } catch (e) { return 'en'; }
+})();
+
+// Look up a UI string. Falls back to English, then to the key itself —
+// a visible key in testing beats a silently blank label in production.
+function T(key) {
+  const row = TPN_STRINGS[key];
+  if (!row) return key;
+  return row[TPN_LANG] || row.en || key;
+}
+
+// Pick the right column off a database row that carries both languages
+// (menu_items.name_tagalog, ingredients.name_tagalog, access_roles.label_tl).
+function TL(row, enField, tlField) {
+  if (!row) return '';
+  if (TPN_LANG === 'tl' && row[tlField]) return row[tlField];
+  return row[enField] || row[tlField] || '';
+}
+
+// Rewrite everything in the DOM that declares a key.
+function applyI18n(root) {
+  const scope = root || document;
+  scope.querySelectorAll('[data-i18n]').forEach(el => {
+    const v = T(el.getAttribute('data-i18n'));
+    if (v) el.textContent = v;
+  });
+  scope.querySelectorAll('[data-i18n-ph]').forEach(el => {
+    const v = T(el.getAttribute('data-i18n-ph'));
+    if (v) el.setAttribute('placeholder', v);
+  });
+  scope.querySelectorAll('[data-i18n-title]').forEach(el => {
+    const v = T(el.getAttribute('data-i18n-title'));
+    if (v) el.setAttribute('title', v);
+  });
+}
+
+function setLang(l) {
+  if (l !== 'en' && l !== 'tl') l = 'en';
+  TPN_LANG = l;
+  if (typeof portalState === 'object' && portalState) portalState.lang = l;
+  try { localStorage.setItem('tpn.lang', l); } catch (e) {}
+  document.documentElement.setAttribute('lang', l === 'tl' ? 'tl' : 'en');
+
+  // Reflect the choice on every toggle on the page, not just the one clicked
+  // (there is one on the public site and one on the login screen).
+  document.querySelectorAll('.lang-btn').forEach(b => {
+    const owns = (b.getAttribute('onclick') || '').indexOf("'" + l + "'") !== -1;
+    b.classList.toggle('active', owns);
+  });
+
+  applyI18n(document);
+
+  // Re-render whatever is on screen so JS-built markup picks the new
+  // language up too. The old setLang only showed a toast, which is why
+  // switching to Tagalog appeared to do nothing.
+  try {
+    if (typeof renderAdminSidebar === 'function' && currentUser &&
+        !['dining','kitchen'].includes(currentUser.tier)) renderAdminSidebar();
+    if (typeof renderStaffSidebar === 'function' && currentUser &&
+        ['dining','kitchen'].includes(currentUser.tier)) renderStaffSidebar();
+    if (typeof currentRoute === 'string' && currentUser && typeof route === 'function') {
+      route(currentRoute, { replace: true });
+    }
+    if (typeof renderMenu === 'function' && !currentUser) renderMenu();
+  } catch (e) { console.warn('re-render after language change failed:', e); }
+
+  toast(l === 'tl' ? 'Tagalog na ang wika' : 'Language set to English');
+}
+
+// Apply the saved language as soon as the document is parsed.
+document.addEventListener('DOMContentLoaded', function () {
+  document.documentElement.setAttribute('lang', TPN_LANG === 'tl' ? 'tl' : 'en');
+  applyI18n(document);
+  document.querySelectorAll('.lang-btn').forEach(b => {
+    const owns = (b.getAttribute('onclick') || '').indexOf("'" + TPN_LANG + "'") !== -1;
+    b.classList.toggle('active', owns);
+  });
+});
+
 
 /* ════════════════════════════════════════════════════
    MENU DATA — populated from Supabase on init
@@ -3063,12 +3464,8 @@ function showPortalPage(id) {
   window.scrollTo({ top: 0, behavior: 'instant' });
 }
 
-function setLang(l) {
-  portalState.lang = l;
-  document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
-  event.target.classList.add('active');
-  toast(l === 'tl' ? 'Tagalog naka-set na' : 'English set');
-}
+// setLang() now lives with the i18n engine above — the old stub only
+// toasted and set a variable nothing read.
 function togglePassword() {
   const inp = document.getElementById('loginPass');
   const btn = document.getElementById('eyeBtn');
@@ -3108,6 +3505,9 @@ async function attemptLogin() {
       return;
     }
     currentUser = staffToPortalUser(staff);
+    // The sidebar is built from permissions, so they must be in hand
+    // before the first paint or every gated tab would be hidden.
+    await TPN.loadPermissions();
     enterPortal();
   } catch(e) {
     console.error('login error:', e);
@@ -3362,6 +3762,7 @@ async function tryRestoreSession() {
       return false;
     }
     currentUser = staffToPortalUser(staff);
+    await TPN.loadPermissions();
     // A screen account that lands back on index.html (bookmark, "← Back")
     // gets sent home again rather than into the portal.
     if (redirectDisplayAccount(currentUser.tier)) return true;
@@ -3378,6 +3779,54 @@ function togglePortalSidebar() {
   document.getElementById('staffSidebar')?.classList.toggle('open');
 }
 
+
+/* ════════════════════════════════════════════════════
+   SIDEBAR SECTION FOLDING
+   The nav outgrew one screen once Roles, Tasks, Inventory and
+   Finance arrived. Category headers fold, and the choice is
+   remembered per browser so it does not reset every shift.
+   ════════════════════════════════════════════════════ */
+const TPN_NAV_COLLAPSE_KEY = 'tpn.nav.collapsed';
+
+function readCollapsedSections() {
+  try {
+    const raw = localStorage.getItem(TPN_NAV_COLLAPSE_KEY);
+    const arr = raw ? JSON.parse(raw) : [];
+    return Array.isArray(arr) ? arr : [];
+  } catch (e) { return []; }
+}
+
+function writeCollapsedSections(list) {
+  try { localStorage.setItem(TPN_NAV_COLLAPSE_KEY, JSON.stringify(list)); } catch (e) {}
+}
+
+function toggleNavSection(key) {
+  const list = readCollapsedSections();
+  const i = list.indexOf(key);
+  if (i === -1) list.push(key); else list.splice(i, 1);
+  writeCollapsedSections(list);
+
+  // Toggle in place rather than re-rendering the whole nav, so the
+  // animation runs and the scroll position does not jump.
+  const shut = list.includes(key);
+  const head  = document.querySelector(`.portal-nav-section[data-section="${key}"]`);
+  const group = document.querySelector(`.portal-nav-group[data-group="${key}"]`);
+  if (head)  head.classList.toggle('collapsed', shut);
+  if (group) group.classList.toggle('collapsed', shut);
+
+  if (head) {
+    let count = head.querySelector('.portal-nav-count');
+    if (shut && !count && group) {
+      count = document.createElement('span');
+      count.className = 'portal-nav-count';
+      count.textContent = group.querySelectorAll('.portal-nav-item').length;
+      head.insertBefore(count, head.querySelector('.portal-nav-chevron'));
+    } else if (!shut && count) {
+      count.remove();
+    }
+  }
+}
+
 /* ════════════════════════════════════════════════════
    ADMIN SIDEBAR (Manager+)
    ════════════════════════════════════════════════════ */
@@ -3388,57 +3837,95 @@ function renderAdminSidebar() {
   const tierClass = 'tier-' + tier;
   const initials = u.name.split(' ').map(s => s[0]).join('').slice(0, 2).toUpperCase();
 
-  // Build nav items based on tier
-  const navItems = [];
-  navItems.push({ section: 'WORKSPACE' });
-  navItems.push({ id: 'dashboard', label: 'Dashboard', icon: '🏠' });
+  // ── Nav is built from PERMISSIONS, not from the tier ────────
+  // can() mirrors private.can() in the database. Hiding a tab is
+  // courtesy only — the write behind it is still gated by RLS, so a
+  // tampered client gets a refusal from Postgres rather than access.
+  const can = k => TPN.can(k);
+  const anyOf = (...ks) => ks.some(can);
+
   const newInquiries = portalState.inquiries.filter(i => i.status === 'new').length;
-  navItems.push({ id: 'inquiries', label: 'Inquiries', icon: '📩', badge: newInquiries || null });
-  navItems.push({ id: 'orders', label: 'Live Orders', icon: '📋', badge: portalState.orders.filter(o => o.status !== 'done').length || null });
-  navItems.push({ id: 'kds', label: 'Kitchen Display', icon: '🍳', badge: portalState.orders.filter(o => o.status === 'received' || o.status === 'preparing').length || null });
-  // Manager and up see the approval queue. A supervisor sees the same tab
-  // but only their own requests — they can ask, not approve, same rule as
-  // void_order_item() in the DB.
-  navItems.push({
-    id: 'void-requests',
-    label: ['manager','admin','director','ceo'].includes(tier) ? 'Void Requests' : 'My Void Requests',
-    icon: '🚫',
-    badge: window._tpnPendingVoids || null
-  });
-  navItems.push({ id: 'floor', label: 'Dine-In Floor', icon: '🪑', external: 'tpn-dine-in-floor' });
-  navItems.push({ id: 'kitchen-station', label: 'Kitchen Station', icon: '👨‍🍳', external: 'tpn-kitchen-station' });
+  const openOrders   = portalState.orders.filter(o => o.status !== 'done').length;
+  const cooking       = portalState.orders.filter(o => o.status === 'received' || o.status === 'preparing').length;
 
-  navItems.push({ section: 'TEAM' });
-  navItems.push({ id: 'staff-board', label: 'Staff Board', icon: '🎯' });
-  navItems.push({ id: 'schedules', label: 'Schedules', icon: '📅' });
-  navItems.push({ id: 'attendance-admin', label: 'Attendance', icon: '✓' });
-  navItems.push({ id: 'notifications', label: 'Notifications', icon: '🔔', badge: portalState.unreadNotifCount || null });
-  navItems.push({ id: 'messages-admin', label: 'Messages', icon: '✉️', badge: window._tpnUnreadMsgs || null });
-  navItems.push({ id: 'menu-manager', label: 'Menu Manager', icon: '🍽️' });
-  navItems.push({ id: 'discounts', label: 'Discounts & Promos', icon: '💸' });
-  navItems.push({ id: 'table-qr', label: 'Table QR Codes', icon: '📲' });
-  navItems.push({ id: 'accounts', label: 'Accounts', icon: '👤', badge: portalState.staff.filter(s => s.accountState === 'pending' || s.accountState === 'recommended').length || null });
-  if (tier === 'director' || tier === 'ceo' || tier === 'admin') {
-    navItems.push({ section: 'OPERATIONS' });
-    navItems.push({ id: 'performance', label: 'Performance', icon: '📈' });
-    navItems.push({ id: 'audit', label: 'Audit Log', icon: '📜' });
-    navItems.push({ id: 'history', label: 'History', icon: '📆' });
-  }
+  const sections = [
+    { key: 'sec.workspace', items: [
+      { id: 'dashboard',     perm: 'dashboard.view',       key: 'nav.dashboard',    icon: '🏠' },
+      { id: 'inquiries',     perm: 'inquiries.view',       key: 'nav.inquiries',    icon: '📩', badge: newInquiries || null },
+      { id: 'orders',        perm: 'orders.view',          key: 'nav.orders',       icon: '📋', badge: openOrders || null },
+      { id: 'kds',           perm: 'kds.view',             key: 'nav.kds',          icon: '🍳', badge: cooking || null },
+      // A supervisor sees the same tab but only their own requests —
+      // they can ask, not approve, exactly like void_order_item().
+      { id: 'void-requests', perm: 'voids.request',        key: can('voids.approve') ? 'nav.voids' : 'nav.myVoids',
+                                                          icon: '🚫', badge: window._tpnPendingVoids || null },
+      { id: 'floor',         perm: 'floor.view',           key: 'nav.floor',        icon: '🪑', external: 'tpn-dine-in-floor' },
+      { id: 'kitchen-station', perm: 'kitchen_station.view', key: 'nav.station',    icon: '👨‍🍳', external: 'tpn-kitchen-station' }
+    ]},
+    { key: 'sec.team', items: [
+      { id: 'staff-board',      perm: 'staff.view',        key: 'nav.staffBoard',   icon: '🎯' },
+      { id: 'tasks',            perm: 'tasks.view',        key: 'nav.tasks',        icon: '🗒️', badge: window._tpnMyOpenTasks || null },
+      { id: 'schedules',        perm: 'schedules.view',    key: 'nav.schedules',    icon: '📅' },
+      { id: 'attendance-admin', perm: 'attendance.view',   key: 'nav.attendance',   icon: '✓' },
+      { id: 'notifications',    perm: 'notifications.view',key: 'nav.notifications',icon: '🔔', badge: portalState.unreadNotifCount || null },
+      { id: 'messages-admin',   perm: 'messages.view',     key: 'nav.messages',     icon: '✉️', badge: window._tpnUnreadMsgs || null }
+    ]},
+    { key: 'sec.stock', items: [
+      { id: 'inventory',   perm: 'inventory.view',   key: 'nav.inventory',   icon: '📦', badge: window._tpnLowStock || null },
+      { id: 'menu-manager',perm: 'menu.view',        key: 'nav.menuManager', icon: '🍽️' },
+      { id: 'discounts',   perm: 'discounts.view',   key: 'nav.discounts',   icon: '💸' },
+      { id: 'table-qr',    perm: 'tables.manage',    key: 'nav.tableQR',     icon: '📲' }
+    ]},
+    { key: 'sec.money', items: [
+      { id: 'finance',     perm: 'finance.view',     key: 'nav.finance',     icon: '💰' },
+      { id: 'performance', perm: 'performance.view', key: 'nav.performance', icon: '📈' },
+      { id: 'history',     perm: 'history.view',     key: 'nav.history',     icon: '📆' }
+    ]},
+    { key: 'sec.access', items: [
+      { id: 'accounts',      perm: 'accounts.view', key: 'nav.accounts', icon: '👤',
+        badge: portalState.staff.filter(s => s.accountState === 'pending' || s.accountState === 'recommended').length || null },
+      { id: 'roles',         perm: 'roles.view',    key: 'nav.roles',    icon: '🔑' },
+      { id: 'access-matrix', perm: 'roles.view',    key: 'nav.matrix',   icon: '🧩' },
+      { id: 'audit',         perm: 'audit.view',    key: 'nav.audit',    icon: '📜' }
+    ]}
+  ];
 
-  document.getElementById('portalNav').innerHTML = navItems.map(it => {
-    if (it.section) return `<div class="portal-nav-section">${it.section}</div>`;
-    // External items open in a new tab but styled identically to internal items
-    if (it.external) {
-      return `<a class="portal-nav-item" href="${it.external}" target="_blank" rel="noopener" style="text-decoration:none;color:inherit;">
+  // Drop anything this account may not reach, then drop sections left empty.
+  const visible = sections
+    .map(sec => ({ ...sec, items: sec.items.filter(it => can(it.perm)) }))
+    .filter(sec => sec.items.length);
+
+  const collapsed = readCollapsedSections();
+
+  document.getElementById('portalNav').innerHTML = visible.map((sec, si) => {
+    const isShut = collapsed.includes(sec.key);
+    const rows = sec.items.map(it => {
+      const label = T(it.key);
+      if (it.external) {
+        // Wall screens open in their own tab on purpose: they are meant to
+        // stay open all shift on a mounted device, and the portal session
+        // times out. See HANDOFF.md.
+        return `<a class="portal-nav-item" href="${it.external}" target="_blank" rel="noopener"
+                   title="${E(label)} — opens a full-screen view in a new tab"
+                   style="text-decoration:none;color:inherit;">
+          <span class="portal-nav-icon">${it.icon}</span>
+          <span>${E(label)}</span>
+          <span style="margin-left:auto;font-size:10px;opacity:.5;">↗</span>
+        </a>`;
+      }
+      return `<div class="portal-nav-item" data-route="${it.id}" onclick="route('${it.id}')">
         <span class="portal-nav-icon">${it.icon}</span>
-        <span>${it.label}</span>
-      </a>`;
-    }
-    return `<div class="portal-nav-item" data-route="${it.id}" onclick="route('${it.id}')">
-      <span class="portal-nav-icon">${it.icon}</span>
-      <span>${it.label}</span>
-      ${it.badge ? `<span class="portal-nav-badge">${it.badge}</span>` : ''}
-    </div>`;
+        <span>${E(label)}</span>
+        ${it.badge ? `<span class="portal-nav-badge">${it.badge}</span>` : ''}
+      </div>`;
+    }).join('');
+
+    return `<button type="button" class="portal-nav-section collapsible${isShut ? ' collapsed' : ''}"
+                    data-section="${E(sec.key)}" onclick="toggleNavSection('${E(sec.key)}')">
+        <span>${E(T(sec.key))}</span>
+        ${isShut ? `<span class="portal-nav-count">${sec.items.length}</span>` : ''}
+        <span class="portal-nav-chevron">▼</span>
+      </button>
+      <div class="portal-nav-group${isShut ? ' collapsed' : ''}" data-group="${E(sec.key)}">${rows}</div>`;
   }).join('');
 
   document.getElementById('portalUser').innerHTML = `
@@ -3498,6 +3985,11 @@ function route(r, opts) {
     case 'void-requests': renderVoidRequests(main, 'admin'); break;
     case 'performance': renderPerformance(main); break;
     case 'history': renderHistory(main); break;
+    case 'roles': renderRoles(main); break;
+    case 'access-matrix': renderAccessMatrix(main); break;
+    case 'tasks': renderTasks(main); break;
+    case 'inventory': renderInventory(main); break;
+    case 'finance': renderFinance(main); break;
   }
   window.scrollTo({ top: 0, behavior: 'instant' });
 }
@@ -6951,27 +7443,1416 @@ async function startNotificationSync() {
 /* ════════════════════════════════════════════════════
    STAFF PERSONAL VIEW (Dining/Kitchen)
    ════════════════════════════════════════════════════ */
+
+/* ════════════════════════════════════════════════════════════════
+   ═══  NEW BOARDS  ═══
+   Roles & Access · Access Matrix · Task Board · Inventory · Finance
+   Backed by sql/19 through sql/22. Every one of these is gated by
+   TPN.can(), which mirrors private.can() in the database — the tab
+   being visible is courtesy, the RLS behind it is the lock.
+   ════════════════════════════════════════════════════════════════ */
+
+/* ════════════════════════════════════════════════════════════════
+   ROLES & ACCESS   (sql/19-access-control.sql)
+
+   Two tabs, one subject. This one is the editor: create a role,
+   choose its permission floor, tick what it reaches. The Access
+   Matrix next door is the same data as a read-across grid.
+
+   The floor matters and the UI says so out loud. A permission whose
+   min_tier sits above the role's base_tier is rendered LOCKED, not
+   as an empty box you can tick — because trg_arp_floor would refuse
+   the write, and a checkbox that silently fails is worse than one
+   that is visibly unavailable.
+   ════════════════════════════════════════════════════════════════ */
+
+const _rolesState = { roles: [], catalogue: [], matrix: [], staff: [], overrides: [], openRole: null };
+
+async function renderRoles(main) {
+  if (!TPN.can('roles.view')) {
+    main.innerHTML = `<div class="panel" style="padding:40px;text-align:center;color:var(--ink-muted);">${E(T('common.noAccess'))}</div>`;
+    return;
+  }
+  const canEdit = TPN.can('roles.edit');
+  main.innerHTML = `
+    <div class="portal-header">
+      <div>
+        <h1>${E(T('roles.title'))}</h1>
+        <div class="portal-header-sub">${E(T('roles.sub'))}</div>
+      </div>
+      ${canEdit ? `<button class="btn-next" onclick="openRoleEditor(null)">${E(T('roles.new'))}</button>` : ''}
+    </div>
+    <div id="rolesBody" class="panel"><div style="padding:24px;color:var(--ink-muted);text-align:center;">${E(T('common.loading'))}</div></div>`;
+
+  try {
+    const [roles, catalogue, matrix, staff, overrides] = await Promise.all([
+      TPN.getAccessRoles(),
+      TPN.getPermissionCatalogue(),
+      TPN.getAccessMatrix(),
+      TPN.getStaffDirectory().catch(() => []),
+      TPN.getStaffOverrides().catch(() => [])
+    ]);
+    Object.assign(_rolesState, { roles, catalogue, matrix, staff, overrides });
+    _renderRolesList();
+  } catch (e) {
+    document.getElementById('rolesBody').innerHTML =
+      `<div style="padding:28px;text-align:center;color:var(--brick);">Could not load roles: ${E(e.message || 'unknown error')}</div>`;
+  }
+}
+
+// How many people sit on each role, counting the fallback: a staff row
+// with no access_role_id is governed by the system role matching its tier.
+function _roleHeadcount(role) {
+  const st = _rolesState.staff;
+  if (!st.length) return null;
+  return st.filter(p => role.is_system ? (p.role === role.key) : false).length;
+}
+
+function _renderRolesList() {
+  const el = document.getElementById('rolesBody');
+  if (!el) return;
+  const canEdit = TPN.can('roles.edit');
+  const byRole = {};
+  _rolesState.matrix.forEach(r => {
+    (byRole[r.role_id] = byRole[r.role_id] || []).push(r);
+  });
+
+  const cards = _rolesState.roles.map(role => {
+    const cells = byRole[role.id] || [];
+    const allowed = cells.filter(c => c.allowed).length;
+    const head = _roleHeadcount(role);
+    const open = _rolesState.openRole === role.id;
+
+    return `<div style="border-bottom:1px solid var(--line-soft);">
+      <div style="padding:14px 16px;display:flex;gap:14px;align-items:center;flex-wrap:wrap;cursor:pointer;"
+           onclick="toggleRoleOpen('${role.id}')">
+        <span class="role-pill" style="background:${E(role.color || '#8B1A0E')};">
+          ${E(TL(role, 'label', 'label_tl'))}
+          ${role.is_system ? `<span class="role-sys">${E(T('roles.builtIn'))}</span>` : ''}
+        </span>
+        <div style="flex:1;min-width:180px;">
+          <div style="font-size:12px;color:var(--ink-muted);">${E(role.description || '')}</div>
+          <div style="font-size:11px;color:var(--ink-faint);margin-top:3px;">
+            ${E(T('roles.basedOn'))} <strong>${E(role.base_tier)}</strong>
+            · ${allowed} ${E(T('roles.canDo'))}
+            ${head !== null && head > 0 ? ` · ${head} ${E(T('roles.people'))}` : ''}
+            ${role.is_active ? '' : ' · <span style="color:var(--brick);">off</span>'}
+          </div>
+        </div>
+        <span style="font-size:11px;color:var(--ink-faint);">${open ? '▲' : '▼'}</span>
+      </div>
+      ${open ? _renderRolePermissions(role, cells, canEdit) : ''}
+    </div>`;
+  }).join('');
+
+  el.innerHTML = cards + `
+    <div style="padding:14px 16px;font-size:11px;color:var(--ink-faint);line-height:1.6;background:var(--surface-2,#F6EEDF);">
+      ${E(T('roles.baseHint'))}
+    </div>`;
+}
+
+function _renderRolePermissions(role, cells, canEdit) {
+  const cats = [];
+  cells.forEach(c => {
+    let g = cats.find(x => x.name === c.category);
+    if (!g) { g = { name: c.category, rows: [] }; cats.push(g); }
+    g.rows.push(c);
+  });
+
+  const editable = canEdit && role.is_active;
+  const body = cats.map(g => `
+    <div style="margin-bottom:14px;">
+      <div style="font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--brick);font-weight:700;margin-bottom:6px;">${E(g.name)}</div>
+      ${g.rows.map(c => {
+        const locked = !c.grantable;
+        const on = c.allowed;
+        const label = TPN_LANG === 'tl' && c.label_tl ? c.label_tl : c.label;
+        return `<label style="display:flex;gap:9px;align-items:flex-start;padding:5px 0;${locked ? 'opacity:.5;' : ''}">
+          <input type="checkbox" ${on ? 'checked' : ''} ${(!editable || locked) ? 'disabled' : ''}
+                 style="margin-top:3px;flex:0 0 auto;"
+                 onchange="setRoleCell('${role.id}','${E(c.permission_key)}',this.checked,this)">
+          <span style="flex:1;min-width:0;">
+            <span style="font-size:13px;">${E(label)}</span>
+            <span class="perm-hint">${E(c.description || '')}${locked ? ' — ' + E(T('matrix.locked')) : ''}</span>
+          </span>
+        </label>`;
+      }).join('')}
+    </div>`).join('');
+
+  return `<div style="padding:4px 16px 18px 16px;background:var(--surface-2,#F6EEDF);">
+    ${body}
+    ${canEdit && !role.is_system ? `
+      <div style="display:flex;gap:8px;flex-wrap:wrap;padding-top:6px;border-top:1px solid var(--line-soft);">
+        <button class="btn-ghost" style="padding:6px 14px;font-size:12px;" onclick="openRoleEditor('${role.id}')">${E(T('common.edit'))}</button>
+        <button class="btn-ghost" style="padding:6px 14px;font-size:12px;color:var(--brick);" onclick="confirmDeleteRole('${role.id}')">${E(T('common.delete'))}</button>
+      </div>` : ''}
+    ${canEdit && role.is_system ? `
+      <div style="font-size:11px;color:var(--ink-faint);padding-top:6px;border-top:1px solid var(--line-soft);">
+        ${E(T('roles.deleteSys'))}
+      </div>` : ''}
+  </div>`;
+}
+
+function toggleRoleOpen(id) {
+  _rolesState.openRole = (_rolesState.openRole === id) ? null : id;
+  _renderRolesList();
+}
+
+// Optimistic tick, with a rollback when the database refuses. The floor
+// trigger is the usual refusal, and it comes back as a readable message.
+async function setRoleCell(roleId, permKey, allowed, inputEl) {
+  const cell = _rolesState.matrix.find(m => m.role_id === roleId && m.permission_key === permKey);
+  const prev = cell ? cell.allowed : !allowed;
+  if (cell) cell.allowed = allowed;
+  try {
+    await TPN.setRolePermission(roleId, permKey, allowed);
+    toast(allowed ? `Granted ${permKey}` : `Removed ${permKey}`);
+    // If the caller just changed their OWN effective access, refresh it so
+    // the sidebar stops offering something the database will now refuse.
+    await TPN.loadPermissions();
+    if (typeof renderAdminSidebar === 'function') renderAdminSidebar();
+  } catch (e) {
+    if (cell) cell.allowed = prev;
+    if (inputEl) inputEl.checked = prev;
+    toast('⚠️ ' + _prettyAccessError(e.message));
+  }
+}
+
+function _prettyAccessError(msg) {
+  msg = msg || 'Could not save';
+  if (/permission_above_role_tier/.test(msg)) {
+    const m = msg.match(/"([^"]+)" needs at least the (\w+) tier, but this role is based on (\w+)/);
+    return m ? `"${m[1]}" needs the ${m[2]} tier — this role is based on ${m[3]}. Raise the role's floor first.`
+             : 'That permission sits above this role’s permission floor.';
+  }
+  if (/cannot_delete_system_role/.test(msg))     return T('roles.deleteSys');
+  if (/cannot_retier_system_role/.test(msg))     return 'A built-in role’s permission floor is fixed by the database.';
+  if (/cannot_deactivate_system_role/.test(msg)) return 'Built-in roles cannot be switched off.';
+  if (/duplicate key/.test(msg))                 return 'A role with that key already exists.';
+  if (/row-level security/.test(msg))            return 'You do not have permission to change access.';
+  return msg;
+}
+
+function openRoleEditor(id) {
+  const role = id ? _rolesState.roles.find(r => r.id === id) : null;
+  const tiers = TPN.ROLE_HIERARCHY;
+  const m = document.getElementById('modal');
+  m.innerHTML = `
+    <div class="modal-title">${role ? E(T('common.edit')) + ' — ' + E(role.label) : E(T('roles.new'))}</div>
+    <div class="modal-content">
+      <div style="margin-bottom:12px;">
+        <label class="form-label">${E(T('common.name'))}</label>
+        <input type="text" class="form-input" id="roLabel" value="${role ? E(role.label) : ''}" placeholder="Floor Lead">
+      </div>
+      <div style="margin-bottom:12px;">
+        <label class="form-label">Tagalog name (optional)</label>
+        <input type="text" class="form-input" id="roLabelTl" value="${role ? E(role.label_tl || '') : ''}" placeholder="Namamahala sa Floor">
+      </div>
+      ${role ? '' : `<div style="margin-bottom:12px;">
+        <label class="form-label">Key</label>
+        <input type="text" class="form-input" id="roKey" placeholder="floor_lead">
+        <div style="font-size:11px;color:var(--ink-faint);margin-top:4px;">Lowercase, no spaces. Cannot be changed later.</div>
+      </div>`}
+      <div style="margin-bottom:12px;">
+        <label class="form-label">${E(T('roles.baseTier'))}</label>
+        <select class="form-input" id="roTier" ${role && role.is_system ? 'disabled' : ''}>
+          ${tiers.map(t => `<option value="${t}" ${role && role.base_tier === t ? 'selected' : ''}>${t}</option>`).join('')}
+        </select>
+        <div style="font-size:11px;color:var(--ink-faint);margin-top:4px;line-height:1.5;">${E(T('roles.baseHint'))}</div>
+      </div>
+      <div style="margin-bottom:12px;">
+        <label class="form-label">Description</label>
+        <input type="text" class="form-input" id="roDesc" value="${role ? E(role.description || '') : ''}" placeholder="Runs the floor on weekends">
+      </div>
+      <div style="margin-bottom:4px;">
+        <label class="form-label">Colour</label>
+        <input type="color" class="form-input" id="roColor" value="${role ? E(role.color || '#8B1A0E') : '#0E7490'}" style="height:42px;padding:4px;">
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-back" onclick="closeModal()">${E(T('common.cancel'))}</button>
+      <button class="btn-next" onclick="saveRole(${role ? `'${role.id}'` : 'null'})">${E(T('common.save'))}</button>
+    </div>`;
+  document.getElementById('modalOverlay').classList.add('open');
+}
+
+async function saveRole(id) {
+  const label = document.getElementById('roLabel').value.trim();
+  if (!label) { toast('Give the role a name'); return; }
+  const patch = {
+    label,
+    label_tl:    document.getElementById('roLabelTl').value.trim() || null,
+    description: document.getElementById('roDesc').value.trim() || null,
+    color:       document.getElementById('roColor').value,
+    base_tier:   document.getElementById('roTier').value
+  };
+  try {
+    if (id) {
+      const role = _rolesState.roles.find(r => r.id === id);
+      if (role && role.is_system) delete patch.base_tier;   // the DB refuses this anyway
+      await TPN.updateAccessRole(id, patch);
+    } else {
+      const key = (document.getElementById('roKey').value.trim() || label)
+        .toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+      if (!key) { toast('Give the role a key'); return; }
+      await TPN.createAccessRole({ ...patch, key });
+    }
+    closeModal();
+    toast(T('common.saved'));
+    route('roles', { replace: true });
+  } catch (e) {
+    toast('⚠️ ' + _prettyAccessError(e.message));
+  }
+}
+
+function confirmDeleteRole(id) {
+  const role = _rolesState.roles.find(r => r.id === id);
+  if (!role) return;
+  const m = document.getElementById('modal');
+  m.innerHTML = `
+    <div class="modal-title">${E(T('common.delete'))} — ${E(role.label)}</div>
+    <div class="modal-sub">${E(T('roles.confirmDel'))}</div>
+    <div class="modal-actions">
+      <button class="btn-back" onclick="closeModal()">${E(T('common.cancel'))}</button>
+      <button class="btn-next" style="background:var(--brick);" onclick="doDeleteRole('${id}')">${E(T('common.delete'))}</button>
+    </div>`;
+  document.getElementById('modalOverlay').classList.add('open');
+}
+
+async function doDeleteRole(id) {
+  try {
+    await TPN.deleteAccessRole(id);
+    closeModal();
+    toast('Role removed');
+    route('roles', { replace: true });
+  } catch (e) {
+    toast('⚠️ ' + _prettyAccessError(e.message));
+  }
+}
+
+
+/* ════════════════════════════════════════════════════════════════
+   ACCESS MATRIX
+
+   The subscription-table view: roles across the top, permissions down
+   the side, a tick or a cross in every cell. Adding or removing a role
+   in the Roles tab changes this grid on the next visit, because both
+   read the same access_matrix() call rather than a stored layout.
+
+   Hatched cells are not "off" — they are unavailable, because the
+   permission's floor is above that role's tier. Rendering them as
+   empty checkboxes would invite a click the database refuses.
+   ════════════════════════════════════════════════════════════════ */
+
+async function renderAccessMatrix(main) {
+  if (!TPN.can('roles.view')) {
+    main.innerHTML = `<div class="panel" style="padding:40px;text-align:center;color:var(--ink-muted);">${E(T('common.noAccess'))}</div>`;
+    return;
+  }
+  main.innerHTML = `
+    <div class="portal-header">
+      <div>
+        <h1>${E(T('matrix.title'))}</h1>
+        <div class="portal-header-sub">${E(T('matrix.sub'))}</div>
+      </div>
+      <button class="btn-ghost" style="padding:7px 15px;font-size:12px;" onclick="route('roles')">${E(T('nav.roles'))} →</button>
+    </div>
+    <div id="matrixBody"><div class="panel" style="padding:24px;text-align:center;color:var(--ink-muted);">${E(T('common.loading'))}</div></div>`;
+
+  try {
+    const matrix = await TPN.getAccessMatrix();
+    _rolesState.matrix = matrix;
+    _renderMatrixGrid(matrix);
+  } catch (e) {
+    document.getElementById('matrixBody').innerHTML =
+      `<div class="panel" style="padding:28px;text-align:center;color:var(--brick);">Could not load the matrix: ${E(e.message || '')}</div>`;
+  }
+}
+
+function _renderMatrixGrid(matrix) {
+  const el = document.getElementById('matrixBody');
+  if (!el) return;
+  if (!matrix.length) {
+    el.innerHTML = `<div class="panel" style="padding:28px;text-align:center;color:var(--ink-muted);">${E(T('common.none'))}</div>`;
+    return;
+  }
+  const canEdit = TPN.can('roles.edit');
+
+  // Roles in display order, de-duplicated off the flat grid.
+  const roles = [];
+  matrix.forEach(r => {
+    if (!roles.some(x => x.role_id === r.role_id)) {
+      roles.push({ role_id: r.role_id, key: r.role_key, label: r.role_label,
+                   color: r.role_color, tier: r.base_tier,
+                   is_system: r.is_system, is_active: r.is_active, order: r.role_order });
+    }
+  });
+  roles.sort((a, b) => a.order - b.order);
+
+  // Permissions grouped by category, in catalogue order.
+  const cats = [];
+  matrix.forEach(r => {
+    let g = cats.find(c => c.name === r.category);
+    if (!g) { g = { name: r.category, perms: [] }; cats.push(g); }
+    if (!g.perms.some(p => p.key === r.permission_key)) {
+      g.perms.push({ key: r.permission_key, label: r.label, label_tl: r.label_tl,
+                     description: r.description, min_tier: r.min_tier, order: r.perm_order });
+    }
+  });
+  cats.forEach(g => g.perms.sort((a, b) => a.order - b.order));
+
+  const lookup = {};
+  matrix.forEach(r => { lookup[r.role_id + '|' + r.permission_key] = r; });
+
+  const head = `<thead><tr>
+      <th class="corner">Permission</th>
+      ${roles.map(r => `<th title="${E(r.label)} — based on ${E(r.tier)}">
+        <span class="role-pill" style="background:${E(r.color)};">${E(r.label)}</span>
+        <div style="font-size:9px;font-weight:600;color:var(--ink-faint);margin-top:4px;letter-spacing:0;text-transform:none;">
+          ${r.is_system ? E(T('roles.builtIn')) : E(T('roles.custom'))}${r.is_active ? '' : ' · off'}
+        </div>
+      </th>`).join('')}
+    </tr></thead>`;
+
+  const body = cats.map(g => `
+    <tr class="cat-row"><th colspan="${roles.length + 1}">${E(g.name)}</th></tr>
+    ${g.perms.map(p => {
+      const label = TPN_LANG === 'tl' && p.label_tl ? p.label_tl : p.label;
+      return `<tr>
+        <th class="perm">
+          <span class="perm-label">${E(label)}</span>
+          <span class="perm-hint">${E(p.description || '')}</span>
+        </th>
+        ${roles.map(r => {
+          const cell = lookup[r.role_id + '|' + p.key];
+          if (!cell) return '<td class="cell"><span class="tick no">✕</span></td>';
+          if (!cell.grantable) {
+            return `<td class="cell locked" title="${E(T('matrix.locked'))}"><span class="tick locked">—</span></td>`;
+          }
+          const on = cell.allowed;
+          const clickable = canEdit && r.is_active;
+          return `<td class="cell" ${clickable ? `onclick="matrixToggle('${r.role_id}','${E(p.key)}',${on ? 'false' : 'true'})"` : ''}
+                      title="${E(r.label)} · ${E(label)}${clickable ? '' : ' (' + E(T('matrix.readonly')) + ')'}">
+            <span class="tick ${on ? 'yes' : 'no'}">${on ? '✓' : '✕'}</span>
+          </td>`;
+        }).join('')}
+      </tr>`;
+    }).join('')}`).join('');
+
+  el.innerHTML = `
+    <div class="matrix-scroll"><table class="matrix">${head}<tbody>${body}</tbody></table></div>
+    <div style="font-size:11px;color:var(--ink-faint);margin-top:10px;line-height:1.6;">
+      <span class="tick yes">✓</span> allowed &nbsp;·&nbsp;
+      <span class="tick no">✕</span> not allowed &nbsp;·&nbsp;
+      <span class="tick locked">—</span> ${E(T('matrix.locked'))}
+      ${canEdit ? '' : '<br>' + E(T('matrix.readonly'))}
+    </div>`;
+}
+
+async function matrixToggle(roleId, permKey, allowed) {
+  const cell = _rolesState.matrix.find(m => m.role_id === roleId && m.permission_key === permKey);
+  const prev = cell ? cell.allowed : !allowed;
+  if (cell) cell.allowed = allowed;
+  _renderMatrixGrid(_rolesState.matrix);   // repaint immediately
+  try {
+    await TPN.setRolePermission(roleId, permKey, allowed);
+    await TPN.loadPermissions();
+    if (typeof renderAdminSidebar === 'function') renderAdminSidebar();
+  } catch (e) {
+    if (cell) cell.allowed = prev;
+    _renderMatrixGrid(_rolesState.matrix);
+    toast('⚠️ ' + _prettyAccessError(e.message));
+  }
+}
+
+
+/* ════════════════════════════════════════════════════════════════
+   TASK BOARD   (sql/20-tasks.sql)
+
+   A task can carry several people and each of them marks their own
+   progress, so two people cleaning the storeroom do not fight over
+   one status field. The task's own status is derived in the database
+   from theirs — see private.roll_up_task().
+   ════════════════════════════════════════════════════════════════ */
+
+const _taskState = { tasks: [], staff: [], showDone: false };
+
+async function renderTasks(main) {
+  if (!TPN.can('tasks.view') && !TPN.can('tasks.create')) {
+    main.innerHTML = `<div class="panel" style="padding:40px;text-align:center;color:var(--ink-muted);">${E(T('common.noAccess'))}</div>`;
+    return;
+  }
+  main.innerHTML = `
+    <div class="portal-header">
+      <div>
+        <h1>${E(T('tasks.title'))}</h1>
+        <div class="portal-header-sub">${E(T('tasks.sub'))}</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <label style="font-size:12px;color:var(--ink-muted);display:flex;gap:6px;align-items:center;cursor:pointer;">
+          <input type="checkbox" id="tkShowDone" ${_taskState.showDone ? 'checked' : ''} onchange="toggleShowDoneTasks(this.checked)">
+          ${E(T('tasks.showDone'))}
+        </label>
+        ${TPN.can('tasks.create') ? `<button class="btn-next" onclick="openTaskEditor(null)">${E(T('tasks.new'))}</button>` : ''}
+      </div>
+    </div>
+    <div id="taskBody"><div class="panel" style="padding:24px;text-align:center;color:var(--ink-muted);">${E(T('common.loading'))}</div></div>`;
+
+  try {
+    const [tasks, staff] = await Promise.all([
+      TPN.getTasks(_taskState.showDone),
+      TPN.getStaffDirectory().catch(() => [])
+    ]);
+    _taskState.tasks = tasks;
+    _taskState.staff = staff;
+    _countMyOpenTasks();
+    _renderTaskLanes();
+  } catch (e) {
+    document.getElementById('taskBody').innerHTML =
+      `<div class="panel" style="padding:28px;text-align:center;color:var(--brick);">Could not load tasks: ${E(e.message || '')}</div>`;
+  }
+}
+
+function toggleShowDoneTasks(v) {
+  _taskState.showDone = !!v;
+  route('tasks', { replace: true });
+}
+
+// Badge on the sidebar: tasks assigned to me that I have not finished.
+function _countMyOpenTasks() {
+  const me = currentUser && currentUser.id;
+  if (!me) { window._tpnMyOpenTasks = null; return; }
+  const n = _taskState.tasks.filter(t =>
+    t.my_state && t.my_state !== 'done' && t.status !== 'done' && t.status !== 'cancelled'
+  ).length;
+  window._tpnMyOpenTasks = n || null;
+}
+
+function _renderTaskLanes() {
+  const el = document.getElementById('taskBody');
+  if (!el) return;
+  const lanes = [
+    { status: 'todo',        key: 'tasks.todo' },
+    { status: 'in_progress', key: 'tasks.doing' },
+    { status: 'blocked',     key: 'tasks.blocked' },
+    { status: 'done',        key: 'tasks.done' }
+  ].filter(l => l.status !== 'done' || _taskState.showDone);
+
+  if (!_taskState.tasks.length) {
+    el.innerHTML = `<div class="panel" style="padding:36px;text-align:center;color:var(--ink-muted);">${E(T('tasks.empty'))}</div>`;
+    return;
+  }
+
+  el.innerHTML = `<div class="task-lanes">${lanes.map(l => {
+    const items = _taskState.tasks.filter(t => t.status === l.status);
+    return `<div class="task-lane">
+      <div class="task-lane-head">
+        <span>${E(T(l.key))}</span>
+        <span class="portal-nav-count">${items.length}</span>
+      </div>
+      ${items.length ? items.map(_taskCard).join('')
+                     : `<div style="font-size:12px;color:var(--ink-faint);padding:6px 2px;">—</div>`}
+    </div>`;
+  }).join('')}</div>`;
+}
+
+function _taskCard(t) {
+  const mine = !!t.my_state;
+  const people = Array.isArray(t.assignees) ? t.assignees : [];
+  const overdue = t.due_at && new Date(t.due_at) < new Date() && t.status !== 'done';
+  const canManage = TPN.can('tasks.assign') || TPN.can('tasks.close_any');
+
+  return `<div class="task-card ${mine ? 'task-mine' : ''}">
+    <div class="task-card-title">${E(t.title)}</div>
+    ${t.description ? `<div style="font-size:12px;color:var(--ink-muted);line-height:1.5;margin-bottom:7px;">${E(t.description)}</div>` : ''}
+    <div class="task-card-meta">
+      <span class="task-prio ${E(t.priority)}">${E(t.priority)}</span>
+      ${t.category ? `<span>${E(t.category)}</span>` : ''}
+      ${t.due_at ? `<span class="${overdue ? 'task-overdue' : ''}">${overdue ? E(T('tasks.overdue')) + ' · ' : E(T('tasks.due')) + ' '}${_fmtTaskDate(t.due_at)}</span>` : ''}
+    </div>
+    ${people.length ? `<div class="task-people">${people.map(p => `
+      <span class="task-person" title="${E(p.name || '')} — ${E(p.state)}${p.note ? ': ' + E(p.note) : ''}">
+        <span class="dot ${E(p.state)}"></span>${E(_firstName(p.name))}
+      </span>`).join('')}</div>` : `<div style="font-size:11px;color:var(--ink-faint);margin-top:8px;">Nobody assigned yet</div>`}
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;">
+      ${mine && t.my_state !== 'working' && t.my_state !== 'done'
+        ? `<button class="btn-ghost" style="padding:5px 11px;font-size:11px;" onclick="myTaskState('${t.id}','working')">${E(T('tasks.iStart'))}</button>` : ''}
+      ${mine && t.my_state !== 'done'
+        ? `<button class="btn-ghost" style="padding:5px 11px;font-size:11px;" onclick="myTaskState('${t.id}','done')">${E(T('tasks.iDone'))}</button>` : ''}
+      ${mine && t.my_state === 'done'
+        ? `<button class="btn-ghost" style="padding:5px 11px;font-size:11px;" onclick="myTaskState('${t.id}','working')">${E(T('tasks.iUndo'))}</button>` : ''}
+      ${canManage ? `<button class="btn-ghost" style="padding:5px 11px;font-size:11px;" onclick="openTaskEditor('${t.id}')">${E(T('common.edit'))}</button>` : ''}
+    </div>
+  </div>`;
+}
+
+function _firstName(n) { return (n || '?').split(' ')[0]; }
+
+function _fmtTaskDate(iso) {
+  try {
+    const d = new Date(iso);
+    return d.toLocaleDateString(TPN_LANG === 'tl' ? 'fil-PH' : 'en-PH',
+      { month: 'short', day: 'numeric' });
+  } catch (e) { return ''; }
+}
+
+async function myTaskState(taskId, state) {
+  try {
+    await TPN.setMyTaskState(taskId, state);
+    toast(state === 'done' ? T('tasks.iDone') : T('tasks.iStart'));
+    route('tasks', { replace: true });
+  } catch (e) {
+    toast('⚠️ ' + (/not_assigned/.test(e.message || '') ? 'You are not on this task.' : e.message));
+  }
+}
+
+function openTaskEditor(id) {
+  const t = id ? _taskState.tasks.find(x => x.id === id) : null;
+  const assigned = t && Array.isArray(t.assignees) ? t.assignees.map(a => a.staff_id) : [];
+  const canAssign = TPN.can('tasks.assign');
+  const m = document.getElementById('modal');
+  m.innerHTML = `
+    <div class="modal-title">${t ? E(T('common.edit')) : E(T('tasks.new'))}</div>
+    <div class="modal-content">
+      <div style="margin-bottom:12px;">
+        <label class="form-label">Title</label>
+        <input type="text" class="form-input" id="tkTitle" value="${t ? E(t.title) : ''}" placeholder="Deep clean the storeroom">
+      </div>
+      <div style="margin-bottom:12px;">
+        <label class="form-label">Details</label>
+        <textarea class="form-input" id="tkDesc" rows="2" placeholder="Bago mag-inventory">${t ? E(t.description || '') : ''}</textarea>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
+        <div>
+          <label class="form-label">${E(T('tasks.priority'))}</label>
+          <select class="form-input" id="tkPrio">
+            ${['low','normal','high','urgent'].map(p =>
+              `<option value="${p}" ${t && t.priority === p ? 'selected' : ''}>${p}</option>`).join('')}
+          </select>
+        </div>
+        <div>
+          <label class="form-label">${E(T('common.category'))}</label>
+          <input type="text" class="form-input" id="tkCat" value="${t ? E(t.category || '') : ''}" placeholder="Cleaning">
+        </div>
+      </div>
+      <div style="margin-bottom:12px;">
+        <label class="form-label">${E(T('tasks.due'))}</label>
+        <input type="date" class="form-input" id="tkDue" value="${t && t.due_at ? new Date(t.due_at).toISOString().slice(0,10) : ''}">
+      </div>
+      <div style="margin-bottom:6px;">
+        <label class="form-label">${E(T('tasks.assignTo'))}</label>
+        ${canAssign ? `<div style="border:1px solid var(--line);border-radius:8px;padding:8px;max-height:180px;overflow-y:auto;">
+          ${_taskState.staff.length ? _taskState.staff.map(p => `
+            <label style="display:flex;gap:8px;align-items:center;padding:4px 2px;font-size:13px;cursor:pointer;">
+              <input type="checkbox" class="tk-assignee" value="${p.id}" ${assigned.includes(p.id) ? 'checked' : ''}>
+              <span>${E(p.full_name)}</span>
+              <span style="margin-left:auto;font-size:10px;color:var(--ink-faint);">${E(p.role)}</span>
+            </label>`).join('')
+          : '<div style="font-size:12px;color:var(--ink-faint);padding:4px;">No staff to assign.</div>'}
+        </div>
+        <div style="font-size:11px;color:var(--ink-faint);margin-top:5px;">Tick more than one — they each mark their own progress.</div>`
+        : `<div style="font-size:12px;color:var(--ink-faint);">You cannot change who is assigned.</div>`}
+      </div>
+    </div>
+    <div class="modal-actions">
+      ${t && TPN.can('tasks.close_any') ? `<button class="btn-ghost" style="color:var(--brick);margin-right:auto;" onclick="doDeleteTask('${t.id}')">${E(T('common.delete'))}</button>` : ''}
+      <button class="btn-back" onclick="closeModal()">${E(T('common.cancel'))}</button>
+      <button class="btn-next" onclick="saveTask(${t ? `'${t.id}'` : 'null'})">${E(T('common.save'))}</button>
+    </div>`;
+  document.getElementById('modalOverlay').classList.add('open');
+}
+
+async function saveTask(id) {
+  const title = document.getElementById('tkTitle').value.trim();
+  if (!title) { toast('Give the task a title'); return; }
+  const due = document.getElementById('tkDue').value;
+  const picked = [...document.querySelectorAll('.tk-assignee:checked')].map(i => i.value);
+  const payload = {
+    title,
+    description: document.getElementById('tkDesc').value.trim() || null,
+    category:    document.getElementById('tkCat').value.trim() || null,
+    priority:    document.getElementById('tkPrio').value,
+    dueAt:       due ? new Date(due + 'T23:59:00').toISOString() : null
+  };
+  try {
+    if (id) {
+      await TPN.updateTask(id, {
+        title: payload.title, description: payload.description,
+        category: payload.category, priority: payload.priority, due_at: payload.dueAt
+      });
+      if (TPN.can('tasks.assign')) await TPN.setTaskAssignees(id, picked);
+    } else {
+      await TPN.createTask({ ...payload, assignees: picked });
+    }
+    closeModal();
+    toast(T('common.saved'));
+    route('tasks', { replace: true });
+  } catch (e) {
+    toast('⚠️ ' + (/row-level security/.test(e.message || '') ? 'You do not have permission to do that.' : e.message));
+  }
+}
+
+async function doDeleteTask(id) {
+  try {
+    await TPN.deleteTask(id);
+    closeModal();
+    toast('Task removed');
+    route('tasks', { replace: true });
+  } catch (e) { toast('⚠️ ' + e.message); }
+}
+
+
+/* ════════════════════════════════════════════════════════════════
+   INVENTORY   (sql/21-inventory-and-finance.sql)
+
+   Everything is a movement. current_stock is never typed in — it is
+   derived by trigger from the ledger, the same way orders.total is
+   derived from order_items. So a stock level and its history cannot
+   disagree, and "who changed this and why" always has an answer.
+   ════════════════════════════════════════════════════════════════ */
+
+const _invState = { items: [], suppliers: [], movements: [], openItem: null };
+
+const INV_MOVEMENTS = [
+  { type: 'delivery_in', key: 'inv.deliveryIn', sign: '+', perm: 'inventory.receive' },
+  { type: 'usage',       key: 'inv.usage',      sign: '−', perm: 'inventory.receive' },
+  { type: 'wastage',     key: 'inv.wastage',    sign: '−', perm: 'inventory.adjust'  },
+  { type: 'adjust_up',   key: 'inv.adjustUp',   sign: '+', perm: 'inventory.adjust'  },
+  { type: 'adjust_down', key: 'inv.adjustDown', sign: '−', perm: 'inventory.adjust'  },
+  { type: 'return_out',  key: 'inv.returnOut',  sign: '−', perm: 'inventory.adjust'  }
+];
+
+async function renderInventory(main) {
+  if (!TPN.can('inventory.view')) {
+    main.innerHTML = `<div class="panel" style="padding:40px;text-align:center;color:var(--ink-muted);">${E(T('common.noAccess'))}</div>`;
+    return;
+  }
+  main.innerHTML = `
+    <div class="portal-header">
+      <div>
+        <h1>${E(T('inv.title'))}</h1>
+        <div class="portal-header-sub">${E(T('inv.sub'))}</div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        ${TPN.can('inventory.receive') ? `<button class="btn-next" onclick="openStockMovement(null,'delivery_in')">${E(T('inv.receive'))}</button>` : ''}
+        ${TPN.can('inventory.manage')  ? `<button class="btn-ghost" style="padding:7px 15px;font-size:12px;" onclick="openIngredientEditor(null)">${E(T('inv.newItem'))}</button>` : ''}
+      </div>
+    </div>
+    <div id="invBody"><div class="panel" style="padding:24px;text-align:center;color:var(--ink-muted);">${E(T('common.loading'))}</div></div>`;
+
+  try {
+    const [items, suppliers, movements] = await Promise.all([
+      TPN.getInventory(),
+      TPN.getSuppliers().catch(() => []),
+      TPN.getStockMovements(null, 40).catch(() => [])
+    ]);
+    Object.assign(_invState, { items, suppliers, movements });
+    window._tpnLowStock = items.filter(i => i.needs_reorder).length || null;
+    _renderInventoryTable();
+  } catch (e) {
+    document.getElementById('invBody').innerHTML =
+      `<div class="panel" style="padding:28px;text-align:center;color:var(--brick);">Could not load inventory: ${E(e.message || '')}</div>`;
+  }
+}
+
+function _renderInventoryTable() {
+  const el = document.getElementById('invBody');
+  if (!el) return;
+  const items = _invState.items;
+
+  if (!items.length) {
+    el.innerHTML = `<div class="panel" style="padding:36px;text-align:center;color:var(--ink-muted);">${E(T('inv.empty'))}</div>`;
+    return;
+  }
+
+  const low = items.filter(i => i.needs_reorder);
+  const totalValue = items.reduce((n, i) => n + Number(i.stock_value || 0), 0);
+
+  const rows = items.map(i => {
+    const name = TPN_LANG === 'tl' && i.name_tagalog ? i.name_tagalog : i.name;
+    return `<tr class="${i.needs_reorder ? 'inv-low' : ''}">
+      <td style="padding:10px 12px;border-bottom:1px solid var(--line-soft);">
+        <div style="font-weight:600;font-size:13px;">${E(name)}
+          ${i.needs_reorder ? `<span class="inv-badge" style="margin-left:6px;">${E(T('inv.low'))}</span>` : ''}
+        </div>
+        <div style="font-size:11px;color:var(--ink-faint);">${E(i.category || '—')}${i.supplier_name ? ' · ' + E(i.supplier_name) : ''}</div>
+      </td>
+      <td style="padding:10px 12px;border-bottom:1px solid var(--line-soft);text-align:right;white-space:nowrap;">
+        <strong>${N(i.current_stock, 2)}</strong> <span style="font-size:11px;color:var(--ink-faint);">${E(i.unit)}</span>
+      </td>
+      <td style="padding:10px 12px;border-bottom:1px solid var(--line-soft);text-align:right;font-size:12px;color:var(--ink-muted);white-space:nowrap;">
+        ${N(i.reorder_level, 2)}
+      </td>
+      <td style="padding:10px 12px;border-bottom:1px solid var(--line-soft);text-align:right;font-size:12px;white-space:nowrap;">
+        ${i.avg_unit_cost != null ? '₱' + N(i.avg_unit_cost, 2) : '—'}
+      </td>
+      <td style="padding:10px 12px;border-bottom:1px solid var(--line-soft);text-align:right;font-size:12px;white-space:nowrap;">
+        ${i.stock_value != null ? '₱' + N(i.stock_value, 2) : '—'}
+      </td>
+      <td style="padding:10px 12px;border-bottom:1px solid var(--line-soft);text-align:right;white-space:nowrap;">
+        ${TPN.can('inventory.receive') ? `<button class="btn-ghost" style="padding:4px 10px;font-size:11px;" onclick="openStockMovement('${i.id}','delivery_in')">+ ${E(T('inv.deliveryIn'))}</button>` : ''}
+        ${TPN.can('inventory.adjust')  ? `<button class="btn-ghost" style="padding:4px 10px;font-size:11px;" onclick="openStockMovement('${i.id}','adjust_down')">${E(T('inv.movement'))}</button>` : ''}
+        ${TPN.can('inventory.manage')  ? `<button class="btn-ghost" style="padding:4px 10px;font-size:11px;" onclick="openIngredientEditor('${i.id}')">${E(T('common.edit'))}</button>` : ''}
+      </td>
+    </tr>`;
+  }).join('');
+
+  el.innerHTML = `
+    <div class="fin-grid">
+      <div class="fin-tile">
+        <div class="fin-tile-label">${E(T('inv.value'))}</div>
+        <div class="fin-tile-value">₱${N(totalValue, 2)}</div>
+        <div class="fin-tile-note">${items.length} ingredient${items.length === 1 ? '' : 's'}</div>
+      </div>
+      <div class="fin-tile">
+        <div class="fin-tile-label">${E(T('inv.low'))}</div>
+        <div class="fin-tile-value ${low.length ? 'neg' : ''}">${low.length}</div>
+        <div class="fin-tile-note">${low.length ? low.slice(0, 3).map(i => E(i.name)).join(', ') + (low.length > 3 ? '…' : '') : 'Lahat sapat pa'}</div>
+      </div>
+    </div>
+    <div class="panel" style="overflow-x:auto;">
+      <table style="width:100%;border-collapse:collapse;font-size:13px;min-width:640px;">
+        <thead><tr style="background:var(--surface-2,#F6EEDF);">
+          <th style="padding:9px 12px;text-align:left;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-muted);">${E(T('common.name'))}</th>
+          <th style="padding:9px 12px;text-align:right;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-muted);">${E(T('inv.onHand'))}</th>
+          <th style="padding:9px 12px;text-align:right;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-muted);">${E(T('inv.reorderAt'))}</th>
+          <th style="padding:9px 12px;text-align:right;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-muted);">${E(T('inv.avgCost'))}</th>
+          <th style="padding:9px 12px;text-align:right;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-muted);">${E(T('inv.value'))}</th>
+          <th></th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+    <div style="font-size:11px;color:var(--ink-faint);margin:10px 0 18px;line-height:1.6;">${E(T('inv.derived'))}</div>
+    ${_renderMovementLog()}`;
+}
+
+function _renderMovementLog() {
+  const mv = _invState.movements;
+  if (!mv.length) return '';
+  return `<div class="panel">
+    <div style="padding:12px 16px;border-bottom:1px solid var(--line);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-muted);font-weight:700;">
+      ${E(T('inv.movement'))}
+    </div>
+    ${mv.map(m => {
+      const meta = INV_MOVEMENTS.find(x => x.type === m.movement_type);
+      const sign = meta ? meta.sign : '';
+      const label = meta ? T(meta.key) : m.movement_type;
+      const positive = sign === '+';
+      return `<div style="padding:10px 16px;border-bottom:1px solid var(--line-soft);display:flex;gap:12px;align-items:baseline;font-size:12px;">
+        <span style="font-weight:700;color:${positive ? '#2D7A4F' : '#8B1A0E'};min-width:74px;">
+          ${sign}${N(m.quantity, 2)} ${E(m.ingredients ? m.ingredients.unit : '')}
+        </span>
+        <span style="flex:1;min-width:0;">
+          <strong>${E(m.ingredients ? m.ingredients.name : '—')}</strong>
+          <span style="color:var(--ink-muted);"> · ${E(label)}</span>
+          ${m.reference ? `<span style="color:var(--ink-faint);"> · ${E(m.reference)}</span>` : ''}
+          ${m.notes ? `<div style="color:var(--ink-faint);font-size:11px;">${E(m.notes)}</div>` : ''}
+        </span>
+        <span style="color:var(--ink-faint);white-space:nowrap;">
+          ${m.total_cost != null ? '₱' + N(m.total_cost, 2) + ' · ' : ''}${_timeAgo(m.occurred_at)}
+        </span>
+      </div>`;
+    }).join('')}
+  </div>`;
+}
+
+function openIngredientEditor(id) {
+  const it = id ? _invState.items.find(x => x.id === id) : null;
+  const sups = _invState.suppliers;
+  const m = document.getElementById('modal');
+  m.innerHTML = `
+    <div class="modal-title">${it ? E(T('common.edit')) + ' — ' + E(it.name) : E(T('inv.newItem'))}</div>
+    <div class="modal-content">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
+        <div>
+          <label class="form-label">${E(T('common.name'))}</label>
+          <input type="text" class="form-input" id="igName" value="${it ? E(it.name) : ''}" placeholder="Pork Belly">
+        </div>
+        <div>
+          <label class="form-label">Tagalog</label>
+          <input type="text" class="form-input" id="igNameTl" value="${it ? E(it.name_tagalog || '') : ''}" placeholder="Liempo">
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px;">
+        <div>
+          <label class="form-label">${E(T('common.category'))}</label>
+          <input type="text" class="form-input" id="igCat" value="${it ? E(it.category || '') : ''}" placeholder="Meat">
+        </div>
+        <div>
+          <label class="form-label">${E(T('inv.unit'))}</label>
+          <select class="form-input" id="igUnit">
+            ${['kg','g','L','mL','pc','tray','sack','box','bundle'].map(u =>
+              `<option value="${u}" ${it && it.unit === u ? 'selected' : ''}>${u}</option>`).join('')}
+          </select>
+        </div>
+        <div>
+          <label class="form-label">${E(T('inv.reorderAt'))}</label>
+          <input type="number" step="0.01" class="form-input" id="igReorder" value="${it ? N(it.reorder_level, 2) : '0'}">
+        </div>
+      </div>
+      <div style="margin-bottom:6px;">
+        <label class="form-label">${E(T('inv.supplier'))}</label>
+        <select class="form-input" id="igSupplier">
+          <option value="">—</option>
+          ${sups.map(s => `<option value="${s.id}" ${it && it.supplier_name === s.name ? 'selected' : ''}>${E(s.name)}</option>`).join('')}
+        </select>
+        <div style="font-size:11px;color:var(--ink-faint);margin-top:5px;">
+          Stock on hand is not editable here — it comes from deliveries and adjustments.
+        </div>
+      </div>
+    </div>
+    <div class="modal-actions">
+      ${it && TPN.can('inventory.manage') ? `<button class="btn-ghost" style="color:var(--brick);margin-right:auto;" onclick="retireIngredient('${it.id}')">Retire</button>` : ''}
+      <button class="btn-back" onclick="closeModal()">${E(T('common.cancel'))}</button>
+      <button class="btn-next" onclick="saveIngredient(${it ? `'${it.id}'` : 'null'})">${E(T('common.save'))}</button>
+    </div>`;
+  document.getElementById('modalOverlay').classList.add('open');
+}
+
+async function saveIngredient(id) {
+  const name = document.getElementById('igName').value.trim();
+  if (!name) { toast('Give the ingredient a name'); return; }
+  try {
+    await TPN.saveIngredient({
+      name,
+      nameTagalog:  document.getElementById('igNameTl').value.trim() || null,
+      category:     document.getElementById('igCat').value.trim() || null,
+      unit:         document.getElementById('igUnit').value,
+      reorderLevel: Number(document.getElementById('igReorder').value || 0),
+      supplierId:   document.getElementById('igSupplier').value || null
+    }, id);
+    closeModal();
+    toast(T('common.saved'));
+    route('inventory', { replace: true });
+  } catch (e) {
+    toast('⚠️ ' + (/duplicate key/.test(e.message || '') ? 'An ingredient with that name already exists.' : e.message));
+  }
+}
+
+async function retireIngredient(id) {
+  try {
+    await TPN.deleteIngredient(id);
+    closeModal();
+    toast('Retired — its history is kept');
+    route('inventory', { replace: true });
+  } catch (e) { toast('⚠️ ' + e.message); }
+}
+
+function openStockMovement(ingredientId, defaultType) {
+  const allowed = INV_MOVEMENTS.filter(mv => TPN.can(mv.perm));
+  if (!allowed.length) { toast(T('common.noAccess')); return; }
+  const type = allowed.some(a => a.type === defaultType) ? defaultType : allowed[0].type;
+  const m = document.getElementById('modal');
+  m.innerHTML = `
+    <div class="modal-title">${E(T('inv.movement'))}</div>
+    <div class="modal-sub">Quantity is always a positive number — the type below decides whether it adds or removes.</div>
+    <div class="modal-content">
+      <div style="margin-bottom:12px;">
+        <label class="form-label">Ingredient</label>
+        <select class="form-input" id="mvIngredient">
+          ${_invState.items.map(i => `<option value="${i.id}" ${i.id === ingredientId ? 'selected' : ''}>
+            ${E(i.name)} (${N(i.current_stock, 2)} ${E(i.unit)})
+          </option>`).join('')}
+        </select>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
+        <div>
+          <label class="form-label">${E(T('inv.movement'))}</label>
+          <select class="form-input" id="mvType" onchange="_mvTypeChanged()">
+            ${allowed.map(a => `<option value="${a.type}" ${a.type === type ? 'selected' : ''}>${a.sign} ${E(T(a.key))}</option>`).join('')}
+          </select>
+        </div>
+        <div>
+          <label class="form-label">${E(T('inv.qty'))}</label>
+          <input type="number" step="0.001" min="0.001" class="form-input" id="mvQty" placeholder="20">
+        </div>
+      </div>
+      <div id="mvCostWrap" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
+        <div>
+          <label class="form-label">Cost per unit</label>
+          <input type="number" step="0.01" class="form-input" id="mvUnitCost" placeholder="280.00">
+        </div>
+        <div>
+          <label class="form-label">or total cost</label>
+          <input type="number" step="0.01" class="form-input" id="mvTotalCost" placeholder="5600.00">
+        </div>
+      </div>
+      <div id="mvSupWrap" style="margin-bottom:12px;">
+        <label class="form-label">${E(T('inv.supplier'))}</label>
+        <select class="form-input" id="mvSupplier">
+          <option value="">—</option>
+          ${_invState.suppliers.map(s => `<option value="${s.id}">${E(s.name)}</option>`).join('')}
+        </select>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:6px;">
+        <div>
+          <label class="form-label">${E(T('inv.reference'))}</label>
+          <input type="text" class="form-input" id="mvRef" placeholder="DR-0001">
+        </div>
+        <div>
+          <label class="form-label">${E(T('common.notes'))}</label>
+          <input type="text" class="form-input" id="mvNotes" placeholder="nasira sa freezer">
+        </div>
+      </div>
+      <div style="font-size:11px;color:var(--ink-faint);margin-top:6px;">
+        Give either a unit cost or a total — the other is worked out for you.
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-back" onclick="closeModal()">${E(T('common.cancel'))}</button>
+      <button class="btn-next" onclick="saveStockMovement()">${E(T('common.save'))}</button>
+    </div>`;
+  document.getElementById('modalOverlay').classList.add('open');
+  _mvTypeChanged();
+}
+
+// Cost and supplier only make sense for a delivery; hide them otherwise
+// so nobody records a "wastage" against an invoice number.
+function _mvTypeChanged() {
+  const t = document.getElementById('mvType');
+  if (!t) return;
+  const isDelivery = t.value === 'delivery_in';
+  const sup = document.getElementById('mvSupWrap');
+  if (sup) sup.style.display = isDelivery ? '' : 'none';
+}
+
+async function saveStockMovement() {
+  const qty = Number(document.getElementById('mvQty').value);
+  if (!qty || qty <= 0) { toast('Enter how much'); return; }
+  try {
+    await TPN.recordStockMovement({
+      ingredientId: document.getElementById('mvIngredient').value,
+      type:         document.getElementById('mvType').value,
+      quantity:     qty,
+      unitCost:     document.getElementById('mvUnitCost').value,
+      totalCost:    document.getElementById('mvTotalCost').value,
+      supplierId:   document.getElementById('mvSupplier') ? document.getElementById('mvSupplier').value : null,
+      reference:    document.getElementById('mvRef').value.trim(),
+      notes:        document.getElementById('mvNotes').value.trim()
+    });
+    closeModal();
+    toast(T('common.saved'));
+    route('inventory', { replace: true });
+  } catch (e) {
+    toast('⚠️ ' + (/row-level security/.test(e.message || '')
+      ? 'You do not have permission to record that kind of movement.' : e.message));
+  }
+}
+
+
+/* ════════════════════════════════════════════════════════════════
+   FINANCE   (sql/21-inventory-and-finance.sql)
+
+   The question this tab answers is "what did we actually make", which
+   needs three things the dashboard never had: what the ingredients
+   cost, what the staff were paid, and what else went out the door.
+
+   Cost of ingredients is either MEASURED from stock usage or
+   ESTIMATED as a percentage of sales, and the tab says which one
+   produced the number. An estimate dressed up as a measurement is
+   the fastest way to lose trust in a P&L.
+   ════════════════════════════════════════════════════════════════ */
+
+const _finState = { granularity: 'day', from: null, to: null, rows: [], expenses: [], settings: null, comp: [] };
+
+function _finDefaultRange(granularity) {
+  const to = new Date();
+  const from = new Date();
+  if (granularity === 'month')      from.setMonth(from.getMonth() - 11);
+  else if (granularity === 'week')  from.setDate(from.getDate() - 7 * 11);
+  else                              from.setDate(from.getDate() - 29);
+  const iso = d => d.toISOString().slice(0, 10);
+  return { from: iso(from), to: iso(to) };
+}
+
+async function renderFinance(main) {
+  if (!TPN.can('finance.view')) {
+    main.innerHTML = `<div class="panel" style="padding:40px;text-align:center;color:var(--ink-muted);">${E(T('common.noAccess'))}</div>`;
+    return;
+  }
+  const g = _finState.granularity;
+  const range = (_finState.from && _finState.to) ? { from: _finState.from, to: _finState.to } : _finDefaultRange(g);
+  _finState.from = range.from; _finState.to = range.to;
+
+  main.innerHTML = `
+    <div class="portal-header">
+      <div>
+        <h1>${E(T('fin.title'))}</h1>
+        <div class="portal-header-sub">${E(T('fin.sub'))}</div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+        <div class="seg">
+          <button class="${g === 'day' ? 'on' : ''}"   onclick="setFinGranularity('day')">${E(T('common.day'))}</button>
+          <button class="${g === 'week' ? 'on' : ''}"  onclick="setFinGranularity('week')">${E(T('common.weekly'))}</button>
+          <button class="${g === 'month' ? 'on' : ''}" onclick="setFinGranularity('month')">${E(T('common.monthly'))}</button>
+        </div>
+        ${TPN.can('expenses.record') ? `<button class="btn-next" onclick="openExpenseEditor(null)">${E(T('fin.addExpense'))}</button>` : ''}
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:flex-end;margin-bottom:16px;flex-wrap:wrap;">
+      <div><label class="form-label">From</label>
+        <input type="date" class="form-input" id="finFrom" value="${range.from}" onchange="setFinRange()"></div>
+      <div><label class="form-label">To</label>
+        <input type="date" class="form-input" id="finTo" value="${range.to}" onchange="setFinRange()"></div>
+      ${TPN.can('finance.edit')  ? `<button class="btn-ghost" style="padding:8px 14px;font-size:12px;" onclick="openCostingSettings()">${E(T('fin.costing'))}</button>` : ''}
+      ${TPN.can('payroll.view')  ? `<button class="btn-ghost" style="padding:8px 14px;font-size:12px;" onclick="openPayRates()">${E(T('fin.payRates'))}</button>` : ''}
+    </div>
+    <div id="finBody"><div class="panel" style="padding:24px;text-align:center;color:var(--ink-muted);">${E(T('common.loading'))}</div></div>`;
+
+  try {
+    const [rows, expenses, settings] = await Promise.all([
+      TPN.getFinanceSummary(range.from, range.to, g),
+      TPN.getExpenses(range.from, range.to).catch(() => []),
+      TPN.getFinanceSettings().catch(() => null)
+    ]);
+    Object.assign(_finState, { rows, expenses, settings });
+    _renderFinanceBody();
+  } catch (e) {
+    document.getElementById('finBody').innerHTML =
+      `<div class="panel" style="padding:28px;text-align:center;color:var(--brick);">Could not load finance: ${E(e.message || '')}</div>`;
+  }
+}
+
+function setFinGranularity(g) {
+  _finState.granularity = g;
+  const r = _finDefaultRange(g);
+  _finState.from = r.from; _finState.to = r.to;
+  route('finance', { replace: true });
+}
+
+function setFinRange() {
+  _finState.from = document.getElementById('finFrom').value;
+  _finState.to   = document.getElementById('finTo').value;
+  route('finance', { replace: true });
+}
+
+function _renderFinanceBody() {
+  const el = document.getElementById('finBody');
+  if (!el) return;
+  const rows = _finState.rows;
+  if (!rows.length) {
+    el.innerHTML = `<div class="panel" style="padding:32px;text-align:center;color:var(--ink-muted);">${E(T('common.none'))}</div>`;
+    return;
+  }
+
+  const sum = k => rows.reduce((n, r) => n + Number(r[k] || 0), 0);
+  const gross = sum('gross_sales'), disc = sum('discounts'), net = sum('net_sales');
+  const cogs = sum('cogs'), labour = sum('labour_cost'), other = sum('other_expenses');
+  const income = sum('net_income');
+  const orders = rows.reduce((n, r) => n + Number(r.order_count || 0), 0);
+  const basis = rows[0] ? rows[0].cogs_basis : '';
+  const measured = /measured/i.test(basis || '');
+  const margin = net > 0 ? (income / net * 100) : null;
+
+  const tiles = `
+    <div class="fin-grid">
+      <div class="fin-tile"><div class="fin-tile-label">${E(T('fin.net'))}</div>
+        <div class="fin-tile-value">₱${N(net, 2)}</div>
+        <div class="fin-tile-note">${orders} ${E(T('fin.orders').toLowerCase())} · ${E(T('fin.gross'))} ₱${N(gross, 2)}</div></div>
+      <div class="fin-tile"><div class="fin-tile-label">${E(T('fin.cogs'))}</div>
+        <div class="fin-tile-value">₱${N(cogs, 2)}</div>
+        <div class="fin-tile-note">${net > 0 ? N(cogs / net * 100, 1) + '% of net sales' : '—'}</div></div>
+      <div class="fin-tile"><div class="fin-tile-label">${E(T('fin.labour'))}</div>
+        <div class="fin-tile-value">₱${N(labour, 2)}</div>
+        <div class="fin-tile-note">${net > 0 ? N(labour / net * 100, 1) + '% of net sales' : '—'}</div></div>
+      <div class="fin-tile"><div class="fin-tile-label">${E(T('fin.expenses'))}</div>
+        <div class="fin-tile-value">₱${N(other, 2)}</div>
+        <div class="fin-tile-note">${_finState.expenses.length} entr${_finState.expenses.length === 1 ? 'y' : 'ies'}</div></div>
+      <div class="fin-tile"><div class="fin-tile-label">${E(T('fin.netIncome'))}</div>
+        <div class="fin-tile-value ${income < 0 ? 'neg' : 'pos'}">₱${N(income, 2)}</div>
+        <div class="fin-tile-note">${margin !== null ? N(margin, 1) + '% margin' : '—'}${disc > 0 ? ' · ' + E(T('fin.discounts')) + ' ₱' + N(disc, 2) : ''}</div></div>
+    </div>
+    <div class="fin-basis">
+      <strong>${E(T('fin.cogs'))}:</strong> ${E(basis || '')} —
+      ${measured ? E(T('fin.measured')) : E(T('fin.estimate'))}
+      ${!measured && TPN.can('finance.edit')
+        ? ` <a href="#" onclick="event.preventDefault();openCostingSettings();" style="color:var(--brick);">${E(T('fin.costing'))} →</a>` : ''}
+    </div>`;
+
+  const table = `<div class="panel" style="overflow-x:auto;">
+    <table style="width:100%;border-collapse:collapse;font-size:13px;min-width:720px;">
+      <thead><tr style="background:var(--surface-2,#F6EEDF);">
+        ${['', T('fin.net'), T('fin.orders'), T('fin.cogs'), T('fin.labour'), T('fin.expenses'), T('fin.netIncome')]
+          .map((h, i) => `<th style="padding:9px 12px;text-align:${i === 0 ? 'left' : 'right'};font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-muted);white-space:nowrap;">${E(h)}</th>`).join('')}
+      </tr></thead>
+      <tbody>${rows.slice().reverse().map(r => {
+        const inc = Number(r.net_income || 0);
+        return `<tr>
+          <td style="padding:9px 12px;border-bottom:1px solid var(--line-soft);white-space:nowrap;">${E(_finPeriodLabel(r.period_start))}</td>
+          <td style="padding:9px 12px;border-bottom:1px solid var(--line-soft);text-align:right;">₱${N(r.net_sales, 2)}</td>
+          <td style="padding:9px 12px;border-bottom:1px solid var(--line-soft);text-align:right;color:var(--ink-muted);">${r.order_count}</td>
+          <td style="padding:9px 12px;border-bottom:1px solid var(--line-soft);text-align:right;color:var(--ink-muted);">₱${N(r.cogs, 2)}</td>
+          <td style="padding:9px 12px;border-bottom:1px solid var(--line-soft);text-align:right;color:var(--ink-muted);">₱${N(r.labour_cost, 2)}</td>
+          <td style="padding:9px 12px;border-bottom:1px solid var(--line-soft);text-align:right;color:var(--ink-muted);">₱${N(r.other_expenses, 2)}</td>
+          <td style="padding:9px 12px;border-bottom:1px solid var(--line-soft);text-align:right;font-weight:700;color:${inc < 0 ? '#8B1A0E' : '#2D7A4F'};">₱${N(inc, 2)}</td>
+        </tr>`;
+      }).join('')}</tbody>
+    </table>
+  </div>`;
+
+  el.innerHTML = tiles + table + _renderExpenseList();
+}
+
+function _finPeriodLabel(iso) {
+  try {
+    const d = new Date(iso + 'T00:00:00');
+    const loc = TPN_LANG === 'tl' ? 'fil-PH' : 'en-PH';
+    if (_finState.granularity === 'month') return d.toLocaleDateString(loc, { month: 'long', year: 'numeric' });
+    if (_finState.granularity === 'week')  return 'Week of ' + d.toLocaleDateString(loc, { month: 'short', day: 'numeric' });
+    return d.toLocaleDateString(loc, { weekday: 'short', month: 'short', day: 'numeric' });
+  } catch (e) { return iso; }
+}
+
+function _renderExpenseList() {
+  const list = _finState.expenses;
+  if (!list.length) return '';
+  return `<div class="panel" style="margin-top:18px;">
+    <div style="padding:12px 16px;border-bottom:1px solid var(--line);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-muted);font-weight:700;">
+      ${E(T('fin.expenses'))}
+    </div>
+    ${list.map(x => `<div style="padding:10px 16px;border-bottom:1px solid var(--line-soft);display:flex;gap:12px;align-items:baseline;font-size:13px;">
+      <span style="min-width:88px;font-size:11px;color:var(--ink-faint);">${E(x.incurred_on)}</span>
+      <span style="flex:1;min-width:0;">
+        <strong>${E(x.label)}</strong>
+        <span style="color:var(--ink-muted);font-size:11px;"> · ${E(String(x.category).replace('_', ' '))}</span>
+        ${x.notes ? `<div style="color:var(--ink-faint);font-size:11px;">${E(x.notes)}</div>` : ''}
+      </span>
+      <span style="font-weight:700;white-space:nowrap;">₱${N(x.amount, 2)}</span>
+      ${TPN.can('expenses.record') ? `<button class="btn-ghost" style="padding:3px 9px;font-size:11px;" onclick="openExpenseEditor('${x.id}')">${E(T('common.edit'))}</button>` : ''}
+    </div>`).join('')}
+  </div>`;
+}
+
+const EXPENSE_CATS = ['rent','utilities','gas_fuel','supplies','transport','marketing','repairs','permits','equipment','other'];
+
+function openExpenseEditor(id) {
+  const x = id ? _finState.expenses.find(e => e.id === id) : null;
+  const m = document.getElementById('modal');
+  m.innerHTML = `
+    <div class="modal-title">${x ? E(T('common.edit')) : E(T('fin.addExpense'))}</div>
+    <div class="modal-content">
+      <div style="display:grid;grid-template-columns:2fr 1fr;gap:10px;margin-bottom:12px;">
+        <div><label class="form-label">What was it for</label>
+          <input type="text" class="form-input" id="exLabel" value="${x ? E(x.label) : ''}" placeholder="LPG refill"></div>
+        <div><label class="form-label">Amount</label>
+          <input type="number" step="0.01" class="form-input" id="exAmount" value="${x ? N(x.amount, 2) : ''}" placeholder="3200.00"></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
+        <div><label class="form-label">${E(T('common.category'))}</label>
+          <select class="form-input" id="exCat">
+            ${EXPENSE_CATS.map(c => `<option value="${c}" ${x && x.category === c ? 'selected' : ''}>${c.replace('_', ' ')}</option>`).join('')}
+          </select></div>
+        <div><label class="form-label">Date</label>
+          <input type="date" class="form-input" id="exDate" value="${x ? x.incurred_on : new Date().toISOString().slice(0,10)}"></div>
+      </div>
+      <div style="margin-bottom:6px;">
+        <label class="form-label">${E(T('common.notes'))}</label>
+        <input type="text" class="form-input" id="exNotes" value="${x ? E(x.notes || '') : ''}">
+      </div>
+    </div>
+    <div class="modal-actions">
+      ${x && TPN.can('finance.edit') ? `<button class="btn-ghost" style="color:var(--brick);margin-right:auto;" onclick="doDeleteExpense('${x.id}')">${E(T('common.delete'))}</button>` : ''}
+      <button class="btn-back" onclick="closeModal()">${E(T('common.cancel'))}</button>
+      <button class="btn-next" onclick="saveExpense(${x ? `'${x.id}'` : 'null'})">${E(T('common.save'))}</button>
+    </div>`;
+  document.getElementById('modalOverlay').classList.add('open');
+}
+
+async function saveExpense(id) {
+  const label = document.getElementById('exLabel').value.trim();
+  const amount = Number(document.getElementById('exAmount').value);
+  if (!label)              { toast('What was the expense for?'); return; }
+  if (!(amount >= 0))      { toast('Enter a valid amount'); return; }
+  try {
+    await TPN.saveExpense({
+      label, amount,
+      category:   document.getElementById('exCat').value,
+      incurredOn: document.getElementById('exDate').value,
+      notes:      document.getElementById('exNotes').value.trim() || null
+    }, id);
+    closeModal();
+    toast(T('common.saved'));
+    route('finance', { replace: true });
+  } catch (e) { toast('⚠️ ' + e.message); }
+}
+
+async function doDeleteExpense(id) {
+  try {
+    await TPN.deleteExpense(id);
+    closeModal();
+    toast('Removed');
+    route('finance', { replace: true });
+  } catch (e) { toast('⚠️ ' + e.message); }
+}
+
+function openCostingSettings() {
+  const s = _finState.settings || { cogs_method: 'percent_of_sales', cogs_percent: 35, include_wastage_in_cogs: true };
+  const m = document.getElementById('modal');
+  m.innerHTML = `
+    <div class="modal-title">${E(T('fin.costing'))}</div>
+    <div class="modal-sub">How the cost of ingredients is worked out. This changes the number, so it is recorded in the audit log.</div>
+    <div class="modal-content">
+      <label style="display:flex;gap:9px;align-items:flex-start;padding:8px 0;cursor:pointer;">
+        <input type="radio" name="cogsMethod" value="percent_of_sales" ${s.cogs_method === 'percent_of_sales' ? 'checked' : ''} style="margin-top:3px;">
+        <span><strong>Estimate as a share of sales</strong>
+          <span class="perm-hint">Honest default while the kitchen is not yet logging what it used every day.</span></span>
+      </label>
+      <div style="margin:4px 0 14px 28px;">
+        <label class="form-label">Percent of net sales</label>
+        <input type="number" step="0.5" min="0" max="100" class="form-input" id="cogsPct" value="${N(s.cogs_percent, 2)}" style="max-width:140px;">
+      </div>
+      <label style="display:flex;gap:9px;align-items:flex-start;padding:8px 0;cursor:pointer;">
+        <input type="radio" name="cogsMethod" value="actual" ${s.cogs_method === 'actual' ? 'checked' : ''} style="margin-top:3px;">
+        <span><strong>Measure from stock usage</strong>
+          <span class="perm-hint">Only accurate once every shift records what it used in Inventory. Until then this will read low.</span></span>
+      </label>
+      <label style="display:flex;gap:9px;align-items:center;padding:12px 0 0;cursor:pointer;border-top:1px solid var(--line-soft);margin-top:10px;">
+        <input type="checkbox" id="cogsWaste" ${s.include_wastage_in_cogs ? 'checked' : ''}>
+        <span style="font-size:13px;">Count wastage and spoilage as a cost</span>
+      </label>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-back" onclick="closeModal()">${E(T('common.cancel'))}</button>
+      <button class="btn-next" onclick="saveCostingSettings()">${E(T('common.save'))}</button>
+    </div>`;
+  document.getElementById('modalOverlay').classList.add('open');
+}
+
+async function saveCostingSettings() {
+  const method = document.querySelector('input[name="cogsMethod"]:checked');
+  try {
+    await TPN.saveFinanceSettings({
+      cogs_method:  method ? method.value : 'percent_of_sales',
+      cogs_percent: Number(document.getElementById('cogsPct').value || 35),
+      include_wastage_in_cogs: document.getElementById('cogsWaste').checked
+    });
+    closeModal();
+    toast(T('common.saved'));
+    route('finance', { replace: true });
+  } catch (e) { toast('⚠️ ' + e.message); }
+}
+
+async function openPayRates() {
+  const m = document.getElementById('modal');
+  m.innerHTML = `<div class="modal-title">${E(T('fin.payRates'))}</div>
+    <div class="modal-content"><div style="padding:16px;text-align:center;color:var(--ink-muted);">${E(T('common.loading'))}</div></div>`;
+  document.getElementById('modalOverlay').classList.add('open');
+
+  try {
+    const [comp, staff] = await Promise.all([
+      TPN.getCompensation(),
+      TPN.getStaffDirectory().catch(() => [])
+    ]);
+    _finState.comp = comp;
+    const canEdit = TPN.can('payroll.edit');
+    // Current rate per person = the row with no end date.
+    const current = {};
+    comp.forEach(c => { if (!c.effective_to && !current[c.staff_id]) current[c.staff_id] = c; });
+
+    m.innerHTML = `
+      <div class="modal-title">${E(T('fin.payRates'))}</div>
+      <div class="modal-sub">A rate change closes the old row and opens a new one, so a report about last month still uses last month's rate.</div>
+      <div class="modal-content">
+        ${staff.length ? staff.map(p => {
+          const c = current[p.id];
+          const cadence = c ? (c.pay_type === 'monthly' ? T('fin.perMonth') : c.pay_type === 'daily' ? T('fin.perDay') : T('fin.perHour')) : '';
+          return `<div style="display:flex;gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid var(--line-soft);">
+            <span style="flex:1;min-width:0;">
+              <strong style="font-size:13px;">${E(p.full_name)}</strong>
+              <span style="font-size:11px;color:var(--ink-faint);"> · ${E(p.role)}</span>
+              <div style="font-size:11px;color:var(--ink-muted);">
+                ${c ? '₱' + N(Number(c.rate) + Number(c.allowance || 0), 2) + ' ' + E(cadence) : 'No rate set'}
+              </div>
+            </span>
+            ${canEdit ? `<button class="btn-ghost" style="padding:4px 10px;font-size:11px;" onclick="openSetPay('${p.id}','${E(p.full_name).replace(/'/g, "\\'")}')">${c ? E(T('common.edit')) : E(T('common.add'))}</button>` : ''}
+          </div>`;
+        }).join('') : `<div style="padding:12px;color:var(--ink-muted);">${E(T('common.none'))}</div>`}
+      </div>
+      <div class="modal-actions"><button class="btn-next" onclick="closeModal()">${E(T('common.close'))}</button></div>`;
+  } catch (e) {
+    m.innerHTML = `<div class="modal-title">${E(T('fin.payRates'))}</div>
+      <div class="modal-content" style="color:var(--brick);">${E(e.message || '')}</div>
+      <div class="modal-actions"><button class="btn-next" onclick="closeModal()">${E(T('common.close'))}</button></div>`;
+  }
+}
+
+function openSetPay(staffId, name) {
+  const m = document.getElementById('modal');
+  m.innerHTML = `
+    <div class="modal-title">${E(T('fin.payRates'))} — ${E(name)}</div>
+    <div class="modal-content">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
+        <div><label class="form-label">Paid</label>
+          <select class="form-input" id="payType">
+            <option value="monthly">${E(T('fin.perMonth'))}</option>
+            <option value="daily">${E(T('fin.perDay'))}</option>
+            <option value="hourly">${E(T('fin.perHour'))}</option>
+          </select></div>
+        <div><label class="form-label">Rate</label>
+          <input type="number" step="0.01" class="form-input" id="payRate" placeholder="18000.00"></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:6px;">
+        <div><label class="form-label">Allowance</label>
+          <input type="number" step="0.01" class="form-input" id="payAllow" value="0"></div>
+        <div><label class="form-label">Starts</label>
+          <input type="date" class="form-input" id="payFrom" value="${new Date().toISOString().slice(0,10)}"></div>
+      </div>
+      <div style="font-size:11px;color:var(--ink-faint);margin-top:8px;">
+        Monthly pay is spread across the days in each period. Daily and hourly pay are worked out from real attendance.
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-back" onclick="openPayRates()">← Back</button>
+      <button class="btn-next" onclick="saveSetPay('${staffId}')">${E(T('common.save'))}</button>
+    </div>`;
+}
+
+async function saveSetPay(staffId) {
+  const rate = Number(document.getElementById('payRate').value);
+  if (!(rate >= 0)) { toast('Enter a rate'); return; }
+  try {
+    await TPN.setCompensation({
+      staffId,
+      payType:       document.getElementById('payType').value,
+      rate,
+      allowance:     Number(document.getElementById('payAllow').value || 0),
+      effectiveFrom: document.getElementById('payFrom').value
+    });
+    toast(T('common.saved'));
+    await openPayRates();
+  } catch (e) {
+    toast('⚠️ ' + (/row-level security/.test(e.message || '')
+      ? 'Only the CEO can change pay rates.' : e.message));
+  }
+}
+
+
 function renderStaffSidebar() {
   const u = currentUser;
   const initials = u.name.split(' ').map(s => s[0]).join('').slice(0, 2).toUpperCase();
   const items = [
-    { section: 'MY WORKSPACE' },
-    { id: 'staff-home', label: 'Home', icon: '🏠' },
+    { section: T('sec.workspace') },
+    { id: 'staff-home', label: T('nav.home'), icon: '🏠' },
   ];
   // Kitchen staff get the Kitchen Display as their main tool
   if (u.tier === 'kitchen') {
-    items.push({ id: 'kds', label: 'Kitchen Display', icon: '🍳', badge: portalState.orders.filter(o => o.status === 'received' || o.status === 'preparing').length || null });
+    items.push({ id: 'kds', label: T('nav.kds'), icon: '🍳', badge: portalState.orders.filter(o => o.status === 'received' || o.status === 'preparing').length || null });
   }
   // Dining staff get the live order board
   if (u.tier === 'dining') {
-    items.push({ id: 'orders', label: 'Live Orders', icon: '📋', badge: portalState.orders.filter(o => o.status !== 'done').length || null });
+    items.push({ id: 'orders', label: T('nav.orders'), icon: '📋', badge: portalState.orders.filter(o => o.status !== 'done').length || null });
   }
   items.push(
+    // My tasks. Dining and kitchen live in this sidebar, not the admin one,
+    // so without this entry we would be assigning work to people who have
+    // no way to see it.
+    { id: 'tasks', label: T('nav.tasks'), icon: '🗒️', badge: window._tpnMyOpenTasks || null },
     { id: 'staff-void-requests', label: 'My Void Requests', icon: '🚫' },
-    { id: 'staff-schedule', label: 'My Schedule', icon: '📅' },
-    { id: 'staff-attendance', label: 'My Attendance', icon: '✓' },
-    { id: 'staff-notifications', label: 'Notifications', icon: '🔔', badge: portalState.unreadNotifCount || null },
-    { id: 'staff-messages', label: 'Messages', icon: '✉️', badge: window._tpnUnreadMsgs || null },
+    { id: 'staff-schedule', label: T('nav.schedules'), icon: '📅' },
+    { id: 'staff-attendance', label: T('nav.attendance'), icon: '✓' },
+    { id: 'staff-notifications', label: T('nav.notifications'), icon: '🔔', badge: portalState.unreadNotifCount || null },
+    { id: 'staff-messages', label: T('nav.messages'), icon: '✉️', badge: window._tpnUnreadMsgs || null },
     { section: 'SETTINGS' },
     { id: 'staff-settings', label: 'Settings', icon: '⚙️' },
   );
@@ -6988,7 +8869,7 @@ function renderStaffSidebar() {
       <div class="portal-user-name">${E(u.name)}</div>
       <div class="portal-user-tier">${u.tier === 'dining' ? 'Dining' : 'Kitchen'} • Las Piñas</div>
     </div>
-    <button class="portal-logout" onclick="exitStaffPortal()">Out</button>`;
+    <button class="portal-logout" onclick="exitStaffPortal()">${E(T('nav.logout'))}</button>`;
 }
 function routeStaff(r, opts) {
   opts = opts || {};
@@ -7016,6 +8897,7 @@ function routeStaff(r, opts) {
     case 'staff-messages': renderStaffMessages(main); break;
     case 'staff-notifications': renderNotifications(main, 'staff'); break;
     case 'staff-void-requests': renderVoidRequests(main, 'staff'); break;
+    case 'tasks': renderTasks(main); break;
     case 'staff-settings': renderStaffSettings(main); break;
     default: renderStaffHome(main);
   }

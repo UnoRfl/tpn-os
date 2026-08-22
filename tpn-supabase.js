@@ -1145,10 +1145,455 @@ TPN.removeDiscount = async function (appliedId, reason) {
   return data;
 };
 
+
+/* ═══════════════════════════════════════════════════════════════
+   ACCESS CONTROL  (sql/19-access-control.sql)
+
+   TPN.can('orders.cancel') is the browser-side mirror of
+   private.can() in the database. It decides what the portal OFFERS.
+   It is NOT the lock — every write is still gated by RLS and by the
+   SECURITY DEFINER functions, so a tampered client gets a refusal
+   from Postgres, not access. Hiding a button is courtesy; the
+   database is the security boundary.
+   ═══════════════════════════════════════════════════════════════ */
+
+TPN._perms = null;   // Set of permission keys, or null until loaded
+
+TPN.loadPermissions = async function () {
+  if (!this._user) { this._perms = new Set(); return this._perms; }
+  const { data, error } = await sb.rpc('my_permissions');
+  if (error) {
+    // Fail CLOSED on the UI side. If we cannot tell what this person may
+    // do, offer nothing rather than everything — the database would
+    // refuse the write anyway, so an optimistic guess only produces
+    // buttons that error when pressed.
+    console.warn('Could not load permissions:', error.message);
+    this._perms = new Set();
+    return this._perms;
+  }
+  // rpc() on a setof-scalar returns either an array of scalars or of
+  // one-key objects depending on the PostgREST version. Handle both.
+  this._perms = new Set(
+    (data || []).map(r => (typeof r === 'string' ? r : (r && (r.my_permissions ?? r.key))))
+                .filter(Boolean)
+  );
+  return this._perms;
+};
+
+TPN.can = function (key) {
+  if (!this._user) return false;
+  if (this._user.role === 'ceo') return true;      // mirrors the DB short-circuit
+  if (!this._perms) return false;                   // not loaded yet: offer nothing
+  return this._perms.has(key);
+};
+
+TPN.canAny = function (...keys) { return keys.some(k => this.can(k)); };
+
+// ── Roles editor ─────────────────────────────────────────────
+TPN.getAccessRoles = async function () {
+  const { data, error } = await sb.from('access_roles')
+    .select('*').order('display_order').order('label');
+  if (error) throw error;
+  return data || [];
+};
+
+TPN.getAccessMatrix = async function () {
+  const { data, error } = await sb.rpc('access_matrix');
+  if (error) throw error;
+  return data || [];
+};
+
+TPN.getPermissionCatalogue = async function () {
+  const { data, error } = await sb.from('permissions')
+    .select('*').order('category').order('display_order');
+  if (error) throw error;
+  return data || [];
+};
+
+TPN.createAccessRole = async function (row) {
+  const { data, error } = await sb.from('access_roles').insert({
+    key:           row.key,
+    label:         row.label,
+    label_tl:      row.label_tl || null,
+    description:   row.description || null,
+    base_tier:     row.base_tier,
+    color:         row.color || '#8B1A0E',
+    display_order: row.display_order ?? 100,
+    created_by:    this._user ? this._user.id : null
+  }).select().single();
+  if (error) throw error;
+  return data;
+};
+
+TPN.updateAccessRole = async function (id, patch) {
+  const { data, error } = await sb.from('access_roles')
+    .update({ ...patch, updated_by: this._user ? this._user.id : null })
+    .eq('id', id).select().single();
+  if (error) throw error;
+  return data;
+};
+
+TPN.deleteAccessRole = async function (id) {
+  const { error } = await sb.from('access_roles').delete().eq('id', id);
+  if (error) throw error;   // trg_protect_system_roles refuses the nine built-ins
+};
+
+// One cell of the matrix. Upsert so ticking a box that was never
+// stored behaves the same as changing one that was.
+TPN.setRolePermission = async function (roleId, permissionKey, allowed) {
+  const { error } = await sb.from('access_role_permissions').upsert({
+    role_id:        roleId,
+    permission_key: permissionKey,
+    allowed:        !!allowed,
+    updated_at:     new Date().toISOString(),
+    updated_by:     this._user ? this._user.id : null
+  }, { onConflict: 'role_id,permission_key' });
+  if (error) throw error;   // trg_arp_floor refuses grants above the role's tier
+};
+
+TPN.assignAccessRole = async function (staffId, roleId) {
+  const { error } = await sb.from('staff')
+    .update({ access_role_id: roleId }).eq('id', staffId);
+  if (error) throw error;
+};
+
+TPN.getStaffOverrides = async function (staffId) {
+  let q = sb.from('staff_permission_overrides').select('*');
+  if (staffId) q = q.eq('staff_id', staffId);
+  const { data, error } = await q;
+  if (error) throw error;
+  return data || [];
+};
+
+TPN.setStaffOverride = async function (staffId, permissionKey, allowed, reason) {
+  const { error } = await sb.from('staff_permission_overrides').upsert({
+    staff_id:       staffId,
+    permission_key: permissionKey,
+    allowed:        !!allowed,
+    reason:         reason || null,
+    granted_by:     this._user ? this._user.id : null,
+    granted_at:     new Date().toISOString()
+  }, { onConflict: 'staff_id,permission_key' });
+  if (error) throw error;
+};
+
+TPN.clearStaffOverride = async function (staffId, permissionKey) {
+  const { error } = await sb.from('staff_permission_overrides')
+    .delete().eq('staff_id', staffId).eq('permission_key', permissionKey);
+  if (error) throw error;
+};
+
+// Minimal roster — readable by anyone who may assign a task, which the
+// staff table itself does not permit below manager. See sql/22.
+TPN.getStaffDirectory = async function () {
+  const { data, error } = await sb.rpc('staff_directory');
+  if (error) throw error;
+  return data || [];
+};
+
+
+/* ═══════════════════════════════════════════════════════════════
+   TASK BOARD  (sql/20-tasks.sql)
+   ═══════════════════════════════════════════════════════════════ */
+
+TPN.getTasks = async function (includeDone = false) {
+  const { data, error } = await sb.rpc('task_board', { p_include_done: !!includeDone });
+  if (error) throw error;
+  return data || [];
+};
+
+TPN.createTask = async function (row) {
+  const branchId = row.branchId || (this._user && this._user.branch_id);
+  const { data, error } = await sb.from('tasks').insert({
+    branch_id:   branchId,
+    title:       row.title,
+    description: row.description || null,
+    category:    row.category || null,
+    priority:    row.priority || 'normal',
+    due_at:      row.dueAt || null,
+    checklist:   row.checklist || [],
+    created_by:  this._user ? this._user.id : null
+  }).select().single();
+  if (error) throw error;
+
+  if (row.assignees && row.assignees.length) {
+    await this.setTaskAssignees(data.id, row.assignees);
+  }
+  return data;
+};
+
+TPN.updateTask = async function (id, patch) {
+  const { data, error } = await sb.from('tasks').update(patch).eq('id', id).select().single();
+  if (error) throw error;
+  return data;
+};
+
+TPN.deleteTask = async function (id) {
+  const { error } = await sb.from('tasks').delete().eq('id', id);
+  if (error) throw error;
+};
+
+// Replace the whole assignee set. Diffing keeps each person's existing
+// progress instead of resetting everyone to "assigned" on every edit.
+TPN.setTaskAssignees = async function (taskId, staffIds) {
+  const wanted = new Set(staffIds || []);
+  const { data: existing, error: readErr } = await sb.from('task_assignees')
+    .select('staff_id').eq('task_id', taskId);
+  if (readErr) throw readErr;
+  const have = new Set((existing || []).map(r => r.staff_id));
+
+  const toAdd    = [...wanted].filter(id => !have.has(id));
+  const toRemove = [...have].filter(id => !wanted.has(id));
+
+  if (toAdd.length) {
+    const { error } = await sb.from('task_assignees').insert(
+      toAdd.map(id => ({
+        task_id: taskId, staff_id: id,
+        assigned_by: this._user ? this._user.id : null
+      }))
+    );
+    if (error) throw error;
+  }
+  if (toRemove.length) {
+    const { error } = await sb.from('task_assignees')
+      .delete().eq('task_id', taskId).in('staff_id', toRemove);
+    if (error) throw error;
+  }
+};
+
+// An assignee marking their own progress. Needs no permission — the
+// function refuses anyone who is not on the task.
+TPN.setMyTaskState = async function (taskId, state, note) {
+  const { error } = await sb.rpc('set_my_task_state', {
+    p_task: taskId, p_state: state, p_note: note || null
+  });
+  if (error) throw error;
+};
+
+TPN.getTaskActivity = async function (taskId) {
+  const { data, error } = await sb.from('task_activity')
+    .select('*, staff:actor_id(full_name)')
+    .eq('task_id', taskId).order('created_at', { ascending: false });
+  if (error) throw error;
+  return data || [];
+};
+
+TPN.subscribeToTasks = function (onChange) {
+  return sb.channel('tpn-tasks')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, onChange)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'task_assignees' }, onChange)
+    .subscribe();
+};
+
+
+/* ═══════════════════════════════════════════════════════════════
+   INVENTORY  (sql/21-inventory-and-finance.sql)
+   ═══════════════════════════════════════════════════════════════ */
+
+TPN.getInventory = async function () {
+  const { data, error } = await sb.rpc('inventory_board');
+  if (error) throw error;
+  return data || [];
+};
+
+TPN.getSuppliers = async function () {
+  const { data, error } = await sb.from('suppliers')
+    .select('*').eq('is_active', true).order('name');
+  if (error) throw error;
+  return data || [];
+};
+
+TPN.saveSupplier = async function (row, id) {
+  const payload = {
+    branch_id:      row.branchId || (this._user && this._user.branch_id),
+    name:           row.name,
+    contact_person: row.contactPerson || null,
+    phone:          row.phone || null,
+    email:          row.email || null,
+    address:        row.address || null,
+    notes:          row.notes || null
+  };
+  const q = id
+    ? sb.from('suppliers').update(payload).eq('id', id)
+    : sb.from('suppliers').insert({ ...payload, created_by: this._user ? this._user.id : null });
+  const { data, error } = await q.select().single();
+  if (error) throw error;
+  return data;
+};
+
+TPN.saveIngredient = async function (row, id) {
+  const payload = {
+    branch_id:           row.branchId || (this._user && this._user.branch_id),
+    name:                row.name,
+    name_tagalog:        row.nameTagalog || null,
+    category:            row.category || null,
+    unit:                row.unit || 'kg',
+    reorder_level:       row.reorderLevel ?? 0,
+    default_supplier_id: row.supplierId || null,
+    notes:               row.notes || null
+  };
+  // current_stock is deliberately absent: it is derived from movements.
+  const q = id
+    ? sb.from('ingredients').update(payload).eq('id', id)
+    : sb.from('ingredients').insert(payload);
+  const { data, error } = await q.select().single();
+  if (error) throw error;
+  return data;
+};
+
+TPN.deleteIngredient = async function (id) {
+  const { error } = await sb.from('ingredients').update({ is_active: false }).eq('id', id);
+  if (error) throw error;
+};
+
+// The only way stock ever moves. quantity is always positive; the type
+// decides the direction (see private.stock_direction).
+TPN.recordStockMovement = async function (row) {
+  const payload = {
+    ingredient_id: row.ingredientId,
+    branch_id:     row.branchId || (this._user && this._user.branch_id),
+    movement_type: row.type,
+    quantity:      Math.abs(Number(row.quantity)),
+    unit_cost:     row.unitCost  != null && row.unitCost  !== '' ? Number(row.unitCost)  : null,
+    total_cost:    row.totalCost != null && row.totalCost !== '' ? Number(row.totalCost) : null,
+    supplier_id:   row.supplierId || null,
+    reference:     row.reference || null,
+    occurred_at:   row.occurredAt || new Date().toISOString(),
+    recorded_by:   this._user ? this._user.id : null,
+    notes:         row.notes || null
+  };
+  const { data, error } = await sb.from('stock_movements').insert(payload).select().single();
+  if (error) throw error;
+  return data;
+};
+
+TPN.getStockMovements = async function (ingredientId, limit = 100) {
+  let q = sb.from('stock_movements')
+    .select('*, ingredients(name, unit), suppliers(name), staff:recorded_by(full_name)')
+    .order('occurred_at', { ascending: false }).limit(limit);
+  if (ingredientId) q = q.eq('ingredient_id', ingredientId);
+  const { data, error } = await q;
+  if (error) throw error;
+  return data || [];
+};
+
+
+/* ═══════════════════════════════════════════════════════════════
+   FINANCE  (sql/21-inventory-and-finance.sql)
+   ═══════════════════════════════════════════════════════════════ */
+
+TPN.getFinanceSummary = async function (from, to, granularity = 'day') {
+  const { data, error } = await sb.rpc('finance_summary', {
+    p_from: from, p_to: to, p_granularity: granularity
+  });
+  if (error) throw error;
+  return data || [];
+};
+
+TPN.getExpenseBreakdown = async function (from, to) {
+  const { data, error } = await sb.rpc('expense_breakdown', { p_from: from, p_to: to });
+  if (error) throw error;
+  return data || [];
+};
+
+TPN.getFinanceSettings = async function () {
+  const { data, error } = await sb.from('finance_settings').select('*').limit(1).maybeSingle();
+  if (error) throw error;
+  return data;
+};
+
+TPN.saveFinanceSettings = async function (patch) {
+  const branchId = this._user && this._user.branch_id;
+  const { data, error } = await sb.from('finance_settings').upsert({
+    branch_id:  branchId,
+    ...patch,
+    updated_at: new Date().toISOString(),
+    updated_by: this._user ? this._user.id : null
+  }, { onConflict: 'branch_id' }).select().single();
+  if (error) throw error;
+  return data;
+};
+
+TPN.getExpenses = async function (from, to) {
+  let q = sb.from('operating_expenses')
+    .select('*, suppliers(name), staff:recorded_by(full_name)')
+    .order('incurred_on', { ascending: false });
+  if (from) q = q.gte('incurred_on', from);
+  if (to)   q = q.lte('incurred_on', to);
+  const { data, error } = await q;
+  if (error) throw error;
+  return data || [];
+};
+
+TPN.saveExpense = async function (row, id) {
+  const payload = {
+    branch_id:   row.branchId || (this._user && this._user.branch_id),
+    category:    row.category || 'other',
+    label:       row.label,
+    amount:      Number(row.amount),
+    incurred_on: row.incurredOn,
+    supplier_id: row.supplierId || null,
+    reference:   row.reference || null,
+    notes:       row.notes || null
+  };
+  const q = id
+    ? sb.from('operating_expenses').update(payload).eq('id', id)
+    : sb.from('operating_expenses').insert({ ...payload, recorded_by: this._user ? this._user.id : null });
+  const { data, error } = await q.select().single();
+  if (error) throw error;
+  return data;
+};
+
+TPN.deleteExpense = async function (id) {
+  const { error } = await sb.from('operating_expenses').delete().eq('id', id);
+  if (error) throw error;
+};
+
+// Pay rates are history, not current state: a change closes the old row
+// and opens a new one, so a report about last month uses last month's rate.
+TPN.getCompensation = async function (staffId) {
+  let q = sb.from('staff_compensation')
+    .select('*, staff:staff_id(full_name, role)')
+    .order('effective_from', { ascending: false });
+  if (staffId) q = q.eq('staff_id', staffId);
+  const { data, error } = await q;
+  if (error) throw error;
+  return data || [];
+};
+
+TPN.setCompensation = async function (row) {
+  const today = new Date().toISOString().slice(0, 10);
+  const from  = row.effectiveFrom || today;
+
+  // Close any open rate that starts before the new one.
+  const { error: closeErr } = await sb.from('staff_compensation')
+    .update({ effective_to: from })
+    .eq('staff_id', row.staffId)
+    .is('effective_to', null)
+    .lt('effective_from', from);
+  if (closeErr) throw closeErr;
+
+  const { data, error } = await sb.from('staff_compensation').insert({
+    staff_id:       row.staffId,
+    pay_type:       row.payType || 'monthly',
+    rate:           Number(row.rate),
+    allowance:      Number(row.allowance || 0),
+    effective_from: from,
+    notes:          row.notes || null,
+    created_by:     this._user ? this._user.id : null
+  }).select().single();
+  if (error) throw error;
+  return data;
+};
+
 // Restore session on load
 sb.auth.onAuthStateChange((event) => {
-  if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') TPN.loadProfile();
-  if (event === 'SIGNED_OUT') { TPN._user = null; TPN._branches = null; TPN._menu = null; }
+  if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
+    TPN.loadProfile().then(() => TPN.loadPermissions()).catch(() => {});
+  }
+  if (event === 'SIGNED_OUT') {
+    TPN._user = null; TPN._branches = null; TPN._menu = null; TPN._perms = null;
+  }
 });
 
 // Expose globals

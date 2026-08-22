@@ -24,6 +24,12 @@ In Supabase SQL Editor:
 9. `sql/15b-void-requests.sql` — void request workflow + the guard rails that keep display accounts from voiding
 10. `sql/16-discounts.sql` — the discount subsystem (templates, applied discounts, apply/remove), versioned from production and given audit rows
 11. `sql/17-hardening.sql` — locks order totals to the recompute path, revokes TRUNCATE, audits the order lifecycle, clears the Supabase advisor warnings
+12. `sql/18-anon-order-fix.sql` — **restores anonymous pickup/delivery ordering.** Production was running the original dine-in-only policy from `sql/01`, so every pickup and delivery order from the public site failed with a permissions error. Also pins what an anonymous order may assert: it must arrive pending, unpaid and undiscounted.
+13. `sql/19-access-control.sql` — custom roles, the permission catalogue, the role/permission grid and `private.can()`
+14. `sql/20-tasks.sql` — the task board: many assignees per task, each with their own progress
+15. `sql/21-inventory-and-finance.sql` — ingredients, stock movements, suppliers, pay rates, operating expenses and `finance_summary()`
+16. `sql/22-board-read-helpers.sql` — `staff_directory()`, `task_board()` and `inventory_board()`; these exist because staff RLS is tighter than the boards need
+17. `sql/23-function-grant-hardening.sql` — closes the new RPCs to anonymous callers. **Do not skip this one:** `revoke ... from anon` alone does not close a function, because Postgres also grants EXECUTE to PUBLIC by default.
 
 ### 2. Disable public signups
 Supabase Dashboard → **Authentication → Providers → Email** → find **"Enable signups"** (or "Enable email signups") → **toggle OFF**.
@@ -133,8 +139,37 @@ GitHub Pages auto-redeploys in ~30 seconds.
 | Apply a discount | Supervisor+, own branch, audited | Supabase (SECURITY DEFINER fn) |
 | Remove an applied discount | Manager+, own branch, audited | Supabase (SECURITY DEFINER fn) |
 | Change an order total directly | **Nobody** — derived from items and discounts | Supabase (trigger) |
+| Create or change a role | `roles.edit` (floors at admin) | Supabase (RLS + trigger) |
+| Assign a task to several people | `tasks.assign` (floors at supervisor) | Supabase (RLS) |
+| Mark *your own* progress on a task | Any assignee, no permission needed | Supabase (SECURITY DEFINER fn) |
+| Book in a delivery | `inventory.receive` (floors at kitchen) | Supabase (RLS) |
+| Write off or adjust stock | `inventory.adjust` (floors at manager) | Supabase (RLS) |
+| See what the business actually made | `finance.view` (floors at manager) | Supabase (SECURITY DEFINER fn) |
+| See or change pay rates | `payroll.view` / `payroll.edit` (edit is CEO-only) | Supabase (RLS) |
 
 ## Roles
+
+### Two layers, and which one is the lock
+
+As of migration 19 there are two things called a "role", and the difference matters:
+
+| | `staff_role` enum | `access_roles` row |
+|---|---|---|
+| What it is | Nine fixed tiers baked into Postgres | Roles you create in the portal |
+| What it controls | What the database will **physically permit** | What the portal **offers**, and the new tables in migrations 20–22 |
+| Can it be changed from the UI | No | Yes |
+| Is it the security boundary | **Yes** | No |
+
+A custom role can take away access its tier would have allowed. It can never
+grant access the tier forbids — `permissions.min_tier` records that floor and
+`trg_role_perm_floor` refuses any grant above it, so you cannot build a role
+that looks powerful in the Access Matrix and then fails at the database.
+
+`private.can()` short-circuits to true for `ceo` before it reads any table, so
+no combination of settings in the roles editor can lock the CEO out of the
+roles editor.
+
+### The enum
 
 The `staff_role` enum, lowest privilege first:
 
