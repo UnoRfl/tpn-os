@@ -207,42 +207,80 @@ const TPN = {
    * @param {string} [opts.deliveryAddress]  // required for delivery orders
    * @param {string} [opts.scheduledFor]     // ISO timestamp for scheduled orders
    */
+  // A stable, random id for THIS browser. Not a fingerprint -- it is a
+  // value the browser made up for itself. It exists so one table's bill can
+  // be grouped by phone, and so a split is a grouping rather than a guess.
+  deviceId() {
+    try {
+      let d = localStorage.getItem('tpn.device');
+      if (!d) {
+        d = (crypto && crypto.randomUUID) ? crypto.randomUUID()
+            : 'dev-' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+        localStorage.setItem('tpn.device', d);
+      }
+      return d;
+    } catch (e) { return null; }
+  },
+
+  /**
+   * Place an order.
+   *
+   * Goes through the submit_order() RPC rather than inserting into the
+   * tables. Two reasons:
+   *
+   *  1. `anon` has INSERT on orders/order_items but NOT SELECT, and the old
+   *     code did `.insert(...).select().single()`. PostgREST asks for the
+   *     inserted row back, which needs SELECT, so every customer order died
+   *     with "permission denied for table order_items". Granting anon SELECT
+   *     would have been the easy patch and the wrong one -- orders_anon_read
+   *     is `using (true)`, so it would expose every order in the business,
+   *     names and phone numbers included.
+   *  2. Several phones at one table should share one bill. The function
+   *     appends to the table's open order instead of opening a second one.
+   *
+   * @param {boolean} [opts.joinTableBill=true] false starts a separate bill
+   *        for this guest even though the table already has one open.
+   */
   async createOrder(opts) {
-    const subtotal = opts.items.reduce((s, i) => s + (i.unit_price * i.quantity), 0);
-    const total = subtotal;  // extend with service charge / discount later
+    const { data, error } = await sb.rpc('submit_order', {
+      p_branch_id:        opts.branchId,
+      p_order_type:       opts.orderType,
+      p_items:            (opts.items || []).map(i => ({
+                            menu_item_id: i.menu_item_id || null,
+                            name:         i.name,
+                            unit_price:   i.unit_price,
+                            quantity:     i.quantity,
+                            pax_size:     i.pax_size || null,
+                            notes:        i.notes || null
+                          })),
+      p_table_id:         opts.tableId ?? null,
+      p_customer_name:    opts.customerName ?? null,
+      p_customer_phone:   opts.customerPhone ?? null,
+      p_notes:            opts.notes ?? null,
+      p_payment_method:   opts.paymentMethod ?? null,
+      p_delivery_address: opts.deliveryAddress ?? null,
+      p_scheduled_for:    opts.scheduledFor ?? null,
+      p_device_id:        this.deviceId(),
+      p_join_table_bill:  opts.joinTableBill !== false
+    });
+    if (error) throw new Error(this.prettyOrderError(error.message));
+    // Shape kept compatible with the old return value so callers that read
+    // order.order_number / order.id keep working.
+    return data;
+  },
 
-    const { data: order, error: orderErr } = await sb.from('orders').insert({
-      branch_id:        opts.branchId,
-      table_id:         opts.tableId ?? null,
-      order_type:       opts.orderType,
-      customer_name:    opts.customerName ?? null,
-      customer_phone:   opts.customerPhone ?? null,
-      subtotal, total,
-      payment_method:   opts.paymentMethod ?? null,
-      notes:            opts.notes ?? null,
-      delivery_address: opts.deliveryAddress ?? null,
-      scheduled_for:    opts.scheduledFor ?? null
-    }).select().single();
-    if (orderErr) throw orderErr;
-
-    const rows = opts.items.map(i => ({
-      order_id:        order.id,
-      menu_item_id:    i.menu_item_id,
-      name_snapshot:   i.name,
-      price_snapshot:  i.unit_price,
-      quantity:        i.quantity,
-      pax_size:        i.pax_size ?? null,
-      unit_price:      i.unit_price,
-      total_price:     i.unit_price * i.quantity,
-      notes:           i.notes ?? null
-    }));
-    const { error: itemsErr } = await sb.from('order_items').insert(rows);
-    if (itemsErr) {
-      // rollback
-      await sb.from('orders').delete().eq('id', order.id);
-      throw itemsErr;
-    }
-    return order;
+  // Turn a Postgres error into something a customer can act on.
+  prettyOrderError(msg) {
+    msg = msg || 'Could not place the order';
+    if (/no_items/.test(msg))              return 'Your order is empty.';
+    if (/delivery_needs_address/.test(msg))return 'Please add a delivery address.';
+    if (/table_not_in_branch/.test(msg))   return 'That table QR is not valid for this branch — please call staff.';
+    if (/bad_order_type/.test(msg))        return 'Something went wrong with the order type. Please try again.';
+    if (/negative_price/.test(msg))        return 'One of the prices looked wrong. Please reload the menu.';
+    if (/row-level security/i.test(msg))   return 'The kitchen could not accept that order. Please call staff.';
+    if (/permission denied/i.test(msg))    return 'The kitchen could not accept that order. Please call staff.';
+    if (/Failed to fetch|NetworkError/i.test(msg)) return 'No connection — check your signal and try again.';
+    return msg;
   },
 
   async getOrder(id) {
@@ -252,21 +290,59 @@ const TPN = {
     return data;
   },
 
-  // Look up an order by its human-readable order_number (TPN-LP-YYYYMMDD-0001).
-  // Used by the public "Track My Order" input — anonymous users can hit this
-  // thanks to the orders_anon_read RLS policy.
+  // Look up one order by its human-readable order_number.
+  // Uses the track_order() RPC because anon holds no SELECT on orders --
+  // see createOrder above. Returns null when the number does not exist.
+  // Deliberately no listing endpoint: one exact number in, one order out.
   async getOrderByNumber(orderNumber) {
-    const { data, error } = await sb.from('orders')
-      .select('*, order_items(*), restaurant_tables(table_number)')
-      .eq('order_number', orderNumber)
-      .maybeSingle();
+    const { data, error } = await sb.rpc('track_order', { p_order_number: orderNumber });
     if (error) throw error;
-    return data;
+    if (!data) return null;
+    // Shape it like the old row-with-join so existing callers keep working.
+    return Object.assign({}, data, {
+      order_items: data.items || [],
+      restaurant_tables: data.table_number ? { table_number: data.table_number } : null
+    });
   },
 
-  // Realtime subscription filtered to a single order (used by customer's
-  // QR-menu progress bar so the "your food is ready" toast is real, not simulated).
-  subscribeToOrder(orderId, callback) {
+  /**
+   * Watch one order's progress from a customer device.
+   *
+   * Polls track_order() rather than using a realtime subscription. Realtime
+   * delivers changes through the same RLS as a SELECT, and `anon` has no
+   * SELECT on orders by design, so a subscription would silently never fire.
+   * Polling is honest and, at 8 seconds, plenty for "is my food ready".
+   *
+   * Staff surfaces should keep using subscribeToOrders() -- they are
+   * authenticated and realtime works for them.
+   *
+   * @returns {function} call it to stop polling
+   */
+  subscribeToOrder(orderIdOrNumber, callback, opts) {
+    const everyMs = (opts && opts.intervalMs) || 8000;
+    let stopped = false;
+    let lastStatus = null;
+
+    const tick = async () => {
+      if (stopped) return;
+      try {
+        const row = await this.getOrderByNumber(orderIdOrNumber);
+        if (row && row.status !== lastStatus) {
+          lastStatus = row.status;
+          callback({ new: row, eventType: 'UPDATE' });
+        }
+      } catch (e) {
+        // A customer's phone losing signal must not spam the console or
+        // break the screen — just try again on the next tick.
+      }
+      if (!stopped) setTimeout(tick, everyMs);
+    };
+    tick();
+    return () => { stopped = true; };
+  },
+
+  // Staff-side realtime. Needs an authenticated session.
+  subscribeToOrderRealtime(orderId, callback) {
     const chan = sb.channel(`order:${orderId}`)
       .on('postgres_changes', {
         event: 'UPDATE', schema: 'public', table: 'orders',
@@ -274,6 +350,25 @@ const TPN = {
       }, payload => callback(payload))
       .subscribe();
     return () => sb.removeChannel(chan);
+  },
+
+  // ── Shared table bills ──────────────────────────────────────
+  // Staff view of one table's open bill, grouped by phone.
+  async getTableBill(tableId) {
+    const { data, error } = await sb.rpc('table_bill', { p_table_id: tableId });
+    if (error) throw error;
+    return data;
+  },
+
+  // Move one phone's lines onto their own bill. Staff only, on request --
+  // device_id travels in the payload and is not a secret, so letting a guest
+  // do this would let them move somebody else's food.
+  async splitTableBill(orderId, deviceId) {
+    const { data, error } = await sb.rpc('split_order_by_device', {
+      p_order_id: orderId, p_device_id: deviceId
+    });
+    if (error) throw error;
+    return data;
   },
 
   async listActiveOrders(branchId = null) {
@@ -1620,6 +1715,92 @@ TPN.setCompensation = async function (row) {
   }).select().single();
   if (error) throw error;
   return data;
+};
+
+
+/* ═══════════════════════════════════════════════════════════════
+   PAYROLL  (sql/25-payroll.sql)
+
+   A pay run is a SNAPSHOT. Rates, days and hours are copied onto the
+   lines when it is built, so what somebody was paid in July does not
+   change because their rate changed in August. Once a run is marked
+   paid its lines are frozen by trigger -- reverse it, never edit it.
+
+   Two permissions, deliberately separate:
+     payroll.run   build a period, approve it, record it paid  (admin+)
+     payroll.edit  change what a person is paid                (CEO only)
+   A director can run payroll without being able to give a raise.
+   ═══════════════════════════════════════════════════════════════ */
+
+TPN.getPayrollRuns = async function () {
+  const { data, error } = await sb.from('payroll_runs')
+    .select('*').order('period_start', { ascending: false });
+  if (error) throw error;
+  return data || [];
+};
+
+TPN.getPayrollItems = async function (runId) {
+  const { data, error } = await sb.from('payroll_items')
+    .select('*').eq('run_id', runId).order('staff_name');
+  if (error) throw error;
+  return data || [];
+};
+
+TPN.buildPayrollRun = async function (periodStart, periodEnd) {
+  const { data, error } = await sb.rpc('build_payroll_run', {
+    p_period_start: periodStart, p_period_end: periodEnd
+  });
+  if (error) throw new Error(TPN.prettyPayrollError(error.message));
+  return data;
+};
+
+TPN.rebuildPayrollRun = async function (runId) {
+  const { data, error } = await sb.rpc('rebuild_payroll_run', { p_run: runId });
+  if (error) throw new Error(TPN.prettyPayrollError(error.message));
+  return data;
+};
+
+TPN.setPayrollStatus = async function (runId, status, method) {
+  const { error } = await sb.rpc('set_payroll_status', {
+    p_run: runId, p_status: status, p_method: method || null
+  });
+  if (error) throw new Error(TPN.prettyPayrollError(error.message));
+};
+
+// Edit one line before approval — an adjustment, a deduction, a note.
+TPN.updatePayrollItem = async function (id, patch) {
+  const gross = Number(patch.gross ?? 0);
+  const ded   = Number(patch.deductions ?? 0);
+  const { error } = await sb.from('payroll_items').update({
+    gross, deductions: ded, net: Math.max(0, gross - ded),
+    note: patch.note ?? null
+  }).eq('id', id);
+  if (error) throw new Error(TPN.prettyPayrollError(error.message));
+};
+
+TPN.deletePayrollRun = async function (runId) {
+  const { error } = await sb.from('payroll_runs').delete().eq('id', runId);
+  if (error) throw new Error(TPN.prettyPayrollError(error.message));
+};
+
+TPN.prettyPayrollError = function (msg) {
+  msg = msg || 'Payroll action failed';
+  if (/nobody_to_pay/.test(msg))
+    return 'Nobody to pay in that period — no active staff, and nobody clocked in.';
+  if (/approve_before_marking_paid/.test(msg))
+    return 'Approve the run before recording it as paid.';
+  if (/only_a_draft_can_be_approved/.test(msg))
+    return 'Only a draft can be approved.';
+  if (/only_a_paid_run_can_be_reversed/.test(msg))
+    return 'Only a paid run can be reversed.';
+  if (/only_a_draft_can_be_recalculated/.test(msg))
+    return 'Only a draft can be recalculated. Reverse the run first.';
+  if (/payroll_run_locked/.test(msg))
+    return 'This run is already paid, so its lines are locked. Reverse it if something was wrong.';
+  if (/bad_period/.test(msg))       return 'The end date must be on or after the start date.';
+  if (/permission_denied/.test(msg))return 'You do not have permission to run payroll.';
+  if (/row-level security/i.test(msg)) return 'You do not have permission to do that.';
+  return msg;
 };
 
 // Restore session on load

@@ -108,7 +108,15 @@
   .cat-count{font-size:12px;font-family:"DM Sans",sans-serif;font-weight:500;color:var(--text-muted)}
   .dish-list{display:flex;flex-direction:column;gap:10px}
   .dish-card{background:#fff;border-radius:var(--radius);border:1.5px solid var(--border);padding:14px;display:flex;align-items:flex-start;gap:14px;box-shadow:0 1px 6px rgba(0,0,0,0.04);cursor:pointer;transition:box-shadow 0.18s,border-color 0.18s}
-  .dish-card:hover{box-shadow:var(--shadow);border-color:var(--brick)}
+  /* Hover only where a pointer actually exists. On iOS a :hover rule makes
+     the first tap a hover and the second the click — which is why every
+     "+ Add" needed two taps. touch-action:manipulation also drops the
+     300ms double-tap-to-zoom delay. */
+  @media (hover:hover) and (pointer:fine){
+    .dish-card:hover{box-shadow:var(--shadow);border-color:var(--brick)}
+  }
+  .dish-card,.add-dish-btn,.add-mini-btn,.cat-chip,.pax-opt,.modal-add-btn,
+  .checkout-btn,.submit-order-btn,.featured-card{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
   .dish-card.unavailable{opacity:0.45;cursor:not-allowed}
   .dish-emoji{font-size:38px;flex-shrink:0;width:52px;text-align:center;padding-top:2px}
   .dish-info{flex:1;min-width:0}
@@ -573,7 +581,7 @@ let menuData = [];
 let _menuLoadState = 'idle';  // 'idle' | 'loading' | 'ready' | 'error'
 
 function renderMenuLoadingState(state, err) {
-  const grid = document.getElementById('menu-grid');
+  const grid = document.getElementById('menu-body');   // NOT #menu-grid — see loadMenuFromDB
   const chips = document.getElementById('cats-scroll');
   const featured = document.getElementById('featured-scroll');
   if (state === 'loading') {
@@ -622,9 +630,13 @@ async function loadMenuFromDB(attempt = 1) {
     }
     _menuLoadState = 'ready';
     // Re-render every menu surface now that data is in.
+    // NOTE: the container is #menu-body. This used to check for #menu-grid,
+    // which does not exist, so renderMenu() was skipped on load and the menu
+    // stayed blank until a category chip called it. Do not 'tidy' this back.
+    activeCategory = 'all';                       // always land on All / Lahat
     if (document.getElementById('cats-scroll'))     renderCategoryChips();
     if (document.getElementById('featured-scroll')) renderFeatured();
-    if (document.getElementById('menu-grid'))       renderMenu();
+    if (document.getElementById('menu-body'))       renderMenu();
   } catch (e) {
     console.error('loadMenuFromDB attempt', attempt, e);
     if (attempt < 4) {
@@ -778,23 +790,26 @@ async function submitOrder(){
   if(!guestInfoLocked){ name=(document.getElementById('guest-name')?.value||'').trim(); pax=document.getElementById('guest-pax')?.value||'1'; if(!name){ showToast('⚠️ Please enter your name.'); return; } guestName=name; guestPax=pax; }
   if(!cart.length){ showToast('⚠️ Your cart is empty.'); return; }
   if(!TABLE_UUID || !BRANCH_UUID){ showToast('⚠️ Table not registered — call staff.'); return; }
+
+  // Guard against a double-tap firing two orders. The button is disabled for
+  // the duration and re-enabled in finally, so a failure is retryable.
+  const btn = document.querySelector('.submit-order-btn');
+  if (btn) { if (btn.dataset.busy === '1') return; btn.dataset.busy = '1'; btn.disabled = true; btn.textContent = 'Sending…'; }
+
   const specialReq=document.getElementById('special-request').value.trim();
   const total=cart.reduce((s,i)=>s+i.price*i.qty,0);
   try {
-    const order = await TPN.createOrder({
+    // submit_order() appends to whatever bill is already open on this table,
+    // so several phones at one table end up on one bill. It returns
+    // { id, order_number, joined_existing, total, subtotal }.
+    const res = await TPN.createOrder({
       branchId: BRANCH_UUID,
       tableId: TABLE_UUID,
       orderType: 'dine_in',
       customerName: name,
       notes: specialReq || null,
-      // addToCart() stores the menu item id as `dishId` and the pax
-      // choice as `variant`. This mapper used to read `menuItemId` and
-      // `paxSize`, neither of which exists on a cart line — so every
-      // customer order was saved with a null menu_item_id and a null
-      // pax_size. That broke the menu-item link (no per-dish sales
-      // reporting, nothing for Performance's top-dishes table to join
-      // to) and dropped the pax size off the kitchen ticket. The
-      // per-line special request was never mapped either.
+      // addToCart() stores the menu item id as `dishId` and the pax choice
+      // as `variant`; the per-line special request lives on `specialReq`.
       items: cart.map(c => ({
         menu_item_id: c.dishId || null,
         name: c.name,
@@ -804,14 +819,21 @@ async function submitOrder(){
         notes: (c.specialReq && c.specialReq.trim()) ? c.specialReq.trim() : null
       }))
     });
-    // Local session tracking (survives customer refresh on this device)
-    const sessionOrder = { id: order.order_number, dbId: order.id, table:TABLE_NUM, branch:BRANCH, branchId:BRANCH_ID, name, pax, specialReq, items:JSON.parse(JSON.stringify(cart)), total, timestamp:new Date().toISOString(), status:'received', type:'dine-in' };
+
+    const sessionOrder = { id: res.order_number, dbId: res.id, table:TABLE_NUM, branch:BRANCH, branchId:BRANCH_ID, name, pax, specialReq, items:JSON.parse(JSON.stringify(cart)), total, timestamp:new Date().toISOString(), status:'received', type:'dine-in', tableTotal: Number(res.total)||total, joined: !!res.joined_existing };
     sessionOrders.push(sessionOrder); sessionTotal+=total; guestInfoLocked=true; saveSessionOrders();
     cart=[]; updateCartUI(); updateRunningBar(); closeCheckout(); document.getElementById('special-request').value='';
     showConfirmation(sessionOrder);
+    if (res.joined_existing) {
+      showToast(lang==='tl'
+        ? '✓ Naidagdag sa bill ng mesa — ₱' + Number(res.total).toFixed(2) + ' na ang kabuuan'
+        : '✓ Added to the table bill — ₱' + Number(res.total).toFixed(2) + ' total so far');
+    }
   } catch(e) {
     console.error('Order submission failed:', e);
-    showToast('⚠️ Could not send order: ' + (e.message || 'connection error'));
+    showToast('⚠️ ' + (e.message || 'Could not send the order — please call staff.'));
+  } finally {
+    if (btn) { btn.dataset.busy = '0'; btn.disabled = false; btn.textContent = '🍽️ Send to Kitchen'; }
   }
 }
 
@@ -856,7 +878,10 @@ function subscribeToOrderProgress(order){
   // If already subscribed, don't double up
   if (_orderSubscriptions.has(order.dbId)) return;
 
-  const unsub = TPN.subscribeToOrder(order.dbId, (payload) => {
+  // Keyed on order_number, not the uuid: the customer watcher polls
+  // track_order(), which looks up by number. A customer device has no SELECT
+  // on orders, so a realtime subscription here would silently never fire.
+  const unsub = TPN.subscribeToOrder(order.id, (payload) => {
     const newStatus = payload?.new?.status;
     if (!newStatus) return;
     const uiState = dbStatusToProgress(newStatus);

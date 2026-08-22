@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="config.js?v=20260822"></script>
-<script src="tpn-supabase.js?v=20260822"></script>
+<script src="config.js?v=20260822b"></script>
+<script src="tpn-supabase.js?v=20260822b"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="description" content="Tyo Paeng Nyo — Authentic Filipino cuisine in Las Piñas since 2003. Order online, book events, or inquire about catering.">
 <meta name="theme-color" content="#8B1A0E">
@@ -888,6 +888,25 @@
     position: sticky; top: 0; height: 100vh;
     overflow-y: auto; overflow-x: hidden;
     flex-shrink: 0; min-width: 0;
+    /* The sidebar visibly grew and shrank as sections were folded: the
+       scrollbar appeared and disappeared with the content height, moving
+       everything sideways by its width. Reserving the gutter permanently
+       is the fix — the column itself was always a fixed 240px. */
+    scrollbar-gutter: stable;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(139,26,14,0.28) transparent;
+  }
+  .portal-sidebar::-webkit-scrollbar { width: 8px; }
+  .portal-sidebar::-webkit-scrollbar-track { background: transparent; }
+  .portal-sidebar::-webkit-scrollbar-thumb {
+    background: rgba(139,26,14,0.24); border-radius: 4px;
+  }
+  .portal-sidebar::-webkit-scrollbar-thumb:hover { background: rgba(139,26,14,0.42); }
+
+  /* Long labels must not fight the fixed width — clip, do not reflow. */
+  .portal-nav-item > span:not(.portal-nav-icon):not(.portal-nav-badge) {
+    flex: 1 1 auto; min-width: 0;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
   .portal-brand {
     padding: 0 24px 24px;
@@ -908,9 +927,12 @@
 
   .portal-nav { position: static; flex: 1; padding: 0 12px; height: auto; background: none; border-bottom: none; }
   .portal-nav-section {
-    font-size: 10px; color: var(--ink-faint);
-    letter-spacing: 0.2em; text-transform: uppercase;
-    font-weight: 700; padding: 14px 12px 6px;
+    font-size: 10.5px;
+    /* was var(--ink-faint) — roughly 2.4:1 on this gradient, which is why the
+       category names disappeared into the background. --ink-soft clears 4.5:1. */
+    color: var(--ink-soft);
+    letter-spacing: 0.16em; text-transform: uppercase;
+    font-weight: 800; padding: 15px 12px 7px;
   }
   .portal-nav-item {
     display: flex; align-items: center; gap: 12px;
@@ -1639,13 +1661,26 @@
    uses Workspace does not re-close TEAM every morning.
    ════════════════════════════════════════════════════ */
 .portal-nav-section.collapsible {
-  display: flex; align-items: center; gap: 6px;
+  display: flex; align-items: center; gap: 7px;
   cursor: pointer; user-select: none;
-  border: none; background: none; width: 100%;
+  border: none; width: calc(100% - 8px);
+  margin: 2px 4px 0;
   font-family: inherit; text-align: left;
-  border-radius: 6px; transition: color 0.15s, background 0.15s;
+  border-radius: 7px;
+  transition: color 0.15s, background 0.15s;
+  /* A faint plate plus a hairline underneath so the header reads as a
+     divider between groups rather than as another nav row. */
+  background: rgba(255,255,255,0.34);
+  border-bottom: 1px solid rgba(139,26,14,0.14);
+  color: var(--ink-soft);
+  touch-action: manipulation;
 }
-.portal-nav-section.collapsible:hover { color: var(--brick); background: rgba(139,26,14,0.04); }
+.portal-nav-section.collapsible:hover {
+  color: var(--brick); background: rgba(255,255,255,0.62);
+}
+.portal-nav-section.collapsible:focus-visible {
+  outline: 2px solid var(--brick); outline-offset: 1px;
+}
 .portal-nav-chevron {
   margin-left: auto; font-size: 9px; line-height: 1;
   transition: transform 0.2s ease; opacity: 0.7;
@@ -1654,9 +1689,25 @@
 .portal-nav-group { overflow: hidden; max-height: 1200px; transition: max-height 0.22s ease, opacity 0.18s ease; }
 .portal-nav-group.collapsed { max-height: 0 !important; opacity: 0; pointer-events: none; }
 .portal-nav-count {
-  font-size: 9px; font-weight: 700; padding: 1px 5px;
-  border-radius: 8px; background: var(--surface-3, rgba(0,0,0,0.06));
-  color: var(--ink-muted); letter-spacing: 0;
+  font-size: 9px; font-weight: 700; padding: 1px 6px;
+  border-radius: 8px; background: rgba(139,26,14,0.12);
+  color: var(--brick); letter-spacing: 0;
+}
+/* Language switch inside the portal — previously the ONLY switch was on the
+   login screen, so changing language meant logging out and back in. */
+.portal-lang {
+  display: flex; gap: 3px; margin: 0 12px 10px;
+  background: rgba(255,255,255,0.4); border: 1px solid var(--line);
+  border-radius: 8px; padding: 3px;
+}
+.portal-lang button {
+  flex: 1; background: transparent; border: none; cursor: pointer;
+  font-family: inherit; font-size: 11px; font-weight: 700;
+  letter-spacing: 0.04em; padding: 5px 0; border-radius: 6px;
+  color: var(--ink-muted); touch-action: manipulation;
+}
+.portal-lang button.active {
+  background: var(--bg); color: var(--brick); box-shadow: var(--shadow-sm);
 }
 
 /* ════════════════════════════════════════════════════
@@ -1748,6 +1799,112 @@ table.matrix td.cell.locked { cursor: not-allowed; background: repeating-linear-
   .mobile-lang { display: flex; gap: 4px; justify-content: center; margin-top: 14px;
                  background: rgba(0,0,0,0.05); border-radius: 8px; padding: 4px; width: fit-content;
                  margin-left: auto; margin-right: auto; }
+</style>
+
+<style>
+/* ════════════════════════════════════════════════════
+   MOBILE — the new boards
+   Everything below exists so a phone gets the same
+   functions as the desktop, not a cut-down version.
+   ════════════════════════════════════════════════════ */
+
+/* Tap targets: 44px is the smallest reliably hittable size on a phone,
+   and touch-action kills the 300ms double-tap-zoom delay that made
+   buttons feel like they needed pressing twice. */
+button, .portal-nav-item, .btn-next, .btn-back, .btn-ghost,
+.task-card button, td.cell, .cat-chip { touch-action: manipulation; }
+
+@media (max-width: 860px) {
+  /* The wide role×permission grid is unusable on a phone. Swap to one
+     role at a time — picked from a select — with its permissions as a
+     single readable column. Same data, same writes, different shape. */
+  .matrix-desktop { display: none; }
+  .matrix-mobile  { display: block; }
+
+  .fin-grid { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
+  .fin-tile { padding: 12px 13px; }
+  .fin-tile-value { font-size: 18px; }
+
+  .task-lanes { grid-template-columns: 1fr; gap: 12px; }
+  .task-lane  { padding: 10px; }
+
+  /* Wide tables scroll inside their own panel rather than pushing the
+     page sideways. */
+  .panel { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+  /* Full-height sheets read better than a floating box on a small screen. */
+  .modal-overlay { padding: 0; align-items: flex-end; }
+  .modal {
+    max-height: 92vh; width: 100%; border-radius: 16px 16px 0 0;
+    overflow-y: auto; -webkit-overflow-scrolling: touch;
+  }
+  .modal-actions {
+    position: sticky; bottom: 0; background: var(--bg);
+    padding-top: 10px; padding-bottom: 10px;
+    border-top: 1px solid var(--line); flex-wrap: wrap; gap: 8px;
+  }
+  .modal-actions .btn-next, .modal-actions .btn-back { flex: 1 1 auto; min-height: 44px; }
+
+  /* Two- and three-column form rows stack. */
+  .modal-content [style*="grid-template-columns:1fr 1fr"],
+  .modal-content [style*="grid-template-columns:1fr 1fr 1fr"],
+  .modal-content [style*="grid-template-columns:2fr 1fr"] {
+    grid-template-columns: 1fr !important;
+  }
+
+  .portal-header { flex-direction: column; align-items: flex-start; gap: 10px; }
+  .portal-header > div:last-child { width: 100%; }
+  .seg { width: 100%; }
+  .seg button { flex: 1; min-height: 40px; }
+
+  .portal-lang button { padding: 9px 0; font-size: 12px; }
+  .portal-nav-section.collapsible { padding-top: 16px; padding-bottom: 9px; }
+  .portal-nav-item { padding: 12px; }
+}
+
+@media (min-width: 861px) {
+  .matrix-mobile  { display: none; }
+  .matrix-desktop { display: block; }
+}
+
+/* Very small phones: let the money tiles go two-up rather than squashing. */
+@media (max-width: 420px) {
+  .fin-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .fin-tile-value { font-size: 17px; }
+  .task-card-title { font-size: 13.5px; }
+}
+
+/* The mobile matrix */
+.mx-role-pick { width: 100%; margin-bottom: 14px; }
+.mx-cat { margin-bottom: 16px; }
+.mx-cat-title {
+  font-size: 10px; letter-spacing: .14em; text-transform: uppercase;
+  color: var(--brick); font-weight: 800; margin-bottom: 7px;
+}
+.mx-row {
+  display: flex; gap: 11px; align-items: flex-start;
+  padding: 11px 12px; border: 1px solid var(--line);
+  border-radius: 10px; margin-bottom: 8px; background: var(--bg);
+  min-height: 44px;
+}
+.mx-row.locked { opacity: .55; background: var(--surface-2, #F6EEDF); }
+.mx-row-body { flex: 1; min-width: 0; }
+.mx-row-label { font-size: 13.5px; font-weight: 600; }
+.mx-toggle {
+  flex: 0 0 auto; width: 46px; height: 28px; border-radius: 999px;
+  border: 1px solid var(--line); background: var(--surface-2, #E8D4A8);
+  position: relative; cursor: pointer; transition: background .18s;
+  touch-action: manipulation;
+}
+.mx-toggle::after {
+  content: ''; position: absolute; top: 2px; left: 2px;
+  width: 22px; height: 22px; border-radius: 50%;
+  background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.28);
+  transition: transform .18s;
+}
+.mx-toggle.on { background: #2D7A4F; border-color: #2D7A4F; }
+.mx-toggle.on::after { transform: translateX(18px); }
+.mx-toggle:disabled { cursor: not-allowed; }
 </style>
 </head>
 <body>
@@ -2499,12 +2656,12 @@ const TPN_STRINGS = {
   'login.back':     { en: '← Back to Site',  tl: '← Bumalik sa Site' },
 
   /* ── sidebar sections ────────────────────────────── */
-  'sec.workspace': { en: 'WORKSPACE',      tl: 'TRABAHO' },
-  'sec.team':      { en: 'TEAM',           tl: 'TEAM' },
-  'sec.money':     { en: 'MONEY',          tl: 'PERA' },
-  'sec.stock':     { en: 'STOCK',          tl: 'STOCK' },
-  'sec.ops':       { en: 'OPERATIONS',     tl: 'OPERASYON' },
-  'sec.access':    { en: 'ACCESS',         tl: 'ACCESS' },
+  'sec.workspace': { en: 'OPERATIONS',     tl: 'OPERASYON' },
+  'sec.team':      { en: 'PEOPLE',         tl: 'MGA TAUHAN' },
+  'sec.money':     { en: 'FINANCE',        tl: 'PANANALAPI' },
+  'sec.stock':     { en: 'SUPPLY & MENU',  tl: 'SUPPLY AT MENU' },
+  'sec.ops':       { en: 'REPORTING',      tl: 'MGA REPORT' },
+  'sec.access':    { en: 'ADMINISTRATION', tl: 'ADMINISTRASYON' },
 
   /* ── sidebar items ───────────────────────────────── */
   'nav.dashboard':    { en: 'Dashboard',        tl: 'Dashboard' },
@@ -2528,7 +2685,8 @@ const TPN_STRINGS = {
   'nav.roles':        { en: 'Roles & Access',   tl: 'Roles at Access' },
   'nav.matrix':       { en: 'Access Matrix',    tl: 'Talaan ng Access' },
   'nav.inventory':    { en: 'Inventory',        tl: 'Inventory' },
-  'nav.finance':      { en: 'Finance',          tl: 'Pera at Gastos' },
+  'nav.finance':      { en: 'Financials',       tl: 'Pananalapi' },
+  'nav.payroll':      { en: 'Payroll',          tl: 'Payroll' },
   'nav.performance':  { en: 'Performance',      tl: 'Performance' },
   'nav.audit':        { en: 'Audit Log',        tl: 'Audit Log' },
   'nav.history':      { en: 'History',          tl: 'Kasaysayan' },
@@ -2598,24 +2756,54 @@ const TPN_STRINGS = {
   'inv.derived':    { en: 'Stock levels are calculated from movements, so they can never disagree with the history.', tl: 'Ang stock ay galing sa mga galaw, kaya hindi ito pwedeng mag-iba sa kasaysayan.' },
 
   /* ── finance ─────────────────────────────────────── */
-  'fin.title':     { en: 'Finance',              tl: 'Pera at Gastos' },
-  'fin.sub':       { en: 'What came in, what it cost, and what was actually made.', tl: 'Ano ang pumasok, ano ang nagastos, at ano ang totoong kinita.' },
+  'fin.title':     { en: 'Financials',           tl: 'Pananalapi' },
+  'fin.sub':       { en: 'Revenue, cost of sales, labour and net result for the period.', tl: 'Benta, gastos sa sangkap, sahod, at netong kita para sa panahong ito.' },
   'fin.gross':     { en: 'Gross sales',          tl: 'Buong benta' },
   'fin.discounts': { en: 'Discounts',            tl: 'Discount' },
   'fin.net':       { en: 'Net sales',            tl: 'Netong benta' },
   'fin.orders':    { en: 'Orders',               tl: 'Mga order' },
-  'fin.cogs':      { en: 'Cost of ingredients',  tl: 'Gastos sa sangkap' },
-  'fin.labour':    { en: 'Staff pay',            tl: 'Sahod ng staff' },
-  'fin.expenses':  { en: 'Other expenses',       tl: 'Ibang gastos' },
-  'fin.netIncome': { en: 'Actually made',        tl: 'Totoong kinita' },
+  'fin.cogs':      { en: 'Cost of sales',        tl: 'Gastos sa sangkap' },
+  'fin.labour':    { en: 'Labour cost',         tl: 'Gastos sa sahod' },
+  'fin.expenses':  { en: 'Operating expenses',  tl: 'Gastos sa operasyon' },
+  'fin.netIncome': { en: 'Net income',          tl: 'Netong kita' },
   'fin.addExpense':{ en: '+ Record Expense',     tl: '+ Itala ang Gastos' },
-  'fin.payRates':  { en: 'Pay rates',            tl: 'Sahod' },
+  'fin.payRates':  { en: 'Pay rates',            tl: 'Mga sahod' },
   'fin.costing':   { en: 'Costing rules',        tl: 'Paraan ng costing' },
   'fin.perMonth':  { en: 'per month',            tl: 'kada buwan' },
   'fin.perDay':    { en: 'per day worked',       tl: 'kada araw na pinasok' },
   'fin.perHour':   { en: 'per hour',             tl: 'kada oras' },
   'fin.estimate':  { en: 'This is an estimate, not a measurement.', tl: 'Tantiya lang ito, hindi eksakto.' },
-  'fin.measured':  { en: 'Measured from real stock usage.', tl: 'Galing sa totoong nagamit na stock.' }
+  'fin.measured':  { en: 'Measured from real stock usage.', tl: 'Galing sa totoong nagamit na stock.' },
+
+  /* ── badges ──────────────────────────────────────── */
+  'badge.clear':    { en: 'Clear badge',      tl: 'Alisin ang badge' },
+  'badge.cleared':  { en: 'Badge cleared',    tl: 'Naalis na ang badge' },
+  'badge.markRead': { en: 'Mark all read',    tl: 'Markahang nabasa lahat' },
+  'badge.allRead':  { en: 'All marked read',  tl: 'Nabasa na lahat' },
+
+  /* ── payroll ─────────────────────────────────────── */
+  'pay.title':     { en: 'Payroll',                 tl: 'Payroll' },
+  'pay.sub':       { en: 'Work out a pay period, review each person, then record it as paid.', tl: 'Kalkulahin ang period, tingnan bawat isa, tapos itala na bayad na.' },
+  'pay.newRun':    { en: '+ New pay run',           tl: '+ Bagong pay run' },
+  'pay.period':    { en: 'Pay period',              tl: 'Panahon ng bayad' },
+  'pay.gross':     { en: 'Gross pay',               tl: 'Gross na bayad' },
+  'pay.deduct':    { en: 'Deductions',              tl: 'Mga bawas' },
+  'pay.net':       { en: 'Net pay',                 tl: 'Netong bayad' },
+  'pay.daysWorked':{ en: 'Days worked',             tl: 'Araw na pinasok' },
+  'pay.hours':     { en: 'Hours',                   tl: 'Oras' },
+  'pay.status':    { en: 'Status',                  tl: 'Kalagayan' },
+  'pay.draft':     { en: 'Draft',                   tl: 'Draft' },
+  'pay.approved':  { en: 'Approved',                tl: 'Aprubado' },
+  'pay.paid':      { en: 'Paid',                    tl: 'Bayad na' },
+  'pay.markPaid':  { en: 'Record as paid',          tl: 'Itala na bayad na' },
+  'pay.approve':   { en: 'Approve',                 tl: 'Aprubahan' },
+  'pay.calc':      { en: 'Calculate from attendance', tl: 'Kalkulahin mula sa attendance' },
+  'pay.recalc':    { en: 'Recalculate',             tl: 'Kalkulahin muli' },
+  'pay.method':    { en: 'Paid via',                tl: 'Bayad sa pamamagitan ng' },
+  'pay.noRuns':    { en: 'No pay runs yet.',        tl: 'Wala pang pay run.' },
+  'pay.fromRates': { en: 'Amounts come from each person\'s pay rate and their attendance in the period. Edit any line before approving.', tl: 'Ang halaga ay galing sa rate at attendance ng bawat isa. Pwede pang baguhin bago aprubahan.' },
+  'pay.lockedNote':{ en: 'A paid run is locked. Reverse it if something was wrong.', tl: 'Ang bayad na run ay sarado na. I-reverse kung may mali.' },
+  'pay.reverse':   { en: 'Reverse',                 tl: 'I-reverse' }
 };
 
 let TPN_LANG = (function () {
@@ -3178,6 +3366,10 @@ function checkoutBack() {
 }
 async function confirmOrder() {
   const subtotal = cart.reduce((n, c) => n + c.price * c.qty, 0);
+  // Same double-tap guard as the QR menu: on a phone the button can fire
+  // twice and send two orders.
+  const _btn = document.querySelector('#checkout-step-4 .btn-next, .place-order-btn, .btn-next');
+  if (_btn) { if (_btn.dataset.busy === '1') return; _btn.dataset.busy = '1'; _btn.disabled = true; }
   try {
     // Resolve default branch (Las Piñas)
     const branch = await TPN.getBranchByCode('laspinas');
@@ -3220,7 +3412,9 @@ async function confirmOrder() {
     renderCheckoutStep();
   } catch(e) {
     console.error('Order failed:', e);
-    toast('⚠️ Could not place order: ' + (e.message || 'connection error'));
+    toast('⚠️ ' + (e.message || 'Could not place the order — please try again.'));
+  } finally {
+    if (_btn) { _btn.dataset.busy = '0'; _btn.disabled = false; }
   }
 }
 async function checkOrderStatus() {
@@ -3817,6 +4011,127 @@ async function preloadPermissions() {
   }
 }
 
+
+/* ════════════════════════════════════════════════════
+   BADGES YOU CAN CLEAR
+
+   Two different things wear the same red circle:
+
+     Real unread state  — notifications, messages. Clearing means
+                          marking them read in the database.
+     Derived counts     — new enquiries, pending voids, pending
+                          accounts, my open tasks. There is nothing
+                          to "read"; the number is just how many
+                          rows currently match.
+
+   For the second kind, clearing writes an acknowledgement in this
+   browser: remember the count I have already seen, and stay quiet
+   until it goes UP again. So dismissing 3 pending voids hides the
+   badge, and a 4th makes it reappear. If the count drops the ack
+   resets, so it can never hide a fresh item behind a stale number.
+   ════════════════════════════════════════════════════ */
+const TPN_BADGE_ACK_KEY = 'tpn.badgeAck';
+
+function readBadgeAcks() {
+  try { return JSON.parse(localStorage.getItem(TPN_BADGE_ACK_KEY) || '{}') || {}; }
+  catch (e) { return {}; }
+}
+function writeBadgeAcks(o) {
+  try { localStorage.setItem(TPN_BADGE_ACK_KEY, JSON.stringify(o)); } catch (e) {}
+}
+
+// What the sidebar should actually show for a derived count.
+function badgeFor(route, count) {
+  const n = Number(count) || 0;
+  if (!n) return null;
+  const acks = readBadgeAcks();
+  const acked = Number(acks[route] || 0);
+
+  // The count FELL, so the set changed underneath the acknowledgement and
+  // the old number tells us nothing about these rows. Drop the ack and show
+  // the badge. Without this, acking 4 pending voids would keep hiding the
+  // badge after all 4 were resolved and a 5th, genuinely new one arrived —
+  // silently swallowing the thing the badge exists to surface.
+  if (n < acked) {
+    delete acks[route];
+    writeBadgeAcks(acks);
+    return n;
+  }
+  if (acked >= n) return null;              // already seen exactly these
+  return n;
+}
+
+function clearBadge(route, count) {
+  const acks = readBadgeAcks();
+  acks[route] = Number(count) || 0;
+  writeBadgeAcks(acks);
+  if (typeof renderAdminSidebar === 'function' && currentUser &&
+      !['dining','kitchen'].includes(currentUser.tier)) renderAdminSidebar();
+  if (typeof renderStaffSidebar === 'function' && currentUser &&
+      ['dining','kitchen'].includes(currentUser.tier)) renderStaffSidebar();
+  toast(T('badge.cleared'));
+}
+
+// A small "Clear badge" control for a page header. Renders nothing when
+// there is no badge to clear, so it never becomes decoration.
+function badgeClearBtn(route, count) {
+  if (!badgeFor(route, count)) return '';
+  return `<button class="btn-ghost" style="padding:6px 12px;font-size:11px;"
+            onclick="clearBadge('${E(route)}', ${Number(count) || 0})"
+            title="${E(T('badge.clear'))}">✓ ${E(T('badge.clear'))}</button>`;
+}
+
+
+// Messages carry a genuine unread flag, so clearing means marking them read
+// in the database — not acknowledging a count like the derived badges do.
+async function markAllMessagesRead() {
+  try {
+    if (typeof TPN.markAllMessagesRead === 'function') {
+      await TPN.markAllMessagesRead();
+    } else if (typeof TPN.markMessageRead === 'function' && Array.isArray(portalState.messages)) {
+      await Promise.all(portalState.messages.filter(m => !m.read_at)
+        .map(m => TPN.markMessageRead(m.id).catch(() => {})));
+    }
+    window._tpnUnreadMsgs = null;
+    toast(T('badge.allRead'));
+    route('messages-admin', { replace: true });
+  } catch (e) {
+    // Fall back to acknowledging the badge so at least it stops nagging.
+    clearBadge('messages-admin', 0);
+  }
+}
+
+// One control that quiets every derived badge at once, for the morning
+// where four of them are lit and none of them are news.
+function clearAllBadges() {
+  const acks = readBadgeAcks();
+  [['inquiries', portalState.inquiries.filter(i => i.status === 'new').length],
+   ['void-requests', window._tpnPendingVoids || 0],
+   ['tasks', window._tpnMyOpenTasks || 0],
+   ['inventory', window._tpnLowStock || 0],
+   ['accounts', portalState.staff.filter(s => s.accountState === 'pending' || s.accountState === 'recommended').length]
+  ].forEach(([route, n]) => { if (n) acks[route] = n; });
+  writeBadgeAcks(acks);
+  if (typeof renderAdminSidebar === 'function') renderAdminSidebar();
+  toast(T('badge.cleared'));
+}
+
+/* The language switch, in the portal itself.
+   Before this the only switch was on the login screen, so a staff member
+   who wanted Tagalog had to sign out and back in. */
+function langSwitchHtml() {
+  const en = TPN_LANG === 'en' ? ' class="active"' : '';
+  const tl = TPN_LANG === 'tl' ? ' class="active"' : '';
+  const lit = ['inquiries','void-requests','tasks','inventory','accounts']
+    .some(r => document.querySelector(`.portal-nav-item[data-route="${r}"] .portal-nav-badge`));
+  return `<div class="portal-lang" role="group" aria-label="Language">
+    <button${en} onclick="setLang('en')">English</button>
+    <button${tl} onclick="setLang('tl')">Tagalog</button>
+  </div>
+  ${lit ? `<button class="btn-ghost" style="width:calc(100% - 24px);margin:0 12px 10px;padding:6px 0;font-size:11px;"
+       onclick="clearAllBadges()">✓ ${E(T('badge.clear'))}</button>` : ''}`;
+}
+
 /* ════════════════════════════════════════════════════
    SIDEBAR SECTION FOLDING
    The nav outgrew one screen once Roles, Tasks, Inventory and
@@ -3888,38 +4203,39 @@ function renderAdminSidebar() {
   const sections = [
     { key: 'sec.workspace', items: [
       { id: 'dashboard',     perm: 'dashboard.view',       key: 'nav.dashboard',    icon: '🏠' },
-      { id: 'inquiries',     perm: 'inquiries.view',       key: 'nav.inquiries',    icon: '📩', badge: newInquiries || null },
+      { id: 'inquiries',     perm: 'inquiries.view',       key: 'nav.inquiries',    icon: '📩', badge: badgeFor('inquiries', newInquiries) },
       { id: 'orders',        perm: 'orders.view',          key: 'nav.orders',       icon: '📋', badge: openOrders || null },
       { id: 'kds',           perm: 'kds.view',             key: 'nav.kds',          icon: '🍳', badge: cooking || null },
       // A supervisor sees the same tab but only their own requests —
       // they can ask, not approve, exactly like void_order_item().
       { id: 'void-requests', perm: 'voids.request',        key: can('voids.approve') ? 'nav.voids' : 'nav.myVoids',
-                                                          icon: '🚫', badge: window._tpnPendingVoids || null },
+                                                          icon: '🚫', badge: badgeFor('void-requests', window._tpnPendingVoids) },
       { id: 'floor',         perm: 'floor.view',           key: 'nav.floor',        icon: '🪑', external: 'tpn-dine-in-floor' },
       { id: 'kitchen-station', perm: 'kitchen_station.view', key: 'nav.station',    icon: '👨‍🍳', external: 'tpn-kitchen-station' }
     ]},
     { key: 'sec.team', items: [
       { id: 'staff-board',      perm: 'staff.view',        key: 'nav.staffBoard',   icon: '🎯' },
-      { id: 'tasks',            perm: 'tasks.view',        key: 'nav.tasks',        icon: '🗒️', badge: window._tpnMyOpenTasks || null },
+      { id: 'tasks',            perm: 'tasks.view',        key: 'nav.tasks',        icon: '🗒️', badge: badgeFor('tasks', window._tpnMyOpenTasks) },
       { id: 'schedules',        perm: 'schedules.view',    key: 'nav.schedules',    icon: '📅' },
       { id: 'attendance-admin', perm: 'attendance.view',   key: 'nav.attendance',   icon: '✓' },
-      { id: 'notifications',    perm: 'notifications.view',key: 'nav.notifications',icon: '🔔', badge: portalState.unreadNotifCount || null },
+      { id: 'notifications',    perm: 'notifications.view',key: 'nav.notifications',icon: '🔔', badge: portalState.unreadNotifCount || null },   // real unread: cleared by marking read, not acking
       { id: 'messages-admin',   perm: 'messages.view',     key: 'nav.messages',     icon: '✉️', badge: window._tpnUnreadMsgs || null }
     ]},
     { key: 'sec.stock', items: [
-      { id: 'inventory',   perm: 'inventory.view',   key: 'nav.inventory',   icon: '📦', badge: window._tpnLowStock || null },
+      { id: 'inventory',   perm: 'inventory.view',   key: 'nav.inventory',   icon: '📦', badge: badgeFor('inventory', window._tpnLowStock) },
       { id: 'menu-manager',perm: 'menu.view',        key: 'nav.menuManager', icon: '🍽️' },
       { id: 'discounts',   perm: 'discounts.view',   key: 'nav.discounts',   icon: '💸' },
       { id: 'table-qr',    perm: 'tables.manage',    key: 'nav.tableQR',     icon: '📲' }
     ]},
     { key: 'sec.money', items: [
-      { id: 'finance',     perm: 'finance.view',     key: 'nav.finance',     icon: '💰' },
+      { id: 'finance',     perm: 'finance.view',     key: 'nav.finance',     icon: '📊' },
+      { id: 'payroll',     perm: 'payroll.view',     key: 'nav.payroll',     icon: '💵' },
       { id: 'performance', perm: 'performance.view', key: 'nav.performance', icon: '📈' },
       { id: 'history',     perm: 'history.view',     key: 'nav.history',     icon: '📆' }
     ]},
     { key: 'sec.access', items: [
       { id: 'accounts',      perm: 'accounts.view', key: 'nav.accounts', icon: '👤',
-        badge: portalState.staff.filter(s => s.accountState === 'pending' || s.accountState === 'recommended').length || null },
+        badge: badgeFor('accounts', portalState.staff.filter(s => s.accountState === 'pending' || s.accountState === 'recommended').length) },
       { id: 'roles',         perm: 'roles.view',    key: 'nav.roles',    icon: '🔑' },
       { id: 'access-matrix', perm: 'roles.view',    key: 'nav.matrix',   icon: '🧩' },
       { id: 'audit',         perm: 'audit.view',    key: 'nav.audit',    icon: '📜' }
@@ -3933,7 +4249,7 @@ function renderAdminSidebar() {
 
   const collapsed = readCollapsedSections();
 
-  document.getElementById('portalNav').innerHTML = visible.map((sec, si) => {
+  document.getElementById('portalNav').innerHTML = langSwitchHtml() + visible.map((sec, si) => {
     const isShut = collapsed.includes(sec.key);
     const rows = sec.items.map(it => {
       const label = T(it.key);
@@ -4027,6 +4343,7 @@ function route(r, opts) {
     case 'tasks': renderTasks(main); break;
     case 'inventory': renderInventory(main); break;
     case 'finance': renderFinance(main); break;
+    case 'payroll': renderPayroll(main); break;
   }
   window.scrollTo({ top: 0, behavior: 'instant' });
 }
@@ -4531,8 +4848,10 @@ async function doCopyPrevWeek(prevIso, curIso) {
    INQUIRIES
    ════════════════════════════════════════════════════ */
 function renderInquiries(main) {
+  const _inqNew = portalState.inquiries.filter(i => i.status === 'new').length;
   let html = `<div class="portal-header">
     <div><h1>Inbox</h1><div class="portal-header-sub">B2B and event inquiries from the website.</div></div>
+    <div>${badgeClearBtn('inquiries', _inqNew)}</div>
   </div>`;
   if (!portalState.inquiries.length) {
     html += '<div class="panel" style="text-align:center;color:var(--ink-faint);padding:60px;">📬 No inquiries yet.</div>';
@@ -5776,6 +6095,7 @@ async function renderMessagesAdmin(main) {
   }
   main.innerHTML = `<div class="portal-header">
     <div><h1>Messages</h1><div class="portal-header-sub">Your inbox and messages you've sent. Compose to send to a person or broadcast to Las Piñas.</div></div>
+    <div>${(window._tpnUnreadMsgs || 0) ? `<button class="btn-ghost" style="padding:6px 12px;font-size:11px;" onclick="markAllMessagesRead()">✓ ${E(T('badge.markRead'))}</button>` : ''}</div>
     <button class="btn-primary" onclick="openComposeMessageModal()" style="padding:10px 20px;">✉️ Compose</button>
   </div>
   <div style="display:flex;gap:8px;margin-bottom:16px;">
@@ -6047,6 +6367,7 @@ async function renderVoidRequests(main, mode) {
   const approver = mode === 'admin' && isVoidApprover();
   const filters = ['pending','approved','denied','all'];
 
+  const _voidPending = window._tpnPendingVoids || 0;
   main.innerHTML = `
     <div class="portal-header">
       <div>
@@ -7877,13 +8198,71 @@ function _renderMatrixGrid(matrix) {
     }).join('')}`).join('');
 
   el.innerHTML = `
-    <div class="matrix-scroll"><table class="matrix">${head}<tbody>${body}</tbody></table></div>
+    <div class="matrix-desktop">
+      <div class="matrix-scroll"><table class="matrix">${head}<tbody>${body}</tbody></table></div>
+    </div>
+    ${_matrixMobileHtml(roles, cats, lookup, canEdit)}
     <div style="font-size:11px;color:var(--ink-faint);margin-top:10px;line-height:1.6;">
       <span class="tick yes">✓</span> allowed &nbsp;·&nbsp;
       <span class="tick no">✕</span> not allowed &nbsp;·&nbsp;
       <span class="tick locked">—</span> ${E(T('matrix.locked'))}
       ${canEdit ? '' : '<br>' + E(T('matrix.readonly'))}
     </div>`;
+}
+
+
+/* One role at a time, as a column of switches. Same access_matrix() data
+   and the same write path as the desktop grid — a phone gets the whole
+   feature, not a read-only summary. */
+let _mxRole = null;
+
+function _matrixMobileHtml(roles, cats, lookup, canEdit) {
+  if (!roles.length) return '';
+  if (!_mxRole || !roles.some(r => r.role_id === _mxRole)) _mxRole = roles[0].role_id;
+  const role = roles.find(r => r.role_id === _mxRole);
+
+  const body = cats.map(g => {
+    const rows = g.perms.map(p => {
+      const cell = lookup[role.role_id + '|' + p.key];
+      const label = TPN_LANG === 'tl' && p.label_tl ? p.label_tl : p.label;
+      const locked = !cell || !cell.grantable;
+      const on = !!(cell && cell.allowed);
+      const editable = canEdit && role.is_active && !locked;
+      return `<div class="mx-row ${locked ? 'locked' : ''}">
+        <div class="mx-row-body">
+          <div class="mx-row-label">${E(label)}</div>
+          <div class="perm-hint">${E(p.description || '')}${locked ? ' — ' + E(T('matrix.locked')) : ''}</div>
+        </div>
+        <button class="mx-toggle ${on ? 'on' : ''}" ${editable ? '' : 'disabled'}
+                aria-pressed="${on}" aria-label="${E(label)}"
+                ${editable ? `onclick="matrixToggle('${role.role_id}','${E(p.key)}',${on ? 'false' : 'true'})"` : ''}></button>
+      </div>`;
+    }).join('');
+    return `<div class="mx-cat"><div class="mx-cat-title">${E(g.name)}</div>${rows}</div>`;
+  }).join('');
+
+  const allowed = cats.reduce((n, g) => n + g.perms.filter(p => {
+    const c = lookup[role.role_id + '|' + p.key]; return c && c.allowed;
+  }).length, 0);
+
+  return `<div class="matrix-mobile">
+    <label class="form-label">${E(T('nav.roles'))}</label>
+    <select class="form-input mx-role-pick" onchange="_mxPickRole(this.value)">
+      ${roles.map(r => `<option value="${r.role_id}" ${r.role_id === _mxRole ? 'selected' : ''}>
+        ${E(r.label)}${r.is_system ? ' · ' + E(T('roles.builtIn')) : ''}${r.is_active ? '' : ' · off'}
+      </option>`).join('')}
+    </select>
+    <div style="font-size:11px;color:var(--ink-faint);margin:-6px 0 14px;line-height:1.5;">
+      ${E(T('roles.basedOn'))} <strong>${E(role.base_tier)}</strong> · ${allowed} ${E(T('roles.canDo'))}
+      ${canEdit ? '' : '<br>' + E(T('matrix.readonly'))}
+    </div>
+    ${body}
+  </div>`;
+}
+
+function _mxPickRole(id) {
+  _mxRole = id;
+  _renderMatrixGrid(_rolesState.matrix);
 }
 
 async function matrixToggle(roleId, permKey, allowed) {
@@ -7930,6 +8309,7 @@ async function renderTasks(main) {
           <input type="checkbox" id="tkShowDone" ${_taskState.showDone ? 'checked' : ''} onchange="toggleShowDoneTasks(this.checked)">
           ${E(T('tasks.showDone'))}
         </label>
+        ${badgeClearBtn('tasks', window._tpnMyOpenTasks)}
         ${TPN.can('tasks.create') ? `<button class="btn-next" onclick="openTaskEditor(null)">${E(T('tasks.new'))}</button>` : ''}
       </div>
     </div>
@@ -8173,6 +8553,7 @@ async function renderInventory(main) {
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
         ${TPN.can('inventory.receive') ? `<button class="btn-next" onclick="openStockMovement(null,'delivery_in')">${E(T('inv.receive'))}</button>` : ''}
         ${TPN.can('inventory.manage')  ? `<button class="btn-ghost" style="padding:7px 15px;font-size:12px;" onclick="openIngredientEditor(null)">${E(T('inv.newItem'))}</button>` : ''}
+        ${badgeClearBtn('inventory', window._tpnLowStock)}
       </div>
     </div>
     <div id="invBody"><div class="panel" style="padding:24px;text-align:center;color:var(--ink-muted);">${E(T('common.loading'))}</div></div>`;
@@ -8865,6 +9246,347 @@ async function saveSetPay(staffId) {
 }
 
 
+
+/* ════════════════════════════════════════════════════════════════
+   PAYROLL   (sql/25-payroll.sql)
+
+   Three states, in order, and the database enforces the order:
+     draft     -> built from each person's rate and their attendance.
+                  Lines are editable here and only here.
+     approved  -> checked by a human. Still not money out the door.
+     paid      -> recorded as disbursed. Lines LOCK at this point,
+                  because what someone was actually paid must not
+                  change afterwards. Got it wrong? Reverse it.
+
+   A missing pay rate shows up as a zero line with a note rather than
+   the person silently vanishing from the run — an empty payroll that
+   does not say why is worse than no payroll.
+   ════════════════════════════════════════════════════════════════ */
+
+const _payState = { runs: [], items: {}, openRun: null };
+
+function _payPeriodDefaults() {
+  // Default to the current month up to today — the most common ask.
+  const now = new Date();
+  const first = new Date(now.getFullYear(), now.getMonth(), 1);
+  const iso = d => d.toISOString().slice(0, 10);
+  return { from: iso(first), to: iso(now) };
+}
+
+async function renderPayroll(main) {
+  if (!TPN.can('payroll.view')) {
+    main.innerHTML = `<div class="panel" style="padding:40px;text-align:center;color:var(--ink-muted);">${E(T('common.noAccess'))}</div>`;
+    return;
+  }
+  const canRun = TPN.can('payroll.run');
+  const d = _payPeriodDefaults();
+
+  main.innerHTML = `
+    <div class="portal-header">
+      <div>
+        <h1>${E(T('pay.title'))}</h1>
+        <div class="portal-header-sub">${E(T('pay.sub'))}</div>
+      </div>
+      ${canRun ? `<button class="btn-next" onclick="openNewPayRun()">${E(T('pay.newRun'))}</button>` : ''}
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;">
+      ${TPN.can('payroll.view') ? `<button class="btn-ghost" style="padding:8px 14px;font-size:12px;" onclick="openPayRates()">${E(T('fin.payRates'))}</button>` : ''}
+      <button class="btn-ghost" style="padding:8px 14px;font-size:12px;" onclick="route('finance')">${E(T('nav.finance'))} →</button>
+    </div>
+    <div id="payBody"><div class="panel" style="padding:24px;text-align:center;color:var(--ink-muted);">${E(T('common.loading'))}</div></div>`;
+
+  try {
+    _payState.runs = await TPN.getPayrollRuns();
+    _renderPayRuns();
+  } catch (e) {
+    document.getElementById('payBody').innerHTML =
+      `<div class="panel" style="padding:28px;text-align:center;color:var(--brick);">${E(e.message || '')}</div>`;
+  }
+}
+
+function _payStatusChip(status) {
+  const map = {
+    draft:    { bg: 'var(--ink-muted)', key: 'pay.draft' },
+    approved: { bg: '#0E7490',          key: 'pay.approved' },
+    paid:     { bg: '#2D7A4F',          key: 'pay.paid' },
+    reversed: { bg: '#8B1A0E',          key: 'pay.reverse' }
+  }[status] || { bg: 'var(--ink-muted)', key: 'pay.draft' };
+  return `<span class="portal-nav-badge" style="background:${map.bg};color:#fff;margin-left:0;">${E(T(map.key))}</span>`;
+}
+
+function _renderPayRuns() {
+  const el = document.getElementById('payBody');
+  if (!el) return;
+  if (!_payState.runs.length) {
+    el.innerHTML = `<div class="panel" style="padding:36px;text-align:center;color:var(--ink-muted);">${E(T('pay.noRuns'))}</div>`;
+    return;
+  }
+  el.innerHTML = _payState.runs.map(r => {
+    const open = _payState.openRun === r.id;
+    const items = _payState.items[r.id] || null;
+    const net = items ? items.reduce((n, i) => n + Number(i.net || 0), 0) : null;
+    return `<div class="panel" style="margin-bottom:12px;">
+      <div style="padding:14px 16px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;cursor:pointer;"
+           onclick="togglePayRun('${r.id}')">
+        <div style="flex:1;min-width:180px;">
+          <div style="font-weight:700;font-size:14px;">
+            ${E(_payPeriodLabel(r.period_start, r.period_end))} ${_payStatusChip(r.status)}
+          </div>
+          <div style="font-size:11px;color:var(--ink-faint);margin-top:3px;">
+            ${net !== null ? E(T('pay.net')) + ' ₱' + N(net, 2) + ' · ' : ''}${items ? items.length + ' staff' : 'tap to open'}
+            ${r.paid_at ? ' · ' + E(T('pay.paid')) + ' ' + _timeAgo(r.paid_at) : ''}
+            ${r.payment_method ? ' · ' + E(String(r.payment_method).replace('_',' ')) : ''}
+          </div>
+        </div>
+        <span style="font-size:11px;color:var(--ink-faint);">${open ? '▲' : '▼'}</span>
+      </div>
+      ${open ? `<div id="payRun-${r.id}" style="border-top:1px solid var(--line);">
+        <div style="padding:16px;color:var(--ink-muted);font-size:12px;">${E(T('common.loading'))}</div>
+      </div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+function _payPeriodLabel(a, b) {
+  try {
+    const loc = TPN_LANG === 'tl' ? 'fil-PH' : 'en-PH';
+    const d1 = new Date(a + 'T00:00:00'), d2 = new Date(b + 'T00:00:00');
+    const same = d1.getMonth() === d2.getMonth() && d1.getFullYear() === d2.getFullYear();
+    if (same) return d1.toLocaleDateString(loc, { month: 'long', year: 'numeric' }) +
+                     ` (${d1.getDate()}–${d2.getDate()})`;
+    return d1.toLocaleDateString(loc, { day: 'numeric', month: 'short' }) + ' – ' +
+           d2.toLocaleDateString(loc, { day: 'numeric', month: 'short', year: 'numeric' });
+  } catch (e) { return a + ' – ' + b; }
+}
+
+async function togglePayRun(id) {
+  _payState.openRun = (_payState.openRun === id) ? null : id;
+  _renderPayRuns();
+  if (_payState.openRun !== id) return;
+  try {
+    _payState.items[id] = await TPN.getPayrollItems(id);
+    _renderPayRunDetail(id);
+  } catch (e) {
+    const box = document.getElementById('payRun-' + id);
+    if (box) box.innerHTML = `<div style="padding:16px;color:var(--brick);">${E(e.message || '')}</div>`;
+  }
+}
+
+function _renderPayRunDetail(id) {
+  const box = document.getElementById('payRun-' + id);
+  if (!box) return;
+  const run   = _payState.runs.find(r => r.id === id);
+  const items = _payState.items[id] || [];
+  const canRun = TPN.can('payroll.run');
+  const editable = canRun && run.status === 'draft';
+  const gross = items.reduce((n, i) => n + Number(i.gross || 0), 0);
+  const ded   = items.reduce((n, i) => n + Number(i.deductions || 0), 0);
+  const net   = items.reduce((n, i) => n + Number(i.net || 0), 0);
+  const missingRate = items.filter(i => Number(i.rate) === 0).length;
+
+  box.innerHTML = `
+    <div class="fin-grid" style="padding:14px 16px 0;">
+      <div class="fin-tile"><div class="fin-tile-label">${E(T('pay.gross'))}</div>
+        <div class="fin-tile-value">₱${N(gross, 2)}</div></div>
+      <div class="fin-tile"><div class="fin-tile-label">${E(T('pay.deduct'))}</div>
+        <div class="fin-tile-value">₱${N(ded, 2)}</div></div>
+      <div class="fin-tile"><div class="fin-tile-label">${E(T('pay.net'))}</div>
+        <div class="fin-tile-value pos">₱${N(net, 2)}</div>
+        <div class="fin-tile-note">${items.length} staff</div></div>
+    </div>
+
+    ${missingRate ? `<div class="fin-basis" style="margin:14px 16px;">
+      ⚠️ ${missingRate} ${missingRate === 1 ? 'person has' : 'people have'} no pay rate set, so they are on ₱0.
+      Set it under <strong>${E(T('fin.payRates'))}</strong>, then ${E(T('pay.recalc'))}.
+    </div>` : `<div style="padding:12px 16px 0;font-size:11px;color:var(--ink-faint);line-height:1.5;">
+      ${E(T('pay.fromRates'))}</div>`}
+
+    <div style="overflow-x:auto;margin-top:10px;">
+      <table style="width:100%;border-collapse:collapse;font-size:13px;min-width:620px;">
+        <thead><tr style="background:var(--surface-2,#F6EEDF);">
+          ${['', T('pay.daysWorked'), T('pay.gross'), T('pay.deduct'), T('pay.net'), ''].map((h, i) =>
+            `<th style="padding:9px 12px;text-align:${i === 0 ? 'left' : (i === 5 ? 'right' : 'right')};font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-muted);white-space:nowrap;">${E(h)}</th>`).join('')}
+        </tr></thead>
+        <tbody>${items.map(i => `<tr>
+          <td style="padding:9px 12px;border-bottom:1px solid var(--line-soft);">
+            <div style="font-weight:600;">${E(i.staff_name)}</div>
+            <div style="font-size:11px;color:var(--ink-faint);">
+              ${E(i.pay_type)} · ₱${N(i.rate, 2)}${Number(i.allowance) ? ' + ₱' + N(i.allowance, 2) : ''}
+            </div>
+            ${i.note ? `<div style="font-size:11px;color:var(--brick);margin-top:3px;">${E(i.note)}</div>` : ''}
+          </td>
+          <td style="padding:9px 12px;border-bottom:1px solid var(--line-soft);text-align:right;color:var(--ink-muted);">
+            ${N(i.days_worked, 0)}${Number(i.hours_worked) ? `<div style="font-size:10px;">${N(i.hours_worked, 1)}h</div>` : ''}
+          </td>
+          <td style="padding:9px 12px;border-bottom:1px solid var(--line-soft);text-align:right;">₱${N(i.gross, 2)}</td>
+          <td style="padding:9px 12px;border-bottom:1px solid var(--line-soft);text-align:right;color:${Number(i.deductions) ? '#8B1A0E' : 'var(--ink-faint)'};">₱${N(i.deductions, 2)}</td>
+          <td style="padding:9px 12px;border-bottom:1px solid var(--line-soft);text-align:right;font-weight:700;">₱${N(i.net, 2)}</td>
+          <td style="padding:9px 12px;border-bottom:1px solid var(--line-soft);text-align:right;">
+            ${editable ? `<button class="btn-ghost" style="padding:4px 10px;font-size:11px;" onclick="openPayLineEditor('${i.id}','${id}')">${E(T('common.edit'))}</button>` : ''}
+          </td>
+        </tr>`).join('')}</tbody>
+      </table>
+    </div>
+
+    <div style="padding:14px 16px;display:flex;gap:8px;flex-wrap:wrap;border-top:1px solid var(--line);">
+      ${run.status === 'draft' && canRun ? `
+        <button class="btn-ghost" style="padding:7px 14px;font-size:12px;" onclick="recalcPayRun('${id}')">${E(T('pay.recalc'))}</button>
+        <button class="btn-next" onclick="payRunStatus('${id}','approved')">${E(T('pay.approve'))}</button>
+        <button class="btn-ghost" style="padding:7px 14px;font-size:12px;color:var(--brick);margin-left:auto;" onclick="deletePayRun('${id}')">${E(T('common.delete'))}</button>` : ''}
+      ${run.status === 'approved' && canRun ? `
+        <button class="btn-next" onclick="openMarkPaid('${id}')">${E(T('pay.markPaid'))}</button>` : ''}
+      ${run.status === 'paid' && canRun ? `
+        <span style="font-size:11px;color:var(--ink-faint);flex:1;">${E(T('pay.lockedNote'))}</span>
+        <button class="btn-ghost" style="padding:7px 14px;font-size:12px;color:var(--brick);" onclick="payRunStatus('${id}','reversed')">${E(T('pay.reverse'))}</button>` : ''}
+    </div>`;
+}
+
+function openNewPayRun() {
+  const d = _payPeriodDefaults();
+  const m = document.getElementById('modal');
+  m.innerHTML = `
+    <div class="modal-title">${E(T('pay.newRun'))}</div>
+    <div class="modal-sub">${E(T('pay.fromRates'))}</div>
+    <div class="modal-content">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div><label class="form-label">From</label>
+          <input type="date" class="form-input" id="prFrom" value="${d.from}"></div>
+        <div><label class="form-label">To</label>
+          <input type="date" class="form-input" id="prTo" value="${d.to}"></div>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-back" onclick="closeModal()">${E(T('common.cancel'))}</button>
+      <button class="btn-next" onclick="doBuildPayRun()">${E(T('pay.calc'))}</button>
+    </div>`;
+  document.getElementById('modalOverlay').classList.add('open');
+}
+
+async function doBuildPayRun() {
+  const from = document.getElementById('prFrom').value;
+  const to   = document.getElementById('prTo').value;
+  if (!from || !to) { toast('Pick both dates'); return; }
+  try {
+    const id = await TPN.buildPayrollRun(from, to);
+    closeModal();
+    toast(T('common.saved'));
+    _payState.openRun = id;
+    _payState.runs = await TPN.getPayrollRuns();
+    _renderPayRuns();
+    _payState.items[id] = await TPN.getPayrollItems(id);
+    _renderPayRunDetail(id);
+  } catch (e) { toast('⚠️ ' + e.message); }
+}
+
+async function recalcPayRun(id) {
+  try {
+    const n = await TPN.rebuildPayrollRun(id);
+    _payState.items[id] = await TPN.getPayrollItems(id);
+    _renderPayRunDetail(id);
+    toast(`${n} line${n === 1 ? '' : 's'} recalculated`);
+  } catch (e) { toast('⚠️ ' + e.message); }
+}
+
+async function payRunStatus(id, status) {
+  try {
+    await TPN.setPayrollStatus(id, status);
+    _payState.runs = await TPN.getPayrollRuns();
+    _renderPayRuns();
+    if (_payState.openRun === id) {
+      _payState.items[id] = await TPN.getPayrollItems(id);
+      _renderPayRunDetail(id);
+    }
+    toast(T('common.saved'));
+  } catch (e) { toast('⚠️ ' + e.message); }
+}
+
+function openMarkPaid(id) {
+  const m = document.getElementById('modal');
+  m.innerHTML = `
+    <div class="modal-title">${E(T('pay.markPaid'))}</div>
+    <div class="modal-sub">This records that the money went out. The lines lock afterwards — reverse the run if something was wrong.</div>
+    <div class="modal-content">
+      <label class="form-label">${E(T('pay.method'))}</label>
+      <select class="form-input" id="prMethod">
+        <option value="cash">Cash</option>
+        <option value="bank_transfer">Bank transfer</option>
+        <option value="gcash">GCash</option>
+        <option value="paymaya">PayMaya</option>
+        <option value="cheque">Cheque</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-back" onclick="closeModal()">${E(T('common.cancel'))}</button>
+      <button class="btn-next" onclick="doMarkPaid('${id}')">${E(T('pay.markPaid'))}</button>
+    </div>`;
+  document.getElementById('modalOverlay').classList.add('open');
+}
+
+async function doMarkPaid(id) {
+  const method = document.getElementById('prMethod').value;
+  try {
+    await TPN.setPayrollStatus(id, 'paid', method);
+    closeModal();
+    await payRunStatus(id, 'paid').catch(() => {});   // refresh only
+    _payState.runs = await TPN.getPayrollRuns();
+    _renderPayRuns();
+    if (_payState.openRun === id) {
+      _payState.items[id] = await TPN.getPayrollItems(id);
+      _renderPayRunDetail(id);
+    }
+    toast(T('pay.paid'));
+  } catch (e) { toast('⚠️ ' + e.message); }
+}
+
+function openPayLineEditor(itemId, runId) {
+  const item = (_payState.items[runId] || []).find(i => i.id === itemId);
+  if (!item) return;
+  const m = document.getElementById('modal');
+  m.innerHTML = `
+    <div class="modal-title">${E(item.staff_name)}</div>
+    <div class="modal-sub">${E(item.pay_type)} · ₱${N(item.rate, 2)} · ${N(item.days_worked, 0)} ${E(T('pay.daysWorked').toLowerCase())}</div>
+    <div class="modal-content">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
+        <div><label class="form-label">${E(T('pay.gross'))}</label>
+          <input type="number" step="0.01" class="form-input" id="plGross" value="${N(item.gross, 2)}"></div>
+        <div><label class="form-label">${E(T('pay.deduct'))}</label>
+          <input type="number" step="0.01" class="form-input" id="plDed" value="${N(item.deductions, 2)}"></div>
+      </div>
+      <div><label class="form-label">${E(T('common.notes'))}</label>
+        <input type="text" class="form-input" id="plNote" value="${E(item.note || '')}" placeholder="Cash advance, late deduction…"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-back" onclick="closeModal()">${E(T('common.cancel'))}</button>
+      <button class="btn-next" onclick="savePayLine('${itemId}','${runId}')">${E(T('common.save'))}</button>
+    </div>`;
+  document.getElementById('modalOverlay').classList.add('open');
+}
+
+async function savePayLine(itemId, runId) {
+  try {
+    await TPN.updatePayrollItem(itemId, {
+      gross:      Number(document.getElementById('plGross').value || 0),
+      deductions: Number(document.getElementById('plDed').value || 0),
+      note:       document.getElementById('plNote').value.trim() || null
+    });
+    closeModal();
+    _payState.items[runId] = await TPN.getPayrollItems(runId);
+    _renderPayRunDetail(runId);
+    toast(T('common.saved'));
+  } catch (e) { toast('⚠️ ' + e.message); }
+}
+
+async function deletePayRun(id) {
+  try {
+    await TPN.deletePayrollRun(id);
+    _payState.openRun = null;
+    _payState.runs = await TPN.getPayrollRuns();
+    _renderPayRuns();
+    toast('Draft removed');
+  } catch (e) { toast('⚠️ ' + e.message); }
+}
+
+
 function renderStaffSidebar() {
   const u = currentUser;
   const initials = u.name.split(' ').map(s => s[0]).join('').slice(0, 2).toUpperCase();
@@ -8884,16 +9606,16 @@ function renderStaffSidebar() {
     // My tasks. Dining and kitchen live in this sidebar, not the admin one,
     // so without this entry we would be assigning work to people who have
     // no way to see it.
-    { id: 'tasks', label: T('nav.tasks'), icon: '🗒️', badge: window._tpnMyOpenTasks || null },
+    { id: 'tasks', label: T('nav.tasks'), icon: '🗒️', badge: badgeFor('tasks', window._tpnMyOpenTasks) },
     { id: 'staff-void-requests', label: 'My Void Requests', icon: '🚫' },
     { id: 'staff-schedule', label: T('nav.schedules'), icon: '📅' },
     { id: 'staff-attendance', label: T('nav.attendance'), icon: '✓' },
-    { id: 'staff-notifications', label: T('nav.notifications'), icon: '🔔', badge: portalState.unreadNotifCount || null },
+    { id: 'staff-notifications', label: T('nav.notifications'), icon: '🔔', badge: portalState.unreadNotifCount || null },   // real unread: cleared by marking read, not acking
     { id: 'staff-messages', label: T('nav.messages'), icon: '✉️', badge: window._tpnUnreadMsgs || null },
     { section: 'SETTINGS' },
     { id: 'staff-settings', label: 'Settings', icon: '⚙️' },
   );
-  document.getElementById('staffNav').innerHTML = items.map(it => {
+  document.getElementById('staffNav').innerHTML = langSwitchHtml() + items.map(it => {
     if (it.section) return `<div class="portal-nav-section">${it.section}</div>`;
     return `<div class="portal-nav-item" data-staff-route="${it.id}" onclick="routeStaff('${it.id}')">
       <span class="portal-nav-icon">${it.icon}</span><span>${it.label}</span>

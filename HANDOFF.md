@@ -1,6 +1,6 @@
 # TPN OS — Session Handoff
 
-**Last updated:** Aug 22, 2026 (access control, tasks, inventory, finance, real i18n — migrations 18–22)
+**Last updated:** Aug 22, 2026 (rev 2 — customer ordering fixed properly, shared table bills, payroll, mobile; migrations 18–25)
 **Deployed:** https://unorfl.github.io/tpn-os/
 **Repo:** https://github.com/UnoRfl/tpn-os
 **Supabase project ref:** `xjlqfpnzobfqxetgkkai` (single project, single branch)
@@ -235,6 +235,106 @@ tabs, which are still hardcoded English/Taglish. Those are a mechanical pass —
 wrap the string, add the key — but there are several hundred of them.
 `T('some.missing.key')` returns the key itself rather than blank, so a gap is
 visible in testing instead of rendering as an empty label.
+
+---
+
+## ⚠️ CUSTOMER ORDERING: NEVER READ BACK THROUGH THE TABLES
+
+`anon` has **INSERT but not SELECT** on `orders` and `order_items`. Any code
+doing `.insert(...).select()` therefore fails with **"permission denied for
+table order_items"** — the write succeeds and the read-back is refused.
+
+This is why migration 18 did not actually fix ordering: it fixed the RLS
+policy, and I verified it by testing the INSERT in isolation. The app's real
+call is a round trip. **Test the round trip, not the statement.**
+
+Do **not** "fix" this by granting anon SELECT. `orders_anon_read` is
+`using (true)`, so that would expose every order in the business — names,
+phone numbers, delivery addresses — to any anonymous visitor. Customers are
+anonymous by architecture here.
+
+Instead, all customer order traffic goes through two SECURITY DEFINER
+functions (sql/24):
+
+- `submit_order(...)` — creates or extends an order, returns
+  `{ id, order_number, joined_existing, total }`.
+- `track_order(order_number)` — returns exactly one order. No listing
+  endpoint, and no phone or address in the payload.
+
+Customer progress polls `track_order` every 8s rather than subscribing.
+Realtime is delivered through the same RLS as a SELECT, so a subscription
+from a customer device would silently never fire. `TPN.subscribeToOrder()`
+is the polling version and takes an **order_number**;
+`TPN.subscribeToOrderRealtime()` is the staff one and takes a uuid.
+
+### Shared table bills
+`submit_order` appends to whatever dine-in order is already open on that
+table, so several phones at one table share one bill. Every line carries
+`guest_name` and `device_id` (a random id the browser stores for itself —
+not a fingerprint, and not a secret). `table_bill(table_id)` groups a bill
+by phone; `split_order_by_device(order_id, device_id)` moves one phone's
+lines onto their own order.
+
+Splitting is **staff-gated on purpose**. device_id travels in the request
+payload, so if a guest could split by passing an id they could move somebody
+else's food onto a separate bill. A guest asks; staff performs.
+
+**Still to build:** the split UI on `tpn-dine-in-floor.html`. The RPCs and
+`TPN.getTableBill()` / `TPN.splitTableBill()` exist and are tested; nothing
+calls them yet.
+
+---
+
+## Two table-menu bugs worth remembering (both fixed)
+
+1. **The menu rendered blank until you tapped a category.** `loadMenuFromDB`
+   and `renderMenuLoadingState` both guarded on `#menu-grid`, which does not
+   exist — the container is `#menu-body`. So `renderMenu()` was skipped on
+   load, and tapping a chip was the only thing that called it. If you ever
+   see a "blank until interaction" bug, check the guard ids first.
+
+2. **Every "+ Add" needed two taps on iOS.** `.dish-card:hover` with no
+   `touch-action` makes Safari spend the first tap applying hover.
+   `.qty-btn` already had `touch-action: manipulation` — the fix had been
+   applied there and nowhere else. Hover rules are now inside
+   `@media (hover:hover) and (pointer:fine)`.
+
+---
+
+## Payroll (sql/25)
+
+`payroll.run` (admin+) builds and pays. `payroll.edit` (CEO only) changes
+rates. A director can run payroll without being able to give a raise.
+
+`draft → approved → paid → reversed`, enforced in `set_payroll_status`, not
+in the UI. A paid run's lines are frozen by trigger — which also means a paid
+run can never be deleted, even by cascade. That is deliberate: reverse it.
+
+**The build function had a bug worth not repeating.** The first version used
+an INNER join to `staff_compensation` and filtered
+`employment_status = 'active'`. In the live data those sets were disjoint —
+the only staff with rates were disabled, and the only active staff had no
+rates — so it produced an **empty run with no error**. It now LEFT JOINs the
+rate (a missing rate becomes a zero line *with a note*), includes anyone who
+clocked in during the period whatever their current status, and raises
+`nobody_to_pay` if there is genuinely nobody.
+
+---
+
+## Badges you can clear
+
+Two different things wore the same red circle. Real unread state
+(notifications, messages) is cleared by marking read in the database.
+Derived counts (new enquiries, pending voids, pending accounts, my open
+tasks, low stock) have nothing to read, so clearing writes a per-browser
+acknowledgement in `localStorage` under `tpn.badgeAck`.
+
+**The subtle part:** if the count later *falls*, the acknowledgement is
+discarded and the badge shows again. Counting cannot distinguish "the same
+2 as before" from "2 different ones", so without that rule, acking 4 pending
+voids would keep the badge hidden after all 4 were resolved and a 5th
+arrived. Re-showing a badge somebody has seen is a much safer error than
+silently swallowing a new one.
 
 ---
 
