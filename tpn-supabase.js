@@ -412,13 +412,13 @@ const TPN = {
   // ═════ REALTIME ═════════════════════════════════════════════
   /** Subscribe to order changes. Returns unsubscribe fn. */
   subscribeOrders(branchId, callback) {
-    const chan = sb.channel(`orders:${branchId || 'all'}`)
-      .on('postgres_changes', {
+    // Through TPN.liveChannel so the screens know when this feed is
+    // really connected, and so it rebuilds itself after a drop or sleep.
+    return TPN.liveChannel(`orders:${branchId || 'all'}`, (ch, touch) =>
+      ch.on('postgres_changes', {
         event: '*', schema: 'public', table: 'orders',
         filter: branchId ? `branch_id=eq.${branchId}` : undefined
-      }, payload => callback(payload))
-      .subscribe();
-    return () => sb.removeChannel(chan);
+      }, payload => { touch(); callback(payload); }));
   },
 
   subscribeInquiries(callback) {
@@ -820,6 +820,129 @@ if (typeof document !== 'undefined') {
 }
 
 // ═════════════════════════════════════════════════════════════
+// Live-feed health. The wall screens used to show "Live" based on
+// the browser's online/offline events alone, so a dead Supabase
+// channel (server paused, socket dropped, tablet slept) still read
+// "Live" while no orders arrived. This tracks the real channel
+// status, rebuilds a failed channel with backoff, and tells pages
+// when they came back so they can re-fetch what they missed.
+//
+//   const off = TPN.liveChannel('orders:all', ch => ch.on(...));
+//   TPN.onLiveStatus(s => ...)  // s = { state, lastEventAt, reconnects, since }
+//     state: 'connecting' | 'live' | 'down'
+// ═════════════════════════════════════════════════════════════
+TPN._live = { chans: new Map(), listeners: new Set(), lastEventAt: null, reconnects: 0, state: 'connecting', since: Date.now() };
+TPN.liveStatus = function () {
+  const L = TPN._live;
+  return { state: L.state, lastEventAt: L.lastEventAt, reconnects: L.reconnects, since: L.since };
+};
+TPN.onLiveStatus = function (fn) {
+  if (typeof fn !== 'function') return () => {};
+  TPN._live.listeners.add(fn);
+  try { fn(TPN.liveStatus()); } catch (e) {}
+  return () => TPN._live.listeners.delete(fn);
+};
+TPN._recomputeLive = function () {
+  const L = TPN._live;
+  let state = 'connecting';
+  const sts = [...L.chans.values()].map(c => c.status);
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) state = 'down';
+  else if (sts.length && sts.some(s => s === 'CHANNEL_ERROR' || s === 'TIMED_OUT')) state = 'down';
+  else if (sts.length && sts.every(s => s === 'SUBSCRIBED')) state = 'live';
+  else if (L.state === 'down' && sts.some(s => s !== 'SUBSCRIBED')) state = 'down';  // stay red until actually back
+  if (state === L.state) return;
+  const prev = L.state;
+  L.state = state; L.since = Date.now();
+  if (prev === 'down' && state === 'live') L.reconnects++;
+  const snap = Object.assign(TPN.liveStatus(), { previous: prev });
+  L.listeners.forEach(fn => { try { fn(snap); } catch (e) { console.warn('live listener:', e); } });
+};
+TPN.liveChannel = function (name, configure) {
+  const L = TPN._live;
+  const key = name + '#' + Math.random().toString(36).slice(2, 7);
+  let chan = null, dead = false, retryTimer = null, attempt = 0;
+  const entry = { status: 'CONNECTING' };
+  L.chans.set(key, entry);
+  const build = () => {
+    if (dead) return;
+    clearTimeout(retryTimer); retryTimer = null;
+    if (chan) { const old = chan; chan = null; try { sb.removeChannel(old); } catch (e) {} }
+    entry.status = 'CONNECTING';
+    const c = sb.channel(name);
+    configure(c, () => { L.lastEventAt = Date.now(); });
+    chan = c.subscribe((status) => {
+      if (dead || c !== chan) return;            // a status from a channel we already replaced
+      entry.status = status;
+      if (status === 'SUBSCRIBED') attempt = 0;
+      if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+        // Rebuild with backoff: 2s, 4s, 8s … capped at 30s.
+        const wait = Math.min(2000 * Math.pow(2, attempt++), 30000);
+        clearTimeout(retryTimer);
+        retryTimer = setTimeout(build, wait);
+      }
+      TPN._recomputeLive();
+    });
+    TPN._recomputeLive();
+  };
+  build();
+  const offResub = TPN.registerResub(build);
+  return () => {
+    dead = true; offResub(); clearTimeout(retryTimer);
+    L.chans.delete(key);
+    if (chan) { try { sb.removeChannel(chan); } catch (e) {} }
+    TPN._recomputeLive();
+  };
+};
+if (typeof window !== 'undefined') {
+  window.addEventListener('offline', () => TPN._recomputeLive());
+  window.addEventListener('online',  () => TPN._recomputeLive());
+}
+
+// Shared bits for the wall screens' status pill.
+TPN.agoText = function (ts) {
+  if (!ts) return 'none yet';
+  const s = Math.round((Date.now() - ts) / 1000);
+  if (s < 60) return s + 's ago';
+  const m = Math.round(s / 60);
+  return m < 60 ? m + ' min ago' : Math.round(m / 60) + ' h ago';
+};
+
+// Browsers refuse to start audio until the page has had a tap. A wall
+// screen that boots straight into a dashboard therefore stays silent on
+// the first order. TPN.unlockAudio() must run inside a tap handler;
+// TPN.audioReady() says whether that has happened.
+TPN._audioCtx = null;
+TPN.audioCtx = function () {
+  try {
+    TPN._audioCtx = TPN._audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    if (TPN._audioCtx.state === 'suspended') TPN._audioCtx.resume();
+  } catch (e) { return null; }
+  return TPN._audioCtx;
+};
+TPN.unlockAudio = function () {
+  const ctx = TPN.audioCtx();
+  if (!ctx) return false;
+  // A silent blip is what actually unlocks it on iOS Safari.
+  try { const o = ctx.createOscillator(), g = ctx.createGain(); g.gain.value = 0; o.connect(g); g.connect(ctx.destination); o.start(); o.stop(ctx.currentTime + 0.01); } catch (e) {}
+  return true;
+};
+TPN.audioReady = function () { return !!(TPN._audioCtx && TPN._audioCtx.state === 'running'); };
+TPN.chime = function (notes, volume) {
+  const ctx = TPN.audioCtx();
+  if (!ctx) return;
+  const now = ctx.currentTime;
+  (notes || [880, 1320, 1760]).forEach((f, i) => {
+    const osc = ctx.createOscillator(), gain = ctx.createGain();
+    osc.type = 'sine'; osc.frequency.value = f;
+    gain.gain.setValueAtTime(0, now + i * 0.12);
+    gain.gain.linearRampToValueAtTime(volume || 0.2, now + i * 0.12 + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.12 + 0.3);
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.start(now + i * 0.12); osc.stop(now + i * 0.12 + 0.35);
+  });
+};
+
+// ═════════════════════════════════════════════════════════════
 // UnoSys: Safer active-order query. Includes all live states, plus
 // completed/cancelled within the last `sinceMinutes` (default 60)
 // so terminal orders don't linger forever in Live Orders lanes.
@@ -837,6 +960,38 @@ TPN.listOrdersSince = async function (opts = {}) {
     .order('placed_at', { ascending: false })
     .limit(200);
   if (branchId) q = q.eq('branch_id', branchId);
+  const { data, error } = await q;
+  if (error) throw error;
+  return data || [];
+};
+
+// ─── Business-day helpers ─────────────────────────────────────
+// The restaurant's "today" is Manila's calendar day. new Date()
+// .toISOString().slice(0,10) is the UTC day, which is still yesterday
+// until 8 AM in the Philippines, so opening-shift clock-ins and early
+// orders landed on the wrong date.
+TPN.TZ = 'Asia/Manila';
+TPN.today = function (d) {
+  // en-CA formats as YYYY-MM-DD
+  return new Intl.DateTimeFormat('en-CA', { timeZone: TPN.TZ, year: 'numeric', month: '2-digit', day: '2-digit' })
+    .format(d || new Date());
+};
+TPN.dayStartISO = function (ymd) {
+  // Manila has no DST, so midnight there is always 16:00 UTC the day before.
+  return new Date((ymd || TPN.today()) + 'T00:00:00+08:00').toISOString();
+};
+
+// Every order placed since Manila midnight, cancelled ones excluded.
+// The dashboard used to sum portalState.orders, which only holds active
+// orders plus the last hour, so "Revenue Today" read low all evening.
+TPN.listOrdersToday = async function (opts = {}) {
+  let q = sb.from('orders')
+    .select('id, order_number, order_type, status, total, placed_at, order_items(name_snapshot, quantity, voided_at)')
+    .gte('placed_at', TPN.dayStartISO())
+    .neq('status', 'cancelled')
+    .order('placed_at', { ascending: false })
+    .limit(1000);
+  if (opts.branchId) q = q.eq('branch_id', opts.branchId);
   const { data, error } = await q;
   if (error) throw error;
   return data || [];
@@ -1693,7 +1848,7 @@ TPN.getCompensation = async function (staffId) {
 };
 
 TPN.setCompensation = async function (row) {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = TPN.today();
   const from  = row.effectiveFrom || today;
 
   // Close any open rate that starts before the new one.

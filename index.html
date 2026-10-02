@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="config.js?v=20260822d"></script>
-<script src="tpn-supabase.js?v=20260822d"></script>
+<script src="config.js?v=20261002"></script>
+<script src="tpn-supabase.js?v=20261002"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="description" content="Tyo Paeng Nyo — Authentic Filipino cuisine in Las Piñas since 2003. Order online, book events, or inquire about catering.">
 <meta name="theme-color" content="#8B1A0E">
@@ -296,6 +296,9 @@
     text-decoration: none; border: none; font-family: inherit;
   }
   .btn-primary { background: var(--ember); color: #FFF8E8; box-shadow: var(--shadow); }
+  button.is-busy { opacity: .6; cursor: progress; }
+  .portal-backdrop { display: none; }
+  #modal:focus { outline: none; }
   .btn-primary:hover { background: var(--brick); transform: translateY(-2px); box-shadow: var(--shadow-warm); }
   .btn-outline { background: transparent; color: var(--ink); border: 1.5px solid var(--brick); }
   .btn-outline:hover { background: var(--brick); color: #FFF8E8; }
@@ -1578,6 +1581,8 @@
     .portal-app { grid-template-columns: 1fr; }
     .portal-sidebar { position: fixed; top: 0; left: 0; width: 260px; transform: translateX(-100%); transition: transform 0.3s; z-index: 510; box-shadow: var(--shadow-lg); }
     .portal-sidebar.open { transform: translateX(0); }
+    /* Tap outside the open drawer to close it. */
+    .portal-backdrop.show { display: block; position: fixed; inset: 0; z-index: 505; background: rgba(20,10,4,.45); }
     .portal-main { padding: 64px 16px 40px; }
     .login-screen { grid-template-columns: 1fr; }
     .login-brand-side { display: none; }
@@ -1602,6 +1607,9 @@
     .nav-toggle { display: block; }
     .hero { padding: 110px 20px 80px; flex-direction: column; justify-content: center; }
     .hero-plate { right: -140px; width: 280px; height: 280px; opacity: 0.35; top: 50%; }
+    /* On phones the plate is decoration half off-screen; its slide text was
+       sliced in half ("Menu lo…"). Show the plate, not the words. */
+    .hero-plate .featured-track, .hero .featured-dots { display: none; }
     .hero-ring { right: -220px; width: 440px; height: 440px; }
     .stats-bar .stat-num { font-size: 30px; }
     .quick-actions, .testimonials, .menu-section, .restaurant-feature,
@@ -2046,9 +2054,21 @@ html[data-density="compact"] table.matrix th,
 html[data-density="compact"] table.matrix td  { padding: 6px 8px; }
 
 /* Respect a reduced-motion preference and the "reduce motion" setting. */
-html[data-motion="off"] *, @media (prefers-reduced-motion: reduce) {
+/* Two rules, not one: "@media" cannot sit inside a selector list, and the
+   old combined form was invalid CSS that browsers threw away entirely. */
+html[data-motion="off"] *, html[data-motion="off"] *::before, html[data-motion="off"] *::after {
   animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
   transition-duration: 0.001ms !important;
+  scroll-behavior: auto !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 /* ── Preferences tab ── */
@@ -2201,7 +2221,7 @@ html[data-theme="dark"]  .panel, html[data-theme="night"] .panel {
       <button class="lang-btn" onclick="setLang('tl')" title="Tagalog">TL</button>
     </li>
   </ul>
-  <button class="nav-toggle" onclick="toggleMobileMenu()">☰</button>
+  <button class="nav-toggle" onclick="toggleMobileMenu()" aria-label="Open menu">☰</button>
 </nav>
 
 <div class="mobile-menu" id="mobileMenu">
@@ -2787,7 +2807,7 @@ html[data-theme="dark"]  .panel, html[data-theme="night"] .panel {
 <div class="portal-page" id="portal-admin">
   <div class="portal-app">
     <div class="portal-mobile-bar">
-      <button class="portal-mobile-toggle" onclick="togglePortalSidebar()">☰</button>
+      <button class="portal-mobile-toggle" onclick="togglePortalSidebar()" aria-label="Open menu" aria-expanded="false">☰</button>
       <div class="portal-mobile-brand">TPN Staff</div>
       <div style="width: 30px;"></div>
     </div>
@@ -2802,12 +2822,13 @@ html[data-theme="dark"]  .panel, html[data-theme="night"] .panel {
     <main class="portal-main" id="portalMain"><!-- routed by JS --></main>
   </div>
 </div>
+<div class="portal-backdrop" id="portalBackdrop" onclick="closePortalSidebar()"></div>
 
 <!-- STAFF PERSONAL VIEW (Dining/Kitchen) -->
 <div class="portal-page" id="portal-staff">
   <div class="portal-app">
     <div class="portal-mobile-bar">
-      <button class="portal-mobile-toggle" onclick="togglePortalSidebar()">☰</button>
+      <button class="portal-mobile-toggle" onclick="togglePortalSidebar()" aria-label="Open menu" aria-expanded="false">☰</button>
       <div class="portal-mobile-brand">TPN Staff</div>
       <div style="width: 30px;"></div>
     </div>
@@ -2825,7 +2846,7 @@ html[data-theme="dark"]  .panel, html[data-theme="night"] .panel {
 
 <!-- MODAL CONTAINER -->
 <div class="modal-overlay" id="modalOverlay" onclick="closeModal(event)">
-  <div class="modal" id="modal" onclick="event.stopPropagation()"><!-- filled by JS --></div>
+  <div class="modal" id="modal" role="dialog" aria-modal="true" tabindex="-1" onclick="event.stopPropagation()"><!-- filled by JS --></div>
 </div>
 
 <script>
@@ -2927,6 +2948,12 @@ const TPN_STRINGS = {
   'common.name':      { en: 'Name',            tl: 'Pangalan' },
   'common.category':  { en: 'Category',        tl: 'Kategorya' },
   'common.noAccess':  { en: "You don't have access to this.", tl: 'Wala kang access dito.' },
+
+  /* ── menu load states (public site) ──────────────── */
+  'menu.loading':         { en: 'Menu loading…', tl: 'Nilo-load ang menu…' },
+  'menu.unavailable':     { en: 'The menu can’t load right now.', tl: 'Hindi ma-load ang menu ngayon.' },
+  'menu.unavailableBody': { en: 'It’s on our side, not yours. We’ll keep trying — or call us to order.', tl: 'Problema ito sa amin, hindi sa iyo. Susubukan ulit namin — o tumawag para umorder.' },
+  'menu.retry':           { en: 'Try again →', tl: 'Subukan ulit →' },
 
   /* ── public site nav ─────────────────────────────── */
   'nav.home':        { en: 'Home',           tl: 'Home' },
@@ -3312,19 +3339,35 @@ document.addEventListener('DOMContentLoaded', function () {
    ════════════════════════════════════════════════════ */
 let menuData = [];
 let featured = [];
+// 'loading' | 'ok' | 'error'. The menu pages render differently for each,
+// so an unreachable database no longer reads as "no results — baka may typo?"
+let menuLoadState = 'loading';
+let _menuRetryTimer = null;
 
 async function loadMenuFromDB() {
   try {
-    menuData = await TPN.loadGroupedMenu('laspinas');
-    featured = await TPN.getFeaturedItems();
-    // Re-render anything that depends on menu
-    if (document.getElementById('featuredTrack')) renderFeatured();
-    if (document.getElementById('catChips')) renderCategoryChips();
-    if (document.getElementById('menuGrid')) renderMenu();
+    // Deadline: a request to an unreachable server can hang rather than
+    // fail, which left "Menu loading…" up for good.
+    const deadline = (p) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 8000))]);
+    menuData = await deadline(TPN.loadGroupedMenu('laspinas'));
+    featured = await deadline(TPN.getFeaturedItems());
+    menuLoadState = 'ok';
+    clearInterval(_menuRetryTimer); _menuRetryTimer = null;
   } catch(e) {
     console.error('loadMenuFromDB:', e);
+    menuLoadState = 'error';
+    // Keep trying quietly; the page fills itself in when the server is back.
+    if (!_menuRetryTimer) _menuRetryTimer = setInterval(loadMenuFromDB, 15000);
   }
+  // Re-render anything that depends on menu (the grid's container is #menuSection;
+  // this used to check for a #menuGrid that does not exist, so the menu page
+  // never redrew when the data landed).
+  if (document.getElementById('featuredTrack')) renderFeatured();
+  if (document.getElementById('catChips')) renderCategoryChips();
+  if (document.getElementById('menuSection')) renderMenu();
 }
+window.addEventListener('online', () => { if (menuLoadState === 'error') loadMenuFromDB(); });
+function retryMenuLoad() { menuLoadState = 'loading'; renderFeatured(); renderMenu(); loadMenuFromDB(); }
 
 /* ════════════════════════════════════════════════════
    NAV / ROUTING
@@ -3374,7 +3417,12 @@ function renderFeatured() {
   const dots = document.getElementById('featuredDots');
   if (!track || !dots) return;
   if (!featured.length) {
-    track.innerHTML = `<div class="featured-slide active" style="text-align:center;color:var(--ink-muted);"><div style="font-size:48px;margin-bottom:14px;">🍽️</div><div style="font-family:'Playfair Display',serif;font-size:22px;color:var(--ink);">Menu loading…</div></div>`;
+    const msg = menuLoadState === 'error'
+      ? `<div style="font-family:'Playfair Display',serif;font-size:20px;color:var(--ink);margin-bottom:10px;">${E(T('menu.unavailable'))}</div><button class="empty-state-cta" onclick="retryMenuLoad()">${E(T('menu.retry'))}</button>`
+      : menuLoadState === 'ok'
+        ? `<div style="font-family:'Playfair Display',serif;font-size:22px;color:var(--ink);">Sarap na hindi mo malilimutan.</div>`
+        : `<div style="font-family:'Playfair Display',serif;font-size:22px;color:var(--ink);">${E(T('menu.loading'))}</div>`;
+    track.innerHTML = `<div class="featured-slide active" style="text-align:center;color:var(--ink-muted);"><div style="font-size:48px;margin-bottom:14px;">🍽️</div>${msg}</div>`;
     dots.innerHTML = '';
     return;
   }
@@ -3436,6 +3484,17 @@ function renderMenu() {
     });
     html += '</div>';
   });
+  if (!html && menuLoadState !== 'ok') {
+    sec.innerHTML = menuLoadState === 'error'
+      ? `<div class="empty-state" role="alert">
+          <div class="empty-state-icon">📶</div>
+          <div class="empty-state-title">${E(T('menu.unavailable'))}</div>
+          <div class="empty-state-body">${E(T('menu.unavailableBody'))}</div>
+          <button class="empty-state-cta" onclick="retryMenuLoad()">${E(T('menu.retry'))}</button>
+        </div>`
+      : `<div class="menu-grid" aria-busy="true">${'<div class="menu-card skeleton" style="min-height:190px;"></div>'.repeat(6)}</div>`;
+    return;
+  }
   if (!html) {
     const q2 = (document.getElementById('menuSearch')?.value || '').trim();
     sec.innerHTML = `<div class="empty-state">
@@ -3980,6 +4039,22 @@ const portalState = {
 // value that hits innerHTML MUST go through E().
 const E = (v) => (window.TPN && TPN.esc) ? TPN.esc(v) : String(v == null ? '' : v).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
+// One error panel for every portal list that fails to load. Says what
+// failed, why (offline vs. the server refusing), and offers a retry, so a
+// failed fetch never reads as an empty list.
+function loadErrorPanel(what, err, retryJs) {
+  const offline = !navigator.onLine || /failed to fetch|network/i.test(String(err && (err.message || err)));
+  const why = offline
+    ? 'The connection to the server dropped. Nothing has been lost.'
+    : 'The server refused the request: ' + E((err && (err.message || err.details)) || String(err));
+  return `<div class="panel load-error" role="alert" style="padding:32px;text-align:center;">
+    <div style="font-size:36px;margin-bottom:10px;">${offline ? '📶' : '⚠️'}</div>
+    <div style="font-family:'Playfair Display',serif;font-size:20px;color:var(--ink);margin-bottom:6px;">Couldn’t load ${E(what)}</div>
+    <div style="color:var(--ink-muted);font-size:13px;margin-bottom:16px;">${why}</div>
+    ${retryJs ? `<button class="btn-primary" onclick="${E(retryJs)}" style="padding:10px 22px;">↻ Try again</button>` : ''}
+  </div>`;
+}
+
 // UnoSys: safe number formatter — never throws on null/NaN.
 const N = (v, digits = 2) => {
   const n = Number(v);
@@ -4036,7 +4111,7 @@ async function loadInquiriesFromSupabase() {
       time:    timeAgo(new Date(r.created_at))
     }));
     renderAdminSidebar?.();
-    if (currentRoute === 'inquiries' || currentRoute === 'dashboard') route(currentRoute);
+    if (currentRoute === 'inquiries' || currentRoute === 'dashboard') route(currentRoute, { refresh: true });
   } catch(e) { console.error('loadInquiriesFromSupabase:', e); }
 }
 
@@ -4054,7 +4129,7 @@ async function loadStaffFromSupabase() {
       phone:         r.phone
     }));
     renderAdminSidebar?.();
-    if (currentRoute === 'staff' || currentRoute === 'accounts' || currentRoute === 'dashboard' || currentRoute === 'staff-board') route(currentRoute);
+    if (currentRoute === 'staff' || currentRoute === 'accounts' || currentRoute === 'dashboard' || currentRoute === 'staff-board') route(currentRoute, { refresh: true });
   } catch(e) { console.error('loadStaffFromSupabase:', e); }
 }
 
@@ -4193,13 +4268,16 @@ function enterPortal() {
   // Screens go straight to their surface. Nothing below runs for them.
   if (redirectDisplayAccount(currentUser.tier)) return;
 
-  const validAdmin = ['dashboard','inquiries','orders','kds','staff-board','schedules','menu-manager','table-qr','accounts','audit','attendance-admin','messages-admin','void-requests'];
-  const validStaff = ['staff-home','kds','orders','staff-schedule','staff-attendance','staff-messages','staff-settings','staff-void-requests'];
+  const validStaff = ['staff-home','kds','orders','staff-schedule','staff-attendance','staff-messages','staff-notifications','staff-void-requests','tasks','preferences','staff-settings'];
+  // A ?view= in the address bar (a reload, or a link someone shared) wins
+  // over the saved tab; it used to be written on every navigation and
+  // never read back.
+  const fromUrl = (() => { try { return new URLSearchParams(window.location.search).get('view'); } catch (e) { return null; } })();
 
   if (['dining', 'kitchen'].includes(currentUser.tier)) {
     showPortalPage('portal-staff');
     renderStaffSidebar();
-    const saved = readLastRoute('staff');
+    const saved = fromUrl || readLastRoute('staff');
     // Kitchen role can't sit on 'orders'; dining can't sit on 'kds'
     const allowed = validStaff.filter(r => {
       if (r === 'kds' && currentUser.tier !== 'kitchen') return false;
@@ -4211,14 +4289,10 @@ function enterPortal() {
   } else {
     showPortalPage('portal-admin');
     renderAdminSidebar();
-    const saved = readLastRoute('admin');
-    // 'audit' is admin+ only
-    const allowed = validAdmin.filter(r => {
-      if (r === 'audit' && !['director','ceo','admin'].includes(currentUser.tier)) return false;
-      return true;
-    });
-    const target = (saved && allowed.includes(saved)) ? saved : 'dashboard';
-    route(target);
+    const allowed = window._tpnAdminRoutes || ['dashboard'];
+    const candidates = [fromUrl, readLastRoute('admin')];
+    const target = candidates.find(r => r && allowed.includes(r)) || (allowed.includes('dashboard') ? 'dashboard' : allowed[0]);
+    route(target, { replace: true });
   }
   // Kick off live data (orders realtime + initial fetches)
   startSupabaseSync().catch(e => console.error('sync start:', e));
@@ -4383,8 +4457,19 @@ async function tryRestoreSession() {
 }
 
 function togglePortalSidebar() {
-  document.getElementById('portalSidebar')?.classList.toggle('open');
-  document.getElementById('staffSidebar')?.classList.toggle('open');
+  const open = !(document.getElementById('portalSidebar')?.classList.contains('open') ||
+                 document.getElementById('staffSidebar')?.classList.contains('open'));
+  setPortalSidebar(open);
+}
+function closePortalSidebar() { setPortalSidebar(false); }
+function setPortalSidebar(open) {
+  document.getElementById('portalSidebar')?.classList.toggle('open', open);
+  document.getElementById('staffSidebar')?.classList.toggle('open', open);
+  document.getElementById('portalBackdrop')?.classList.toggle('show', open);
+  document.querySelectorAll('.portal-mobile-toggle').forEach(b => {
+    b.setAttribute('aria-expanded', String(open));
+    b.setAttribute('aria-label', open ? 'Close menu' : 'Open menu');
+  });
 }
 
 
@@ -4668,6 +4753,11 @@ function renderAdminSidebar() {
   visible.push({ key: 'sec.you', items: [
     { id: 'preferences', perm: null, key: 'nav.preferences', icon: '⚙️' }
   ]});
+  // The routes this account may land on (reload, ?view= link, saved tab,
+  // "Open on sign-in"). Derived from the sidebar so the two cannot drift —
+  // a hand-kept list here used to miss Inventory, Finance, Payroll, Tasks,
+  // Guests and more, so reloading on any of them dumped you on Dashboard.
+  window._tpnAdminRoutes = visible.flatMap(sec => sec.items).filter(it => !it.external).map(it => it.id);
 
   const collapsed = readCollapsedSections();
 
@@ -4732,6 +4822,14 @@ function readLastRoute(kind) {
 }
 function route(r, opts) {
   opts = opts || {};
+  // A refresh is the same page redrawn with new data (realtime, a timer).
+  // It must not touch history, close the drawer or jump the scroll.
+  if (opts.refresh) {
+    const sc = portalScroller(), y = sc ? sc.scrollTop : 0;
+    renderRouteInto(r, document.getElementById('portalMain'));
+    if (sc) sc.scrollTop = y;
+    return;
+  }
   currentRoute = r;
   saveLastRoute('admin', r);
   // UnoSys: keep browser back/forward in sync with in-app routing.
@@ -4761,7 +4859,22 @@ function route(r, opts) {
 
   // close mobile sidebar
   document.getElementById('portalSidebar')?.classList.remove('open');
-  const main = document.getElementById('portalMain');
+  document.getElementById('portalBackdrop')?.classList.remove('show');
+  renderRouteInto(r, document.getElementById('portalMain'));
+  scrollPortalTop();
+}
+
+// The portal pages are fixed overlays that scroll themselves
+// (.portal-page { overflow-y: auto }), so window.scrollTo never moved
+// them: a new tab opened at the previous tab's scroll position.
+function portalScroller() { return document.querySelector('.portal-page.active'); }
+function scrollPortalTop() {
+  const sc = portalScroller();
+  if (sc) sc.scrollTop = 0;
+  window.scrollTo({ top: 0, behavior: 'instant' });
+}
+
+function renderRouteInto(r, main) {
   switch (r) {
     case 'dashboard': renderDashboard(main); break;
     case 'inquiries': renderInquiries(main); break;
@@ -4791,7 +4904,43 @@ function route(r, opts) {
     case 'variance': renderVariance(main); break;
     case 'preferences': renderPreferences(main); break;
   }
-  window.scrollTo({ top: 0, behavior: 'instant' });
+}
+
+// Today's totals come from the server, not portalState.orders: that list
+// only holds active orders plus the last hour, so summing it made
+// "Revenue Today" shrink as the evening went on.
+let _todayFetchAt = 0, _todayTrailing = null, _todayInflight = null;
+function refreshTodaySummary(force) {
+  if (!window.TPN || !TPN.listOrdersToday || !currentUser) return Promise.resolve(portalState.today);
+  const wait = 20000 - (Date.now() - _todayFetchAt);
+  if (!force && wait > 0) {
+    // Throttled, but still pick up the order that triggered this call.
+    if (!_todayTrailing) _todayTrailing = setTimeout(() => { _todayTrailing = null; refreshTodaySummary(true); }, wait);
+    return Promise.resolve(portalState.today);
+  }
+  if (_todayInflight) return _todayInflight;
+  _todayFetchAt = Date.now();
+  _todayInflight = TPN.listOrdersToday().then(rows => {
+    portalState.today = {
+      orders: rows,
+      count: rows.length,
+      revenue: rows.reduce((n, o) => n + (Number(o.total) || 0), 0),
+      at: Date.now()
+    };
+    const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+    set('tileRevToday', _peso(portalState.today.revenue));
+    set('tileOrdersToday', portalState.today.count);
+    set('tileOrdersTodayTrend', portalState.today.count + ' total today');
+    return portalState.today;
+  }).catch(e => {
+    console.error('refreshTodaySummary:', e);
+    ['tileRevToday', 'tileOrdersToday'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el && el.textContent === '…') { el.textContent = '—'; el.title = 'Could not load today’s totals'; }
+    });
+    return portalState.today;
+  }).finally(() => { _todayInflight = null; });
+  return _todayInflight;
 }
 
 function renderDashboard(main) {
@@ -4802,21 +4951,21 @@ function renderDashboard(main) {
 
   // Tier-specific tiles
   let tiles = '';
+  const td = portalState.today;   // filled by refreshTodaySummary(); null until the first fetch lands
+  setTimeout(() => refreshTodaySummary(), 0);
   if (u.tier === 'director' || u.tier === 'ceo') {
-    const totalRevToday = portalState.orders.reduce((n, o) => n + (Number(o.total) || 0), 0);
-    const ordersToday = portalState.orders.length;
     const activeStaff = portalState.staff.filter(s => s.accountState === 'active').length;
     const branchCount = portalState.branches.length;
     tiles = `
-      <div class="tile tile-clickable" onclick="showRevenueDrilldown()" title="View revenue breakdown"><div class="tile-icon">💰</div><div class="tile-label">Revenue Today</div><div class="tile-value">₱${totalRevToday.toLocaleString()}</div><div class="tile-trend">today</div><div class="tile-drill">View breakdown →</div></div>
-      <div class="tile tile-clickable" onclick="route('orders')" title="View all orders"><div class="tile-icon">📋</div><div class="tile-label">Orders Today</div><div class="tile-value">${ordersToday}</div><div class="tile-trend">${portalState.orders.filter(o=>o.status!=='done').length} active</div><div class="tile-drill">View orders →</div></div>
+      <div class="tile tile-clickable" onclick="showRevenueDrilldown()" title="View revenue breakdown"><div class="tile-icon">💰</div><div class="tile-label">Revenue Today</div><div class="tile-value" id="tileRevToday">${td ? _peso(td.revenue) : '…'}</div><div class="tile-trend">since midnight, excl. cancelled</div><div class="tile-drill">View breakdown →</div></div>
+      <div class="tile tile-clickable" onclick="route('orders')" title="View all orders"><div class="tile-icon">📋</div><div class="tile-label">Orders Today</div><div class="tile-value" id="tileOrdersToday">${td ? td.count : '…'}</div><div class="tile-trend">${portalState.orders.filter(o=>o.status!=='done').length} active</div><div class="tile-drill">View orders →</div></div>
       <div class="tile tile-clickable" onclick="route('staff-board')" title="View staff board"><div class="tile-icon">👥</div><div class="tile-label">Active Staff</div><div class="tile-value">${activeStaff}</div><div class="tile-trend">Las Piñas</div><div class="tile-drill">View staff →</div></div>
       <div class="tile tile-clickable" onclick="route('inquiries')" title="View inquiries"><div class="tile-icon">📩</div><div class="tile-label">Open Inquiries</div><div class="tile-value">${portalState.inquiries.filter(i => i.status !== 'closed').length}</div><div class="tile-trend">${portalState.inquiries.filter(i => i.status === 'new').length} new</div><div class="tile-drill">View inquiries →</div></div>`;
   } else {
     // admin / manager / supervisor — same single-branch view
     const activeStaffCount = portalState.staff.filter(s => s.accountState === 'active').length;
     tiles = `
-      <div class="tile tile-clickable" onclick="route('orders')" title="View orders"><div class="tile-icon">📋</div><div class="tile-label">Active Orders</div><div class="tile-value">${portalState.orders.filter(o=>o.status!=='done').length}</div><div class="tile-trend">${portalState.orders.length} total today</div><div class="tile-drill">View orders →</div></div>
+      <div class="tile tile-clickable" onclick="route('orders')" title="View orders"><div class="tile-icon">📋</div><div class="tile-label">Active Orders</div><div class="tile-value">${portalState.orders.filter(o=>o.status!=='done').length}</div><div class="tile-trend" id="tileOrdersTodayTrend">${td ? td.count + ' total today' : '…'}</div><div class="tile-drill">View orders →</div></div>
       <div class="tile tile-clickable" onclick="route('kds')"><div class="tile-icon">🍳</div><div class="tile-label">In the Kitchen</div><div class="tile-value">${portalState.orders.filter(o=>o.status==='received'||o.status==='preparing').length}</div><div class="tile-trend">cooking now</div><div class="tile-drill">Open KDS →</div></div>
       <div class="tile tile-clickable" onclick="route('accounts')"><div class="tile-icon">👥</div><div class="tile-label">Active Staff</div><div class="tile-value">${activeStaffCount}</div><div class="tile-trend">Las Piñas</div><div class="tile-drill">Manage →</div></div>
       <div class="tile tile-clickable" onclick="route('inquiries')"><div class="tile-icon">📩</div><div class="tile-label">Inquiries</div><div class="tile-value">${portalState.inquiries.filter(i => i.status !== 'closed' && i.status !== 'resolved').length}</div><div class="tile-trend">${portalState.inquiries.filter(i => i.status === 'new').length} new</div><div class="tile-drill">View inquiries →</div></div>`;
@@ -5371,6 +5520,7 @@ function showToastPortal(msg) {
 // ─── SUPABASE INTEGRATION FOR STAFF PORTAL ───
 let _supaOrdersUnsub = null;
 let _supaTablesChan  = null;
+const _portalLastSig = {};   // table id -> { call, bill } as last seen
 
 async function loadOrdersFromSupabase() {
   try {
@@ -5386,10 +5536,7 @@ async function loadOrdersFromSupabase() {
       (Date.now() - (x.placedAt || 0)) < 60 * 60 * 1000
     );
     portalState.orders = orders.map(dbOrderToPortalOrder).concat(kept);
-    if (typeof renderAdminSidebar === 'function') renderAdminSidebar();
-    if (currentRoute === 'orders' || currentRoute === 'dashboard' || currentRoute === 'kds') {
-      route(currentRoute);
-    }
+    rerenderLive();
   } catch(e) {
     console.error('loadOrdersFromSupabase:', e);
     try { toast('⚠ Could not load orders — will retry when connection returns.'); } catch(_){}
@@ -5440,7 +5587,7 @@ function subscribeToSupabaseOrders() {
         portalState.orders.unshift(dbOrderToPortalOrder(full));
         showToastPortal(`🔔 New order ${full.order_number}`);
         if (typeof playOrderChime === 'function') playOrderChime();
-        rerenderCurrent();
+        rerenderLive();
       } else if (payload.eventType === 'UPDATE') {
         const existing = portalState.orders.find(x => x.dbId === payload.new.id);
         if (!existing) return;
@@ -5458,7 +5605,7 @@ function subscribeToSupabaseOrders() {
             const idx = portalState.orders.findIndex(x => x.dbId === payload.new.id);
             if (idx !== -1 && portalState.orders[idx].status === 'done') {
               portalState.orders.splice(idx, 1);
-              rerenderCurrent();
+              rerenderLive();
             }
           }, 5 * 60 * 1000);
         }
@@ -5470,10 +5617,10 @@ function subscribeToSupabaseOrders() {
             if (full) Object.assign(existing, dbOrderToPortalOrder(full));
           } catch(_){}
         }
-        rerenderCurrent();
+        rerenderLive();
       } else if (payload.eventType === 'DELETE') {
         const idx = portalState.orders.findIndex(x => x.dbId === payload.old?.id);
-        if (idx !== -1) { portalState.orders.splice(idx, 1); rerenderCurrent(); }
+        if (idx !== -1) { portalState.orders.splice(idx, 1); rerenderLive(); }
       }
     } catch(e){ console.error('order realtime:', e); }
   });
@@ -5482,13 +5629,17 @@ function subscribeToSupabaseOrders() {
   if (_supaTablesChan) sb.removeChannel(_supaTablesChan);
   _supaTablesChan = sb.channel('portal_tables')
     .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'restaurant_tables' }, (payload) => {
-      const t = payload.new, old = payload.old;
-      if (!old?.call_staff_at && t.call_staff_at) {
+      // Compare against what this page last saw, not payload.old:
+      // restaurant_tables has no REPLICA IDENTITY FULL, so payload.old
+      // holds only the id and every update re-announced an open call.
+      const t = payload.new, old = _portalLastSig[t.id] || {};
+      if (!old.call && t.call_staff_at) {
         showToastPortal(`📳 Table ${t.table_number} is requesting assistance!`);
       }
-      if (!old?.bill_requested_at && t.bill_requested_at) {
-        showToastPortal(`💳 Table ${t.table_number}: bill (${t.bill_payment_method || '?'}, ₱${Number(t.bill_total||0).toFixed(2)})`);
+      if (!old.bill && t.bill_requested_at) {
+        showToastPortal(`💳 Table ${t.table_number}: bill (${t.bill_payment_method || '?'}, ${_peso(t.bill_total)})`);
       }
+      _portalLastSig[t.id] = { call: !!t.call_staff_at, bill: !!t.bill_requested_at };
     })
     .subscribe();
 }
@@ -5513,7 +5664,7 @@ function renderOrders(main) {
     { id: 'received', label: 'Received', class: 'lane-received', next: 'preparing', nextLabel: 'Start Preparing →' },
     { id: 'preparing', label: 'Preparing', class: 'lane-preparing', next: 'ready', nextLabel: 'Mark Ready →' },
     { id: 'ready', label: 'Ready', class: 'lane-ready', next: 'done', nextLabel: 'Mark Done ✓' },
-    { id: 'done', label: 'Done (Today)', class: 'lane-done', next: null },
+    { id: 'done', label: 'Recently Done', class: 'lane-done', next: null },   // last hour only, see loadOrdersFromSupabase
   ];
   let html = `<div class="portal-header">
     <div><h1>Live Orders</h1><div class="portal-header-sub">Active order queue. Click "next" buttons to advance through the workflow.</div></div>
@@ -5587,7 +5738,7 @@ function getOrderAge(o) {
 }
 
 // Auto-refresh order board every 30s
-setInterval(() => { if (currentRoute === 'orders' && currentUser) route('orders'); }, 30000);
+setInterval(() => { if (currentRoute === 'orders' && currentUser) rerenderLive(); }, 30000);
 
 /* ════════════════════════════════════════════════════
    KITCHEN DISPLAY SYSTEM (KDS)
@@ -5643,7 +5794,7 @@ function renderKDS(main) {
           </div>
         </div>
         <div class="kds-items">${items}</div>
-        ${o.specialReq ? `<div class="kds-special">⚠️ ${o.specialReq}</div>` : ''}
+        ${o.specialReq ? `<div class="kds-special">⚠️ ${E(o.specialReq)}</div>` : ''}
         ${nextAction}
       </div>`;
     });
@@ -5654,7 +5805,7 @@ function renderKDS(main) {
 }
 
 // KDS auto-refresh for age counters + new tickets
-setInterval(() => { if (currentRoute === 'kds' && currentUser) rerenderCurrent(); }, 15000);
+setInterval(() => { if (currentRoute === 'kds' && currentUser) rerenderLive(); }, 15000);
 
 /* Guest chips are a second lookup, so they arrive after the tickets paint.
    Deliberately fire-and-forget: a ticket must never wait on this, and a
@@ -5698,11 +5849,39 @@ function playOrderChime() {
 function rerenderCurrent() {
   // Kitchen/dining staff run in the staff shell (routeStaff), everyone else in admin (route)
   if (currentUser && ['dining','kitchen'].includes(currentUser.tier)) {
-    routeStaff(currentRoute);
+    routeStaff(currentRoute, { refresh: true });
   } else {
-    route(currentRoute);
+    route(currentRoute, { refresh: true });
     renderAdminSidebar();
   }
+}
+
+// Background redraws (realtime events, timers). Only the pages that show
+// live orders are redrawn; every other page just gets fresh sidebar
+// badges, so a new order cannot wipe a half-filled Daily Close or
+// Schedules form. A redraw is also held while someone is typing on the
+// page and runs once they leave the field.
+const LIVE_ROUTES = ['orders', 'kds', 'dashboard', 'staff-home'];
+let _liveRedrawPending = false;
+function rerenderLive() {
+  if (!currentUser) return;
+  const isStaffShell = ['dining','kitchen'].includes(currentUser.tier);
+  if (!LIVE_ROUTES.includes(currentRoute)) {
+    if (!isStaffShell && typeof renderAdminSidebar === 'function') renderAdminSidebar();
+    return;
+  }
+  const a = document.activeElement;
+  const main = document.getElementById(isStaffShell ? 'staffMain' : 'portalMain');
+  if (a && main && main.contains(a) && a.matches('input, textarea, select, [contenteditable]')) {
+    if (!_liveRedrawPending) {
+      _liveRedrawPending = true;
+      // Delayed: blur fires on mousedown, and redrawing straight away would
+      // remove the button they are in the middle of clicking.
+      a.addEventListener('blur', () => setTimeout(() => { _liveRedrawPending = false; rerenderLive(); }, 300), { once: true });
+    }
+    return;
+  }
+  rerenderCurrent();
 }
 
 async function advanceOrder(id, nextStatus) {
@@ -6127,7 +6306,7 @@ async function renderTableQR(main) {
     document.getElementById('tableQrBody').innerHTML = html;
   } catch(e) {
     console.error('renderTableQR:', e);
-    document.getElementById('tableQrBody').innerHTML = `<div class="panel" style="padding:24px;color:var(--danger);">Could not load tables: ${e.message||e}</div>`;
+    document.getElementById('tableQrBody').innerHTML = loadErrorPanel('tables', e, 'rerenderCurrent()');
   }
 }
 
@@ -6174,9 +6353,14 @@ async function refreshMenuManager() {
   const body = document.getElementById('menuManagerBody');
   if (!body) return;
   try {
-    const { data: cats } = await sb.from('menu_categories').select('*').order('display_order');
-    const { data: items } = await sb.from('menu_items').select('*, menu_categories(name)').order('display_order');
+    const { data: cats, error: catErr } = await sb.from('menu_categories').select('*').order('display_order');
+    const { data: items, error: itemErr } = await sb.from('menu_items').select('*, menu_categories(name)').order('display_order');
+    // A failed load must not render as "No menu items yet" — that invites
+    // a manager to start re-entering a menu that is still there.
+    if (catErr || itemErr) throw (itemErr || catErr);
     if (!items || !items.length) {
+      const sub = document.querySelector('.portal-header-sub');
+      if (sub) sub.textContent = 'No items yet.';
       body.innerHTML = `<div class="panel" style="padding:40px;text-align:center;">
         <div style="font-size:48px;margin-bottom:14px;">🍽️</div>
         <div style="font-family:'Playfair Display',serif;font-size:22px;color:var(--ink);margin-bottom:8px;">No menu items yet</div>
@@ -6210,7 +6394,7 @@ async function refreshMenuManager() {
           <td class="table-actions">
             <button class="btn-secondary" onclick="showMenuItemModal('${E(it.id)}')">✎ Edit</button>
             <button class="btn-secondary" onclick="toggleMenuAvail('${E(it.id)}', ${!it.is_available})">${it.is_available ? '✕ Sold Out' : '↻ Restock'}</button>
-            <button class="btn-secondary danger" onclick="deleteMenuItem('${E(it.id)}', '${safeName}')">Delete</button>
+            <button class="btn-secondary danger" onclick="deleteMenuItem('${E(it.id)}', '${E(safeName)}')">Delete</button>
           </td>
         </tr>`;
       });
@@ -6221,7 +6405,9 @@ async function refreshMenuManager() {
     if (sub) sub.textContent = `${items.length} items across ${Object.values(byCat).filter(g=>g.items.length).length} categories.`;
   } catch(e) {
     console.error('refreshMenuManager:', e);
-    body.innerHTML = `<div class="panel" style="padding:24px;color:var(--danger);">Could not load menu: ${e.message||e}</div>`;
+    const sub = document.querySelector('.portal-header-sub');
+    if (sub) sub.textContent = 'Menu could not be loaded.';
+    body.innerHTML = loadErrorPanel('the menu', e, 'refreshMenuManager()');
   }
 }
 
@@ -6365,20 +6551,20 @@ async function renderAudit(main) {
     data.forEach(l => {
       const when = new Date(l.created_at).toLocaleString();
       const actor = l.staff?.full_name || '—';
-      const details = l.metadata ? Object.entries(l.metadata).filter(([k])=>k!=='created_by_edge_fn').map(([k,v])=>`${k}: ${v}`).join(', ') : '';
+      const details = l.metadata ? Object.entries(l.metadata).filter(([k])=>k!=='created_by_edge_fn').map(([k,v])=>`${k}: ${typeof v === 'object' && v !== null ? JSON.stringify(v) : v}`).join(', ') : '';
       html += `<tr>
-        <td style="font-family:monospace;font-size:12px;color:var(--ink-muted);">${when}</td>
-        <td style="font-weight:600;">${actor}</td>
-        <td style="font-size:13px;">${l.action}</td>
-        <td style="text-transform:capitalize;">${l.actor_role || '—'}</td>
-        <td style="font-size:12px;color:var(--ink-muted);">${details}</td>
+        <td style="font-family:monospace;font-size:12px;color:var(--ink-muted);">${E(when)}</td>
+        <td style="font-weight:600;">${E(actor)}</td>
+        <td style="font-size:13px;">${E(l.action)}</td>
+        <td style="text-transform:capitalize;">${E(l.actor_role || '—')}</td>
+        <td style="font-size:12px;color:var(--ink-muted);">${E(details)}</td>
       </tr>`;
     });
     html += '</tbody></table></div>';
     body.innerHTML = html;
   } catch(e) {
     console.error('renderAudit:', e);
-    document.getElementById('auditBody').innerHTML = `<div class="panel" style="padding:24px;color:var(--danger);">Could not load audit log: ${e.message||e}</div>`;
+    document.getElementById('auditBody').innerHTML = loadErrorPanel('the audit log', e, "route('audit', { refresh: true })");
   }
 }
 
@@ -6393,7 +6579,7 @@ async function renderAttendanceAdmin(main) {
     return;
   }
   const canCorrect = ['admin','director','ceo'].includes(u.tier);
-  const dateISO = _attendanceCursor.toISOString().slice(0, 10);
+  const dateISO = TPN.today(_attendanceCursor);   // work_date is the Manila day (sql/09)
   const dateLabel = _attendanceCursor.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
 
   main.innerHTML = `<div class="portal-header">
@@ -6420,7 +6606,7 @@ async function renderAttendanceAdmin(main) {
     const uniqueStaffToday = new Set(rows.map(r => r.staff_id)).size;
 
     let html = `<div class="tile-grid">
-      <div class="tile"><div class="tile-icon">👥</div><div class="tile-label">Staff Clocked In</div><div class="tile-value">${uniqueStaffToday}<span style="color:var(--ink-muted);font-size:18px;">/${activeStaff.length}</span></div><div class="tile-trend">${dateISO === new Date().toISOString().slice(0,10) ? 'today' : 'on ' + dateISO}</div></div>
+      <div class="tile"><div class="tile-icon">👥</div><div class="tile-label">Staff Clocked In</div><div class="tile-value">${uniqueStaffToday}<span style="color:var(--ink-muted);font-size:18px;">/${activeStaff.length}</span></div><div class="tile-trend">${dateISO === TPN.today() ? 'today' : 'on ' + dateISO}</div></div>
       <div class="tile"><div class="tile-icon">🕐</div><div class="tile-label">Total Shifts</div><div class="tile-value">${totalShiftsToday}</div><div class="tile-trend">records logged</div></div>
       <div class="tile"><div class="tile-icon">🟢</div><div class="tile-label">Still on Shift</div><div class="tile-value">${stillOpen}</div><div class="tile-trend">not yet clocked out</div></div>
     </div>`;
@@ -6481,7 +6667,7 @@ async function renderAttendanceAdmin(main) {
     body.innerHTML = html;
   } catch(e) {
     console.error('renderAttendanceAdmin:', e);
-    document.getElementById('attAdminBody').innerHTML = `<div class="panel" style="padding:24px;color:var(--danger);">Could not load attendance: ${e.message||e}</div>`;
+    document.getElementById('attAdminBody').innerHTML = loadErrorPanel('attendance', e, 'rerenderCurrent()');
   }
 }
 
@@ -6620,7 +6806,7 @@ async function renderMessagesAdmin(main) {
     }).join('') + `</div>`;
   } catch(e) {
     console.error('renderMessagesAdmin:', e);
-    document.getElementById('msgAdminBody').innerHTML = `<div class="panel" style="padding:24px;color:var(--danger);">Could not load messages: ${e.message||e}</div>`;
+    document.getElementById('msgAdminBody').innerHTML = loadErrorPanel('messages', e, 'rerenderCurrent()');
   }
 }
 
@@ -6878,7 +7064,7 @@ async function renderVoidRequests(main, mode) {
     });
   } catch(e) {
     document.getElementById('voidReqBody').innerHTML =
-      `<div class="panel" style="padding:24px;color:var(--danger,#c02828);">Could not load void requests: ${E(e.message||e)}</div>`;
+      loadErrorPanel('void requests', e, 'rerenderCurrent()');
     return;
   }
 
@@ -7376,7 +7562,7 @@ async function loadPerformance() {
     window._lastPerfData = data;   // for CSV export
     body.innerHTML = _renderPerfBody(data);
   } catch(e) {
-    body.innerHTML = `<div class="panel" style="padding:24px;color:var(--danger);">Could not load performance data: ${E(e.message || e)}</div>`;
+    body.innerHTML = loadErrorPanel('performance data', e, 'rerenderCurrent()');
   }
 }
 
@@ -8048,7 +8234,7 @@ async function loadHistory() {
         </div>
       </div>`;
   } catch(e) {
-    monthCard.innerHTML = `<div style="color:var(--danger);">Could not load monthly rollup: ${E(e.message||e)}</div>`;
+    monthCard.innerHTML = loadErrorPanel('monthly rollup', e, null);
   }
   // Day detail
   try {
@@ -8080,7 +8266,7 @@ async function loadHistory() {
         </tr></thead><tbody>${tbody}</tbody></table></div>`;
     }
   } catch(e) {
-    dayCard.innerHTML = `<div style="color:var(--danger);">Could not load day: ${E(e.message||e)}</div>`;
+    dayCard.innerHTML = loadErrorPanel('this day', e, null);
   }
 }
 
@@ -8148,7 +8334,7 @@ async function renderNotifications(main, viewKind) {
   } catch(e) {
     console.error('renderNotifications:', e);
     const body = document.getElementById('notifBody');
-    if (body) body.innerHTML = `<div class="panel" style="padding:24px;color:var(--danger);">Could not load notifications: ${E(e.message||e)}</div>`;
+    if (body) body.innerHTML = loadErrorPanel('notifications', e, 'rerenderCurrent()');
   }
 }
 
@@ -8352,7 +8538,7 @@ async function renderRoles(main) {
     _renderRolesList();
   } catch (e) {
     document.getElementById('rolesBody').innerHTML =
-      `<div style="padding:28px;text-align:center;color:var(--brick);">Could not load roles: ${E(e.message || 'unknown error')}</div>`;
+      loadErrorPanel('roles', e, 'rerenderCurrent()');
   }
 }
 
@@ -8621,7 +8807,7 @@ async function renderAccessMatrix(main) {
     _renderMatrixGrid(matrix);
   } catch (e) {
     document.getElementById('matrixBody').innerHTML =
-      `<div class="panel" style="padding:28px;text-align:center;color:var(--brick);">Could not load the matrix: ${E(e.message || '')}</div>`;
+      loadErrorPanel('the matrix', e, 'rerenderCurrent()');
   }
 }
 
@@ -8824,7 +9010,7 @@ async function renderTasks(main) {
     _renderTaskLanes();
   } catch (e) {
     document.getElementById('taskBody').innerHTML =
-      `<div class="panel" style="padding:28px;text-align:center;color:var(--brick);">Could not load tasks: ${E(e.message || '')}</div>`;
+      loadErrorPanel('tasks', e, 'rerenderCurrent()');
   }
 }
 
@@ -8956,7 +9142,7 @@ function openTaskEditor(id) {
       </div>
       <div style="margin-bottom:12px;">
         <label class="form-label">${E(T('tasks.due'))}</label>
-        <input type="date" class="form-input" id="tkDue" value="${t && t.due_at ? new Date(t.due_at).toISOString().slice(0,10) : ''}">
+        <input type="date" class="form-input" id="tkDue" value="${t && t.due_at ? TPN.today(new Date(t.due_at)) : ''}">
       </div>
       <div style="margin-bottom:6px;">
         <label class="form-label">${E(T('tasks.assignTo'))}</label>
@@ -9071,7 +9257,7 @@ async function renderInventory(main) {
     _renderInventoryTable();
   } catch (e) {
     document.getElementById('invBody').innerHTML =
-      `<div class="panel" style="padding:28px;text-align:center;color:var(--brick);">Could not load inventory: ${E(e.message || '')}</div>`;
+      loadErrorPanel('inventory', e, 'rerenderCurrent()');
   }
 }
 
@@ -9386,7 +9572,7 @@ function _finDefaultRange(granularity) {
   if (granularity === 'month')      from.setMonth(from.getMonth() - 11);
   else if (granularity === 'week')  from.setDate(from.getDate() - 7 * 11);
   else                              from.setDate(from.getDate() - 29);
-  const iso = d => d.toISOString().slice(0, 10);
+  const iso = d => TPN.today(d);
   return { from: iso(from), to: iso(to) };
 }
 
@@ -9434,7 +9620,7 @@ async function renderFinance(main) {
     _renderFinanceBody();
   } catch (e) {
     document.getElementById('finBody').innerHTML =
-      `<div class="panel" style="padding:28px;text-align:center;color:var(--brick);">Could not load finance: ${E(e.message || '')}</div>`;
+      loadErrorPanel('finance', e, 'rerenderCurrent()');
   }
 }
 
@@ -9568,7 +9754,7 @@ function openExpenseEditor(id) {
             ${EXPENSE_CATS.map(c => `<option value="${c}" ${x && x.category === c ? 'selected' : ''}>${c.replace('_', ' ')}</option>`).join('')}
           </select></div>
         <div><label class="form-label">Date</label>
-          <input type="date" class="form-input" id="exDate" value="${x ? x.incurred_on : new Date().toISOString().slice(0,10)}"></div>
+          <input type="date" class="form-input" id="exDate" value="${x ? x.incurred_on : TPN.today()}"></div>
       </div>
       <div style="margin-bottom:6px;">
         <label class="form-label">${E(T('common.notes'))}</label>
@@ -9720,7 +9906,7 @@ function openSetPay(staffId, name) {
         <div><label class="form-label">Allowance</label>
           <input type="number" step="0.01" class="form-input" id="payAllow" value="0"></div>
         <div><label class="form-label">Starts</label>
-          <input type="date" class="form-input" id="payFrom" value="${new Date().toISOString().slice(0,10)}"></div>
+          <input type="date" class="form-input" id="payFrom" value="${TPN.today()}"></div>
       </div>
       <div style="font-size:11px;color:var(--ink-faint);margin-top:8px;">
         Monthly pay is spread across the days in each period. Daily and hourly pay are worked out from real attendance.
@@ -9775,7 +9961,7 @@ function _payPeriodDefaults() {
   // Default to the current month up to today — the most common ask.
   const now = new Date();
   const first = new Date(now.getFullYear(), now.getMonth(), 1);
-  const iso = d => d.toISOString().slice(0, 10);
+  const iso = d => TPN.today(d);
   return { from: iso(first), to: iso(now) };
 }
 
@@ -9806,7 +9992,7 @@ async function renderPayroll(main) {
     _renderPayRuns();
   } catch (e) {
     document.getElementById('payBody').innerHTML =
-      `<div class="panel" style="padding:28px;text-align:center;color:var(--brick);">${E(e.message || '')}</div>`;
+      loadErrorPanel('payroll', e, 'rerenderCurrent()');
   }
 }
 
@@ -9878,7 +10064,7 @@ async function togglePayRun(id) {
     _renderPayRunDetail(id);
   } catch (e) {
     const box = document.getElementById('payRun-' + id);
-    if (box) box.innerHTML = `<div style="padding:16px;color:var(--brick);">${E(e.message || '')}</div>`;
+    if (box) box.innerHTML = loadErrorPanel('this section', e, null);
   }
 }
 
@@ -10387,7 +10573,7 @@ async function _loadGuests() {
     _renderGuestList();
   } catch (e) {
     const el = document.getElementById('guestBody');
-    if (el) el.innerHTML = `<div class="panel" style="padding:26px;text-align:center;color:var(--brick);">${E(e.message || '')}</div>`;
+    if (el) el.innerHTML = loadErrorPanel('guests', e, 'rerenderCurrent()');
   }
 }
 
@@ -10548,7 +10734,7 @@ async function guestChipFor(deviceId, phone, mountId) {
 
 const _closeState = { date: null, report: null, history: [] };
 
-function _todayISO() { return new Date().toISOString().slice(0, 10); }
+function _todayISO() { return TPN.today(); }   // Manila day; the UTC day is still yesterday before 8 AM
 
 async function renderDailyClose(main) {
   if (!TPN.can('finance.view')) {
@@ -10589,7 +10775,7 @@ async function _loadClose() {
     _renderClose();
   } catch (e) {
     const el = document.getElementById('closeBody');
-    if (el) el.innerHTML = `<div class="panel tpn-empty"><div class="tpn-empty-title" style="color:var(--brick);">${E(e.message || '')}</div></div>`;
+    if (el) el.innerHTML = loadErrorPanel('the daily close', e, 'rerenderCurrent()');
   }
 }
 
@@ -10783,7 +10969,7 @@ async function renderVariance(main) {
   }
   if (!_varState.from) {
     const d = new Date(); d.setDate(d.getDate() - 29);
-    _varState.from = d.toISOString().slice(0,10);
+    _varState.from = TPN.today(d);
     _varState.to = _todayISO();
   }
   main.innerHTML = `
@@ -10815,7 +11001,7 @@ async function _loadVariance() {
     _renderVariance();
   } catch (e) {
     const el = document.getElementById('varBody');
-    if (el) el.innerHTML = `<div class="panel tpn-empty"><div class="tpn-empty-title" style="color:var(--brick);">${E(e.message || '')}</div></div>`;
+    if (el) el.innerHTML = loadErrorPanel('stock variance', e, 'rerenderCurrent()');
   }
 }
 
@@ -10918,8 +11104,15 @@ function renderStaffSidebar() {
 }
 function routeStaff(r, opts) {
   opts = opts || {};
+  if (opts.refresh) {
+    const sc = portalScroller(), y = sc ? sc.scrollTop : 0;
+    renderStaffRouteInto(r, document.getElementById('staffMain'));
+    if (sc) sc.scrollTop = y;
+    return;
+  }
   document.querySelectorAll('#staffNav .portal-nav-item').forEach(el => el.classList.toggle('active', el.dataset.staffRoute === r));
   document.getElementById('staffSidebar')?.classList.remove('open');
+  document.getElementById('portalBackdrop')?.classList.remove('show');
   const main = document.getElementById('staffMain');
   currentRoute = r;  // so realtime handlers know to re-render kds/orders
   saveLastRoute('staff', r);
@@ -10933,6 +11126,11 @@ function routeStaff(r, opts) {
       history.pushState({ tpnRoute: r, kind: 'staff' }, '', url.pathname + url.search);
     }
   } catch(e) {}
+  renderStaffRouteInto(r, main);
+  scrollPortalTop();
+}
+
+function renderStaffRouteInto(r, main) {
   switch (r) {
     case 'staff-home': renderStaffHome(main); break;
     case 'kds': renderKDS(main); setTimeout(() => mountGuestChips('kds'), 60); break;
@@ -10947,7 +11145,6 @@ function routeStaff(r, opts) {
     case 'staff-settings': renderStaffSettings(main); break;
     default: renderStaffHome(main);
   }
-  window.scrollTo({ top: 0, behavior: 'instant' });
 }
 async function renderStaffHome(main) {
   const u = currentUser;
@@ -10995,7 +11192,7 @@ async function renderStaffHome(main) {
     let streak = 0;
     const d = new Date();
     while (true) {
-      const key = d.toISOString().slice(0, 10);
+      const key = TPN.today(d);
       if (daySet.has(key)) { streak++; d.setDate(d.getDate() - 1); }
       else break;
     }
@@ -11171,7 +11368,7 @@ async function renderStaffAttendance(main) {
     const daySet = new Set(rows.map(a => (a.work_date || a.clock_in_at.slice(0,10))));
     let streak = 0; const d = new Date();
     while (true) {
-      const key = d.toISOString().slice(0, 10);
+      const key = TPN.today(d);
       if (daySet.has(key)) { streak++; d.setDate(d.getDate() - 1); }
       else break;
     }
@@ -11217,7 +11414,7 @@ async function renderStaffAttendance(main) {
     body.innerHTML = html;
   } catch(e) {
     console.error('renderStaffAttendance:', e);
-    document.getElementById('attendBody').innerHTML = `<div class="panel" style="padding:24px;color:var(--danger);">Could not load attendance: ${e.message||e}</div>`;
+    document.getElementById('attendBody').innerHTML = loadErrorPanel('attendance', e, 'rerenderCurrent()');
   }
 }
 // ── Messages (staff inbox — reads from DB) ──
@@ -11254,7 +11451,7 @@ async function renderStaffMessages(main) {
     }).join('') + `</div>`;
   } catch(e) {
     console.error('renderStaffMessages:', e);
-    document.getElementById('msgBody').innerHTML = `<div class="panel" style="padding:24px;color:var(--danger);">Could not load messages: ${e.message||e}</div>`;
+    document.getElementById('msgBody').innerHTML = loadErrorPanel('messages', e, 'rerenderCurrent()');
   }
 }
 
@@ -11417,32 +11614,68 @@ async function submitChangePassword() {
 /* ════════════════════════════════════════════════════
    MODAL
    ════════════════════════════════════════════════════ */
+// Keyboard and screen-reader basics for the one shared modal: focus moves
+// in when it opens and back to whatever opened it when it closes, Tab stays
+// inside, Escape closes it, and its title becomes its accessible name.
+let _modalReturnFocus = null;
 function showModal(html) {
-  document.getElementById('modal').innerHTML = html;
+  const m = document.getElementById('modal');
+  const wasOpen = document.getElementById('modalOverlay').classList.contains('open');
+  if (!wasOpen) _modalReturnFocus = document.activeElement;
+  m.innerHTML = html;
+  const title = m.querySelector('.modal-title');
+  if (title) { title.id = title.id || 'modalTitle'; m.setAttribute('aria-labelledby', title.id); }
+  else m.removeAttribute('aria-labelledby');
   document.getElementById('modalOverlay').classList.add('open');
+  setTimeout(() => {
+    const first = m.querySelector('input:not([type=hidden]):not([disabled]), select, textarea');
+    (first || m).focus({ preventScroll: true });
+  }, 30);
 }
 function closeModal(e) {
   if (e && e.target !== e.currentTarget) return;
-  document.getElementById('modalOverlay').classList.remove('open');
+  const ov = document.getElementById('modalOverlay');
+  if (!ov.classList.contains('open')) return;
+  ov.classList.remove('open');
+  const back = _modalReturnFocus; _modalReturnFocus = null;
+  if (back && document.contains(back) && back.focus) back.focus({ preventScroll: true });
 }
+document.addEventListener('keydown', (e) => {
+  const ov = document.getElementById('modalOverlay');
+  if (!ov || !ov.classList.contains('open')) return;
+  if (e.key === 'Escape') { e.preventDefault(); closeModal(); return; }
+  if (e.key !== 'Tab') return;
+  const items = [...document.getElementById('modal').querySelectorAll(
+    'a[href], button:not([disabled]), input:not([disabled]):not([type=hidden]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+  )].filter(el => el.offsetParent !== null);
+  if (!items.length) return;
+  const first = items[0], last = items[items.length - 1];
+  if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+  else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+});
 
 /* ════════════════════════════════════════════════════
    TILE DRILLDOWNS
    ════════════════════════════════════════════════════ */
-function showRevenueDrilldown() {
-  const orders = portalState.orders;
-  const grandTotal = orders.reduce((n, o) => n + (Number(o.total)||0), 0);
+async function showRevenueDrilldown() {
+  // Same source as the tile: every non-cancelled order since Manila midnight.
+  const td = await refreshTodaySummary(true);
+  if (!td) { toast('⚠ Could not load today’s sales. Check the connection and try again.'); return; }
+  const orders = td.orders;
+  const grandTotal = td.revenue;
 
   // Revenue by order type (real)
   const byType = { 'dine-in': 0, pickup: 0, delivery: 0 };
-  orders.forEach(o => { const k = o.type === 'dinein' ? 'dine-in' : o.type; if (byType[k] !== undefined) byType[k] += Number(o.total)||0; });
+  orders.forEach(o => { const k = o.order_type === 'dine_in' ? 'dine-in' : o.order_type; if (byType[k] !== undefined) byType[k] += Number(o.total)||0; });
 
-  // Top items — computed from real order item lists
+  // Top items — computed from real order item lists, voided lines excluded
   const itemTally = {};
   orders.forEach(o => {
-    (o.itemsList || []).forEach(it => {
-      if (!itemTally[it.name]) itemTally[it.name] = { count: 0 };
-      itemTally[it.name].count += (it.qty || 1);
+    (o.order_items || []).forEach(it => {
+      if (it.voided_at) return;
+      const name = it.name_snapshot || 'Item';
+      if (!itemTally[name]) itemTally[name] = { count: 0 };
+      itemTally[name].count += (it.quantity || 1);
     });
   });
   const topItems = Object.entries(itemTally)
@@ -11458,7 +11691,7 @@ function showRevenueDrilldown() {
     <div class="modal-content">
       <div style="background:var(--surface-2);border-radius:8px;padding:16px;margin-bottom:16px;text-align:center;">
         <div style="font-size:11px;color:var(--ink-muted);letter-spacing:0.12em;text-transform:uppercase;margin-bottom:4px;">Total Sales Today</div>
-        <div style="font-family:'Playfair Display',serif;font-size:36px;font-weight:900;color:var(--brick);">₱${grandTotal.toLocaleString()}</div>
+        <div style="font-family:'Playfair Display',serif;font-size:36px;font-weight:900;color:var(--brick);">${_peso(grandTotal)}</div>
         <div style="font-size:12px;color:var(--ink-muted);margin-top:4px;">${orders.length} order${orders.length!==1?'s':''}</div>
       </div>
       <div style="font-size:11px;font-weight:700;color:var(--ink-muted);letter-spacing:0.12em;text-transform:uppercase;margin:14px 0 8px;">By Order Type</div>
@@ -11466,7 +11699,7 @@ function showRevenueDrilldown() {
         <div style="margin-bottom:10px;">
           <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px;">
             <span style="color:var(--ink-soft)">${label}</span>
-            <span style="font-weight:700;">₱${byType[key].toLocaleString()} <span style="color:var(--ink-faint);font-size:11px;">${pct(byType[key])}</span></span>
+            <span style="font-weight:700;">${_peso(byType[key])} <span style="color:var(--ink-faint);font-size:11px;">${pct(byType[key])}</span></span>
           </div>
           <div style="height:6px;background:var(--surface-3);border-radius:3px;overflow:hidden;">
             <div style="height:100%;width:${pct(byType[key])};background:var(--brick);border-radius:3px;transition:width 0.6s;"></div>
@@ -11476,7 +11709,7 @@ function showRevenueDrilldown() {
       ${topItems.length ? topItems.map((it, i) => `
         <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--line-soft);font-size:13px;">
           <span style="color:var(--ink-muted);font-weight:700;min-width:20px;">${i+1}</span>
-          <span style="flex:1;color:var(--ink);">${it.name}</span>
+          <span style="flex:1;color:var(--ink);">${E(it.name)}</span>
           <span style="font-weight:700;color:var(--ink);">${it.count}×</span>
         </div>`).join('') : '<div style="text-align:center;color:var(--ink-faint);padding:20px;">No sales data yet today.</div>'}
     </div>
@@ -11602,17 +11835,69 @@ function hideBootOverlay() {
 setTimeout(hideBootOverlay, 4000);
 
 // ─── Connection Status ───
+let _connBannerText = null;
 window.addEventListener('offline', () => {
-  document.getElementById('connectionBanner')?.classList.add('show');
+  const banner = document.getElementById('connectionBanner');
+  if (!banner) return;
+  // Put the outage wording back: it used to keep the "Balik na" text from
+  // the last reconnect, so the next outage announced itself as recovered.
+  const span = banner.querySelector('span');
+  if (span && _connBannerText !== null) span.textContent = _connBannerText;
+  banner.style.background = '';
+  banner.classList.add('show');
 });
 window.addEventListener('online', () => {
   const banner = document.getElementById('connectionBanner');
   if (banner) {
+    const span = banner.querySelector('span');
+    if (span && _connBannerText === null) _connBannerText = span.textContent;
     banner.style.background = 'var(--success)';
-    banner.querySelector('span').textContent = '✅ Balik na ang koneksyon!';
+    if (span) span.textContent = '✅ Balik na ang koneksyon!';
     setTimeout(() => { banner.classList.remove('show'); banner.style.background = ''; }, 2500);
   }
 });
+
+/* ─── Double-submit guard ─────────────────────────────────────────
+   Most save / approve / apply actions had no in-flight protection, so a
+   double tap on a slow connection recorded a delivery, an expense or a
+   pay line twice. Each listed action is wrapped once here: a repeat call
+   with the same arguments while the first is still running is ignored,
+   and the button that was pressed is disabled and marked busy until the
+   action settles. Different arguments (approving two different voids)
+   still run side by side. */
+let _lastPressedBtn = null;
+document.addEventListener('pointerdown', e => { _lastPressedBtn = e.target.closest && e.target.closest('button'); }, true);
+document.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') _lastPressedBtn = document.activeElement && document.activeElement.closest && document.activeElement.closest('button'); }, true);
+function guardAsync(name) {
+  const fn = window[name];
+  if (typeof fn !== 'function' || fn._guarded) return;
+  const inflight = new Set();
+  const wrapped = async function (...args) {
+    let key;
+    try { key = JSON.stringify(args); } catch (e) { key = String(args.length); }
+    const pressed = _lastPressedBtn; _lastPressedBtn = null;
+    if (inflight.has(key)) return;
+    inflight.add(key);
+    // Never take over a button another in-flight call already disabled, or
+    // its "restore" would put it back to disabled and strand it.
+    const btn = pressed && document.contains(pressed) && !pressed.classList.contains('is-busy') ? pressed : null;
+    const wasDisabled = btn ? btn.disabled : false;
+    if (btn) { btn.disabled = true; btn.setAttribute('aria-busy', 'true'); btn.classList.add('is-busy'); }
+    try { return await fn.apply(this, args); }
+    finally {
+      inflight.delete(key);
+      if (btn) { btn.disabled = wasDisabled; btn.removeAttribute('aria-busy'); btn.classList.remove('is-busy'); }
+    }
+  };
+  wrapped._guarded = true;
+  window[name] = wrapped;
+}
+['submitConcession', 'submitEvent', 'confirmMoveStaff', 'saveScheduleNote', 'approveAccount',
+ 'confirmDisableRec', 'approveDisable', 'saveMenuItem', 'approveVoidReq', 'denyVoidReq',
+ 'saveDiscountTemplate', 'applyDiscountFromPicker', 'saveRole', 'saveTask', 'saveIngredient',
+ 'saveStockMovement', 'saveExpense', 'saveCostingSettings', 'saveSetPay', 'payRunStatus',
+ 'savePayLine', 'saveGuestNote', 'deletePayRun', 'deleteMenuItem', 'doCloseTill',
+ 'doBuildPayRun', 'recalcPayRun', 'advanceOrder'].forEach(guardAsync);
 
 // Initial render fallback (in case DOMContentLoaded already fired)
 if (document.readyState !== 'loading') {

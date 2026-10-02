@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="config.js?v=20260812"></script>
-<script src="tpn-supabase.js?v=20260812"></script>
+<script src="config.js?v=20261002"></script>
+<script src="tpn-supabase.js?v=20261002"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
 <meta name="theme-color" content="#1a0a00">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -594,6 +594,10 @@ function renderMenuLoadingState(state, err) {
   const grid = document.getElementById('menu-body');   // NOT #menu-grid — see loadMenuFromDB
   const chips = document.getElementById('cats-scroll');
   const featured = document.getElementById('featured-scroll');
+  if (state === 'loading' || state === 'ready') {
+    const fsec = document.querySelector('.featured-section');
+    if (fsec) fsec.style.display = '';
+  }
   if (state === 'loading') {
     if (chips)    chips.innerHTML    = `<div style="padding:12px 16px;color:var(--text-muted);font-size:13px;">Loading menu…</div>`;
     if (featured) featured.innerHTML = `
@@ -604,32 +608,50 @@ function renderMenuLoadingState(state, err) {
         <div class="skel-row"></div><div class="skel-row"></div>
       </div>`;
   } else if (state === 'error') {
+    // Stop the shimmer and the "Loading menu…" chip row: a guest staring at
+    // placeholders that never resolve reads it as "still coming", not "broken".
+    if (chips)    chips.innerHTML    = '';
+    if (featured) featured.innerHTML = '';
+    const fsec = document.querySelector('.featured-section');
+    if (fsec) fsec.style.display = 'none';
+    // The raw error ("TypeError: Failed to fetch") means nothing at a table;
+    // tell them what to do instead. The detail stays in the console.
     if (grid) grid.innerHTML = `
-      <div style="padding:40px 20px;text-align:center;">
+      <div role="alert" style="padding:40px 20px;text-align:center;">
         <div style="font-size:44px;margin-bottom:12px;">📶</div>
-        <div style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:6px;">Menu didn't load</div>
+        <div style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:6px;">The menu can't load right now</div>
         <div style="font-size:13px;color:var(--text-muted);margin-bottom:16px;line-height:1.5;">
-          ${E(err && err.message ? err.message : 'Connection to the kitchen failed.')}
+          It's on our side, not your phone. Please wave to any of our staff — they'll take your order.<br>
+          <span style="opacity:.8">Hindi ma-load ang menu. Tawagin lang po ang aming staff.</span>
         </div>
         <button class="add-mini-btn" style="padding:12px 28px;" onclick="retryMenuLoad()">Try Again</button>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:12px;">We'll also keep retrying on our own.</div>
       </div>`;
   }
 }
 
+// A request to an unreachable or paused server can hang for a long time
+// instead of failing, which kept the skeleton up indefinitely. Give each
+// attempt a deadline so the backoff and the error screen actually run.
+function withDeadline(promise, ms) {
+  return Promise.race([promise, new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), ms))]);
+}
+let _menuBgRetry = null;
+
 async function loadMenuFromDB(attempt = 1) {
   _menuLoadState = 'loading';
-  if (attempt === 1 && !menuData.length) renderMenuLoadingState('loading');
+  if (attempt === 1 && !menuData.length && !_menuBgRetry) renderMenuLoadingState('loading');
   try {
     if (!window.TPN || typeof TPN.loadGroupedMenu !== 'function') {
       // Supabase client hasn't finished loading yet — retry shortly.
       throw new Error('Menu library not ready — retrying');
     }
-    const fresh = await TPN.loadGroupedMenu(BRANCH_ID);
+    const fresh = await withDeadline(TPN.loadGroupedMenu(BRANCH_ID), 5000);
     if (!Array.isArray(fresh) || fresh.length === 0) {
       // Empty menu is a valid state (nothing available), but also possible
       // symptom of the branch filter being too strict. Retry once without filter.
       if (attempt === 1) {
-        const unfiltered = await TPN.loadGroupedMenu(null);
+        const unfiltered = await withDeadline(TPN.loadGroupedMenu(null), 5000);
         if (unfiltered.length) { menuData = unfiltered; }
         else { menuData = []; }
       } else {
@@ -639,6 +661,8 @@ async function loadMenuFromDB(attempt = 1) {
       menuData = fresh;
     }
     _menuLoadState = 'ready';
+    clearInterval(_menuBgRetry); _menuBgRetry = null;
+    renderMenuLoadingState('ready');   // un-hides the featured row if an error had hidden it
     // Re-render every menu surface now that data is in.
     // NOTE: the container is #menu-body. This used to check for #menu-grid,
     // which does not exist, so renderMenu() was skipped on load and the menu
@@ -650,17 +674,22 @@ async function loadMenuFromDB(attempt = 1) {
     loadReturningGuest();
   } catch (e) {
     console.error('loadMenuFromDB attempt', attempt, e);
-    if (attempt < 4) {
+    // Three tries, ~16s worst case, before the guest is told what to do.
+    if (attempt < 3) {
       const backoff = Math.min(500 * Math.pow(2, attempt - 1), 4000);
       setTimeout(() => loadMenuFromDB(attempt + 1), backoff);
     } else {
       _menuLoadState = 'error';
-      renderMenuLoadingState('error', e);
+      if (!menuData.length) renderMenuLoadingState('error', e);
+      // Keep trying in the background so the menu appears by itself once
+      // the connection is back, without the guest having to notice.
+      if (!_menuBgRetry) _menuBgRetry = setInterval(() => { if (_menuLoadState === 'error') loadMenuFromDB(3); }, 20000);
     }
   }
 }
 
-function retryMenuLoad() { loadMenuFromDB(1); }
+function retryMenuLoad() { renderMenuLoadingState('loading'); loadMenuFromDB(1); }
+window.addEventListener('online', () => { if (_menuLoadState === 'error') loadMenuFromDB(3); });
 
 /* ── Returning guest ──────────────────────────────────────────
    my_guest_profile() returns null on a first visit, so the strip simply
@@ -733,12 +762,12 @@ document.addEventListener('DOMContentLoaded', () => {
 // UnoSys: retry menu load when the tab comes back to focus, in case the
 // customer put their phone away between scanning and ordering.
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible' && _menuLoadState !== 'ready') {
-    loadMenuFromDB();
+  // Only after a failure: during a load this used to start a second,
+  // parallel retry sequence. One quiet attempt; the error screen stays up
+  // unless it succeeds.
+  if (document.visibilityState === 'visible' && _menuLoadState === 'error') {
+    loadMenuFromDB(3);
   }
-});
-window.addEventListener('online', () => {
-  if (_menuLoadState !== 'ready') loadMenuFromDB();
 });
 
 const T = {

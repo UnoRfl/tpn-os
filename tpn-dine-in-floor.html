@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="config.js?v=20260812"></script>
-<script src="tpn-supabase.js?v=20260812"></script>
+<script src="config.js?v=20261002"></script>
+<script src="tpn-supabase.js?v=20261002"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
 <meta name="theme-color" content="#1a0a00">
 <title>Tyo Paeng Nyo · Dine-In Floor</title>
@@ -258,13 +258,39 @@
   .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(20px); background: var(--charcoal); color: #fff; padding: 12px 24px; border-radius: 30px; font-size: 14px; font-weight: 600; z-index: 999; opacity: 0; transition: all 0.3s; pointer-events: none; white-space: nowrap; box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
   .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
-  /* ── CALL ALERT ── */
-  .call-alert { position: fixed; top: 70px; right: 16px; z-index: 600; background: var(--blue); color: #fff; border-radius: 14px; padding: 14px 18px; max-width: 280px; box-shadow: 0 6px 24px rgba(0,0,0,0.25); display: none; animation: slideIn 0.3s; }
-  .call-alert.show { display: block; }
+  /* ── TABLE REQUEST QUEUE ──
+     Call-staff and bill requests stay on screen until someone takes them.
+     They used to be one 8-second popup, and a second table's call replaced
+     the first, so a request made while staff were looking away was lost. */
+  /* Bottom-right, above the toast: at the top it covered the connection banner's Retry button. */
+  .req-queue { position: fixed; bottom: 76px; right: 16px; z-index: 600; display: flex; flex-direction: column-reverse; gap: 8px; max-width: 320px; width: calc(100% - 32px); }
+  .req-item { background: var(--blue); color: #fff; border-radius: 14px; padding: 12px 14px; box-shadow: 0 6px 24px rgba(0,0,0,0.25); display: flex; align-items: center; gap: 10px; animation: slideIn 0.3s; }
+  .req-item.bill { background: #6b3fa0; }
+  .req-item.old { animation: slideIn 0.3s, reqPulse 1.6s ease-in-out infinite; }
   @keyframes slideIn { from { transform: translateX(30px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
-  .call-alert-title { font-weight: 700; font-size: 14px; margin-bottom: 4px; }
-  .call-alert-sub { font-size: 12px; opacity: 0.85; margin-bottom: 10px; }
-  .call-alert-dismiss { background: rgba(255,255,255,0.2); border: none; color: #fff; font-size: 12px; font-weight: 700; padding: 5px 12px; border-radius: 8px; cursor: pointer; }
+  @keyframes reqPulse { 50% { box-shadow: 0 0 0 6px rgba(255,255,255,0.35), 0 6px 24px rgba(0,0,0,0.25); } }
+  .req-text { flex: 1; min-width: 0; }
+  .req-title { font-weight: 700; font-size: 14px; }
+  .req-sub { font-size: 12px; opacity: 0.85; }
+  .req-btn { background: rgba(255,255,255,0.22); border: 1px solid rgba(255,255,255,0.4); color: #fff; font-size: 13px; font-weight: 700; padding: 8px 12px; border-radius: 10px; cursor: pointer; font-family: inherit; white-space: nowrap; min-height: 40px; }
+  .req-btn:hover { background: rgba(255,255,255,0.32); }
+
+  /* ── LIVE STATUS ── */
+  .live-pill { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 600; color: rgba(255,255,255,0.75); padding: 5px 10px; border-radius: 20px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); white-space: nowrap; }
+  .live-pill .dot { width: 8px; height: 8px; border-radius: 50%; background: #7ed99a; box-shadow: 0 0 6px #7ed99a; }
+  .live-pill.connecting .dot { background: #f2c14e; box-shadow: 0 0 6px #f2c14e; animation: connpulse 1.2s ease-in-out infinite; }
+  .live-pill.down { color: #ffd2cc; border-color: #ff8a7a; }
+  .live-pill.down .dot { background: #ff5a47; box-shadow: 0 0 6px #ff5a47; }
+  @keyframes connpulse { 50% { opacity: .35; } }
+  .live-banner { background: #b3261e; color: #fff; font-weight: 700; font-size: 14px; padding: 10px 16px; display: flex; align-items: center; gap: 12px; justify-content: center; flex-wrap: wrap; text-align: center; }
+  .live-banner[hidden] { display: none; }
+  .live-banner button { background: rgba(255,255,255,.18); color: #fff; border: 1px solid rgba(255,255,255,.4); border-radius: 8px; padding: 6px 14px; font: inherit; font-size: 13px; cursor: pointer; }
+
+  /* Browsers keep audio locked until the page gets a tap. */
+  .sound-gate { position: fixed; inset: 0; z-index: 900; background: rgba(30,18,10,.86); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; color: #fff; text-align: center; padding: 24px; }
+  .sound-gate[hidden] { display: none; }
+  .sound-gate button { background: var(--brick); color: #fff; border: none; border-radius: 14px; padding: 22px 36px; font: inherit; font-size: 22px; font-weight: 700; cursor: pointer; }
+  .sound-gate p { color: rgba(255,255,255,.75); font-size: 14px; max-width: 360px; }
 
   @media (max-width: 640px) {
     .stat-value { font-size: 22px; }
@@ -323,11 +349,13 @@
     </div>
   </div>
   <div class="topbar-right">
+    <div class="live-pill connecting" id="live-pill" role="status" aria-live="polite"><span class="dot"></span><span>Connecting…</span></div>
     <div class="topbar-badge" id="role-badge">Manager</div>
     <button class="topbar-btn secondary" onclick="window.location.reload()">↺ Refresh</button>
     <button class="topbar-btn" data-manager-only onclick="openAddTableModal()">+ Table</button>
   </div>
 </header>
+<div class="live-banner" id="live-banner" role="alert" hidden></div>
 
 <!-- TABS -->
 <div class="tab-nav" id="tab-nav">
@@ -352,11 +380,13 @@
   </div>
 </div>
 
-<!-- CALL STAFF ALERT -->
-<div class="call-alert" id="call-alert">
-  <div class="call-alert-title">🤚 Staff Requested</div>
-  <div class="call-alert-sub" id="call-alert-sub">Table — is requesting assistance or the bill.</div>
-  <button class="call-alert-dismiss" onclick="dismissCallAlert()">Dismiss</button>
+<!-- TABLE REQUESTS (call staff / bill) -->
+<div class="req-queue" id="req-queue" aria-live="assertive"></div>
+
+<!-- SOUND GATE -->
+<div class="sound-gate" id="sound-gate" hidden>
+  <button onclick="enableFloorSound()">🔔 Tap to start</button>
+  <p>Sound for new orders and table calls needs one tap after the screen turns on. Without it they arrive silently.</p>
 </div>
 
 <!-- TOAST -->
@@ -368,7 +398,6 @@ const ROLE = 'manager'; // In real system, this comes from login
 let currentTab = 'floor';
 let currentBranch = 'Las Piñas';
 let orderFilter = 'all';
-let callAlertTimeout = null;
 
 // Branches with configurable tables — LIVE data only, single branch (Las Piñas).
 // Table count is resolved from Supabase in loadOrdersFromSupabase() → ensureBranchUuids().
@@ -538,6 +567,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   loadMenuFromDB();
   subscribeToRealtime();
   checkCallStaff();
+  maybeShowSoundGate();
 
   // Watch our own void requests so the ⏳ clears and staff hear the
   // verdict without anyone touching the screen.
@@ -552,10 +582,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (row.status === 'approved') showToast('✅ Void approved — ' + what);
       if (row.status === 'denied')   showToast('❌ Void denied — ' + what +
         (row.review_note ? ' (' + row.review_note + ')' : ''));
-      dineInOrders = [];
-      await loadOrdersFromSupabase();
-      renderTab();
-      updateBadges();
+      await reloadFloor();
     }
   });
 });
@@ -577,18 +604,35 @@ async function loadOrdersFromSupabase() {
       if (!branchUuid) continue;
       const orders = await TPN.listActiveOrders(branchUuid);
       orders.forEach(o => integrateOrder(o, branch));
-      // Load current signal state on tables
+      // Load current signal state on tables. A call-staff press is NOT a
+      // bill request (this used to mark the table billed on any call);
+      // both open signals go into the request queue so nothing raised
+      // while this screen was off is lost.
       const tables = await TPN.getTablesForBranch(branchUuid);
       tables.forEach(t => {
         const key = branch.id + '_' + t.table_number;
-        if (tableStates[key]) {
-          if (t.call_staff_at) tableStates[key].billRequested = true;
-        }
+        if (tableStates[key] && t.bill_requested_at) tableStates[key].billRequested = true;
+        noteSignals(t, branch, { silent: true });
       });
     }
+    _floorLoadFailed = false;
     updateBadges();
     renderTab();
-  } catch(e) { console.error('loadOrdersFromSupabase failed:', e); }
+  } catch(e) {
+    console.error('loadOrdersFromSupabase failed:', e);
+    _floorLoadFailed = true;
+  }
+  updateLiveBanner();
+}
+
+// Rebuild the floor from the database. Resets table state first:
+// integrateOrder() adds each order to its table's running total, so
+// re-loading on top of existing state counted every order twice.
+async function reloadFloor() {
+  Object.keys(tableStates).forEach(k => delete tableStates[k]);
+  dineInOrders = [];
+  initTableStates();
+  await loadOrdersFromSupabase();
 }
 
 // ─── REALTIME SUBSCRIPTIONS ───
@@ -604,6 +648,7 @@ function subscribeToRealtime() {
       try {
         const full = await TPN.getOrder(order.id);
         integrateOrder(full, branch);
+        floorChime();
         showToast(`🔔 New order from Table ${full.restaurant_tables?.table_number || '?'}!`);
         updateBadges();
         if (currentTab === 'floor' || currentTab === 'orders') renderTab();
@@ -622,28 +667,149 @@ function subscribeToRealtime() {
     }
   });
 
-  // Subscribe to restaurant_tables for call-staff / bill-request signals
-  const chan = sb.channel('restaurant_tables:all')
+  // Subscribe to restaurant_tables for call-staff / bill-request signals.
+  // Through TPN.liveChannel so it reconnects and reports its health.
+  TPN.liveChannel('restaurant_tables:all', (ch, touch) => ch
     .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'restaurant_tables' }, (payload) => {
+      touch();
       const t = payload.new;
       const branch = branches.find(b => branchUuidCache[b.id] === t.branch_id);
       if (!branch) return;
-      const key = branch.id + '_' + t.table_number;
-      // Detect signal transitions
-      const wasCall = payload.old?.call_staff_at, isCall = t.call_staff_at;
-      const wasBill = payload.old?.bill_requested_at, isBill = t.bill_requested_at;
-      if (!wasCall && isCall) {
-        showCallAlert(t.table_number, branch.name);
-        if (tableStates[key]) tableStates[key].billRequested = true;
-      }
-      if (!wasBill && isBill) {
-        showToast(`💳 Table ${t.table_number}: bill request (${t.bill_payment_method || '?'})`);
-        if (tableStates[key]) tableStates[key].billRequested = true;
-      }
+      noteSignals(t, branch, { silent: false });
       updateBadges();
       if (currentTab === 'floor') renderTab();
-    })
-    .subscribe();
+    }));
+
+  TPN.onLiveStatus(st => {
+    _floorLiveState = st.state;
+    renderLivePill();
+    updateLiveBanner();
+    // Back after a drop: rebuild from the database to pick up anything missed.
+    if (st.previous && st.previous !== 'live' && st.state === 'live') reloadFloor();
+  });
+  setInterval(renderLivePill, 15000);
+  // Safety net while visible: a healthy socket can still miss an event.
+  setInterval(() => { if (document.visibilityState === 'visible') reloadFloor(); }, 60000);
+}
+
+/* ─── TABLE SIGNALS ──────────────────────────────────────────────
+   Transitions are detected against what THIS screen last saw, not
+   payload.old: without REPLICA IDENTITY FULL on restaurant_tables,
+   payload.old carries only the id, so "was it already set?" was always
+   "no" and every later update to a calling table re-alerted. */
+const _lastSig = {};   // key -> { call, bill }
+function noteSignals(t, branch, opts) {
+  const key = branch.id + '_' + t.table_number;
+  const prev = _lastSig[key] || {};
+  const isCall = !!t.call_staff_at, isBill = !!t.bill_requested_at;
+  if (isCall && !prev.call) addRequest('call', t, branch, opts.silent);
+  if (!isCall && prev.call) removeRequest(key, 'call');
+  if (isBill && !prev.bill) {
+    if (tableStates[key]) tableStates[key].billRequested = true;
+    addRequest('bill', t, branch, opts.silent);
+  }
+  if (!isBill && prev.bill) removeRequest(key, 'bill');
+  _lastSig[key] = { call: isCall, bill: isBill };
+}
+
+let tableRequests = [];   // { key, kind, table, branchName, rowId, method, at }
+function addRequest(kind, t, branch, silent) {
+  const key = branch.id + '_' + t.table_number;
+  if (tableRequests.some(r => r.key === key && r.kind === kind)) return;
+  const at = new Date((kind === 'call' ? t.call_staff_at : t.bill_requested_at) || Date.now()).getTime();
+  tableRequests.push({ key, kind, table: t.table_number, branchName: branch.name, rowId: t.id, method: t.bill_payment_method || '', at });
+  renderRequests();
+  if (!silent) floorChime(kind === 'bill' ? [660, 880] : [988, 1319, 988]);
+}
+function removeRequest(key, kind) {
+  const n = tableRequests.length;
+  tableRequests = tableRequests.filter(r => !(r.key === key && r.kind === kind));
+  if (tableRequests.length !== n) renderRequests();
+}
+async function takeRequest(i) {
+  const r = tableRequests[i];
+  if (!r) return;
+  if (r.kind === 'call') {
+    // Clear the flag server-side so every other screen drops it too, and
+    // the guest's phone stops showing "staff called".
+    try { await TPN.ackCallStaff(r.rowId); }
+    catch (e) { showToast('⚠️ Could not clear the call — ' + (e.message || 'try again')); return; }
+  }
+  // A bill request is only taken off the queue here; the table keeps its
+  // "Bill Requested" state until it is closed and paid.
+  removeRequest(r.key, r.kind);
+}
+function renderRequests() {
+  const el = document.getElementById('req-queue');
+  if (!el) return;
+  el.innerHTML = tableRequests.map((r, i) => {
+    const mins = Math.floor((Date.now() - r.at) / 60000);
+    const age = mins < 1 ? 'just now' : mins + ' min ago';
+    const title = r.kind === 'call'
+      ? `🤚 Table ${E(r.table)} needs assistance`
+      : `💳 Table ${E(r.table)} wants the bill`;
+    const sub = r.kind === 'bill' && r.method ? `${E(r.method)} · ${age}` : age;
+    return `<div class="req-item ${r.kind}${mins >= 2 ? ' old' : ''}" role="alert">
+      <div class="req-text"><div class="req-title">${title}</div><div class="req-sub">${sub}</div></div>
+      <button class="req-btn" onclick="takeRequest(${i})">${r.kind === 'call' ? 'On it ✓' : 'Got it ✓'}</button>
+    </div>`;
+  }).join('');
+}
+// Re-chime every 30s while a request is waiting, and keep the ages fresh.
+setInterval(() => {
+  if (!tableRequests.length) return;
+  renderRequests();
+  floorChime([988, 1319, 988], 0.12);
+}, 30000);
+
+/* ─── SOUND ───────────────────────────────────────────────────── */
+function floorSoundOn() { try { return localStorage.getItem('tpn.floor.sound') !== 'off'; } catch (e) { return true; } }
+function setFloorSound(on) {
+  try { localStorage.setItem('tpn.floor.sound', on ? 'on' : 'off'); } catch (e) {}
+  if (on) { TPN.unlockAudio(); floorChime([880, 1174], 0.08); }
+  showToast(on ? '🔔 Sound on' : '🔕 Sound off');
+}
+function floorChime(notes, vol) {
+  if (!floorSoundOn()) return;
+  if (!TPN.audioReady()) maybeShowSoundGate();
+  TPN.chime(notes || [880, 1174, 1568], vol || 0.18);
+}
+function enableFloorSound() {
+  TPN.unlockAudio();
+  const g = document.getElementById('sound-gate');
+  if (g) g.hidden = true;
+  TPN.chime([880, 1174], 0.08);
+}
+function maybeShowSoundGate() {
+  const g = document.getElementById('sound-gate');
+  if (g && floorSoundOn() && !TPN.audioReady()) g.hidden = false;
+}
+document.addEventListener('pointerdown', () => {
+  TPN.unlockAudio();
+  const g = document.getElementById('sound-gate');
+  if (g && TPN.audioReady()) g.hidden = true;
+}, { passive: true });
+
+/* ─── LIVE STATUS ─────────────────────────────────────────────── */
+let _floorLiveState = 'connecting';
+let _floorLoadFailed = false;
+function renderLivePill() {
+  const el = document.getElementById('live-pill');
+  if (!el) return;
+  const st = TPN.liveStatus();
+  const label = { live: 'Live · last update ' + TPN.agoText(st.lastEventAt), connecting: 'Connecting…', down: 'Disconnected' }[st.state] || 'Connecting…';
+  el.className = 'live-pill ' + (st.state === 'live' ? '' : st.state);
+  el.innerHTML = `<span class="dot"></span><span>${label}</span>`;
+}
+function updateLiveBanner() {
+  const el = document.getElementById('live-banner');
+  if (!el) return;
+  let msg = '';
+  if (_floorLoadFailed) msg = '⚠ Orders could not be loaded. This screen may be missing tables and orders.';
+  else if (_floorLiveState === 'down') msg = '⚠ Lost connection — new orders and table calls are not arriving. Reconnecting…';
+  if (!msg) { el.hidden = true; return; }
+  el.innerHTML = `<span>${msg}</span><button onclick="reloadFloor()">Retry now</button>`;
+  el.hidden = false;
 }
 
 // Integrate a DB-shaped order into the local in-memory model
@@ -708,6 +874,8 @@ function integrateOrder(dbOrder, branch) {
 function checkCallStaff() {
   // Also listen for postMessage from QR menu opened in same tab/iframe
   window.addEventListener('message', (e) => {
+    // Same origin only: any other site could otherwise post a fake order onto the floor.
+    if (e.origin !== window.location.origin) return;
     if (e.data?.type === 'TPN_DINE_IN_ORDER') {
       const order = e.data.order;
       if (!dineInOrders.find(o => o.ref === order.ref)) {
@@ -720,14 +888,6 @@ function checkCallStaff() {
   });
 }
 
-function showCallAlert(table, branch) {
-  const el = document.getElementById('call-alert');
-  document.getElementById('call-alert-sub').textContent = `Table ${table} (${branch}) is requesting assistance or the bill.`;
-  el.classList.add('show');
-  clearTimeout(callAlertTimeout);
-  callAlertTimeout = setTimeout(() => el.classList.remove('show'), 8000);
-}
-function dismissCallAlert() { document.getElementById('call-alert').classList.remove('show'); }
 
 // ─── TABS ───
 function showTab(tab) {
@@ -830,7 +990,7 @@ function renderFloor() {
       <div class="table-body">
         <div class="table-status-label ${s.labelClass}">${s.label}</div>
         ${status !== 'empty' ? `
-          <div class="table-guest">${tbl.guest || '—'}</div>
+          <div class="table-guest">${E(tbl.guest || '—')}</div>
           <div class="table-meta">${tbl.pax} guest(s) · ${elapsed} ago</div>
           <div class="table-order-count">📋 ${tableOrders.length} active order(s)</div>
           <div class="table-total">₱${(tbl.sessionTotal || 0).toLocaleString('en', {minimumFractionDigits:2})}</div>
@@ -841,7 +1001,7 @@ function renderFloor() {
             <button class="t-btn view" onclick="event.stopPropagation(); openTableModal(${i}, '${branch.id}')">View</button>
             ${IS_DISPLAY_ACCOUNT ? '' : `
             ${tbl.billRequested ? `<button class="t-btn bill" onclick="event.stopPropagation(); closeTable(${i}, '${branch.id}')">Close Table</button>` : `<button class="t-btn advance" onclick="event.stopPropagation(); markBillReady(${i}, '${branch.id}')">Bill</button>`}
-            <button class="t-btn clear" onclick="event.stopPropagation(); clearTable(${i}, '${branch.id}')">Clear</button>`}
+            <button class="t-btn clear" onclick="event.stopPropagation(); requestClearTable(${i}, '${branch.id}')">Clear</button>`}
           ` : `<button class="t-btn view" onclick="event.stopPropagation(); openQRModal(${i}, '${branch.name}', '${qrUrl}')">Open QR</button>`}
         </div>
       </div>
@@ -985,16 +1145,16 @@ function renderSettings() {
   html += `<div class="settings-card">
     <div class="settings-card-title">General</div>
     <div class="settings-row">
-      <div><div class="settings-label">Auto-refresh</div><div class="settings-sub">Realtime updates via Supabase — no polling needed</div></div>
-      <span style="font-size:13px;color:var(--brick);font-weight:600">Live</span>
+      <div><div class="settings-label">Live updates</div><div class="settings-sub">Realtime via Supabase, plus a full re-check every minute</div></div>
+      <span style="font-size:13px;color:var(--brick);font-weight:600">${{ live: 'Connected', connecting: 'Connecting…', down: 'Disconnected' }[TPN.liveStatus().state]}${TPN.liveStatus().reconnects ? ' · ' + TPN.liveStatus().reconnects + ' reconnect(s)' : ''}</span>
     </div>
     <div class="settings-row">
       <div><div class="settings-label">QR Menu URL</div><div class="settings-sub">Link encoded in printed QR codes</div></div>
       <span style="font-size:11px;color:var(--text-muted);font-family:monospace;word-break:break-all">${window.location.origin}/tpn-os/tpn-table-menu</span>
     </div>
     <div class="settings-row">
-      <div><div class="settings-label">New order sound</div><div class="settings-sub">Play audio on new order arrival</div></div>
-      <label class="toggle-switch"><input type="checkbox" checked><span class="toggle-slider"></span></label>
+      <div><div class="settings-label">Sound</div><div class="settings-sub">Chime on new orders and table calls; repeats every 30s until a call is taken</div></div>
+      <label class="toggle-switch"><input type="checkbox" ${floorSoundOn() ? 'checked' : ''} onchange="setFloorSound(this.checked)" aria-label="Sound for new orders and table calls"><span class="toggle-slider"></span></label>
     </div>
   </div>`;
 
@@ -1101,6 +1261,47 @@ function clearTable(tableNum, branchId) {
   renderTab();
 }
 
+/* "Clear" used to wipe the table on this screen only, with no confirm and
+   no database write, so a table with unpaid orders vanished until the next
+   reload. Now: a table that still owes money goes through Close Table
+   (which settles the orders); a table with nothing open is cleared and its
+   call/bill flags are reset server-side so it does not come back. */
+async function requestClearTable(tableNum, branchId) {
+  const tbl = tableStates[branchId + '_' + tableNum];
+  if (!tbl) return;
+  const open = (tbl.orders || []).filter(o => o.status !== 'done');
+  if (open.length) {
+    showToast(`Table ${tableNum} still has ${open.length} open order${open.length > 1 ? 's' : ''} — settle it first.`);
+    closeTable(tableNum, branchId);
+    return;
+  }
+  openModal('Clear Table ' + tableNum + '?', `
+    <p style="color:var(--text-muted);line-height:1.5">No open orders. This marks the table empty on every screen and clears any call or bill request.</p>`, [
+    { label: 'Cancel', cls: 'secondary', fn: 'closeModal()' },
+    { label: '🪑 Clear table', cls: 'primary', fn: `confirmClearTable(${tableNum}, '${branchId}')` }
+  ]);
+}
+async function confirmClearTable(tableNum, branchId) {
+  closeModal();
+  await clearTableSignals(tableNum, branchId);
+  removeRequest(branchId + '_' + tableNum, 'call');
+  removeRequest(branchId + '_' + tableNum, 'bill');
+  clearTable(tableNum, branchId);
+}
+async function clearTableSignals(tableNum, branchId) {
+  try {
+    const branchUuid = branchUuidCache[branchId];
+    const tables = branchUuid ? await TPN.getTablesForBranch(branchUuid) : [];
+    const row = tables.find(t => Number(t.table_number) === Number(tableNum));
+    if (row) {
+      if (row.bill_requested_at) await TPN.ackBillRequest(row.id);
+      if (row.call_staff_at)     await TPN.ackCallStaff(row.id);
+    }
+  } catch (e) {
+    console.warn('could not clear table signals:', e);
+  }
+}
+
 async function closeTable(tableNum, branchId) {
   const key = branchId + '_' + tableNum;
   const tbl = tableStates[key];
@@ -1192,17 +1393,9 @@ async function confirmCloseTable(tableNum, branchId) {
 
   // Clear the call-staff / bill-request flags on the table row itself,
   // otherwise loadOrdersFromSupabase() re-raises them on next load.
-  try {
-    const branchUuid = branchUuidCache[branchId];
-    const tables = branchUuid ? await TPN.getTablesForBranch(branchUuid) : [];
-    const row = tables.find(t => Number(t.table_number) === Number(tableNum));
-    if (row) {
-      if (row.bill_requested_at) await TPN.ackBillRequest(row.id);
-      if (row.call_staff_at)     await TPN.ackCallStaff(row.id);
-    }
-  } catch (e) {
-    console.warn('close table — could not clear table signals:', e);
-  }
+  await clearTableSignals(tableNum, branchId);
+  removeRequest(branchId + '_' + tableNum, 'call');
+  removeRequest(branchId + '_' + tableNum, 'bill');
 
   closeModal();
 
@@ -1453,7 +1646,7 @@ function openTableModal(tableNum, branchId) {
   const branchIdx = branches.findIndex(b => b.id === branchId);
   openModal(`Table ${tableNum} Details`, content, [
     { label: 'Close', cls: 'secondary', fn: 'closeModal()' },
-    { label: tbl.billRequested ? '✓ Close Table' : '💳 Request Bill', cls: 'primary', fn: tbl.billRequested ? `clearTable(${tableNum}, '${branchId}'); closeModal();` : `markBillReady(${tableNum}, '${branchId}'); closeModal();` }
+    { label: tbl.billRequested ? '✓ Close Table' : '💳 Request Bill', cls: 'primary', fn: tbl.billRequested ? `closeModal(); closeTable(${tableNum}, '${branchId}');` : `markBillReady(${tableNum}, '${branchId}'); closeModal();` }
   ]);
 
   loadTableGuests(tbl);

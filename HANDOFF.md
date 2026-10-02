@@ -1,6 +1,6 @@
 # TPN OS — Session Handoff
 
-**Last updated:** Aug 22, 2026 (rev 4 — split bills, daily close, variance, working add-ons, low-stock alerts; migrations 18–28)
+**Last updated:** Oct 2, 2026 (rev 5 — UI/UX reliability pass, no migrations; see "Rev 5" below). Rev 4 (Aug 22): split bills, daily close, variance, working add-ons, low-stock alerts; migrations 18–28
 **Deployed:** https://unorfl.github.io/tpn-os/
 **Repo:** https://github.com/UnoRfl/tpn-os
 **Supabase project ref:** `xjlqfpnzobfqxetgkkai` (single project, single branch)
@@ -55,6 +55,93 @@ tpn-os/
 | Dashboard tiles + revenue drilldown + prep-time analytics | ✅ live |
 | Session restore with **branded boot overlay** (no flicker) | ✅ live |
 | **Extensionless URLs** (`/tpn-table-menu`, `/tpn-dine-in-floor`) | ✅ live |
+
+---
+
+## Rev 5 — UI/UX reliability pass (Oct 2, 2026)
+
+No SQL changes. Asset version bumped to `20261002` on **all four pages**
+(the floor and kitchen pages now depend on new `TPN.*` functions, so a stale
+cached `tpn-supabase.js` there would break them; see the asset-version
+section below).
+
+**Shared, in `tpn-supabase.js`:**
+- `TPN.liveChannel(name, configure)`: every realtime channel the screens
+  use goes through this. It tracks the real channel status, rebuilds a dead
+  channel with backoff (2s up to 30s), and rebuilds on tab wake.
+  `TPN.onLiveStatus(fn)` reports `connecting | live | down` plus `previous`;
+  a page re-fetches when it goes `down → live`. `subscribeOrders()` uses it.
+- `TPN.today(d)` / `TPN.dayStartISO()`: the **Manila** calendar day. Use
+  these, never `toISOString().slice(0,10)`, which is the UTC day and still
+  yesterday before 8 AM here.
+- `TPN.listOrdersToday()`: the dashboard's "Revenue/Orders Today" and the
+  sales drilldown. They used to sum `portalState.orders`, which only holds
+  active orders + the last hour.
+- `TPN.unlockAudio() / audioReady() / chime()`: browsers block sound until
+  the page has had a tap, so both wall screens show a **"Tap to start"**
+  overlay on boot, and again if a chime would play silently.
+
+**Portal (`index.html`):**
+- Realtime and timers call `rerenderLive()`, which redraws only the live
+  pages (orders, kds, dashboard, staff-home), keeps the scroll, never touches
+  history, and waits while someone is typing. `route(r, { refresh: true })`
+  is the in-place redraw. The portal pages scroll themselves
+  (`.portal-page`), not the window; see `portalScroller()`.
+- The landing/restore allow-list is built from the sidebar
+  (`window._tpnAdminRoutes`), and `?view=` is honoured on load, so reloads
+  and shared links land on the right tab.
+- `loadErrorPanel(what, err, retryJs)`: one error panel (offline vs. refused,
+  plus Try again) used by ~22 lists. A failed load must never render as an
+  empty list.
+- `guardAsync(name)` wraps ~27 save/approve/apply actions against double
+  taps (same arguments ignored while in flight; the pressed button is
+  disabled). **Add new money-moving actions to that list.**
+- Escaped: KDS special requests, audit log fields, drilldown item names.
+- Modal: Escape closes, focus moves in and returns, Tab is trapped,
+  `role="dialog"`. Mobile drawer has a backdrop and closes on an outside tap.
+- The reduce-motion CSS was invalid (an `@media` inside a selector list) and
+  did nothing; it is now two rules.
+- Public menu: loading / error / empty are separate states; it no longer
+  says "baka may typo?" when the database is down. The menu also failed to
+  redraw on load (it checked for `#menuGrid`, which does not exist).
+
+**Floor panel:** live status pill + banner; 60s safety re-fetch;
+`reloadFloor()` resets table state first (re-loading on top used to
+double table totals); call/bill requests are a persistent queue
+(bottom-right) that re-chimes every 30s until "On it" (`ack_call_staff`).
+Signals are compared with what the screen last saw, **not `payload.old`**:
+`restaurant_tables` has no REPLICA IDENTITY FULL, so `payload.old` carries
+only the id. "Clear" on a table with open orders goes to Close Table; on an
+empty table it asks, then clears the flags server-side. The table modal's
+"✓ Close Table" was still the old local-only clear and now settles properly.
+A call-staff press no longer marks the table as billed. The sound toggle in
+Settings works (`localStorage tpn.floor.sound`).
+
+**Kitchen station:** real connection status; red banner and "Orders couldn't
+load" instead of "Walang bagong order" when it does not know; catch-up fetch
+on reconnect and every 60s, with a chime for orders found that way.
+
+**Table QR menu:** each attempt has a 5s deadline (a paused server hangs
+rather than failing). After about 16s the guest sees what to do ("wave to our
+staff"), and it keeps retrying in the background.
+
+### ⚠️ Open: schedule week keys are Sundays
+`TPN.weekStartISO()` and `isoDay()` turn "Monday 00:00 local" into a date
+with `toISOString()`, which in UTC+8 is **Sunday**. So `schedules.week_start`
+rows are almost certainly Sundays. This was left alone on purpose: fixing
+the code alone would hide every saved schedule. Fix both together:
+```sql
+update public.schedules set week_start = week_start + 1
+ where extract(dow from week_start) = 0;
+```
+then switch both helpers to `TPN.today(monday)`. Check the row count first.
+
+### Still not done from the audit
+Native `confirm()`/`prompt()` (about 20; void reasons especially want preset
+chips), sortable/filterable long lists, one peso formatter everywhere, mixed
+English/Tagalog, Staff Board drag-and-drop on touch, tier-vs-permission
+checks inside some pages, placeholder contact details and SEC number on the
+public site, food photos.
 
 ---
 

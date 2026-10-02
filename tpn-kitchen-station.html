@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="config.js?v=20260813"></script>
-<script src="tpn-supabase.js?v=20260813"></script>
+<script src="config.js?v=20261002"></script>
+<script src="tpn-supabase.js?v=20261002"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
 <meta name="theme-color" content="#1a0a00">
 <title>Tyo Paeng Nyo · Kitchen Station</title>
@@ -89,6 +89,29 @@
   }
   .conn-dot { width: 8px; height: 8px; border-radius: 50%; background: #7ed99a; box-shadow: 0 0 6px #7ed99a; }
   .conn-dot.offline { background: var(--red); box-shadow: 0 0 6px var(--red); }
+  .conn-dot.connecting { background: var(--gold-light); box-shadow: 0 0 6px var(--gold-light); animation: connpulse 1.2s ease-in-out infinite; }
+  @keyframes connpulse { 50% { opacity: .35; } }
+  .connection.down { color: #ffb4a8; font-weight: 700; }
+
+  /* Shown when the live feed is down or the first load failed. Loud on
+     purpose: a kitchen that thinks it is caught up when it is not is the
+     worst failure this screen can have. */
+  .live-banner {
+    background: #b3261e; color: #fff; font-weight: 700; font-size: 15px;
+    padding: 12px 20px; display: flex; align-items: center; gap: 12px; justify-content: center;
+  }
+  .live-banner[hidden] { display: none; }
+  .live-banner button { background: rgba(255,255,255,.18); color: #fff; border: 1px solid rgba(255,255,255,.4); border-radius: 8px; padding: 6px 14px; font: inherit; font-size: 13px; cursor: pointer; }
+
+  /* Browsers keep audio locked until the page gets a tap. */
+  .sound-gate {
+    position: fixed; inset: 0; z-index: 900; background: rgba(10,4,4,.86);
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+    color: #fff; text-align: center; padding: 24px;
+  }
+  .sound-gate[hidden] { display: none; }
+  .sound-gate button { background: var(--brick); color: #fff; border: none; border-radius: 14px; padding: 22px 36px; font: inherit; font-size: 22px; font-weight: 700; cursor: pointer; }
+  .sound-gate p { color: rgba(255,255,255,.7); font-size: 14px; max-width: 360px; }
 
   /* ── LANES ── */
   .lanes-wrap { padding: 20px 16px 100px; }
@@ -247,9 +270,14 @@
   <div class="stat-chip"><span class="stat-num new" id="stat-new">0</span><span class="stat-label">Received</span></div>
   <div class="stat-chip"><span class="stat-num cooking" id="stat-cooking">0</span><span class="stat-label">Cooking</span></div>
   <div class="stat-chip"><span class="stat-num ready" id="stat-ready">0</span><span class="stat-label">Ready</span></div>
-  <div class="connection" id="connection-status">
-    <span class="conn-dot"></span><span>Live</span>
+  <div class="connection" id="connection-status" role="status" aria-live="polite">
+    <span class="conn-dot connecting"></span><span>Connecting…</span>
   </div>
+</div>
+<div class="live-banner" id="live-banner" role="alert" hidden></div>
+<div class="sound-gate" id="sound-gate" hidden>
+  <button onclick="enableKitchenSound()">🔔 Tap to start</button>
+  <p>Sound for new orders needs one tap after the screen turns on. Without it, new orders arrive silently.</p>
 </div>
 
 <!-- LANES -->
@@ -285,7 +313,6 @@
 // ─── STATE ────────────────────────────────────────────────────────
 let kitchenOrders = [];   // Live in-memory model, populated from Supabase
 let _lastKnownCount = 0;
-let _audioCtx = null;
 // True when signed in as the shared 'kitchen_display' screen account
 // rather than as a person. Set by tpnAuthGate().
 let IS_DISPLAY_ACCOUNT = false;
@@ -358,6 +385,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   await refreshPendingVoids();
   subscribeToRealtime();
   render();
+  maybeShowSoundGate();
 
   // Watch our own void requests so the ⏳ clears and the cook is told
   // the verdict without anyone touching the screen.
@@ -392,12 +420,25 @@ function updateClock() {
 }
 
 // ─── DATA LAYER ───────────────────────────────────────────────────
-async function loadOrdersFromSupabase() {
+let _loadFailed = false;
+async function loadOrdersFromSupabase(opts) {
   try {
     const orders = await TPN.listActiveOrders(null);
+    const before = new Set(kitchenOrders.map(o => o.dbId));
     kitchenOrders = (orders || []).map(dbOrderToKitchenOrder);
     _lastKnownCount = kitchenOrders.length;
-  } catch (e) { console.error('load orders:', e); }
+    _loadFailed = false;
+    // A catch-up fetch (after a reconnect, or the 60s safety net) can find
+    // orders whose realtime event was missed. Those still deserve the chime.
+    if (opts && opts.catchUp) {
+      const missed = kitchenOrders.filter(o => !before.has(o.dbId) && o.status === 'received');
+      if (missed.length) { playOrderChime(); showToast(`🔔 ${missed.length} new order${missed.length > 1 ? 's' : ''}`); }
+    }
+  } catch (e) {
+    console.error('load orders:', e);
+    _loadFailed = true;
+  }
+  updateLiveBanner();
 }
 
 function dbOrderToKitchenOrder(o) {
@@ -464,17 +505,65 @@ function subscribeToRealtime() {
     } catch(e) { console.warn('realtime:', e); }
   });
 
-  // Connection status: on window offline, dim the dot
-  window.addEventListener('offline', () => {
-    const el = document.getElementById('connection-status');
-    if (el) el.innerHTML = '<span class="conn-dot offline"></span><span>Offline</span>';
+  // Connection status reflects the real channel, not just the Wi-Fi.
+  TPN.onLiveStatus(st => {
+    _liveState = st.state;
+    renderConnection();
+    updateLiveBanner();
+    // Back after a drop: fetch whatever arrived while we were deaf.
+    if (st.previous && st.previous !== 'live' && st.state === 'live') {
+      loadOrdersFromSupabase({ catchUp: true }).then(render);
+    }
   });
-  window.addEventListener('online', () => {
-    const el = document.getElementById('connection-status');
-    if (el) el.innerHTML = '<span class="conn-dot"></span><span>Live</span>';
-    loadOrdersFromSupabase().then(render);
-  });
+  setInterval(renderConnection, 15000);
+  // Safety net: even a healthy socket can miss an event. Re-check every
+  // minute while the screen is visible.
+  setInterval(() => {
+    if (document.visibilityState === 'visible') loadOrdersFromSupabase({ catchUp: true }).then(render);
+  }, 60000);
 }
+
+let _liveState = 'connecting';
+function renderConnection() {
+  const el = document.getElementById('connection-status');
+  if (!el) return;
+  const st = TPN.liveStatus();
+  const map = {
+    live:       ['', 'Live · last order ' + TPN.agoText(st.lastEventAt)],
+    connecting: ['connecting', 'Connecting…'],
+    down:       ['offline', 'Disconnected — reconnecting']
+  };
+  const [cls, label] = map[st.state] || map.connecting;
+  el.classList.toggle('down', st.state === 'down');
+  el.innerHTML = `<span class="conn-dot ${cls}"></span><span>${label}</span>`;
+}
+function updateLiveBanner() {
+  const el = document.getElementById('live-banner');
+  if (!el) return;
+  let msg = '';
+  if (_loadFailed) msg = '⚠ Orders could not be loaded. This screen may be missing orders.';
+  else if (_liveState === 'down') msg = '⚠ Lost connection to new orders. Reconnecting… check the tablet Wi-Fi.';
+  if (!msg) { el.hidden = true; return; }
+  el.innerHTML = `<span>${msg}</span><button onclick="loadOrdersFromSupabase({catchUp:true}).then(render)">Retry now</button>`;
+  el.hidden = false;
+}
+
+// Sound gate: one tap unlocks audio for the rest of the session.
+function enableKitchenSound() {
+  TPN.unlockAudio();
+  const g = document.getElementById('sound-gate');
+  if (g) g.hidden = true;
+  TPN.chime([880, 1174], 0.08);   // quiet confirmation that sound works
+}
+function maybeShowSoundGate() {
+  const g = document.getElementById('sound-gate');
+  if (g && !TPN.audioReady()) g.hidden = false;
+}
+document.addEventListener('pointerdown', () => {
+  TPN.unlockAudio();
+  const g = document.getElementById('sound-gate');
+  if (g && TPN.audioReady()) g.hidden = true;
+}, { passive: true });
 
 // ─── RENDER ───────────────────────────────────────────────────────
 function ageInfo(o) {
@@ -514,6 +603,12 @@ function render() {
 function renderLane(elId, orders, laneKind) {
   const el = document.getElementById(elId);
   if (!el) return;
+  if (!orders.length && _loadFailed && !kitchenOrders.length) {
+    // Not "no orders" — we do not know. Saying "Walang bagong order" here
+    // would tell the kitchen it is caught up when it might not be.
+    el.innerHTML = `<div class="lane-empty" style="color:#ffb4a8">⚠ Orders couldn't load</div>`;
+    return;
+  }
   if (!orders.length) {
     const emptyMsg = {
       received:  '🕐  Walang bagong order',
@@ -654,21 +749,10 @@ async function advance(dbId, nextLane, btnEl) {
 
 // ─── AUDIO CHIME on new order ─────────────────────────────────────
 function playOrderChime() {
-  try {
-    _audioCtx = _audioCtx || new (window.AudioContext || window.webkitAudioContext)();
-    const ctx = _audioCtx;
-    const now = ctx.currentTime;
-    [880, 1174, 1568].forEach((freq, i) => {
-      const osc  = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = 'sine'; osc.frequency.value = freq;
-      gain.gain.setValueAtTime(0, now + i * 0.13);
-      gain.gain.linearRampToValueAtTime(0.18, now + i * 0.13 + 0.02);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.13 + 0.28);
-      osc.connect(gain); gain.connect(ctx.destination);
-      osc.start(now + i * 0.13); osc.stop(now + i * 0.13 + 0.32);
-    });
-  } catch(e) { /* audio not available */ }
+  // If audio is still locked, the chime would be silent — bring the
+  // tap-to-start screen back so somebody notices.
+  if (!TPN.audioReady()) maybeShowSoundGate();
+  TPN.chime([880, 1174, 1568], 0.18);
 }
 
 // ─── TOAST ────────────────────────────────────────────────────────
