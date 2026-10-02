@@ -4169,7 +4169,12 @@ async function attemptLogin() {
   if (btn) { btn.disabled = true; btn.textContent = 'Signing in…'; }
   hideErr();
   try {
-    const staff = await TPN.login(email, pass);
+    // Deadline: when the server is unreachable (offline, or the Supabase
+    // project is paused) the request hangs on "Signing in…" instead of failing.
+    const staff = await Promise.race([
+      TPN.login(email, pass),
+      new Promise((_, rej) => setTimeout(() => rej(new Error('__timeout')), 15000))
+    ]);
     if (!staff) {
       showErr('Signed in, but no staff profile exists for this account. Contact your administrator.');
       await TPN.logout();
@@ -4196,6 +4201,12 @@ async function attemptLogin() {
     console.error('login error:', e);
     const msg = e?.message || 'Login failed';
     if (/invalid/i.test(msg) || /credentials/i.test(msg)) showErr('Invalid email or password.');
+    // An unreachable server is not a wrong password; say so, so nobody
+    // starts resetting passwords over an outage.
+    else if (msg === '__timeout' || /failed to fetch|network|load failed|fetch/i.test(msg) || !navigator.onLine)
+      showErr(navigator.onLine
+        ? 'Can’t reach the TPN server right now, so your password wasn’t checked. Try again in a few minutes. If it keeps happening, tell the admin the server is down.'
+        : 'You’re offline. Check the Wi-Fi and try again.');
     else showErr(msg);
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = 'Sign In'; }
