@@ -5281,7 +5281,7 @@ function renderStaffBoard(main) {
         <h1>Staff Board</h1>
         <div class="portal-header-sub">${canDrag ? 'Drag staff between branches and roles to relocate them.' : 'View your team\'s current assignments.'}</div>
       </div>
-      <div class="branch-pill ${isBranchScoped ? 'locked' : ''}">${isBranchScoped ? portalState.branches.find(b => b.id === u.branch).name : 'All Branches'}</div>
+      <div class="branch-pill ${isBranchScoped ? 'locked' : ''}">${isBranchScoped ? (portalState.branches.find(b => b.id === u.branch)?.name || 'Your branch') : 'All Branches'}</div>
     </div>`;
 
   if (canDrag) {
@@ -5905,7 +5905,7 @@ function renderOrders(main) {
   ];
   let html = `<div class="portal-header">
     <div><h1>Live Orders</h1><div class="portal-header-sub">Active order queue. Click "next" buttons to advance through the workflow.</div></div>
-    <div class="branch-pill ${isBranchScoped ? 'locked' : ''}">${isBranchScoped ? portalState.branches.find(b => b.id === u.branch).name : 'All Branches'}</div>
+    <div class="branch-pill ${isBranchScoped ? 'locked' : ''}">${isBranchScoped ? (portalState.branches.find(b => b.id === u.branch)?.name || 'Your branch') : 'All Branches'}</div>
   </div>
   <div class="order-grid">`;
   lanes.forEach(lane => {

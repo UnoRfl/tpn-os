@@ -272,7 +272,9 @@
     const tryOnce = () => {
       const head = main.querySelector('.portal-header');
       if (head && !head.querySelector('.tpn-io')) { const tb = toolbar(route); if (tb) head.appendChild(tb); return; }
-      if (++tries < 30) setTimeout(tryOnce, 100);
+      if (++tries < 30) { setTimeout(tryOnce, 100); return; }
+      // Pages with their own header markup (Attendance, …): put the bar on top.
+      if (!main.querySelector('.tpn-io')) { const tb = toolbar(route); if (tb) { tb.style.cssText = 'display:flex;justify-content:flex-end;margin-bottom:10px'; main.prepend(tb); } }
     };
     tryOnce();
   }
