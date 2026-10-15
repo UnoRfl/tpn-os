@@ -3882,11 +3882,12 @@ async function confirmOrder() {
       deliveryAddress: dbOrderType === 'delivery' ? (checkoutData.address || null) : null,
       scheduledFor: scheduledFor,
       items: cart.map(c => ({
-        menu_item_id: c.menuItemId || null,
+        // Cart lines store the dish id as `id` and the size as "2-3 pax".
+        menu_item_id: c.menuItemId || c.id || null,
         name: c.name,
         unit_price: c.price,
         quantity: c.qty,
-        pax_size: c.paxSize || null
+        pax_size: c.paxSize || (c.paxLabel ? c.paxLabel.replace(/\s*pax$/i, '') : null)
       }))
     });
     checkoutData.ref = order.order_number;
