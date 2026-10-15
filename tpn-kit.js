@@ -231,7 +231,7 @@
   // Local copy first (survives a CDN outage), CDN as the fallback.
   function loadExcel() {
     if (window.ExcelJS) return Promise.resolve(window.ExcelJS);
-    return loadScriptOnce('vendor/exceljs.min.js?v=4.4.0', 'ExcelJS')
+    return loadScriptOnce('vendor/exceljs-4.4.0.min.js', 'ExcelJS')
       .catch(() => loadScriptOnce('https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js', 'ExcelJS'));
   }
   window.tpnLoadExcel = loadExcel;
