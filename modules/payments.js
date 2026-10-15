@@ -201,6 +201,16 @@
     catch (e) { toast(e.message); }
   };
 
+  // Counter customers claim their stamp card by scanning this (sql/34):
+  // the link carries the order's private tracking token as proof.
+  function rewardsQr(o, p) {
+    const set = (window.tpnSite && tpnSite.state.settings) || {};
+    if (!['true', 'yes', true].includes(set['rewards.enabled']) || !o.customer_phone || !o.track_token || p.payment_status !== 'paid') return '';
+    const url = new URL('tpn-rewards', location.href);
+    url.searchParams.set('claim', o.order_number); url.searchParams.set('t', o.track_token);
+    return `<div class="c" style="margin:6px 0"><div class="n">Scan for your stamp card</div>${qrSvg(url.toString(), 140)}</div>`;
+  }
+
   /* ── Printable bill (58/80mm thermal or A4) ──────────────── */
   window.printReceipt = async function (orderId) {
     let o, p;
@@ -225,6 +235,7 @@
       <tr class="tot"><td>TOTAL</td><td class="r">₱${E(Number(o.total).toFixed(2))}</td></tr>
       ${p.payments.filter(x => x.status === 'completed').map(x => `<tr><td>${x.kind === 'refund' ? 'Refund' : E((METHOD[x.method] || x.method).replace(/^\S+\s/, ''))}</td><td class="r">${x.kind === 'refund' ? '-' : ''}${E(Number(x.amount).toFixed(2))}</td></tr>${x.change_due ? `<tr><td>Change</td><td class="r">${E(Number(x.change_due).toFixed(2))}</td></tr>` : ''}`).join('')}
       <tr><td>Balance</td><td class="r">${E(Number(p.amount_due).toFixed(2))}</td></tr></table><hr>
+      ${rewardsQr(o, p)}
       <div class="c n">This is not an official receipt.<br>Salamat po! Come again.</div>
       <script>window.onload=()=>{window.print();setTimeout(()=>window.close(),400)}<\/script></body></html>`);
     w.document.close();
