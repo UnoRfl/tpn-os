@@ -46,7 +46,7 @@ Deno.serve(async (req) => {
     const back = new URL(body.return_path === 'table' ? 'tpn-table-menu' : '', site)
     back.searchParams.set('paid', begin.order_number)
     if (body.return_query && typeof body.return_query === 'string') {
-      for (const [k, v] of new URLSearchParams(body.return_query.slice(0, 200))) if (/^(branch|table)$/.test(k)) back.searchParams.set(k, v)
+      for (const [k, v] of new URLSearchParams(body.return_query.slice(0, 200))) if (/^(branch|branchId|table)$/.test(k)) back.searchParams.set(k, v)
     }
 
     const form: Record<string, string | string[]> = {
