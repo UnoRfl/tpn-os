@@ -251,7 +251,8 @@ const TPN = {
                             unit_price:   i.unit_price,
                             quantity:     i.quantity,
                             pax_size:     i.pax_size || null,
-                            notes:        i.notes || null
+                            notes:        i.notes || null,
+                            modifiers:    Array.isArray(i.modifiers) ? i.modifiers : undefined
                           })),
       p_table_id:         opts.tableId ?? null,
       p_customer_name:    opts.customerName ?? null,
@@ -261,7 +262,8 @@ const TPN = {
       p_delivery_address: opts.deliveryAddress ?? null,
       p_scheduled_for:    opts.scheduledFor ?? null,
       p_device_id:        this.deviceId(),
-      p_join_table_bill:  opts.joinTableBill !== false
+      p_join_table_bill:  opts.joinTableBill !== false,
+      p_source:           opts.source || null
     });
     if (error) throw new Error(this.prettyOrderError(error.message));
     // The tracking token proves this device placed the order; without it
@@ -2235,6 +2237,50 @@ TPN.prettyPaymentError = function (msg) {
   if (/permission_denied/.test(msg)) return 'Your account is not allowed to do that.';
   if (/payment_state_is_derived/.test(msg)) return 'Record a payment instead of changing the status.';
   return msg;
+};
+
+/* ═════ POS + CASH DRAWER (sql/32) ═══════════════════════════════ */
+TPN.loadModifiers = async function () {
+  const [g, m, l] = await Promise.all([
+    sb.from('modifier_groups').select('*').eq('is_active', true).order('sort'),
+    sb.from('modifiers').select('*').order('sort'),
+    sb.from('menu_item_modifier_groups').select('*').order('sort')
+  ]);
+  for (const r of [g, m, l]) if (r.error) throw r.error;
+  const groups = g.data.map(x => Object.assign({}, x, { options: m.data.filter(o => o.group_id === x.id) }));
+  const byItem = {};
+  l.data.forEach(x => { const grp = groups.find(gg => gg.id === x.group_id); if (grp) (byItem[x.menu_item_id] = byItem[x.menu_item_id] || []).push(grp); });
+  return { groups, byItem };
+};
+TPN.setItemAvailable = async function (itemId, available, reason) {
+  const { data, error } = await sb.rpc('set_item_available', { p_item_id: itemId, p_available: !!available, p_reason: reason || null });
+  if (error) throw error;
+  return data;
+};
+TPN.myOpenCashSession = async function (register) {
+  const { data, error } = await sb.rpc('my_open_cash_session', { p_register: register || 'Counter' });
+  if (error) throw error;
+  return data;
+};
+TPN.openCashSession = async function (float, register) {
+  const { data, error } = await sb.rpc('open_cash_session', { p_float: float, p_register: register || 'Counter' });
+  if (error) throw error;
+  return data;
+};
+TPN.cashMove = async function (session, kind, amount, reason) {
+  const { data, error } = await sb.rpc('cash_move', { p_session: session, p_kind: kind, p_amount: amount, p_reason: reason });
+  if (error) throw error;
+  return data;
+};
+TPN.cashSessionReport = async function (session) {
+  const { data, error } = await sb.rpc('cash_session_report', { p_session: session });
+  if (error) throw error;
+  return data;
+};
+TPN.closeCashSession = async function (session, counted, denominations, notes) {
+  const { data, error } = await sb.rpc('close_cash_session', { p_session: session, p_counted: counted, p_denominations: denominations || null, p_notes: notes || null });
+  if (error) throw error;
+  return data;
 };
 
 // Restore session on load

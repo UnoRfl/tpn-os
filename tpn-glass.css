@@ -308,3 +308,44 @@ details.tpn-menu > summary::-webkit-details-marker { display: none; }
 .order-advance.pay-btn { background: color-mix(in srgb, var(--success) 14%, transparent) !important; color: var(--ink) !important; border: 1px solid color-mix(in srgb, var(--success) 45%, transparent) !important; }
 .order-advance.pay-btn.is-paid { background: transparent !important; color: var(--success) !important; }
 @media (max-width: 520px) { .pay-row { grid-template-columns: 1fr auto; } .pay-row-act { grid-column: 1 / -1; } }
+
+/* ── Counter POS (modules/pos.js) ─────────────────────────── */
+.pos-header { align-items: center; }
+.pos-drawer { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.pos-wrap { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 16px; align-items: start; }
+.pos-menu { padding: 16px; }
+.pos-menu > .form-input { margin-bottom: 10px; }
+.pos-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+.pos-tile { all: unset; box-sizing: border-box; cursor: pointer; display: flex; flex-direction: column; gap: 4px; padding: 14px 12px; min-height: 108px;
+  border-radius: 16px; background: rgba(var(--glass-tint), .7); border: 1px solid var(--glass-edge-lo); box-shadow: var(--glass-shadow); transition: transform .12s ease; }
+.pos-tile:active { transform: scale(.97); }
+.pos-tile:focus-visible { box-shadow: var(--focus-ring); }
+.pos-tile-emoji { font-size: 26px; }
+.pos-tile-name { font-weight: 700; color: var(--ink); font-size: 14px; line-height: 1.25; }
+.pos-tile-price { margin-top: auto; color: var(--brick); font-weight: 700; font-size: 13px; font-variant-numeric: tabular-nums; }
+.pos-tile.is-out { opacity: .5; filter: grayscale(.6); }
+.pos-tile.is-out .pos-tile-price { color: var(--danger); }
+.pos-ticket { position: sticky; top: 12px; padding: 16px; max-height: calc(100vh - 40px); overflow-y: auto; }
+.pos-ticket-head { display: flex; justify-content: space-between; align-items: baseline; }
+.pos-ticket h2 { font-family: 'Playfair Display', serif; font-size: 20px; color: var(--ink); }
+.pos-lines { list-style: none; margin: 8px 0; padding: 0; }
+.pos-lines li { display: grid; grid-template-columns: 1fr auto auto; gap: 8px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--line-soft); }
+.pos-qty { display: flex; align-items: center; gap: 6px; font-weight: 700; }
+.pos-qty .qty-btn { width: 34px; height: 34px; border-radius: 999px; border: 1px solid var(--glass-edge-lo); background: rgba(var(--glass-tint), .7); font-size: 18px; cursor: pointer; color: var(--ink); }
+.pos-line-amt { font-variant-numeric: tabular-nums; font-weight: 700; min-width: 76px; text-align: right; }
+.pos-type { display: flex; gap: 4px; padding: 4px; border-radius: 999px; background: rgba(var(--glass-tint-2), .6); margin: 12px 0; }
+.pos-type button { all: unset; flex: 1; text-align: center; padding: 9px 6px; border-radius: 999px; cursor: pointer; font-size: 13px; font-weight: 600; color: var(--ink-muted); }
+.pos-type button.on { background: rgba(var(--glass-tint), .95); color: var(--ink); box-shadow: 0 1px 4px rgba(0,0,0,.12); }
+.pos-type button:focus-visible { box-shadow: var(--focus-ring); }
+.pos-total { display: flex; justify-content: space-between; align-items: baseline; font-size: 18px; margin: 14px 0 4px; }
+.pos-total strong { font-size: 28px; color: var(--brick); font-variant-numeric: tabular-nums; }
+.pos-send { width: 100%; margin: 0 !important; min-height: 52px; font-size: 16px !important; }
+.pos-send:disabled { opacity: .5; cursor: not-allowed; }
+.pos-fs { border: 0; padding: 0; margin: 0 0 12px; }
+.tpn-chip input { margin-right: 6px; }
+.pos-denoms { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; margin: 10px 0; }
+.pos-denoms label { font-size: 12px; font-weight: 700; color: var(--ink-muted); display: flex; flex-direction: column; gap: 4px; }
+@media (max-width: 900px) {
+  .pos-wrap { grid-template-columns: 1fr; }
+  .pos-ticket { position: static; max-height: none; }
+}

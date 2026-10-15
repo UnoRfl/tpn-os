@@ -5992,6 +5992,7 @@ function renderKDS(main) {
       <div class="kds-stats">
         <span class="kds-stat"><span class="kds-stat-num">${portalState.orders.filter(o=>o.status==='received').length}</span> new</span>
         <span class="kds-stat"><span class="kds-stat-num">${portalState.orders.filter(o=>o.status==='preparing').length}</span> cooking</span>
+        ${window.open86Panel && TPN.can && (TPN.can('menu.86') || TPN.can('menu.edit')) ? `<button class="btn-ghost" style="padding:6px 14px;min-height:36px" onclick="open86Panel()">🚫 Sold out (86)</button>` : ''}
       </div>
     </div>`;
 
@@ -12235,5 +12236,6 @@ if (document.readyState !== 'loading') {
 <script src="modules/website.js?v=20261015"></script>
 <script src="vendor/qrcode-generator-1.4.4.js"></script>
 <script src="modules/payments.js?v=20261016"></script>
+<script src="modules/pos.js?v=20261016"></script>
 </body>
 </html>
