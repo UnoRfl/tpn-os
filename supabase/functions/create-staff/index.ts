@@ -11,7 +11,7 @@
 //         name: create-staff  → paste this file → Deploy
 // ═══════════════════════════════════════════════════════════════
 
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.117.2'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
