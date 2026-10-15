@@ -264,9 +264,29 @@ const TPN = {
       p_join_table_bill:  opts.joinTableBill !== false
     });
     if (error) throw new Error(this.prettyOrderError(error.message));
+    // The tracking token proves this device placed the order; without it
+    // track_order() shows progress only (no name, notes or prices).
+    if (data && data.order_number && data.track_token) this._saveTrackToken(data.order_number, data.track_token);
     // Shape kept compatible with the old return value so callers that read
     // order.order_number / order.id keep working.
     return data;
+  },
+
+  _trackKey: 'tpn.trackTokens',
+  _saveTrackToken(orderNumber, token) {
+    try {
+      const all = JSON.parse(localStorage.getItem(this._trackKey) || '{}');
+      all[String(orderNumber).toUpperCase()] = { t: token, at: Date.now() };
+      // Keep the 30 most recent; a phone does not need a year of receipts.
+      const keep = Object.entries(all).sort((a, b) => b[1].at - a[1].at).slice(0, 30);
+      localStorage.setItem(this._trackKey, JSON.stringify(Object.fromEntries(keep)));
+    } catch (e) { /* private mode: tracking falls back to progress-only */ }
+  },
+  _trackToken(orderNumber) {
+    try {
+      const v = JSON.parse(localStorage.getItem(this._trackKey) || '{}')[String(orderNumber).toUpperCase()];
+      return v ? v.t : null;
+    } catch (e) { return null; }
   },
 
   // Turn a Postgres error into something a customer can act on.
@@ -277,6 +297,13 @@ const TPN = {
     if (/table_not_in_branch/.test(msg))   return 'That table QR is not valid for this branch — please call staff.';
     if (/bad_order_type/.test(msg))        return 'Something went wrong with the order type. Please try again.';
     if (/negative_price/.test(msg))        return 'One of the prices looked wrong. Please reload the menu.';
+    if (/item_sold_out:\s*(.+)/.test(msg)) return msg.match(/item_sold_out:\s*(.+)/)[1] + ' just sold out. Please remove it and try again.';
+    if (/unknown_item|unknown_size|item_has_no_price/.test(msg)) return 'The menu changed while you were ordering. Please reload the menu and try again.';
+    if (/bad_quantity/.test(msg))          return 'Up to 50 of one dish per order, please. For bigger orders, use the Events form or call us.';
+    if (/too_many_lines/.test(msg))        return 'That is a big order! Please split it into two, or call us for catering.';
+    if (/bad_schedule_time/.test(msg))     return 'Please pick a pickup or delivery time within the next 60 days.';
+    if (/branch_not_found/.test(msg))      return 'This branch is not taking online orders right now.';
+    if (/too_many_requests/.test(msg))     return 'Too many tries from this connection. Please wait a few minutes and try again.';
     if (/row-level security/i.test(msg))   return 'The kitchen could not accept that order. Please call staff.';
     if (/permission denied/i.test(msg))    return 'The kitchen could not accept that order. Please call staff.';
     if (/Failed to fetch|NetworkError/i.test(msg)) return 'No connection — check your signal and try again.';
@@ -295,7 +322,10 @@ const TPN = {
   // see createOrder above. Returns null when the number does not exist.
   // Deliberately no listing endpoint: one exact number in, one order out.
   async getOrderByNumber(orderNumber) {
-    const { data, error } = await sb.rpc('track_order', { p_order_number: orderNumber });
+    const token = this._trackToken(orderNumber);
+    const { data, error } = await sb.rpc('track_order', token
+      ? { p_order_number: orderNumber, p_token: token }
+      : { p_order_number: orderNumber });
     if (error) throw error;
     if (!data) return null;
     // Shape it like the old row-with-join so existing callers keep working.
@@ -431,7 +461,13 @@ const TPN = {
 
   // ═════ INQUIRIES ════════════════════════════════════════════
   async createInquiry({ type, name, phone, email, organization, message, eventDate, expectedPax, branchId }) {
-    const { data, error } = await sb.from('inquiries').insert({
+    // No read-back: a visitor may write an inquiry but never read one
+    // (that would expose everyone else's contact details). The id is made
+    // here so the confirmation can still quote a reference.
+    const id = (crypto.randomUUID && crypto.randomUUID()) ||
+      'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => { const r = Math.random() * 16 | 0; return (c === 'x' ? r : (r & 3 | 8)).toString(16); });
+    const { error } = await sb.from('inquiries').insert({
+      id,
       inquiry_type:   type,
       contact_name:   name,
       contact_phone:  phone ?? null,
@@ -441,9 +477,12 @@ const TPN = {
       event_date:     eventDate ?? null,
       expected_pax:   expectedPax ?? null,
       branch_id:      branchId ?? null
-    }).select().single();
-    if (error) throw error;
-    return data;
+    });
+    if (error) {
+      if (/too_many_requests/.test(error.message || '')) throw new Error('Too many inquiries from this connection. Please wait a little, or call us.');
+      throw error;
+    }
+    return { id, inquiry_type: type };
   },
 
   async listInquiries(status = null) {

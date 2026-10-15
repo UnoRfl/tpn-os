@@ -2,9 +2,21 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="config.js?v=20261002"></script>
-<script src="tpn-supabase.js?v=20261002"></script>
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https://xjlqfpnzobfqxetgkkai.supabase.co https://api.qrserver.com; connect-src 'self' https://xjlqfpnzobfqxetgkkai.supabase.co wss://xjlqfpnzobfqxetgkkai.supabase.co; media-src 'self' data: blob:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<script>
+  // GitHub Pages cannot send X-Frame-Options, so refuse to run inside
+  // someone else's frame (clickjacking: tricking staff into clicks).
+  if (window.top !== window.self) { try { window.top.location = window.self.location; } catch (e) { document.documentElement.style.display = "none"; } }
+</script>
+<script src="vendor/supabase-js-2.117.2.js"></script>
+<script>
+  // Local copy first; if it is missing, the same pinned version from the CDN,
+  // refused by the browser unless its hash matches.
+  if (!window.supabase) document.write('<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js" integrity="sha384-Rj26LVGvoeRVR6+mwQmFfcR3QOBEwT+ZmuCWpuiqeTzJpCs0ER4ITAWGb4Hiy3Ok" crossorigin="anonymous"><' + '/script>');
+</script>
+<script src="config.js?v=20261015"></script>
+<script src="tpn-supabase.js?v=20261015"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
 <meta name="theme-color" content="#1a0a00">
 <title>Tyo Paeng Nyo · Kitchen Station</title>
@@ -22,6 +34,11 @@
     const M = { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' };
     return String(v).replace(/[&<>"']/g, c => M[c]);
   };
+  window.JA = function(v){
+    // JS-string escape, then HTML escape: safe inside onclick="f('${JA(v)}')".
+    return window.E(String(v == null ? '' : v).replace(/[\\'"<>\n\r\u2028\u2029]/g, function(c){ return '\\u' + c.charCodeAt(0).toString(16).padStart(4, '0'); }));
+  };
+
   window.N = function(v, d){
     const n = Number(v); d = (typeof d === 'number') ? d : 2;
     return Number.isFinite(n) ? n.toFixed(d) : (0).toFixed(d);
@@ -637,7 +654,7 @@ function renderTicket(o, laneKind) {
               // Only ids in the attribute — dish names carry apostrophes
               // and quotes; requestVoid() looks the name up from state.
               : `<button class="item-void-btn" title="Ask a manager to void this line"
-                   onclick="requestVoid('${E(o.dbId)}','${E(it.id)}')">✕</button>`)
+                   onclick="requestVoid('${JA(o.dbId)}','${JA(it.id)}')">✕</button>`)
           : '';
         return `
         <div class="ticket-item">
@@ -654,9 +671,9 @@ function renderTicket(o, laneKind) {
   // Advance-only actions. No void, no discount, no financial info here.
   let action = '';
   if (laneKind === 'received') {
-    action = `<button class="ticket-btn start" data-id="${E(o.dbId)}" onclick="advance('${E(o.dbId)}','preparing',this)">Start Cooking →</button>`;
+    action = `<button class="ticket-btn start" data-id="${E(o.dbId)}" onclick="advance('${JA(o.dbId)}','preparing',this)">Start Cooking →</button>`;
   } else if (laneKind === 'preparing') {
-    action = `<button class="ticket-btn ready" data-id="${E(o.dbId)}" onclick="advance('${E(o.dbId)}','ready',this)">Mark Ready ✓</button>`;
+    action = `<button class="ticket-btn ready" data-id="${E(o.dbId)}" onclick="advance('${JA(o.dbId)}','ready',this)">Mark Ready ✓</button>`;
   } else if (laneKind === 'ready') {
     // Kitchen doesn't mark served/done — that's the dining staff's job.
     action = `<div style="text-align:center;font-size:11px;color:var(--text-muted);padding:8px 0 2px;font-style:italic;">Waiting for dining pickup</div>`;
