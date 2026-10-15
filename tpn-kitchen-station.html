@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
 <meta charset="UTF-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https://xjlqfpnzobfqxetgkkai.supabase.co https://api.qrserver.com; connect-src 'self' https://xjlqfpnzobfqxetgkkai.supabase.co wss://xjlqfpnzobfqxetgkkai.supabase.co; media-src 'self' data: blob:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'">
@@ -17,6 +17,8 @@
 </script>
 <script src="config.js?v=20261015"></script>
 <script src="tpn-supabase.js?v=20261015"></script>
+<script src="tpn-kit.js?v=20261016"></script>
+<link rel="stylesheet" href="tpn-glass.css?v=20261016">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
 <meta name="theme-color" content="#1a0a00">
 <title>Tyo Paeng Nyo · Kitchen Station</title>
@@ -709,11 +711,12 @@ function _voidItemLabel(orderDbId, itemId) {
 
 async function requestVoid(orderDbId, itemId) {
   const itemName = _voidItemLabel(orderDbId, itemId);
-  const reason = window.prompt(
-    'Ask a manager to void this line?\n\n' + itemName +
-    '\n\nReason (min 3 characters) — the manager sees this:', '');
+  const reason = await tpnAsk('Ask a manager to void this line?', {
+    message: itemName.replace(/&amp;/g, '&').replace(/&#39;/g, "'").replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&gt;/g, '>') + '\n\nThe manager sees your reason.',
+    chips: ['Wrong item', 'Customer changed mind', 'Kitchen error', 'Duplicate', 'Too long a wait'],
+    input: { placeholder: 'Reason (at least 3 characters)' }, confirmText: 'Send request' });
   if (reason === null) return;
-  if (!reason || reason.trim().length < 3) {
+  if (reason.trim().length < 3) {
     showToast('⚠️ Give a reason of at least 3 characters.');
     return;
   }

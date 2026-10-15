@@ -374,3 +374,17 @@ details.tpn-menu > summary::-webkit-details-marker { display: none; }
 /* Export / Import menus in page headers (modules/excel-io.js) */
 .tpn-io { display: inline-flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-left: auto; }
 .portal-header { flex-wrap: wrap; gap: 10px; }
+
+/* Dialogs must look right on pages that do not define the site's button
+   and input styles (kitchen, floor, rewards). Self-contained fallbacks. */
+.tpn-dlg .btn-primary, .tpn-dlg .btn-danger, .tpn-dlg .btn-ghost {
+  border: 0; cursor: pointer; font: inherit; font-weight: 700; padding: 11px 22px; min-height: 44px; border-radius: 999px;
+}
+.tpn-dlg .btn-primary { background: var(--ember, #C43D1A); color: #fff; box-shadow: 0 6px 16px rgba(196, 61, 26, .35); }
+.tpn-dlg .btn-danger  { background: var(--danger, #B22A1A); color: #fff; }
+.tpn-dlg .btn-ghost   { background: rgba(var(--glass-tint), .5); color: var(--ink, #2B1810); border: 1px solid var(--glass-edge-lo); }
+.tpn-dlg { color: var(--ink, #2B1810); }
+.tpn-dlg .form-input { width: 100%; padding: 12px 14px; font: inherit; font-size: 15px; color: var(--ink, #2B1810); border-radius: 12px;
+  border: 1.5px solid var(--glass-edge-lo); background: rgba(var(--glass-tint-2), .7); }
+html[data-theme="dark"] .tpn-dlg { color: #F5E7D0; }
+html[data-theme="dark"] .tpn-dlg .form-input, html[data-theme="dark"] .tpn-dlg .btn-ghost, html[data-theme="dark"] .tpn-chip { color: #F5E7D0; }

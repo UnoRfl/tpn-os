@@ -17,6 +17,8 @@
 </script>
 <script src="config.js?v=20261015"></script>
 <script src="tpn-supabase.js?v=20261015"></script>
+<script src="tpn-kit.js?v=20261016"></script>
+<link rel="stylesheet" href="tpn-glass.css?v=20261016">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
 <meta name="theme-color" content="#1a0a00">
 <title>Tyo Paeng Nyo · Dine-In Floor</title>
@@ -475,11 +477,12 @@ function _voidItemLabel(orderDbId, itemId) {
 
 async function requestVoid(orderDbId, itemId) {
   const itemName = _voidItemLabel(orderDbId, itemId);
-  const reason = window.prompt(
-    'Ask a manager to void this line?\n\n' + itemName +
-    '\n\nReason (min 3 characters) — the manager sees this:', '');
+  const reason = await tpnAsk('Ask a manager to void this line?', {
+    message: itemName.replace(/&amp;/g, '&').replace(/&#39;/g, "'").replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&gt;/g, '>') + '\n\nThe manager sees your reason.',
+    chips: ['Wrong item', 'Customer changed mind', 'Kitchen error', 'Duplicate', 'Too long a wait'],
+    input: { placeholder: 'Reason (at least 3 characters)' }, confirmText: 'Send request' });
   if (reason === null) return;
-  if (!reason || reason.trim().length < 3) {
+  if (reason.trim().length < 3) {
     showToast('⚠️ Give a reason of at least 3 characters.');
     return;
   }
@@ -1491,14 +1494,22 @@ async function openFloorDiscountPicker(orderDbIds, label, onDone) {
 async function applyFloorDiscount(orderDbIds, templateId, requiresId, tName, label) {
   let idRef = null;
   if (requiresId === true || requiresId === 'true') {
-    idRef = window.prompt(`Enter the physical ID number for "${tName}" (min 3 chars):`, '');
+    idRef = await tpnAsk('ID number for ' + tName, { input: { placeholder: 'At least 3 characters' }, confirmText: 'Next' });
     if (idRef === null) return;
-    if (!idRef || idRef.trim().length < 3) { showToast('ID number is required (min 3 chars).'); return; }
+    if (idRef.trim().length < 3) { showToast('ID number is required (min 3 chars).'); return; }
     idRef = idRef.trim();
+  }
+  // Senior Citizen / PWD: only the qualifying guest's share is VAT-exempt
+  // + 20% (sql/31). Blank = the whole bill (they ate alone).
+  let covered = null;
+  if (/senior|pwd|disab/i.test(tName || '')) {
+    const v = await tpnAsk('Their share of the bill (₱)', { message: 'At a shared table, enter what their dishes come to (or the bill ÷ number of guests). Leave blank if they ate alone.', allowEmpty: true, input: { type: 'number', min: 0, step: '0.01', inputmode: 'decimal', placeholder: 'Whole bill' }, confirmText: 'Apply' });
+    if (v === null) return;
+    covered = v === '' ? null : Number(v);
   }
   let ok = 0, fail = 0, lastErr = '';
   for (const id of orderDbIds) {
-    try { await TPN.applyDiscount(id, templateId, idRef); ok++; }
+    try { await TPN.applyDiscount(id, templateId, idRef, covered); ok++; }
     catch (e) { fail++; lastErr = (e && (e.message || e.code) || '').toString(); }
   }
   if (fail === 0) showToast(`✓ Discount applied to ${ok} order${ok>1?'s':''}`);
@@ -1509,7 +1520,8 @@ async function applyFloorDiscount(orderDbIds, templateId, requiresId, tName, lab
 }
 
 async function removeFloorAppliedDiscount(appliedId, orderIdsJson, label) {
-  const reason = window.prompt('Reason for removing this discount (optional):', '') || '';
+  const reason = await tpnAsk('Why remove this discount?', { chips: ['Applied by mistake', 'Wrong discount', 'ID not valid', 'Customer request'], allowEmpty: true, input: { placeholder: 'Reason (optional)' }, confirmText: 'Remove' });
+  if (reason === null) return;
   try { await TPN.removeDiscount(appliedId, reason.trim()); showToast('✓ Discount removed'); }
   catch (e) {
     const msg = _friendlyDiscountErr((e && (e.message || e.code) || '').toString());
@@ -1719,8 +1731,8 @@ async function loadTableGuests(tbl) {
   }
 }
 
-function confirmSplit(orderId, deviceId, guestName) {
-  if (!confirm(`Move ${guestName}'s items onto their own bill?\n\nThe rest of the table stays together. This is recorded in the audit log.`)) return;
+async function confirmSplit(orderId, deviceId, guestName) {
+  if (!await tpnConfirm(`Move ${guestName}'s items onto their own bill? The rest of the table stays together. This is recorded in the audit log.`, { title: 'Split the bill?', confirmText: 'Split' })) return;
   doSplit(orderId, deviceId);
 }
 
