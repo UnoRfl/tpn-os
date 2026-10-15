@@ -5,6 +5,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="config.js?v=20261002"></script>
 <script src="tpn-supabase.js?v=20261002"></script>
+<script src="tpn-kit.js?v=20261015"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="description" content="Tyo Paeng Nyo — Authentic Filipino cuisine in Las Piñas since 2003. Order online, book events, or inquire about catering.">
 <meta name="theme-color" content="#8B1A0E">
@@ -4075,6 +4076,7 @@ async function exitStaffPortal() {
   // subscription and badge count alive.
   if (typeof _voidReqUnsub === 'function' && _voidReqUnsub) { try { _voidReqUnsub(); } catch(e){} _voidReqUnsub = null; }
   window._tpnPendingVoids = 0;
+  if (window.tpnSession) tpnSession.markUserSignOut();
   try { await TPN.logout(); } catch(e) {}
   document.querySelectorAll('.portal-page').forEach(p => p.classList.remove('active'));
   document.body.style.overflow = '';
@@ -4755,6 +4757,16 @@ function renderAdminSidebar() {
     ]}
   ];
 
+  // Module tabs (modules/*.js) join the section they name, or a new one.
+  if (window.TPN_MOD) TPN_MOD.navFor('admin').forEach(d => {
+    let sec = sections.find(s => s.key === d.section);
+    if (!sec) { sec = { key: d.section, items: [] }; sections.push(sec); }
+    const item = { id: d.id, perm: null, label: TPN_MOD.label(d), icon: d.icon, external: d.external };
+    try { item.badge = d.badge ? d.badge() : null; } catch (e) { item.badge = null; }
+    if (d.after) { const at = sec.items.findIndex(x => x.id === d.after); sec.items.splice(at < 0 ? sec.items.length : at + 1, 0, item); }
+    else sec.items.push(item);
+  });
+
   // Drop anything this account may not reach, then drop sections left empty.
   const visible = sections
     .map(sec => ({ ...sec, items: sec.items.filter(it => !it.perm || can(it.perm)) }))
@@ -4775,7 +4787,7 @@ function renderAdminSidebar() {
   document.getElementById('portalNav').innerHTML = langSwitchHtml() + visible.map((sec, si) => {
     const isShut = collapsed.includes(sec.key);
     const rows = sec.items.map(it => {
-      const label = T(it.key);
+      const label = it.label || T(it.key);
       if (it.external) {
         // Wall screens open in their own tab on purpose: they are meant to
         // stay open all shift on a mounted device, and the portal session
@@ -4914,6 +4926,10 @@ function renderRouteInto(r, main) {
     case 'daily-close': renderDailyClose(main); break;
     case 'variance': renderVariance(main); break;
     case 'preferences': renderPreferences(main); break;
+    default:
+      // Tabs added by modules/*.js. Unknown ids fall back to Dashboard
+      // rather than a blank page.
+      if (!(window.TPN_MOD && TPN_MOD.render(r, main, 'admin'))) renderDashboard(main);
   }
 }
 
@@ -11094,6 +11110,10 @@ function renderStaffSidebar() {
     { id: 'staff-attendance', label: T('nav.attendance'), icon: '✓' },
     { id: 'staff-notifications', label: T('nav.notifications'), icon: '🔔', badge: portalState.unreadNotifCount || null },   // real unread: cleared by marking read, not acking
     { id: 'staff-messages', label: T('nav.messages'), icon: '✉️', badge: window._tpnUnreadMsgs || null },
+    ...(window.TPN_MOD ? TPN_MOD.navFor('staff').map(d => {
+      let badge = null; try { badge = d.badge ? d.badge() : null; } catch (e) {}
+      return { id: d.id, label: TPN_MOD.label(d), icon: d.icon, badge };
+    }) : []),
     { section: T('sec.you') },
     { id: 'preferences', label: T('nav.preferences'), icon: '⚙️' },
     { id: 'staff-settings', label: 'Settings', icon: '⚙️' },
@@ -11101,7 +11121,7 @@ function renderStaffSidebar() {
   document.getElementById('staffNav').innerHTML = langSwitchHtml() + items.map(it => {
     if (it.section) return `<div class="portal-nav-section">${it.section}</div>`;
     return `<div class="portal-nav-item" data-staff-route="${it.id}" onclick="routeStaff('${it.id}')">
-      <span class="portal-nav-icon">${it.icon}</span><span>${it.label}</span>
+      <span class="portal-nav-icon">${it.icon}</span><span>${E(it.label)}</span>
       ${it.badge ? `<span class="portal-nav-badge">${it.badge}</span>` : ''}
     </div>`;
   }).join('');
@@ -11154,7 +11174,8 @@ function renderStaffRouteInto(r, main) {
     case 'tasks': renderTasks(main); break;
     case 'preferences': renderPreferences(main); break;
     case 'staff-settings': renderStaffSettings(main); break;
-    default: renderStaffHome(main);
+    default:
+      if (!(window.TPN_MOD && TPN_MOD.render(r, main, 'staff'))) renderStaffHome(main);
   }
 }
 async function renderStaffHome(main) {
