@@ -597,38 +597,54 @@ const TPN = {
 
   // ═════ ATTENDANCE ═══════════════════════════════════════════
   // Clock in. Throws if there's already an open shift for this user (DB unique index enforces).
-  async clockIn(notes = null) {
+  // Clock-in and clock-out go through server functions (sql/33) that set
+  // the time and IP themselves. Before sql/33 is applied the RPC does not
+  // exist (PGRST202); then the old direct insert/update path is used.
+  async clockIn(notes = null, { expectPhoto = false } = {}) {
     if (!this._user) throw new Error('Not logged in');
-    const { data, error } = await sb.from('attendance').insert({
-      staff_id: this._user.id,
-      notes:    notes ?? null
-    }).select().single();
-    if (error) {
-      // Friendly message for the unique-index collision
-      if (/uniq_attendance_open_per_staff|duplicate/i.test(error.message||'')) {
-        throw new Error('You already have an open shift. Clock out first.');
-      }
+    const { data, error } = await sb.rpc('clock_in_verified', { p_expect_photo: !!expectPhoto, p_note: notes });
+    if (!error) return data;
+    if (!/PGRST202|Could not find the function/i.test((error.code || '') + ' ' + (error.message || ''))) {
+      if (/already_clocked_in/.test(error.message || '')) throw new Error('You already have an open shift. Clock out first.');
+      if (/account_not_active/.test(error.message || '')) throw new Error('Your account is not active. Please talk to your manager.');
       throw error;
     }
-    await this.logAudit('attendance.clock_in', 'attendance', data.id, {});
+    const { data: row, error: e2 } = await sb.from('attendance').insert({ staff_id: this._user.id, notes: notes ?? null }).select().single();
+    if (e2) {
+      if (/uniq_attendance_open_per_staff|duplicate/i.test(e2.message || '')) throw new Error('You already have an open shift. Clock out first.');
+      throw e2;
+    }
+    await this.logAudit('attendance.clock_in', 'attendance', row.id, {});
+    return { attendance_id: row.id, legacy: true };
+  },
+  async attachClockinPhoto(attendanceId, uploadPath, blob) {
+    const up = await sb.storage.from('attendance-photos').upload(uploadPath, blob, { contentType: 'image/jpeg', upsert: false });
+    if (up.error && !/exists|Duplicate/i.test(up.error.message || '')) throw up.error;
+    const { data, error } = await sb.rpc('attach_clockin_photo', { p_attendance_id: attendanceId });
+    if (error) throw error;
+    return data;
+  },
+  async myNetworkStatus() {
+    const { data, error } = await sb.rpc('my_network_status');
+    if (error) return null;
     return data;
   },
 
   // Close the currently-open shift for this user. Returns null if there was none.
   async clockOut() {
     if (!this._user) throw new Error('Not logged in');
-    // Find the open one
+    const { data, error } = await sb.rpc('clock_out_verified');
+    if (!error) return data;
+    if (!/PGRST202|Could not find the function/i.test((error.code || '') + ' ' + (error.message || ''))) throw error;
     const { data: openRows, error: findErr } = await sb.from('attendance')
       .select('*').eq('staff_id', this._user.id).is('clock_out_at', null).limit(1);
     if (findErr) throw findErr;
     if (!openRows || !openRows.length) return null;
-    const row = openRows[0];
-    const { data, error } = await sb.from('attendance')
-      .update({ clock_out_at: new Date().toISOString() })
-      .eq('id', row.id).select().single();
-    if (error) throw error;
-    await this.logAudit('attendance.clock_out', 'attendance', data.id, {});
-    return data;
+    const { data: row, error: e2 } = await sb.from('attendance')
+      .update({ clock_out_at: new Date().toISOString() }).eq('id', openRows[0].id).select().single();
+    if (e2) throw e2;
+    await this.logAudit('attendance.clock_out', 'attendance', row.id, {});
+    return row;
   },
 
   // Currently-open shift for this user (null if not clocked in).

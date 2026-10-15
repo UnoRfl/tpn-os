@@ -349,3 +349,24 @@ details.tpn-menu > summary::-webkit-details-marker { display: none; }
   .pos-wrap { grid-template-columns: 1fr; }
   .pos-ticket { position: static; max-height: none; }
 }
+
+/* ── Clock-in camera + review (modules/clockin.js) ────────── */
+.ci-wrap { text-align: center; }
+.ci-net { margin-bottom: 8px; }
+.ci-help { color: var(--ink-soft); font-size: 14px; margin-bottom: 8px; }
+.ci-stage { position: relative; width: 100%; max-width: 340px; aspect-ratio: 3 / 4; margin: 0 auto; border-radius: 18px; overflow: hidden; background: #111; }
+.ci-stage video, .ci-stage img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.ci-stage video.mirror { transform: scaleX(-1); }
+.ci-guide { position: absolute; inset: 6% 18%; width: 64%; height: 88%; fill: none; stroke: rgba(255,255,255,.85); stroke-width: 1.2; stroke-dasharray: 3 2; pointer-events: none; }
+.ci-stage img:not([hidden]) ~ .ci-guide, .ci-stage img:not([hidden]) + .ci-guide { display: none; }
+.ci-err { color: var(--danger); font-size: 13px; min-height: 18px; margin-top: 8px; }
+.ci-actions { justify-content: center; }
+.ci-actions .btn-next { margin: 0; min-height: 52px; font-size: 16px; }
+.ci-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
+.ci-card { padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+.ci-photo { aspect-ratio: 3 / 4; border-radius: 12px; overflow: hidden; background: var(--surface-2); }
+.ci-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.ci-nophoto { height: 100%; display: flex; align-items: center; justify-content: center; color: var(--ink-muted); font-size: 13px; }
+.ci-check { border: 0; padding: 0; margin: 6px 0; display: grid; grid-template-columns: 1fr 1fr; gap: 4px 10px; font-size: 13px; }
+.ci-check label { display: flex; gap: 6px; align-items: center; min-height: 32px; }
+.ci-btns { display: flex; gap: 6px; flex-wrap: wrap; }

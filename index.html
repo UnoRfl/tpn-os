@@ -11565,7 +11565,10 @@ async function renderStaffHome(main) {
   }
 }
 
+// Clock-in opens the camera check (modules/clockin.js). If that module did
+// not load, the plain clock-in still works and a manager reviews it.
 async function doClockIn() {
+  if (window.openClockinCamera) return openClockinCamera();
   try { await TPN.clockIn(); toast('✓ Clocked in'); routeStaff('staff-home'); }
   catch(e) { toast('⚠️ ' + (e.message || 'Could not clock in')); }
 }
@@ -12238,5 +12241,6 @@ if (document.readyState !== 'loading') {
 <script src="vendor/qrcode-generator-1.4.4.js"></script>
 <script src="modules/payments.js?v=20261016"></script>
 <script src="modules/pos.js?v=20261016"></script>
+<script src="modules/clockin.js?v=20261016"></script>
 </body>
 </html>
