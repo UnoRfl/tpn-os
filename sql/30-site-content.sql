@@ -21,7 +21,7 @@ select private.add_permission('site.edit', 'Administration', 'Edit the website',
 -- ── settings ─────────────────────────────────────────────────
 create table if not exists public.site_settings (
   key         text primary key check (key ~ '^[a-z0-9_.]+$'),
-  value       jsonb not null,
+  value       jsonb,                 -- null = "not set" (hidden on the site)
   updated_at  timestamptz not null default now(),
   updated_by  uuid references public.staff(id) on delete set null
 );

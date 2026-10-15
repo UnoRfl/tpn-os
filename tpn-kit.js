@@ -465,6 +465,20 @@
     };
   };
 
+  /* ── Compact tabs ──────────────────────────────────────────── */
+  // tpnTabs('website', [{id:'faqs', label:'FAQs', badge:3}, …], 'faqs', 'fnName')
+  // A pill bar on wide screens; on phones the same choices fold into one
+  // dropdown, so a page with eight sections still fits on one line.
+  window.tpnTabs = function (name, tabs, current, onChangeFn) {
+    const lab = (t) => esc(t.label) + (t.badge ? ` (${esc(t.badge)})` : '');
+    return `<div class="tpn-tabs fold glass" role="tablist" aria-label="${esc(name)}">
+        ${tabs.map(t => `<button type="button" role="tab" aria-selected="${t.id === current}" onclick="${esc(onChangeFn)}('${esc(t.id)}')">${lab(t)}</button>`).join('')}
+      </div>
+      <select class="form-input tpn-tabs-select" aria-label="${esc(name)}" onchange="${esc(onChangeFn)}(this.value)">
+        ${tabs.map(t => `<option value="${esc(t.id)}" ${t.id === current ? 'selected' : ''}>${lab(t)}</option>`).join('')}
+      </select>`;
+  };
+
   /* ── Export menu button ────────────────────────────────────── */
   // One button, two formats. Pages call tpnExportButton('fnName') where
   // window[fnName](format) does the export.
