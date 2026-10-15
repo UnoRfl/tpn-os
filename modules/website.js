@@ -19,6 +19,7 @@
     { key: 'hours.text',        label: 'Opening hours' },
     { key: 'contact.facebook',  label: 'Facebook page link' },
     { key: 'contact.instagram', label: 'Instagram link' },
+    { key: 'payments.online_enabled', label: 'Online payments (HitPay): type yes to turn on', hint: 'Only after the HitPay keys are set up and a sandbox test payment worked. Leave blank for cash only.' },
     { key: 'legal.company',     label: 'Registered business name' },
     { key: 'legal.sec_no',      label: 'SEC registration no. (optional)', hint: 'The "SEC" badge only appears once this is filled in.' },
     { key: 'legal.tin',         label: 'TIN (optional)',        hint: 'The "VAT" badge only appears once this is filled in.' }

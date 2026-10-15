@@ -281,3 +281,30 @@ details.tpn-menu > summary::-webkit-details-marker { display: none; }
 /* Menus float over busy content (big headings, photos): they need the
    densest glass to stay readable. */
 .nav-drop, .tpn-menu-list, .mobile-menu { background: rgba(var(--glass-tint), 0.96) !important; box-shadow: 0 18px 40px rgba(40, 20, 10, 0.18), var(--glass-shadow); }
+
+/* ── Payment panel (modules/payments.js) ──────────────────── */
+.pay-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; margin-bottom: 10px; }
+.pay-due { text-align: right; }
+.pay-due-num { font-size: 30px; font-weight: 800; color: var(--brick); line-height: 1.1; font-variant-numeric: tabular-nums; }
+.pay-lines { margin: 0 0 14px; font-variant-numeric: tabular-nums; }
+.pay-lines > div { display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px solid var(--line-soft); }
+.pay-lines dt { color: var(--ink-muted); } .pay-lines dd { margin: 0; color: var(--ink); }
+.pay-lines .pay-total dt, .pay-lines .pay-total dd { font-weight: 800; color: var(--ink); }
+.pay-actions { display: flex; gap: 8px; flex-wrap: wrap; margin: 10px 0; }
+.pay-actions > button { flex: 1 1 160px; margin: 0; }
+.pay-work { padding: 16px; border-radius: 16px; margin: 10px 0; }
+.pay-big { font-size: 26px !important; font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; }
+.pay-change { font-size: 20px; margin: 8px 0; min-height: 28px; color: var(--ink); }
+.pay-change strong { font-size: 28px; color: var(--success); }
+.pay-qr { width: 220px; height: 220px; margin: 10px auto; background: #fff; border-radius: 14px; padding: 8px; }
+.pay-qr svg { width: 100%; height: 100%; }
+.pay-sub { font-family: 'Playfair Display', serif; font-size: 16px; color: var(--ink); margin: 16px 0 6px; }
+.pay-list { list-style: none; margin: 0; padding: 0; }
+.pay-row { display: grid; grid-template-columns: 1fr auto auto; gap: 10px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--line-soft); }
+.pay-row-amt { text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; }
+.pay-alert { padding: 14px; border-radius: 14px; background: color-mix(in srgb, var(--warn) 14%, transparent); margin-bottom: 14px; }
+.link-btn { all: unset; cursor: pointer; color: var(--brick); text-decoration: underline; font-size: 13px; }
+.link-btn:focus-visible { box-shadow: var(--focus-ring); }
+.order-advance.pay-btn { background: color-mix(in srgb, var(--success) 14%, transparent) !important; color: var(--ink) !important; border: 1px solid color-mix(in srgb, var(--success) 45%, transparent) !important; }
+.order-advance.pay-btn.is-paid { background: transparent !important; color: var(--success) !important; }
+@media (max-width: 520px) { .pay-row { grid-template-columns: 1fr auto; } .pay-row-act { grid-column: 1 / -1; } }

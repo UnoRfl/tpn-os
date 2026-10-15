@@ -2932,7 +2932,13 @@ function persistCart() {
   try { localStorage.setItem('tpn_cart_v1', JSON.stringify({ items: cart, _ts: Date.now() })); } catch(e) {}
 }
 let checkoutStep = 1;
-let checkoutData = { orderType: 'takeout', schedule: 'asap', paymentMethod: 'gcash' };
+let checkoutData = { orderType: 'takeout', schedule: 'asap', paymentMethod: 'cash' };
+// Online payment is offered only once the owner switches it on (Website →
+// Online payments), i.e. after the HitPay keys are in. Until then: cash.
+function onlinePayEnabled() {
+  const v = window.tpnSite && tpnSite.state.settings['payments.online_enabled'];
+  return v === true || v === 'true' || v === 'yes';
+}
 let currentUser = null;
 
 /* ════════════════════════════════════════════════════
@@ -3251,10 +3257,10 @@ const TPN_STRINGS = {
   'close.voids':      { en: 'Voided',              tl: 'Na-void' },
   'close.lines':      { en: 'lines',               tl: 'linya' },
   'close.cancelled':  { en: 'cancelled',           tl: 'kanselado' },
-  'close.declaredCash':{ en: 'Cash declared',      tl: 'Cash na dineklara' },
+  'close.declaredCash':{ en: 'Cash received',      tl: 'Cash na natanggap' },
   'close.inDrawer':   { en: 'should be in the drawer', tl: 'dapat nasa kahon' },
-  'close.declaredWarning': { en: 'These are the payment methods customers SELECTED, not confirmed receipts — payment confirmation is not wired up yet. Treat cash as the only figure worth counting against.', tl: 'Ito ang paraan ng bayad na PINILI ng customer, hindi kumpirmadong resibo — wala pa ang payment confirmation. Ang cash lang ang tunay na mabibilang.' },
-  'close.byMethod':   { en: 'BY METHOD (DECLARED)', tl: 'AYON SA BAYAD (DEKLARADO)' },
+  'close.declaredWarning': { en: 'Cash expected in the drawer = cash payments recorded today minus cash refunds (the Payments ledger). Orders still unpaid are listed separately — collect them before you close.', tl: 'Ang inaasahang cash = mga naitalang cash na bayad ngayong araw bawas ang cash refund. Ang mga hindi pa bayad ay nakalista nang hiwalay.' },
+  'close.byMethod':   { en: 'BY METHOD', tl: 'AYON SA BAYAD' },
   'close.byType':     { en: 'BY ORDER TYPE',       tl: 'AYON SA URI' },
   'close.topItems':   { en: 'TOP ITEMS',           tl: 'PINAKAMABILI' },
   'close.reconcile':  { en: 'CASH RECONCILIATION', tl: 'PAGTUTUOS NG CASH' },
@@ -3778,26 +3784,20 @@ function renderCheckoutStep() {
       <div class="checkout-card">
         <h2>Payment</h2>
         <p class="checkout-sub">How would you like to pay?</p>
-        <div class="pay-grid">
-          <button class="pay-method ${checkoutData.paymentMethod === 'cash' ? 'active' : ''}" onclick="setPayment('cash')">
+        <div class="pay-grid" role="radiogroup" aria-label="Payment method">
+          ${onlinePayEnabled() ? `<button class="pay-method ${checkoutData.paymentMethod === 'hitpay' ? 'active' : ''}" role="radio" aria-checked="${checkoutData.paymentMethod === 'hitpay'}" onclick="setPayment('hitpay')">
+            <div class="pay-method-icon">🔳</div>
+            <div><div class="pay-method-info">Pay online now</div><div class="pay-method-sub">QR Ph · GCash · Maya · Visa/Mastercard</div></div>
+          </button>` : ''}
+          <button class="pay-method ${checkoutData.paymentMethod === 'cash' ? 'active' : ''}" role="radio" aria-checked="${checkoutData.paymentMethod === 'cash'}" onclick="setPayment('cash')">
             <div class="pay-method-icon">💵</div>
-            <div><div class="pay-method-info">Cash on Arrival</div><div class="pay-method-sub">Pay when you arrive or receive</div></div>
-          </button>
-          <button class="pay-method ${checkoutData.paymentMethod === 'gcash' ? 'active' : ''}" onclick="setPayment('gcash')">
-            <div class="pay-method-icon">📱</div>
-            <div><div class="pay-method-info">GCash</div><div class="pay-method-sub">Quick & easy</div></div>
-          </button>
-          <button class="pay-method ${checkoutData.paymentMethod === 'paymaya' ? 'active' : ''}" onclick="setPayment('paymaya')">
-            <div class="pay-method-icon">📲</div>
-            <div><div class="pay-method-info">PayMaya</div><div class="pay-method-sub">Maya wallet</div></div>
-          </button>
-          <button class="pay-method ${checkoutData.paymentMethod === 'card' ? 'active' : ''}" onclick="setPayment('card')">
-            <div class="pay-method-icon">💳</div>
-            <div><div class="pay-method-info">Card</div><div class="pay-method-sub">Visa, Mastercard via PayMongo</div></div>
+            <div><div class="pay-method-info">Cash</div><div class="pay-method-sub">${checkoutData.orderType === 'delivery' ? 'Pay the rider on delivery' : 'Pay when you pick up'}</div></div>
           </button>
         </div>
-        <div style="background:var(--bg-2);border-radius:8px;padding:14px;font-size:13px;color:var(--ink-muted);">
-          🔒 Payments are securely processed. Your card details never touch our servers.
+        <div style="background:var(--bg-2);border-radius:12px;padding:14px;font-size:13px;color:var(--ink-muted);">
+          ${onlinePayEnabled()
+            ? '🔒 Online payments are handled by HitPay, a licensed payment provider. Your card and wallet details never reach our servers. Your order is confirmed as paid only after HitPay tells us.'
+            : '💬 Online payment is coming soon. For now, please pay in cash when you pick up or when the rider arrives.'}
         </div>
         <div class="checkout-actions">
           <button class="btn-back" onclick="checkoutBack()">← Back</button>
@@ -3852,8 +3852,12 @@ function renderCheckoutStep() {
         </div>
         <div class="confirm-detail-grid">
           <div><div class="confirm-detail-label">Type</div><div class="confirm-detail-val">${({dinein:'Dine-In',takeout:'Takeout',delivery:'Delivery'})[checkoutData.orderType]}</div></div>
-          <div><div class="confirm-detail-label">Payment</div><div class="confirm-detail-val">${({cash:'Cash',gcash:'GCash',paymaya:'PayMaya',card:'Card'})[checkoutData.paymentMethod]}</div></div>
+          <div><div class="confirm-detail-label">Payment</div><div class="confirm-detail-val">${checkoutData.paymentMethod === 'hitpay' ? 'Online (HitPay)' : 'Cash'}</div></div>
         </div>
+        ${checkoutData.payError ? `<div class="pay-alert" role="alert" style="text-align:left;margin-top:14px;">
+          <strong>We couldn't open the payment page.</strong><div style="font-size:13px;margin:4px 0 10px;">${E(checkoutData.payError)}</div>
+          <button class="btn-next" style="margin:0" onclick="retryOnlinePayment('${JA(ref)}')">Try paying online again</button>
+          <div style="font-size:12px;color:var(--ink-muted);margin-top:8px;">Or just pay in cash when you get your order — it's already in our queue.</div></div>` : ''}
         <p class="confirm-message">"Salamat po — see you soon!"</p>
         <div style="margin:20px 0;background:var(--bg-2);border:1px solid var(--line);border-radius:10px;padding:16px;">
           <div style="font-size:12px;color:var(--ink-muted);letter-spacing:0.12em;text-transform:uppercase;font-weight:700;margin-bottom:8px;">Track your order</div>
@@ -3869,6 +3873,45 @@ function renderCheckoutStep() {
   }
 }
 function setOrderType(t) { checkoutData.orderType = t; renderCheckoutStep(); }
+async function retryOnlinePayment(orderNumber) {
+  try {
+    const pay = await TPN.startOnlinePayment({ orderNumber });
+    if (pay && pay.checkout_url && /^https:\/\//.test(pay.checkout_url)) location.href = pay.checkout_url;
+  } catch (e) { toast(e.message); }
+}
+
+/* Back from HitPay (?paid=ORDER). The redirect itself proves nothing; we
+   wait for the webhook to mark the order paid and show that honestly. */
+async function showPaymentReturn(orderNumber) {
+  navigate('checkout');
+  const box = document.getElementById('checkoutContent');
+  if (!box) return;
+  const steps = document.getElementById('checkoutSteps'); if (steps) steps.hidden = true;
+  const paint = (icon, title, msg, extra = '') => {
+    box.innerHTML = `<div class="checkout-card confirm-card" role="status" aria-live="polite">
+      <div class="confirm-emoji">${icon}</div><h2 class="confirm-title">${title}</h2>
+      <p class="confirm-sub">${msg}</p>
+      <div class="confirm-ref"><div class="confirm-ref-label">Your Reference</div><div class="confirm-ref-num">${E(orderNumber)}</div></div>${extra}
+      <button class="btn-primary" onclick="history.replaceState(null,'',location.pathname);navigate('home')" style="margin-top:12px;">Back to home</button></div>`;
+  };
+  paint('⏳', 'Confirming your <em>payment</em>…', 'HitPay is telling us about your payment. This usually takes a few seconds.');
+  const started = Date.now();
+  while (Date.now() - started < 120000) {
+    try {
+      const o = await TPN.getOrderByNumber(orderNumber);
+      if (o && o.payment_status === 'paid') { paint('✅', 'Payment <em>received!</em>', 'Salamat po! Your order is paid and in our queue.'); return; }
+    } catch (e) { /* keep waiting; the network may blink */ }
+    await new Promise(r => setTimeout(r, 3000));
+  }
+  paint('🕐', 'Still <em>confirming</em>', 'We have your order. If you completed the payment, it will show as paid shortly — no need to pay again.',
+    `<div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:10px;">
+       <button class="btn-ghost" onclick="showPaymentReturn('${JA(orderNumber)}')">Check again</button>
+       <button class="btn-ghost" onclick="retryOnlinePayment('${JA(orderNumber)}')">I didn't finish paying</button></div>`);
+}
+window.addEventListener('DOMContentLoaded', () => {
+  const paid = new URLSearchParams(location.search).get('paid');
+  if (paid && /^[A-Za-z0-9-]{4,64}$/.test(paid)) setTimeout(() => showPaymentReturn(paid), 50);
+});
 function setSchedule(s) { checkoutData.schedule = s; renderCheckoutStep(); }
 function setPayment(p) { checkoutData.paymentMethod = p; renderCheckoutStep(); }
 function checkoutNext() {
@@ -3923,7 +3966,7 @@ async function confirmOrder() {
     // Map checkout orderType to DB enum
     const otMap = { takeout: 'pickup', pickup: 'pickup', delivery: 'delivery', dinein: 'dine_in' };
     const dbOrderType = otMap[checkoutData.orderType] || 'pickup';
-    const dbPayment = ({ gcash: 'gcash', paymaya: 'paymaya', card: 'card', cash: 'cash' })[checkoutData.paymentMethod] || 'cash';
+    const dbPayment = (checkoutData.paymentMethod === 'hitpay' && onlinePayEnabled()) ? 'hitpay' : 'cash';
 
     // Compose scheduled_for from date + time inputs (ISO string) — null if ASAP
     let scheduledFor = null;
@@ -3954,6 +3997,14 @@ async function confirmOrder() {
     cart = [];
     persistCart();
     updateCartUI();
+    if (dbPayment === 'hitpay') {
+      // The order exists either way. If HitPay cannot be reached, the
+      // confirmation screen offers to retry or pay in cash instead.
+      try {
+        const pay = await TPN.startOnlinePayment({ orderNumber: order.order_number });
+        if (pay && pay.checkout_url && /^https:\/\//.test(pay.checkout_url)) { location.href = pay.checkout_url; return; }
+      } catch (e) { checkoutData.payError = e.message; }
+    }
     checkoutStep = 5;
     renderCheckoutStep();
   } catch(e) {
@@ -3992,7 +4043,7 @@ async function checkOrderStatus() {
 }
 function resetCheckout() {
   checkoutStep = 1;
-  checkoutData = { orderType: 'takeout', schedule: 'asap', paymentMethod: 'gcash' };
+  checkoutData = { orderType: 'takeout', schedule: 'asap', paymentMethod: onlinePayEnabled() ? 'hitpay' : 'cash' };
   navigate('home');
 }
 
@@ -5749,6 +5800,8 @@ function dbOrderToPortalOrder(o) {
     completedAt:  o.completed_at ? new Date(o.completed_at).getTime() : null,
     branch: 'laspinas',
     paymentMethod: o.payment_method || 'cash',
+    paymentStatus: o.payment_status || 'pending',
+    serviceCharge: Number(o.service_charge || 0),
     specialReq: o.notes || ''
   };
 }
@@ -5877,6 +5930,7 @@ function renderOrders(main) {
           </div>
         </div>
         ${lane.next ? `<button class="order-advance" onclick="advanceOrder('${JA(o.id)}','${JA(lane.next)}')">${E(lane.nextLabel)}</button>` : ''}
+        ${window.openPaymentPanel ? `<button class="order-advance pay-btn ${o.paymentStatus === 'paid' ? 'is-paid' : ''}" style="margin-top:6px;" onclick="openPaymentPanel('${JA(o.dbId||o.id)}')" aria-label="Payment for order ${E(o.id)}: ${o.paymentStatus === 'paid' ? 'paid' : 'not paid yet'}">${o.paymentStatus === 'paid' ? '✅ Paid' : o.paymentStatus === 'refunded' ? '↩️ Refunded' : '💳 Take payment'}</button>` : ''}
         ${canDiscount && lane.id !== 'done' ? `<button class="order-advance" style="margin-top:6px;background:transparent;color:var(--brick,#8B1A0E);border:1px solid var(--brick,#8B1A0E);" onclick="openDiscountPicker('${JA(o.dbId||o.id)}')">💸 Discount</button>` : ''}
         ${lane.id !== 'done' ? (canVoid
           ? `<button class="order-advance" style="margin-top:6px;background:transparent;color:var(--danger);border:1px solid var(--danger);" onclick="openVoidItemsModal('${JA(o.dbId||o.id)}')">🚫 Void items</button>`
@@ -7598,16 +7652,76 @@ async function openDiscountPicker(orderDbId, opts) {
     </div>`);
 }
 
+// Statutory discounts (Senior Citizen RA 9994, PWD RA 10754) are VAT-exempt
+// on the qualifying guest's share only (sql/31). One dialog collects the ID
+// and the share; nothing here computes money — the server does.
 async function applyDiscountFromPicker(orderDbId, templateId, requiresId, tName) {
-  let idRef = null;
-  if (requiresId === true || requiresId === 'true') {
-    idRef = window.prompt(`Enter the physical ID number for "${E(tName)}" (min 3 chars):`, '');
-    if (idRef === null) return;
-    if (!idRef || idRef.trim().length < 3) { toast('ID number is required (min 3 chars).'); return; }
-    idRef = idRef.trim();
+  const t = (_discountState.templates || []).find(x => x.id === templateId) || {};
+  const statutory = !!t.legal_law;
+  const order = portalState.orders.find(x => x.dbId === orderDbId) || {};
+  const sub = Number(order.subtotal || order.total || 0) - Number(order.discountAmount || 0);
+  if (!(requiresId === true || requiresId === 'true') && !statutory) {
+    return _doApplyDiscount(orderDbId, templateId, null, null);
   }
+  showModal(`<div class="modal-title">${E(tName)}</div>
+    <div class="modal-content" id="discDlg">
+      ${(requiresId === true || requiresId === 'true') ? `<div class="form-row full"><div>
+        <label class="form-label" for="dd-id">${t.legal_law === 'RA 9994' ? 'OSCA / Senior Citizen ID no.' : t.legal_law === 'RA 10754' ? 'PWD ID no.' : 'ID number'} *</label>
+        <input class="form-input" id="dd-id" autocomplete="off" minlength="3" data-no-draft></div></div>` : ''}
+      ${statutory ? `
+      <fieldset class="form-row full" style="border:0;padding:0;margin:0;"><div>
+        <legend class="form-label">Whose share does it cover?</legend>
+        <div class="tpn-dlg-chips" role="radiogroup">
+          <label class="tpn-chip"><input type="radio" name="dd-mode" value="all" checked> Whole bill (they ate alone)</label>
+          <label class="tpn-chip"><input type="radio" name="dd-mode" value="share"> Shared table</label>
+          <label class="tpn-chip"><input type="radio" name="dd-mode" value="amount"> Exact amount</label>
+        </div>
+        <div id="dd-share" hidden><div style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;">
+          <div><label class="form-label" for="dd-q">Qualifying guests</label><input class="form-input" id="dd-q" type="number" min="1" value="1" inputmode="numeric" style="width:110px"></div>
+          <div><label class="form-label" for="dd-n">Everyone at the table</label><input class="form-input" id="dd-n" type="number" min="1" value="4" inputmode="numeric" style="width:110px"></div>
+        </div></div>
+        <div id="dd-amt" hidden><label class="form-label" for="dd-a">Their dishes come to (₱)</label><input class="form-input" id="dd-a" type="number" min="1" step="0.01" inputmode="decimal"></div>
+        <div class="pref-row-hint" id="dd-preview" aria-live="polite"></div>
+      </div></fieldset>` : ''}
+      <div class="form-error" id="dd-err" role="alert"></div>
+    </div>
+    <div class="modal-actions"><button class="btn-back" onclick="closeModal()">Cancel</button>
+      <button class="btn-next" id="dd-ok">Apply</button></div>`);
+  const dlg = document.getElementById('discDlg');
+  const covered = () => {
+    const mode = (dlg.querySelector('[name=dd-mode]:checked') || {}).value || 'all';
+    if (mode === 'share') {
+      const q = Math.max(1, +document.getElementById('dd-q').value || 1), n = Math.max(q, +document.getElementById('dd-n').value || q);
+      return Math.round(sub * q / n * 100) / 100;
+    }
+    if (mode === 'amount') return +document.getElementById('dd-a').value || 0;
+    return null;
+  };
+  const refresh = () => {
+    const mode = (dlg.querySelector('[name=dd-mode]:checked') || {}).value;
+    const sh = document.getElementById('dd-share'), am = document.getElementById('dd-amt');
+    if (sh) sh.hidden = mode !== 'share';
+    if (am) am.hidden = mode !== 'amount';
+    const c = covered(), base = c == null ? sub : c, pv = document.getElementById('dd-preview');
+    if (pv && statutory && base > 0) {
+      const vat = base - base / 1.12, off = base / 1.12 * (Number(t.value || 20) / 100);
+      pv.textContent = `About ${peso(vat + off)} off: ${peso(vat)} VAT exemption + ${peso(off)} (${t.value || 20}%) on ${peso(base)}. Final amount is computed by the server.`;
+    }
+  };
+  dlg.addEventListener('input', refresh); dlg.addEventListener('change', refresh); refresh();
+  document.getElementById('dd-ok').onclick = async () => {
+    const idEl = document.getElementById('dd-id'); const err = document.getElementById('dd-err');
+    const idRef = idEl ? idEl.value.trim() : null;
+    if (idEl && idRef.length < 3) { err.textContent = 'Enter the ID number (at least 3 characters).'; idEl.focus(); return; }
+    const c = statutory ? covered() : null;
+    if (c !== null && !(c > 0)) { err.textContent = 'Enter the amount their share comes to.'; return; }
+    closeModal();
+    await _doApplyDiscount(orderDbId, templateId, idRef, c);
+  };
+}
+async function _doApplyDiscount(orderDbId, templateId, idRef, covered) {
   try {
-    await TPN.applyDiscount(orderDbId, templateId, idRef);
+    await TPN.applyDiscount(orderDbId, templateId, idRef, covered);
     toast('✓ Discount applied');
     try {
       const fresh = await TPN.getOrder(orderDbId);
@@ -7624,6 +7738,8 @@ async function applyDiscountFromPicker(orderDbId, templateId, requiresId, tName)
       template_not_found:      'Template not found.',
       id_ref_required:         'This discount requires a physical ID number.',
       order_terminal:          'This order is already closed.',
+      order_already_paid:      'This bill is already paid. Refund first if it needs a discount.',
+      bad_covered_amount:      'The share amount must be more than zero.',
       below_min_subtotal:      'Order is below the minimum subtotal for this discount.',
       not_stackable:           'This discount cannot be combined with the ones already applied.'
     };
@@ -7633,7 +7749,8 @@ async function applyDiscountFromPicker(orderDbId, templateId, requiresId, tName)
 }
 
 async function removeAppliedDiscount(appliedId, orderDbId) {
-  const reason = window.prompt('Reason for removing this discount (optional):', '') || '';
+  const reason = await tpnAsk('Why remove this discount?', { chips: ['Applied by mistake', 'Wrong discount', 'ID not valid', 'Customer request'], allowEmpty: true, input: { placeholder: 'Reason (optional)' }, confirmText: 'Remove' });
+  if (reason === null) return;
   try {
     await TPN.removeDiscount(appliedId, reason.trim());
     toast('✓ Discount removed');
@@ -11007,7 +11124,8 @@ function _renderClose() {
 
   const voided = r.voided_items || {};
   const cancelled = r.cancelled || {};
-  const declaredCash = Number(r.declared_cash || 0);
+  const declaredCash = Number(r.received_cash ?? r.declared_cash ?? 0);
+  const unpaid = r.unpaid || {}; const pendingBank = r.pending_bank || {};
 
   el.innerHTML = `
     <div class="fin-grid">
@@ -11025,7 +11143,9 @@ function _renderClose() {
         <div class="fin-tile-note">${E(T('close.inDrawer'))}</div></div>
     </div>
 
-    <div class="fin-basis">⚠️ ${E(T('close.declaredWarning'))}</div>
+    <div class="fin-basis">ℹ️ ${E(T('close.declaredWarning'))}</div>
+    ${Number(unpaid.orders) ? `<div class="pay-alert" role="alert">⚠️ <strong>${unpaid.orders} order${unpaid.orders > 1 ? 's' : ''} not fully paid</strong> (₱${N(unpaid.value,2)}). Open them from Live Orders → Take payment before closing.</div>` : ''}
+    ${Number(pendingBank.count) ? `<div class="pay-alert">🏦 ${pendingBank.count} bank transfer${pendingBank.count > 1 ? 's' : ''} waiting for confirmation (₱${N(pendingBank.value,2)}) — see Payments.</div>` : ''}
 
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;margin-bottom:18px;">
       <div class="panel" style="padding:14px 16px;">
@@ -11088,7 +11208,7 @@ function _closeHistory() {
 
 function openCloseTill() {
   const r = _closeState.report || {};
-  const expected = Number(r.declared_cash || 0);
+  const expected = Number(r.received_cash ?? r.declared_cash ?? 0);
   const m = document.getElementById('modal');
   m.innerHTML = `
     <div class="modal-title">${E(T('close.countDrawer'))}</div>
@@ -11117,7 +11237,8 @@ function openCloseTill() {
 // Show the variance as they type — finding a shortfall before you commit
 // beats discovering it in a report afterwards.
 function _ccPreview() {
-  const expected = Number((_closeState.report || {}).declared_cash || 0);
+  const rr = _closeState.report || {};
+  const expected = Number(rr.received_cash ?? rr.declared_cash ?? 0);
   const counted  = Number((document.getElementById('ccCounted') || {}).value || 0);
   const v = counted - expected;
   const el = document.getElementById('ccVar');
@@ -12112,5 +12233,7 @@ if (document.readyState !== 'loading') {
 </script>
 <!-- Portal modules: each adds its own tab through TPN_MOD (tpn-kit.js). -->
 <script src="modules/website.js?v=20261015"></script>
+<script src="vendor/qrcode-generator-1.4.4.js"></script>
+<script src="modules/payments.js?v=20261016"></script>
 </body>
 </html>

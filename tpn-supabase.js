@@ -1416,11 +1416,15 @@ TPN.listAppliedDiscounts = async function (orderId, opts) {
   if (error) throw error;
   return data || [];
 };
-TPN.applyDiscount = async function (orderId, templateId, idRef) {
+// coveredAmount: for Senior Citizen / PWD at a shared table, the part of
+// the bill that is the qualifying guest's (their dishes, or their pro-rata
+// share). Null = the whole remaining bill.
+TPN.applyDiscount = async function (orderId, templateId, idRef, coveredAmount) {
   const { data, error } = await sb.rpc('apply_discount', {
     p_order_id: orderId,
     p_template_id: templateId,
-    p_id_ref: idRef || null
+    p_id_ref: idRef || null,
+    p_covered_amount: (coveredAmount == null || coveredAmount === '') ? null : Number(coveredAmount)
   });
   if (error) throw error;
   return data;
@@ -2141,6 +2145,96 @@ TPN.getInventoryVariance = async function (from, to) {
   const { data, error } = await sb.rpc('inventory_variance', { p_from: from, p_to: to });
   if (error) throw error;
   return data || [];
+};
+
+/* ═════ PAYMENTS (sql/31) ════════════════════════════════════════
+   Money in and out is a row in public.payments, written only by server
+   functions. Nothing here sets an order's payment_status: it is derived.
+   Online payments go through the hitpay-create edge function; only
+   HitPay's signed webhook can complete them. */
+TPN._fnUrl = (name) => SUPABASE_URL.replace(/\/$/, '') + '/functions/v1/' + name;
+TPN._callFn = async function (name, body) {
+  const { data: s } = await sb.auth.getSession();
+  const token = (s && s.session && s.session.access_token) || SUPABASE_ANON_KEY;
+  let res;
+  try {
+    res = await fetch(TPN._fnUrl(name), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify(body),
+      signal: (AbortSignal.timeout ? AbortSignal.timeout(20000) : undefined)
+    });
+  } catch (e) {
+    throw new Error('No connection to the payment service. Please try again, or pay at the counter.');
+  }
+  const out = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(out.error || ('Payment service error ' + res.status));
+  return out;
+};
+// Customer: proves the order is theirs with the tracking token saved at checkout.
+TPN.startOnlinePayment = async function ({ orderNumber, orderId, returnPath, returnQuery } = {}) {
+  if (orderId) return TPN._callFn('hitpay-create', { order_id: orderId });
+  const token = TPN._trackToken(orderNumber);
+  if (!token) throw new Error('This device did not place that order, so it cannot pay for it online. Please pay at the counter.');
+  return TPN._callFn('hitpay-create', { order_number: orderNumber, track_token: token, return_path: returnPath || null, return_query: returnQuery || null });
+};
+TPN.orderPayments = async function (orderId) {
+  const { data, error } = await sb.rpc('order_payments', { p_order_id: orderId });
+  if (error) throw error;
+  return data;
+};
+TPN.recordCash = async function (orderId, tendered, { amount = null, tip = 0, cashSession = null, note = null } = {}) {
+  const { data, error } = await sb.rpc('record_cash_payment', {
+    p_order_id: orderId, p_tendered: tendered, p_amount: amount, p_tip: tip, p_cash_session: cashSession, p_note: note });
+  if (error) throw new Error(TPN.prettyPaymentError(error.message));
+  return data;
+};
+TPN.recordBankTransfer = async function (orderId, amount, reference, note) {
+  const { data, error } = await sb.rpc('record_bank_transfer', { p_order_id: orderId, p_amount: amount, p_reference: reference, p_note: note || null });
+  if (error) throw new Error(TPN.prettyPaymentError(error.message));
+  return data;
+};
+TPN.confirmBankTransfer = async function (paymentId, received, note) {
+  const { data, error } = await sb.rpc('confirm_bank_transfer', { p_payment_id: paymentId, p_received: !!received, p_note: note || null });
+  if (error) throw new Error(TPN.prettyPaymentError(error.message));
+  return data;
+};
+TPN.refundPayment = async function (payment, amount, reason) {
+  if (payment.method === 'hitpay') return TPN._callFn('hitpay-refund', { payment_id: payment.id, amount, reason });
+  const { data, error } = await sb.rpc('refund_payment', { p_payment_id: payment.id, p_amount: amount, p_reason: reason });
+  if (error) throw new Error(TPN.prettyPaymentError(error.message));
+  return { ok: true, payment_status: data };
+};
+TPN.setServiceCharge = async function (orderId, { percent = null, amount = null } = {}) {
+  const { data, error } = await sb.rpc('set_service_charge', { p_order_id: orderId, p_percent: percent, p_amount: amount });
+  if (error) throw new Error(TPN.prettyPaymentError(error.message));
+  return data;
+};
+TPN.listPayments = async function ({ from, to, status, method } = {}) {
+  let q = sb.from('payments').select('*, orders(order_number, customer_name, order_type)').order('created_at', { ascending: false }).limit(500);
+  if (from) q = q.gte('created_at', from);
+  if (to) q = q.lt('created_at', to);
+  if (status) q = q.eq('status', status);
+  if (method) q = q.eq('method', method);
+  const { data, error } = await q;
+  if (error) throw error;
+  return data || [];
+};
+TPN.prettyPaymentError = function (msg) {
+  msg = String(msg || '');
+  const m = (re) => (msg.match(re) || [])[1];
+  if (/not_enough_cash/.test(msg)) return 'Not enough cash for the bill' + (m(/need ([\d.]+)/) ? ' (need ₱' + m(/need ([\d.]+)/) + ')' : '') + '.';
+  if (/nothing_due/.test(msg)) return 'This bill is already fully paid.';
+  if (/bad_amount/.test(msg)) return 'That amount is more than what is left' + (m(/is ([\d.]+)/) ? ' (₱' + m(/is ([\d.]+)/) + ')' : '') + '.';
+  if (/needs_second_person/.test(msg)) return 'Someone else has to confirm a transfer you recorded.';
+  if (/reference_required/.test(msg)) return 'Enter the bank reference number.';
+  if (/reason_required/.test(msg)) return 'Please give a reason.';
+  if (/use_hitpay_refund/.test(msg)) return 'Online payments are refunded through HitPay — use Refund on that payment.';
+  if (/order_already_paid/.test(msg)) return 'This bill is already paid. Refund first if it needs changing.';
+  if (/bad_percent/.test(msg)) return 'Service charge must be between 0 and 20%.';
+  if (/permission_denied/.test(msg)) return 'Your account is not allowed to do that.';
+  if (/payment_state_is_derived/.test(msg)) return 'Record a payment instead of changing the status.';
+  return msg;
 };
 
 // Restore session on load
