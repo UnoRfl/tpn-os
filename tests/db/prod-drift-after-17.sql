@@ -1,0 +1,2 @@
+create table if not exists public.discount_presets (id uuid primary key default gen_random_uuid(), label text);
+alter table public.orders add column if not exists discount numeric default 0, add column if not exists discount_label text, add column if not exists discount_preset_id uuid, add column if not exists discount_reference text, add column if not exists discount_applied_by uuid, add column if not exists discount_applied_at timestamptz;

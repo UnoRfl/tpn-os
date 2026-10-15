@@ -1,0 +1,8 @@
+{
+  "name": "tpn-db-tests",
+  "private": true,
+  "type": "module",
+  "description": "Replays sql/ into an in-memory Postgres (PGlite) and runs tests/db/t_*.sql",
+  "scripts": { "test": "node run.mjs" },
+  "dependencies": { "@electric-sql/pglite": "0.3.7" }
+}

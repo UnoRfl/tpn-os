@@ -15,8 +15,10 @@
   // refused by the browser unless its hash matches.
   if (!window.supabase) document.write('<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js" integrity="sha384-Rj26LVGvoeRVR6+mwQmFfcR3QOBEwT+ZmuCWpuiqeTzJpCs0ER4ITAWGb4Hiy3Ok" crossorigin="anonymous"><' + '/script>');
 </script>
-<script src="config.js?v=20261015"></script>
-<script src="tpn-supabase.js?v=20261015"></script>
+<script src="config.js?v=20261016b"></script>
+<script src="tpn-supabase.js?v=20261016b"></script>
+<script src="tpn-kit.js?v=20261016b"></script>
+<link rel="stylesheet" href="tpn-glass.css?v=20261016b">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
 <meta name="theme-color" content="#1a0a00">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -531,8 +533,7 @@
     <div style="font-size:12px;font-weight:700;color:var(--text-muted);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:10px;width:100%;max-width:380px;text-align:left;">How would you like to pay?</div>
     <div class="pay-methods-grid">
       <div class="pay-method-card selected" data-pay="cash" onclick="selectBillPayMethod('cash')"><div class="pay-method-icon">💵</div><div class="pay-method-name">Cash</div><div class="pay-method-sub">Staff will come to your table</div></div>
-      <div class="pay-method-card" data-pay="gcash" onclick="selectBillPayMethod('gcash')"><div class="pay-method-icon">📱</div><div class="pay-method-name">GCash</div><div class="pay-method-sub">Scan QR for exact amount</div></div>
-      <div class="pay-method-card" data-pay="paymaya" onclick="selectBillPayMethod('paymaya')"><div class="pay-method-icon">📲</div><div class="pay-method-name">PayMaya</div><div class="pay-method-sub">Scan QR for exact amount</div></div>
+      <div class="pay-method-card" data-pay="online" id="pay-online-card" hidden onclick="selectBillPayMethod('online')"><div class="pay-method-icon">🔳</div><div class="pay-method-name">Pay on my phone</div><div class="pay-method-sub">QR Ph · GCash · Maya · card</div></div>
       <div class="pay-method-card" data-pay="card" onclick="selectBillPayMethod('card')"><div class="pay-method-icon">💳</div><div class="pay-method-name">Card</div><div class="pay-method-sub">Terminal brought to you</div></div>
     </div>
     <button class="bill-submit-btn" onclick="submitBillRequest()">Request Bill Now</button>
@@ -834,12 +835,30 @@ function renderMenu(){
 function handleSearch(q){ searchQuery=q; if(q) activeCategory='all'; renderCategoryChips(); renderMenu(); }
 
 function findDish(id){ for(const cat of menuData){ const item=cat.items.find(i=>i.id===id); if(item) return item; } return null; }
-function openDishModal(id){ activeDish=findDish(id); if(!activeDish||!activeDish.available) return; activeQty=1; activePaxChoice=activeDish.pricePax?Object.keys(activeDish.pricePax)[0]:null; renderDishModal(); document.getElementById('dish-modal').classList.add('open'); document.body.style.overflow='hidden'; }
+let _mods = null, activeMods = [];
+async function loadMods(){ if (_mods) return _mods; try { _mods = await TPN.loadModifiers(); } catch(e) { _mods = { groups: [], byItem: {} }; } return _mods; }
+loadMods();
+function toggleMod(gid, mid, max){
+  const g = (_mods.byItem[activeDish.id]||[]).find(x=>x.id===gid); if(!g) return;
+  const inGroup = activeMods.filter(id => g.options.some(o=>o.id===id));
+  if (activeMods.includes(mid)) activeMods = activeMods.filter(x=>x!==mid);
+  else if (max === 1) activeMods = activeMods.filter(x=>!inGroup.includes(x)).concat(mid);
+  else if (inGroup.length < max) activeMods.push(mid);
+  else showToast('Up to ' + max + ' for ' + g.name);
+  renderDishModal();
+}
+function openDishModal(id){ activeDish=findDish(id); if(!activeDish||!activeDish.available) return; activeQty=1; activeMods=[]; activePaxChoice=activeDish.pricePax?Object.keys(activeDish.pricePax)[0]:null; renderDishModal(); document.getElementById('dish-modal').classList.add('open'); document.body.style.overflow='hidden'; }
 function closeDishModal(e){ if(e&&e.target!==document.getElementById('dish-modal')) return; document.getElementById('dish-modal').classList.remove('open'); document.body.style.overflow=''; }
 function renderDishModal(){
-  const item=activeDish; const hasPax=!!item.pricePax; const cp=hasPax?item.pricePax[activePaxChoice]:item.price; const total=cp*activeQty;
+  const item=activeDish; const hasPax=!!item.pricePax; const _md=((_mods&&_mods.byItem[item.id])||[]).flatMap(g=>g.options).filter(o=>activeMods.includes(o.id)).reduce((a,o)=>a+Number(o.price_delta),0); const cp=(hasPax?item.pricePax[activePaxChoice]:item.price)+_md; const total=cp*activeQty;
   let body=`<div class="modal-emoji">${E(item.emoji)}</div><div class="modal-dish-name">${E(item.name)}</div>${item.desc?`<div class="modal-dish-desc">${E(item.desc)}</div>`:''}`;
   if(hasPax){ body+=`<div class="modal-label">Serving Size</div><div class="pax-options">`; Object.entries(item.pricePax).forEach(([size,price])=>{ body+=`<div class="pax-opt ${activePaxChoice===size?'selected':''}" onclick="selectPax('${size}')"><span class="pax-opt-size">${size} pax</span><span class="pax-opt-price">₱${price}</span></div>`; }); body+=`</div>`; }
+  const groups = (_mods && _mods.byItem[item.id]) || [];
+  groups.forEach(g => {
+    body += `<div class="modal-label">${E(g.name)}${g.min_select ? ' *' : ''} <span style="font-weight:400;text-transform:none;letter-spacing:0">${g.min_select ? 'choose ' + (g.min_select===g.max_select ? g.min_select : g.min_select+'–'+g.max_select) : 'optional'}</span></div><div class="pax-options">`;
+    g.options.filter(o=>o.is_available).forEach(o => { body += `<div class="pax-opt ${activeMods.includes(o.id)?'selected':''}" role="button" tabindex="0" aria-pressed="${activeMods.includes(o.id)}" onclick="toggleMod('${JA(g.id)}','${JA(o.id)}',${g.max_select})"><span class="pax-opt-size">${E(o.name)}</span><span class="pax-opt-price">${Number(o.price_delta)?'+₱'+Number(o.price_delta):''}</span></div>`; });
+    body += '</div>';
+  });
   body+=`<div class="qty-row"><div class="qty-row-label">Quantity</div><div class="qty-control"><button class="qty-btn" onclick="changeQty(-1)">−</button><span class="qty-num">${activeQty}</span><button class="qty-btn" onclick="changeQty(1)">+</button></div></div><div class="modal-label">Special request (optional)</div><textarea class="special-req-input" id="modal-special-req" placeholder="e.g. Extra rice, mas maanghang..."></textarea><button class="modal-add-btn" onclick="addToCart()">+ Add to Order &nbsp;·&nbsp; ₱${total}</button>`;
   document.getElementById('dish-modal-body').innerHTML=body;
 }
@@ -847,9 +866,17 @@ function selectPax(size){ activePaxChoice=size; renderDishModal(); }
 function changeQty(d){ activeQty=Math.max(1,activeQty+d); renderDishModal(); }
 
 function addToCart(){
-  const item=activeDish; const hasPax=!!item.pricePax; const price=hasPax?item.pricePax[activePaxChoice]:item.price;
+  const item=activeDish; const hasPax=!!item.pricePax;
+  const groups = (_mods && _mods.byItem[item.id]) || [];
+  for (const g of groups) {
+    const n = activeMods.filter(id => g.options.some(o=>o.id===id)).length;
+    if (n < g.min_select) { showToast('Please choose ' + g.name); return; }
+  }
+  const modDelta = activeMods.reduce((a,id)=>{ const o = groups.flatMap(g=>g.options).find(x=>x.id===id); return a + (o?Number(o.price_delta):0); }, 0);
+  const modNames = activeMods.map(id => (groups.flatMap(g=>g.options).find(x=>x.id===id)||{}).name).filter(Boolean);
+  const price=(hasPax?item.pricePax[activePaxChoice]:item.price) + modDelta;
   const specialReq=document.getElementById('modal-special-req')?.value||'';
-  cart.push({ id:item.id+'|'+(activePaxChoice||'single')+'|'+Date.now(), dishId:item.id, name:item.name, emoji:item.emoji, variant:activePaxChoice?activePaxChoice+' pax':null, price, qty:activeQty, specialReq });
+  cart.push({ id:item.id+'|'+(activePaxChoice||'single')+'|'+Date.now(), dishId:item.id, name:item.name + (modNames.length ? ' (' + modNames.join(', ') + ')' : ''), emoji:item.emoji, variant:activePaxChoice?activePaxChoice+' pax':null, price, qty:activeQty, specialReq, mods: activeMods.slice() });
   document.getElementById('dish-modal').classList.remove('open'); document.body.style.overflow=''; updateCartUI(); showToast('🛒 '+item.name+' added!');
 }
 
@@ -927,6 +954,7 @@ async function submitOrder(){
         unit_price: c.price,
         quantity: c.qty,
         pax_size: c.variant || null,
+        modifiers: c.mods && c.mods.length ? c.mods : undefined,
         notes: (c.specialReq && c.specialReq.trim()) ? c.specialReq.trim() : null
       }))
     });
@@ -1060,11 +1088,42 @@ function openBillScreen(){
 function closeBillScreen(){ document.getElementById('bill-screen').classList.remove('show'); }
 function selectBillPayMethod(method){ selectedBillPayMethod=method; document.querySelectorAll('.pay-method-card').forEach(c=>c.classList.toggle('selected',c.dataset.pay===method)); }
 
-function submitBillRequest(){
+async function submitBillRequest(){
   const method=selectedBillPayMethod;
-  if(method==='gcash'||method==='paymaya'){ closeBillScreen(); showQrPaymentScreen(method,sessionTotal); }
-  else{ notifyBillRequest(method); closeBillScreen(); showBillSentConfirmation(method); }
+  if(method==='online'){
+    // The latest order on this phone carries the table bill's tracking
+    // token (the bill is shared, so it is the same order). The amount is
+    // whatever the server says is due; HitPay's webhook marks it paid.
+    const last = sessionOrders[sessionOrders.length-1];
+    try {
+      const pay = await TPN.startOnlinePayment({ orderNumber: last.id, returnPath: 'table', returnQuery: location.search.slice(1) });
+      if (pay && /^https:\/\//.test(pay.checkout_url)) { location.href = pay.checkout_url; return; }
+    } catch(e) {
+      showToast('⚠️ ' + (e.message || 'Online payment is not available — staff will bring your bill.'));
+    }
+    notifyBillRequest('cash'); closeBillScreen(); showBillSentConfirmation('cash'); return;
+  }
+  notifyBillRequest(method); closeBillScreen(); showBillSentConfirmation(method);
 }
+// Online payment shows only once the owner has turned it on.
+(async function(){
+  try {
+    const { data } = await sb.from('site_settings').select('value').eq('key','payments.online_enabled').maybeSingle();
+    const v = data && data.value;
+    if (v === true || v === 'true' || v === 'yes') { const c = document.getElementById('pay-online-card'); if (c) c.hidden = false; }
+  } catch(e) { /* stays cash / card terminal */ }
+})();
+// Back from HitPay: wait for the webhook, then say so honestly.
+(async function(){
+  const paid = new URLSearchParams(location.search).get('paid');
+  if (!paid || !/^[A-Za-z0-9-]{4,64}$/.test(paid)) return;
+  showToast('⏳ Confirming your payment with HitPay…');
+  for (let i = 0; i < 40; i++) {
+    try { const o = await TPN.getOrderByNumber(paid); if (o && o.payment_status === 'paid') { showToast('✅ Payment received — salamat po!'); return; } } catch(e) {}
+    await new Promise(r => setTimeout(r, 3000));
+  }
+  showToast('Still confirming. If you finished paying, no need to pay again — staff can check.');
+})();
 async function notifyBillRequest(method){
   if(!TABLE_UUID){ showToast('⚠️ Table not registered.'); return; }
   try {
@@ -1081,7 +1140,7 @@ async function notifyBillRequest(method){
   }
 }
 function showBillSentConfirmation(method){
-  const payLabels={cash:'Cash',card:'Card Terminal',gcash:'GCash',paymaya:'PayMaya'};
+  const payLabels={cash:'Cash',card:'Card Terminal',online:'Online',gcash:'GCash',paymaya:'Maya'};
   document.getElementById('confirm-ref-num').textContent='BILL SENT';
   document.getElementById('confirm-sub').textContent=`Staff is on the way with your bill. Payment: ${payLabels[method]}.`;
   setOrderProgress('served'); renderSessionTotalCard();

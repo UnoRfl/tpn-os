@@ -15,8 +15,10 @@
   // refused by the browser unless its hash matches.
   if (!window.supabase) document.write('<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js" integrity="sha384-Rj26LVGvoeRVR6+mwQmFfcR3QOBEwT+ZmuCWpuiqeTzJpCs0ER4ITAWGb4Hiy3Ok" crossorigin="anonymous"><' + '/script>');
 </script>
-<script src="config.js?v=20261015"></script>
-<script src="tpn-supabase.js?v=20261015"></script>
+<script src="config.js?v=20261016b"></script>
+<script src="tpn-supabase.js?v=20261016b"></script>
+<script src="tpn-kit.js?v=20261016b"></script>
+<script src="tpn-site.js?v=20261016b"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="description" content="Tyo Paeng Nyo — Authentic Filipino cuisine in Las Piñas since 2003. Order online, book events, or inquire about catering.">
 <meta name="theme-color" content="#8B1A0E">
@@ -2205,8 +2207,10 @@ html[data-theme="dark"]  .panel, html[data-theme="night"] .panel {
 .kds-guest-chip { flex-wrap: wrap; min-width: 0; }
 .kds-guest-chip > span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
 </style>
+<link rel="stylesheet" href="tpn-glass.css?v=20261016b">
 </head>
 <body>
+<a class="skip-link" href="#main-content" onclick="event.preventDefault();var t=document.querySelector('.page.active h1, .portal-page.active main');if(t){t.setAttribute('tabindex','-1');t.focus();}">Skip to content</a>
 <!-- Boot overlay — dismissed by hideBootOverlay() once first paint is stable. -->
 <div id="tpn-boot">
   <div class="tpn-boot-logo">Tyo Paeng Nyo</div>
@@ -2222,10 +2226,21 @@ html[data-theme="dark"]  .panel, html[data-theme="night"] .panel {
   <ul class="nav-links">
     <li><a onclick="navigate('home')" data-nav="home" data-i18n="nav.home" class="active">Home</a></li>
     <li><a onclick="navigate('menu')" data-nav="menu" data-i18n="nav.menu">Menu</a></li>
-    <li><a onclick="navigate('restaurant')" data-nav="restaurant" data-i18n="nav.restaurant">Our Restaurant</a></li>
-    <li><a onclick="navigate('concessions')" data-nav="concessions" data-i18n="nav.concessions">Concessions</a></li>
-    <li><a onclick="navigate('events')" data-nav="events" data-i18n="nav.events">Events</a></li>
-    <li><a onclick="navigate('about')" data-nav="about" data-i18n="nav.about">About</a></li>
+    <li class="nav-group" data-group="catering">
+      <button type="button" aria-expanded="false" aria-haspopup="true" data-i18n="nav.catering">Events &amp; Catering</button>
+      <div class="nav-drop glass" role="menu">
+        <a role="menuitem" onclick="navigate('events')" data-nav="events"><span data-i18n="nav.events">Events</span><small>Celebrations, weddings, corporate</small></a>
+        <a role="menuitem" onclick="navigate('concessions')" data-nav="concessions"><span data-i18n="nav.concessions">Concessions</span><small>Office canteens &amp; daily service</small></a>
+      </div>
+    </li>
+    <li class="nav-group" data-group="visit">
+      <button type="button" aria-expanded="false" aria-haspopup="true" data-i18n="nav.visit">Visit</button>
+      <div class="nav-drop glass" role="menu">
+        <a role="menuitem" onclick="navigate('restaurant')" data-nav="restaurant"><span data-i18n="nav.restaurant">Our Restaurant</span><small>Address, hours, parking</small></a>
+        <a role="menuitem" onclick="navigate('about')" data-nav="about"><span data-i18n="nav.about">About</span><small>Our story</small></a>
+        <a role="menuitem" onclick="navigate('faq')" data-nav="faq"><span data-i18n="nav.faq">FAQ</span><small>Payment, parking, rewards</small></a>
+      </div>
+    </li>
     <li><button class="cart-btn" onclick="toggleCart()">🍽️ <span data-i18n="nav.tray">Tray</span> <span class="cart-count" id="navCartCount">0</span></button></li>
     <li><a class="nav-cta" onclick="navigate('menu')" data-i18n="nav.orderNow">Order Now</a></li>
     <li class="nav-lang">
@@ -2243,6 +2258,7 @@ html[data-theme="dark"]  .panel, html[data-theme="night"] .panel {
   <a onclick="navigate('concessions');toggleMobileMenu()" data-nav-m="concessions" data-i18n="nav.concessions">Concessions</a>
   <a onclick="navigate('events');toggleMobileMenu()" data-nav-m="events" data-i18n="nav.events">Events</a>
   <a onclick="navigate('about');toggleMobileMenu()" data-nav-m="about" data-i18n="nav.about">About</a>
+  <a onclick="navigate('faq');toggleMobileMenu()" data-nav-m="faq" data-i18n="nav.faq">FAQ</a>
   <a onclick="toggleCart();toggleMobileMenu()">🍽️ <span data-i18n="nav.tray">Tray</span></a>
   <div class="mobile-lang">
     <button class="lang-btn active" onclick="setLang('en')">English</button>
@@ -2279,8 +2295,8 @@ html[data-theme="dark"]  .panel, html[data-theme="night"] .panel {
   <section class="stats-bar">
     <div class="stat-item"><div class="stat-num">20+</div><div class="stat-label">Years Serving</div></div>
     <div class="stat-item"><div class="stat-num">60+</div><div class="stat-label">Filipino Dishes</div></div>
-    <div class="stat-item"><div class="stat-num">SEC</div><div class="stat-label">Registered</div></div>
-    <div class="stat-item"><div class="stat-num">VAT</div><div class="stat-label">Compliant</div></div>
+    <div class="stat-item"><div class="stat-num">🅿️</div><div class="stat-label">Free Parking</div></div>
+    <div class="stat-item"><div class="stat-num">QR Ph</div><div class="stat-label">GCash · Maya · Cards</div></div>
   </section>
 
   <section class="quick-actions">
@@ -2288,7 +2304,7 @@ html[data-theme="dark"]  .panel, html[data-theme="night"] .panel {
       <button class="qa-card reveal" onclick="navigate('menu')">
         <div class="qa-icon">🍽️</div>
         <div class="qa-title">Order Online</div>
-        <div class="qa-desc">Dine-in, takeout, or delivery. Pay with GCash, PayMaya, card, or cash.</div>
+        <div class="qa-desc">Dine-in, takeout, or delivery. Pay with cash, QR Ph, GCash, Maya, or card.</div>
         <div class="qa-arrow">↗</div>
       </button>
       <button class="qa-card reveal" onclick="navigate('events')">
@@ -2312,35 +2328,21 @@ html[data-theme="dark"]  .panel, html[data-theme="night"] .panel {
     </div>
   </section>
 
-  <section class="testimonials">
+  <section class="testimonials" id="testimonialsSection" hidden aria-labelledby="testTitle">
     <div class="section-eyebrow">Word of Mouth</div>
-    <h2 class="section-title">Mga <em>Suki</em> Speak</h2>
-    <div class="test-grid">
-      <div class="test-card reveal">
-        <div class="test-stars">★★★★★</div>
-        <p class="test-quote">"Mga 20 years na kami suki dito. Yung lechon kawali nila parang luto ng lola ko. Wala pa akong nakitang ganito kasarap dito sa Las Piñas."</p>
-        <div class="test-author"><div class="test-avatar">RM</div><div><div class="test-name">Rosa Manalili</div><div class="test-meta">Las Piñas resident, 22 years</div></div></div>
-      </div>
-      <div class="test-card reveal">
-        <div class="test-stars">★★★★★</div>
-        <p class="test-quote">"We've used Tyo Paeng Nyo for our office events for three years now. Always punctual, always generous portions, always professional. Sulit na sulit talaga."</p>
-        <div class="test-author"><div class="test-avatar">JC</div><div><div class="test-name">Jenny Castillo</div><div class="test-meta">HR Manager, BPO Las Piñas</div></div></div>
-      </div>
-      <div class="test-card reveal">
-        <div class="test-stars">★★★★★</div>
-        <p class="test-quote">"Birthday ng tatay ko, 40 pax, niluto nila bawat ulam parang sa bahay-bahay. Ang kare-kare yung favorite, sinabing 'di sila magpapatalo.' Tama nga sila."</p>
-        <div class="test-author"><div class="test-avatar">MR</div><div><div class="test-name">Mark Reyes</div><div class="test-meta">Birthday celebrant</div></div></div>
-      </div>
-    </div>
+    <h2 class="section-title" id="testTitle">Mga <em>Suki</em> Speak</h2>
+    <div class="test-grid" id="testGrid"></div>
   </section>
 
   <section class="payments-strip">
     <span class="pay-label">We accept</span>
     <div class="pay-methods">
       <span class="pay-pill">💵 Cash</span>
+      <span class="pay-pill">🔳 QR Ph</span>
       <span class="pay-pill">📱 GCash</span>
-      <span class="pay-pill">📲 PayMaya</span>
-      <span class="pay-pill">💳 Cards via PayMongo</span>
+      <span class="pay-pill">📲 Maya</span>
+      <span class="pay-pill">💳 Cards</span>
+      <span class="pay-pill">🏦 Bank transfer <small>(events &amp; catering)</small></span>
     </div>
   </section>
 </div>
@@ -2374,24 +2376,26 @@ html[data-theme="dark"]  .panel, html[data-theme="night"] .panel {
       </div>
       <div class="rest-feature-content">
         <h2>Las Piñas <em>City</em></h2>
-        <p>Located on Real Street in the heart of Las Piñas, our restaurant has been the gathering place for families, neighbors, and regulars for over two decades. Walk in any afternoon and you'll find the same warm hospitality and the same recipes that started it all.</p>
+        <p><strong>We've moved — just behind our old spot.</strong> Our new home on Real Street, facing Shell and near the Robinsons Las Piñas exit, has more seats and its own parking.</p>
+        <p>Our restaurant has been the gathering place for families, neighbors, and regulars for over two decades. Walk in any afternoon and you'll find the same warm hospitality and the same recipes that started it all.</p>
         <p>The kitchen runs on a simple rule: cook every plate like it's for your own family. After twenty years, that's still the only standard that matters.</p>
         <div class="rest-details">
           <div>
             <div class="rest-detail-label">Address</div>
-            <div class="rest-detail-val">316 Real Street<br>Las Piñas City, Metro Manila</div>
+            <div class="rest-detail-val"><span data-site="contact.address">KM 19, 316 Real St., Talon Uno, Las Piñas City</span><br>
+              <a data-site="contact.map_url" data-site-href="url" href="https://maps.google.com/?q=316+Real+St,+Talon+Uno,+Las+Pi%C3%B1as" target="_blank" rel="noopener" style="font-size:13px;">Open in Maps ↗</a></div>
           </div>
           <div>
             <div class="rest-detail-label">Hours</div>
-            <div class="rest-detail-val">Mon – Sun<br>10:00 AM – 9:00 PM</div>
+            <div class="rest-detail-val" data-site="hours.text">Mon – Sun · 10:00 AM – 9:00 PM</div>
           </div>
           <div>
             <div class="rest-detail-label">Phone</div>
-            <div class="rest-detail-val"><a href="tel:+639171234567">+63 917 123 4567</a></div>
+            <div class="rest-detail-val"><a href="tel:+639998887817" data-site="contact.phone" data-site-href="tel">0999 888 7817</a></div>
           </div>
           <div>
             <div class="rest-detail-label">Parking</div>
-            <div class="rest-detail-val">Street parking<br>Free for diners</div>
+            <div class="rest-detail-val" data-site="contact.parking">Free on-site parking for diners</div>
           </div>
         </div>
         <div style="margin-top: 32px; display: flex; gap: 12px; flex-wrap: wrap;">
@@ -2415,12 +2419,10 @@ html[data-theme="dark"]  .panel, html[data-theme="night"] .panel {
   </section>
 
   <section class="conc-trust">
-    <div class="conc-trust-grid">
+    <div class="conc-trust-grid" id="concTrust">
       <div class="conc-trust-item"><div class="conc-trust-num">20+</div><div class="conc-trust-label">Years in Business</div></div>
-      <div class="conc-trust-item"><div class="conc-trust-num">SEC</div><div class="conc-trust-label">Registered Corporation</div></div>
-      <div class="conc-trust-item"><div class="conc-trust-num">VAT</div><div class="conc-trust-label">Compliant & Invoicing</div></div>
       <div class="conc-trust-item"><div class="conc-trust-num">BIR</div><div class="conc-trust-label">Official Receipts</div></div>
-      <div class="conc-trust-item"><div class="conc-trust-num">FDA</div><div class="conc-trust-label">Food Safety Standards</div></div>
+      <div class="conc-trust-item"><div class="conc-trust-num">🅿️</div><div class="conc-trust-label">Free Parking</div></div>
     </div>
   </section>
 
@@ -2429,22 +2431,22 @@ html[data-theme="dark"]  .panel, html[data-theme="night"] .panel {
       <div class="section-eyebrow">What We Handle</div>
       <h2 class="section-title">Built for <em>Business</em> Scale</h2>
       <div class="conc-handle-grid">
-        <div class="conc-handle-card">
+        <div class="conc-handle-card is-action" role="button" tabindex="0" data-service="Office Catering" aria-label="Office Catering: start an inquiry">
           <div class="conc-handle-icon">🏢</div>
           <div class="conc-handle-title">Office Catering</div>
           <div class="conc-handle-desc">Daily lunches, team meetings, executive briefings, and special company occasions. Flexible recurring or one-off arrangements.</div>
         </div>
-        <div class="conc-handle-card">
+        <div class="conc-handle-card is-action" role="button" tabindex="0" data-service="On-Site Concession" aria-label="On-Site Concessions: start an inquiry">
           <div class="conc-handle-icon">🏬</div>
           <div class="conc-handle-title">On-Site Concessions</div>
           <div class="conc-handle-desc">Building cafeterias, food courts, and tenant amenities. We've operated concessions in BPO buildings and city government facilities.</div>
         </div>
-        <div class="conc-handle-card">
+        <div class="conc-handle-card is-action" role="button" tabindex="0" data-service="On-Site Concession" aria-label="Schools & Institutions: start an inquiry">
           <div class="conc-handle-icon">🎓</div>
           <div class="conc-handle-title">Schools & Institutions</div>
           <div class="conc-handle-desc">School canteens, university events, and institutional dining. Filipino-affordable, parent-friendly, and student-approved.</div>
         </div>
-        <div class="conc-handle-card">
+        <div class="conc-handle-card is-action" role="button" tabindex="0" data-service="Corporate Event" aria-label="Large Corporate Events: start an inquiry">
           <div class="conc-handle-icon">🎉</div>
           <div class="conc-handle-title">Large Corporate Events</div>
           <div class="conc-handle-desc">Anniversaries, year-end parties, conferences, and product launches up to 500 pax. We bring the team, the equipment, and the spread.</div>
@@ -2516,9 +2518,7 @@ html[data-theme="dark"]  .panel, html[data-theme="night"] .panel {
               <option value="">Select...</option>
               <option>Office Catering</option>
               <option>On-Site Concession</option>
-              <option>Large Corporate Event</option>
-              <option>School / Institutional</option>
-              <option>Recurring / Daily</option>
+              <option>Corporate Event</option>
               <option>Not sure — let's discuss</option>
             </select>
           </div>
@@ -2563,24 +2563,33 @@ html[data-theme="dark"]  .panel, html[data-theme="night"] .panel {
 <div class="page" id="page-events">
   <div class="page-header">
     <h1>Events & <em>Celebrations</em></h1>
-    <p>Birthdays, baptisms, debuts, despedidas. Let us handle the food so you can focus on your people.</p>
+    <p>Celebrations, weddings and debuts, corporate events — or a menu built just for you. Let us handle the food so you can focus on your people.</p>
     <div style="margin-top:20px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px 20px;display:inline-flex;align-items:center;gap:14px;text-align:left;">
       <span style="font-size:28px;">🏢</span>
       <div>
-        <div style="font-size:13px;font-weight:700;color:var(--ink);margin-bottom:3px;">Corporate event or office catering?</div>
-        <div style="font-size:12px;color:var(--ink-muted);margin-bottom:8px;">Para sa mas malaking grupo — offices, buildings, at institutions — may dedikadong B2B process tayo.</div>
+        <div style="font-size:13px;font-weight:700;color:var(--ink);margin-bottom:3px;">Need a concessionaire for an office canteen?</div>
+        <div style="font-size:12px;color:var(--ink-muted);margin-bottom:8px;">For daily food service in offices, buildings and schools, we have a separate concessions process. One-off corporate events can be booked right here.</div>
         <button class="btn-ghost" style="padding:7px 16px;font-size:12px;" onclick="navigate('concessions')">Go to Concessions →</button>
       </div>
     </div>
   </div>
-  <div class="events-grid">
-    <div class="event-type-card"><div class="event-type-icon">🎂</div><div class="event-type-title">Birthdays</div><div class="event-type-desc">From intimate family gatherings to large salu-salo. We scale to your guest list.</div></div>
-    <div class="event-type-card"><div class="event-type-icon">👶</div><div class="event-type-title">Baptisms & Christenings</div><div class="event-type-desc">Traditional Filipino feasts for new beginnings, served the way lola would approve.</div></div>
-    <div class="event-type-card"><div class="event-type-icon">👰</div><div class="event-type-title">Debuts</div><div class="event-type-desc">Elegant menus for your daughter's eighteenth, with options that please both generations.</div></div>
-    <div class="event-type-card"><div class="event-type-icon">✈️</div><div class="event-type-title">Despedidas</div><div class="event-type-desc">Send-offs deserve good food and full bellies. A proper Filipino farewell.</div></div>
-    <div class="event-type-card"><div class="event-type-icon">💍</div><div class="event-type-title">Anniversaries</div><div class="event-type-desc">From silver to golden — milestone meals with the warmth of home cooking.</div></div>
-    <div class="event-type-card"><div class="event-type-icon">🎓</div><div class="event-type-title">Graduations</div><div class="event-type-desc">Celebrate the achievement with a spread that honors the journey.</div></div>
+  <div class="events-grid events-grid-4">
+    <button type="button" class="event-type-card is-action" data-event="Celebration"><div class="event-type-icon">🎂</div><div class="event-type-title">Celebrations</div><div class="event-type-desc">Birthdays, baptisms, anniversaries, graduations and despedidas. We scale to your guest list.</div></button>
+    <button type="button" class="event-type-card is-action" data-event="Wedding / Debut"><div class="event-type-icon">💍</div><div class="event-type-title">Weddings &amp; Debuts</div><div class="event-type-desc">Elegant menus for the big milestones, with options that please every generation.</div></button>
+    <button type="button" class="event-type-card is-action" data-event="Corporate Event"><div class="event-type-icon">🏢</div><div class="event-type-title">Corporate Events</div><div class="event-type-desc">Office parties, seminars, year-end gatherings and packed meals for teams.</div></button>
+    <button type="button" class="event-type-card is-action" data-event="Customize"><div class="event-type-icon">✨</div><div class="event-type-title">Customize</div><div class="event-type-desc">Something different in mind? Build your own menu with our team.</div></button>
   </div>
+  <section class="event-packages" id="eventPackages" hidden aria-labelledby="pkgTitle">
+    <div class="section-eyebrow">Sample Packages</div>
+    <h2 class="section-title" id="pkgTitle">Starting <em>Rates</em></h2>
+    <div class="pkg-grid" id="eventPackagesGrid"></div>
+    <p class="pkg-note">Prices are starting points. Your final quote comes after a short consultation about your menu, headcount and venue.</p>
+  </section>
+  <section class="tasting-cta glass" aria-labelledby="tastingTitle">
+    <div><h2 id="tastingTitle">🍽️ Try before you book</h2>
+    <p>Request a food tasting and we'll call you to set a schedule.</p></div>
+    <button type="button" class="btn-primary" onclick="openTastingForm()">Request a food tasting</button>
+  </section>
   <div class="conc-form-wrap" style="padding: 60px 24px;">
     <div class="conc-form-intro">
       <div class="section-eyebrow">Tell Us About Your Event</div>
@@ -2589,14 +2598,15 @@ html[data-theme="dark"]  .panel, html[data-theme="night"] .panel {
     <div class="checkout-card">
       <div class="form-row">
         <div><label class="form-label">Your Name *</label><input type="text" class="form-input" id="ev-name" placeholder="Your name"></div>
-        <div><label class="form-label">Phone *</label><input type="tel" class="form-input" id="ev-phone" placeholder="09171234567"></div>
+        <div><label class="form-label">Phone *</label><input type="tel" class="form-input" id="ev-phone" placeholder="0917 123 4567" autocomplete="tel"></div>
+      </div>
+      <div class="form-row full">
+        <div><label class="form-label" for="ev-email">Email <span class="form-hint">(optional — for the written quote)</span></label><input type="email" class="form-input" id="ev-email" placeholder="you@example.com" autocomplete="email"></div>
       </div>
       <div class="form-row">
         <div><label class="form-label">Event Type *</label>
           <select class="form-input" id="ev-type">
-            <option>Birthday</option><option>Baptism / Christening</option><option>Debut</option>
-            <option>Despedida</option><option>Anniversary</option><option>Graduation</option>
-            <option>Other</option>
+            <option>Celebration</option><option>Wedding / Debut</option><option>Corporate Event</option><option>Customize</option>
           </select>
         </div>
         <div><label class="form-label">Expected Pax *</label><input type="number" class="form-input" id="ev-pax" placeholder="e.g. 40"></div>
@@ -2644,6 +2654,21 @@ html[data-theme="dark"]  .panel, html[data-theme="night"] .panel {
   </div>
 </div>
 
+<!-- FAQ -->
+<div class="page" id="page-faq">
+  <div class="page-header">
+    <h1>Questions &amp; <em>Answers</em></h1>
+    <p>Location, parking, payment, events and rewards. Can't find it? Call <a href="tel:+639998887817" data-site="contact.phone" data-site-href="tel">0999 888 7817</a>.</p>
+    <label class="faq-search glass"><span class="sr-only">Search the questions</span>
+      <input type="search" placeholder="Search: parking, GCash, minimum pax…" oninput="filterFaqs(this.value)" autocomplete="off">
+    </label>
+  </div>
+  <div class="faq-wrap">
+    <div id="faqList" aria-live="polite"><p class="faq-empty">Loading questions…</p></div>
+    <p id="faqNone" class="faq-empty" hidden>No matching question. Try another word, or call us.</p>
+  </div>
+</div>
+
 <!-- CHECKOUT -->
 <div class="page" id="page-checkout">
   <div class="checkout-wrap">
@@ -2663,7 +2688,8 @@ html[data-theme="dark"]  .panel, html[data-theme="night"] .panel {
     <div>
       <div class="footer-brand-name">Tyo Paeng <span>Nyo</span></div>
       <p class="footer-tagline">"Sarap na hindi mo malilimutan."</p>
-      <p class="footer-text">Authentic Filipino dining serving Las Piñas and Metro Manila since 2003. SEC-registered, VAT-compliant, family-run.</p>
+      <p class="footer-text">Authentic Filipino dining and catering serving Las Piñas and Metro Manila. Family-run.</p>
+      <p class="footer-social"><a data-site="contact.facebook" data-site-href="url" href="https://www.facebook.com/TyoPaengNyo2019.ph" target="_blank" rel="noopener">Facebook</a> · <a data-site="contact.instagram" data-site-href="url" href="https://www.instagram.com/tyopaengnyo" target="_blank" rel="noopener">Instagram</a></p>
     </div>
     <div class="footer-col">
       <h4>Explore</h4>
@@ -2673,29 +2699,29 @@ html[data-theme="dark"]  .panel, html[data-theme="night"] .panel {
         <li><a onclick="navigate('concessions')">Concessions</a></li>
         <li><a onclick="navigate('events')">Events</a></li>
         <li><a onclick="navigate('about')">About</a></li>
+        <li><a onclick="navigate('faq')">FAQ</a></li>
+        <li><a href="tpn-rewards">Stamp card</a></li>
       </ul>
     </div>
     <div class="footer-col">
       <h4>Contact</h4>
       <ul>
-        <li>316 Real Street</li>
-        <li>Las Piñas City</li>
-        <li>+63 917 123 4567</li>
-        <li>hello@tyopaengnyo.ph</li>
+        <li data-site="contact.address">KM 19, 316 Real St., Talon Uno, Las Piñas City</li>
+        <li><a href="tel:+639998887817" data-site="contact.phone" data-site-href="tel">0999 888 7817</a></li>
+        <li data-site-wrap hidden><a data-site="contact.email" data-site-optional></a></li>
       </ul>
     </div>
     <div class="footer-col">
       <h4>Hours</h4>
       <ul>
-        <li>Mon – Sun</li>
-        <li>10:00 AM – 9:00 PM</li>
+        <li data-site="hours.text">Mon – Sun · 10:00 AM – 9:00 PM</li>
         <li style="margin-top: 12px;"><strong style="color: var(--ink);">B2B Inquiries</strong></li>
         <li><a onclick="navigate('concessions')">Concessions page →</a></li>
       </ul>
     </div>
   </div>
   <div class="footer-bottom">
-    <div>© 2026 Tyo Paeng Nyo Foods Corp. • SEC Reg. No. 2003-XXXXXXX</div>
+    <div id="footerLegal">© 2026 Tyo Paeng Nyo Restaurant and Catering Studio</div>
     <button class="footer-staff-login" onclick="openStaffLogin()">Staff Login</button>
   </div>
 </footer>
@@ -2907,7 +2933,13 @@ function persistCart() {
   try { localStorage.setItem('tpn_cart_v1', JSON.stringify({ items: cart, _ts: Date.now() })); } catch(e) {}
 }
 let checkoutStep = 1;
-let checkoutData = { orderType: 'takeout', schedule: 'asap', paymentMethod: 'gcash' };
+let checkoutData = { orderType: 'takeout', schedule: 'asap', paymentMethod: 'cash' };
+// Online payment is offered only once the owner switches it on (Website →
+// Online payments), i.e. after the HitPay keys are in. Until then: cash.
+function onlinePayEnabled() {
+  const v = window.tpnSite && tpnSite.state.settings['payments.online_enabled'];
+  return v === true || v === 'true' || v === 'yes';
+}
 let currentUser = null;
 
 /* ════════════════════════════════════════════════════
@@ -2974,6 +3006,9 @@ const TPN_STRINGS = {
   'nav.concessions': { en: 'Concessions',    tl: 'Konsesyon' },
   'nav.events':      { en: 'Events',         tl: 'Okasyon' },
   'nav.about':       { en: 'About',          tl: 'Tungkol Sa Amin' },
+  'nav.faq':         { en: 'FAQ',            tl: 'Mga Tanong' },
+  'nav.catering':    { en: 'Events & Catering', tl: 'Events at Catering' },
+  'nav.visit':       { en: 'Visit',          tl: 'Bisitahin' },
   'nav.orderNow':    { en: 'Order Now',      tl: 'Umorder Na' },
   'nav.tray':        { en: 'Tray',           tl: 'Tray' },
 
@@ -3223,10 +3258,10 @@ const TPN_STRINGS = {
   'close.voids':      { en: 'Voided',              tl: 'Na-void' },
   'close.lines':      { en: 'lines',               tl: 'linya' },
   'close.cancelled':  { en: 'cancelled',           tl: 'kanselado' },
-  'close.declaredCash':{ en: 'Cash declared',      tl: 'Cash na dineklara' },
+  'close.declaredCash':{ en: 'Cash received',      tl: 'Cash na natanggap' },
   'close.inDrawer':   { en: 'should be in the drawer', tl: 'dapat nasa kahon' },
-  'close.declaredWarning': { en: 'These are the payment methods customers SELECTED, not confirmed receipts — payment confirmation is not wired up yet. Treat cash as the only figure worth counting against.', tl: 'Ito ang paraan ng bayad na PINILI ng customer, hindi kumpirmadong resibo — wala pa ang payment confirmation. Ang cash lang ang tunay na mabibilang.' },
-  'close.byMethod':   { en: 'BY METHOD (DECLARED)', tl: 'AYON SA BAYAD (DEKLARADO)' },
+  'close.declaredWarning': { en: 'Cash expected in the drawer = cash payments recorded today minus cash refunds (the Payments ledger). Orders still unpaid are listed separately — collect them before you close.', tl: 'Ang inaasahang cash = mga naitalang cash na bayad ngayong araw bawas ang cash refund. Ang mga hindi pa bayad ay nakalista nang hiwalay.' },
+  'close.byMethod':   { en: 'BY METHOD', tl: 'AYON SA BAYAD' },
   'close.byType':     { en: 'BY ORDER TYPE',       tl: 'AYON SA URI' },
   'close.topItems':   { en: 'TOP ITEMS',           tl: 'PINAKAMABILI' },
   'close.reconcile':  { en: 'CASH RECONCILIATION', tl: 'PAGTUTUOS NG CASH' },
@@ -3390,6 +3425,12 @@ function navigate(page) {
   if (target) target.classList.add('active');
   document.querySelectorAll('[data-nav]').forEach(a => a.classList.toggle('active', a.dataset.nav === page));
   document.querySelectorAll('[data-nav-m]').forEach(a => a.classList.toggle('active', a.dataset.navM === page));
+  document.querySelectorAll('.nav-group').forEach(g => g.querySelector('button').classList.toggle('active', !!g.querySelector('[data-nav="' + page + '"]')));
+  try {
+    const want = page === 'home' ? '' : '#' + page;
+    if (location.hash !== want && !/[?&]view=/.test(location.search)) history.replaceState(history.state, '', location.pathname + location.search + want);
+  } catch (e) {}
+  if (target) { const h = target.querySelector('h1'); if (h) { h.setAttribute('tabindex', '-1'); h.focus({ preventScroll: true }); } }
   window.scrollTo({ top: 0, behavior: 'instant' });
   // Close mobile menu if open
   const menu = document.getElementById('mobileMenu');
@@ -3402,6 +3443,33 @@ function navigate(page) {
   // hide mobile sticky bar on checkout
   document.body.classList.toggle('has-mobile-bar', page !== 'checkout');
 }
+
+/* Public nav dropdowns: click or Enter opens, Escape / outside click closes,
+   arrow keys move between items. */
+document.addEventListener('click', (e) => {
+  const btn = e.target.closest('.nav-group > button');
+  document.querySelectorAll('.nav-group[data-open="true"]').forEach(g => {
+    if (!btn || g !== btn.parentElement) { g.dataset.open = 'false'; g.querySelector('button').setAttribute('aria-expanded', 'false'); }
+  });
+  if (btn) {
+    const g = btn.parentElement, open = g.dataset.open !== 'true';
+    g.dataset.open = String(open); btn.setAttribute('aria-expanded', String(open));
+    if (open) g.querySelector('.nav-drop a')?.focus({ preventScroll: true });
+  } else if (e.target.closest('.nav-drop a')) {
+    document.querySelectorAll('.nav-group').forEach(g => { g.dataset.open = 'false'; g.querySelector('button').setAttribute('aria-expanded', 'false'); });
+  }
+});
+document.addEventListener('keydown', (e) => {
+  const g = e.target.closest && e.target.closest('.nav-group');
+  if (!g) return;
+  const items = [...g.querySelectorAll('.nav-drop a')];
+  const i = items.indexOf(document.activeElement);
+  if (e.key === 'Escape') { g.dataset.open = 'false'; g.querySelector('button').setAttribute('aria-expanded', 'false'); g.querySelector('button').focus(); }
+  else if (e.key === 'ArrowDown') { e.preventDefault(); if (g.dataset.open !== 'true') g.querySelector('button').click(); else items[(i + 1) % items.length]?.focus(); }
+  else if (e.key === 'ArrowUp' && i >= 0) { e.preventDefault(); items[(i - 1 + items.length) % items.length]?.focus(); }
+  else if ((e.key === 'Enter' || e.key === ' ') && i >= 0) { e.preventDefault(); items[i].click(); }
+});
+document.querySelectorAll('.nav-drop a').forEach(a => a.setAttribute('tabindex', '0'));
 
 function toggleMobileMenu() {
   const menu = document.getElementById('mobileMenu');
@@ -3717,26 +3785,20 @@ function renderCheckoutStep() {
       <div class="checkout-card">
         <h2>Payment</h2>
         <p class="checkout-sub">How would you like to pay?</p>
-        <div class="pay-grid">
-          <button class="pay-method ${checkoutData.paymentMethod === 'cash' ? 'active' : ''}" onclick="setPayment('cash')">
+        <div class="pay-grid" role="radiogroup" aria-label="Payment method">
+          ${onlinePayEnabled() ? `<button class="pay-method ${checkoutData.paymentMethod === 'hitpay' ? 'active' : ''}" role="radio" aria-checked="${checkoutData.paymentMethod === 'hitpay'}" onclick="setPayment('hitpay')">
+            <div class="pay-method-icon">🔳</div>
+            <div><div class="pay-method-info">Pay online now</div><div class="pay-method-sub">QR Ph · GCash · Maya · Visa/Mastercard</div></div>
+          </button>` : ''}
+          <button class="pay-method ${checkoutData.paymentMethod === 'cash' ? 'active' : ''}" role="radio" aria-checked="${checkoutData.paymentMethod === 'cash'}" onclick="setPayment('cash')">
             <div class="pay-method-icon">💵</div>
-            <div><div class="pay-method-info">Cash on Arrival</div><div class="pay-method-sub">Pay when you arrive or receive</div></div>
-          </button>
-          <button class="pay-method ${checkoutData.paymentMethod === 'gcash' ? 'active' : ''}" onclick="setPayment('gcash')">
-            <div class="pay-method-icon">📱</div>
-            <div><div class="pay-method-info">GCash</div><div class="pay-method-sub">Quick & easy</div></div>
-          </button>
-          <button class="pay-method ${checkoutData.paymentMethod === 'paymaya' ? 'active' : ''}" onclick="setPayment('paymaya')">
-            <div class="pay-method-icon">📲</div>
-            <div><div class="pay-method-info">PayMaya</div><div class="pay-method-sub">Maya wallet</div></div>
-          </button>
-          <button class="pay-method ${checkoutData.paymentMethod === 'card' ? 'active' : ''}" onclick="setPayment('card')">
-            <div class="pay-method-icon">💳</div>
-            <div><div class="pay-method-info">Card</div><div class="pay-method-sub">Visa, Mastercard via PayMongo</div></div>
+            <div><div class="pay-method-info">Cash</div><div class="pay-method-sub">${checkoutData.orderType === 'delivery' ? 'Pay the rider on delivery' : 'Pay when you pick up'}</div></div>
           </button>
         </div>
-        <div style="background:var(--bg-2);border-radius:8px;padding:14px;font-size:13px;color:var(--ink-muted);">
-          🔒 Payments are securely processed. Your card details never touch our servers.
+        <div style="background:var(--bg-2);border-radius:12px;padding:14px;font-size:13px;color:var(--ink-muted);">
+          ${onlinePayEnabled()
+            ? '🔒 Online payments are handled by HitPay, a licensed payment provider. Your card and wallet details never reach our servers. Your order is confirmed as paid only after HitPay tells us.'
+            : '💬 Online payment is coming soon. For now, please pay in cash when you pick up or when the rider arrives.'}
         </div>
         <div class="checkout-actions">
           <button class="btn-back" onclick="checkoutBack()">← Back</button>
@@ -3791,8 +3853,12 @@ function renderCheckoutStep() {
         </div>
         <div class="confirm-detail-grid">
           <div><div class="confirm-detail-label">Type</div><div class="confirm-detail-val">${({dinein:'Dine-In',takeout:'Takeout',delivery:'Delivery'})[checkoutData.orderType]}</div></div>
-          <div><div class="confirm-detail-label">Payment</div><div class="confirm-detail-val">${({cash:'Cash',gcash:'GCash',paymaya:'PayMaya',card:'Card'})[checkoutData.paymentMethod]}</div></div>
+          <div><div class="confirm-detail-label">Payment</div><div class="confirm-detail-val">${checkoutData.paymentMethod === 'hitpay' ? 'Online (HitPay)' : 'Cash'}</div></div>
         </div>
+        ${checkoutData.payError ? `<div class="pay-alert" role="alert" style="text-align:left;margin-top:14px;">
+          <strong>We couldn't open the payment page.</strong><div style="font-size:13px;margin:4px 0 10px;">${E(checkoutData.payError)}</div>
+          <button class="btn-next" style="margin:0" onclick="retryOnlinePayment('${JA(ref)}')">Try paying online again</button>
+          <div style="font-size:12px;color:var(--ink-muted);margin-top:8px;">Or just pay in cash when you get your order — it's already in our queue.</div></div>` : ''}
         <p class="confirm-message">"Salamat po — see you soon!"</p>
         <div style="margin:20px 0;background:var(--bg-2);border:1px solid var(--line);border-radius:10px;padding:16px;">
           <div style="font-size:12px;color:var(--ink-muted);letter-spacing:0.12em;text-transform:uppercase;font-weight:700;margin-bottom:8px;">Track your order</div>
@@ -3808,6 +3874,45 @@ function renderCheckoutStep() {
   }
 }
 function setOrderType(t) { checkoutData.orderType = t; renderCheckoutStep(); }
+async function retryOnlinePayment(orderNumber) {
+  try {
+    const pay = await TPN.startOnlinePayment({ orderNumber });
+    if (pay && pay.checkout_url && /^https:\/\//.test(pay.checkout_url)) location.href = pay.checkout_url;
+  } catch (e) { toast(e.message); }
+}
+
+/* Back from HitPay (?paid=ORDER). The redirect itself proves nothing; we
+   wait for the webhook to mark the order paid and show that honestly. */
+async function showPaymentReturn(orderNumber) {
+  navigate('checkout');
+  const box = document.getElementById('checkoutContent');
+  if (!box) return;
+  const steps = document.getElementById('checkoutSteps'); if (steps) steps.hidden = true;
+  const paint = (icon, title, msg, extra = '') => {
+    box.innerHTML = `<div class="checkout-card confirm-card" role="status" aria-live="polite">
+      <div class="confirm-emoji">${icon}</div><h2 class="confirm-title">${title}</h2>
+      <p class="confirm-sub">${msg}</p>
+      <div class="confirm-ref"><div class="confirm-ref-label">Your Reference</div><div class="confirm-ref-num">${E(orderNumber)}</div></div>${extra}
+      <button class="btn-primary" onclick="history.replaceState(null,'',location.pathname);navigate('home')" style="margin-top:12px;">Back to home</button></div>`;
+  };
+  paint('⏳', 'Confirming your <em>payment</em>…', 'HitPay is telling us about your payment. This usually takes a few seconds.');
+  const started = Date.now();
+  while (Date.now() - started < 120000) {
+    try {
+      const o = await TPN.getOrderByNumber(orderNumber);
+      if (o && o.payment_status === 'paid') { paint('✅', 'Payment <em>received!</em>', 'Salamat po! Your order is paid and in our queue.'); return; }
+    } catch (e) { /* keep waiting; the network may blink */ }
+    await new Promise(r => setTimeout(r, 3000));
+  }
+  paint('🕐', 'Still <em>confirming</em>', 'We have your order. If you completed the payment, it will show as paid shortly — no need to pay again.',
+    `<div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:10px;">
+       <button class="btn-ghost" onclick="showPaymentReturn('${JA(orderNumber)}')">Check again</button>
+       <button class="btn-ghost" onclick="retryOnlinePayment('${JA(orderNumber)}')">I didn't finish paying</button></div>`);
+}
+window.addEventListener('DOMContentLoaded', () => {
+  const paid = new URLSearchParams(location.search).get('paid');
+  if (paid && /^[A-Za-z0-9-]{4,64}$/.test(paid)) setTimeout(() => showPaymentReturn(paid), 50);
+});
 function setSchedule(s) { checkoutData.schedule = s; renderCheckoutStep(); }
 function setPayment(p) { checkoutData.paymentMethod = p; renderCheckoutStep(); }
 function checkoutNext() {
@@ -3862,7 +3967,7 @@ async function confirmOrder() {
     // Map checkout orderType to DB enum
     const otMap = { takeout: 'pickup', pickup: 'pickup', delivery: 'delivery', dinein: 'dine_in' };
     const dbOrderType = otMap[checkoutData.orderType] || 'pickup';
-    const dbPayment = ({ gcash: 'gcash', paymaya: 'paymaya', card: 'card', cash: 'cash' })[checkoutData.paymentMethod] || 'cash';
+    const dbPayment = (checkoutData.paymentMethod === 'hitpay' && onlinePayEnabled()) ? 'hitpay' : 'cash';
 
     // Compose scheduled_for from date + time inputs (ISO string) — null if ASAP
     let scheduledFor = null;
@@ -3894,6 +3999,14 @@ async function confirmOrder() {
     cart = [];
     persistCart();
     updateCartUI();
+    if (dbPayment === 'hitpay') {
+      // The order exists either way. If HitPay cannot be reached, the
+      // confirmation screen offers to retry or pay in cash instead.
+      try {
+        const pay = await TPN.startOnlinePayment({ orderNumber: order.order_number });
+        if (pay && pay.checkout_url && /^https:\/\//.test(pay.checkout_url)) { location.href = pay.checkout_url; return; }
+      } catch (e) { checkoutData.payError = e.message; }
+    }
     checkoutStep = 5;
     renderCheckoutStep();
   } catch(e) {
@@ -3932,7 +4045,7 @@ async function checkOrderStatus() {
 }
 function resetCheckout() {
   checkoutStep = 1;
-  checkoutData = { orderType: 'takeout', schedule: 'asap', paymentMethod: 'gcash' };
+  checkoutData = { orderType: 'takeout', schedule: 'asap', paymentMethod: onlinePayEnabled() ? 'hitpay' : 'cash' };
   navigate('home');
 }
 
@@ -3988,7 +4101,9 @@ async function submitEvent() {
   const phone = document.getElementById('ev-phone').value.trim();
   const pax = document.getElementById('ev-pax').value;
   const date = document.getElementById('ev-date').value;
+  const email = (document.getElementById('ev-email')?.value || '').trim();
   if (!name || !phone || !pax || !date) { toast('May kulang pa — pakibuuin ang required fields 📝'); return; }
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { toast('Please check the email address.'); return; }
   let ref;
   try {
     const detail = [
@@ -3998,7 +4113,7 @@ async function submitEvent() {
       document.getElementById('ev-notes').value || ''
     ].join('\n');
     const result = await TPN.createInquiry({
-      type: 'events', name, phone, message: detail,
+      type: 'events', name, phone, email: email || null, message: detail,
       eventDate: date, expectedPax: parseInt(pax)
     });
     ref = 'TPN-E-' + result.id.slice(0, 6).toUpperCase();
@@ -4007,7 +4122,8 @@ async function submitEvent() {
     toast('⚠️ Could not send inquiry: ' + (e.message || 'connection error'));
     return;
   }
-  ['ev-name','ev-phone','ev-pax','ev-date','ev-venue','ev-notes'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  if (window.tpnDraft) tpnDraft.clear('event-form');
+  ['ev-name','ev-phone','ev-email','ev-pax','ev-date','ev-venue','ev-notes'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
   showConfirmModal('✅ Event Inquiry Sent!', `
     <div style="text-align:center;margin-bottom:16px;font-size:40px;">🎉</div>
     <p>Salamat, <strong>${E(name)}</strong>! Natanggap na namin ang iyong event inquiry.</p>
@@ -4017,6 +4133,81 @@ async function submitEvent() {
     </div>
     <p style="color:var(--ink-muted);font-size:14px;line-height:1.6;">Makikipag-ugnayan sa inyo ang aming team sa loob ng <strong>1 business day</strong>. Huwag mag-atubiling mag-ulit kung hindi nakatanggap ng reply sa loob ng 24 oras.</p>
   `, () => navigate('home'));
+}
+
+/* ── Events / concessions helpers (overhaul) ─────────────── */
+// Cards on the Events page pre-fill the form and take you to it.
+function pickEvent(type) {
+  const sel = document.getElementById('ev-type');
+  if (sel) {
+    if (![...sel.options].some(o => o.value === type || o.text === type)) sel.add(new Option(type, type));
+    sel.value = type;
+  }
+  const form = document.getElementById('ev-name');
+  if (form) { form.scrollIntoView({ behavior: 'smooth', block: 'center' }); setTimeout(() => form.focus({ preventScroll: true }), 400); }
+}
+// Cards on the Concessions page do the same for the service type.
+function pickService(type) {
+  const sel = document.getElementById('cf-type');
+  if (sel) sel.value = type;
+  const first = document.getElementById('cf-name');
+  if (first) { first.scrollIntoView({ behavior: 'smooth', block: 'center' }); setTimeout(() => first.focus({ preventScroll: true }), 400); }
+}
+document.addEventListener('click', (e) => {
+  const ev = e.target.closest('[data-event]');
+  if (ev) { pickEvent(ev.dataset.event); return; }
+  const sv = e.target.closest('[data-service]');
+  if (sv) pickService(sv.dataset.service);
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Enter' && e.key !== ' ') return;
+  const sv = e.target.closest && e.target.closest('[data-service][role="button"]');
+  if (sv) { e.preventDefault(); pickService(sv.dataset.service); }
+});
+
+// Food tasting request: a short form that lands in Inquiries as 'tasting'.
+function openTastingForm() {
+  const minDate = TPN && TPN.today ? TPN.today() : new Date().toISOString().slice(0, 10);
+  showModal(`
+    <div class="modal-title">🍽️ Request a food tasting</div>
+    <div class="modal-content" id="tastingForm">
+      <p style="color:var(--ink-muted);font-size:14px;margin-bottom:12px;">Tell us when you'd like to come in. We'll call to confirm the schedule and the dishes.</p>
+      <div class="form-row">
+        <div><label class="form-label" for="ts-name">Your name *</label><input class="form-input" id="ts-name" name="name" autocomplete="name"></div>
+        <div><label class="form-label" for="ts-phone">Phone *</label><input class="form-input" id="ts-phone" name="phone" type="tel" autocomplete="tel" placeholder="0917 123 4567"></div>
+      </div>
+      <div class="form-row">
+        <div><label class="form-label" for="ts-date">Preferred tasting date *</label><input class="form-input" id="ts-date" name="date" type="date" min="${minDate}"></div>
+        <div><label class="form-label" for="ts-pax">Guests at your event</label><input class="form-input" id="ts-pax" name="pax" type="number" min="1" inputmode="numeric" placeholder="e.g. 80"></div>
+      </div>
+      <div class="form-row full"><div><label class="form-label" for="ts-email">Email (optional)</label><input class="form-input" id="ts-email" name="email" type="email" autocomplete="email"></div></div>
+      <div class="form-row full"><div><label class="form-label" for="ts-notes">What is the event, and any dishes you want to try?</label><textarea class="form-input" id="ts-notes" name="notes" rows="3"></textarea></div></div>
+      <div class="form-error" id="ts-err" role="alert"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-back" onclick="closeModal()">Cancel</button>
+      <button class="btn-next" onclick="submitTasting()">Send request</button>
+    </div>`);
+  if (window.tpnDraft) tpnDraft.bind('tasting-form', document.getElementById('tastingForm'));
+}
+async function submitTasting() {
+  const v = id => (document.getElementById(id)?.value || '').trim();
+  const err = document.getElementById('ts-err');
+  const name = v('ts-name'), phone = v('ts-phone'), date = v('ts-date'), email = v('ts-email');
+  if (!name || !phone || !date) { err.textContent = 'Please fill in your name, phone and a preferred date.'; return; }
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { err.textContent = 'Please check the email address.'; return; }
+  try {
+    const r = await TPN.createInquiry({
+      type: 'tasting', name, phone, email: email || null,
+      message: 'Food tasting request\n' + (v('ts-notes') || '—'),
+      eventDate: date, expectedPax: parseInt(v('ts-pax')) || null
+    });
+    if (window.tpnDraft) tpnDraft.clear('tasting-form');
+    showConfirmModal('✅ Request sent', `<p>Salamat, <strong>${E(name)}</strong>! We'll call you within one business day to set your tasting.</p>
+      <p style="color:var(--ink-muted);font-size:13px;margin-top:10px;">Reference: <strong>TPN-T-${E(r.id.slice(0, 6).toUpperCase())}</strong></p>`);
+  } catch (e) {
+    err.textContent = e.message || 'Could not send. Please call us instead.';
+  }
 }
 
 function showConfirmModal(title, html, onClose) {
@@ -4093,6 +4284,7 @@ async function exitStaffPortal() {
   // subscription and badge count alive.
   if (typeof _voidReqUnsub === 'function' && _voidReqUnsub) { try { _voidReqUnsub(); } catch(e){} _voidReqUnsub = null; }
   window._tpnPendingVoids = 0;
+  if (window.tpnSession) tpnSession.markUserSignOut();
   try { await TPN.logout(); } catch(e) {}
   document.querySelectorAll('.portal-page').forEach(p => p.classList.remove('active'));
   document.body.style.overflow = '';
@@ -4773,6 +4965,16 @@ function renderAdminSidebar() {
     ]}
   ];
 
+  // Module tabs (modules/*.js) join the section they name, or a new one.
+  if (window.TPN_MOD) TPN_MOD.navFor('admin').forEach(d => {
+    let sec = sections.find(s => s.key === d.section);
+    if (!sec) { sec = { key: d.section, items: [] }; sections.push(sec); }
+    const item = { id: d.id, perm: null, label: TPN_MOD.label(d), icon: d.icon, external: d.external };
+    try { item.badge = d.badge ? d.badge() : null; } catch (e) { item.badge = null; }
+    if (d.after) { const at = sec.items.findIndex(x => x.id === d.after); sec.items.splice(at < 0 ? sec.items.length : at + 1, 0, item); }
+    else sec.items.push(item);
+  });
+
   // Drop anything this account may not reach, then drop sections left empty.
   const visible = sections
     .map(sec => ({ ...sec, items: sec.items.filter(it => !it.perm || can(it.perm)) }))
@@ -4793,7 +4995,7 @@ function renderAdminSidebar() {
   document.getElementById('portalNav').innerHTML = langSwitchHtml() + visible.map((sec, si) => {
     const isShut = collapsed.includes(sec.key);
     const rows = sec.items.map(it => {
-      const label = T(it.key);
+      const label = it.label || T(it.key);
       if (it.external) {
         // Wall screens open in their own tab on purpose: they are meant to
         // stay open all shift on a mounted device, and the portal session
@@ -4932,6 +5134,10 @@ function renderRouteInto(r, main) {
     case 'daily-close': renderDailyClose(main); break;
     case 'variance': renderVariance(main); break;
     case 'preferences': renderPreferences(main); break;
+    default:
+      // Tabs added by modules/*.js. Unknown ids fall back to Dashboard
+      // rather than a blank page.
+      if (!(window.TPN_MOD && TPN_MOD.render(r, main, 'admin'))) renderDashboard(main);
   }
 }
 
@@ -5075,7 +5281,7 @@ function renderStaffBoard(main) {
         <h1>Staff Board</h1>
         <div class="portal-header-sub">${canDrag ? 'Drag staff between branches and roles to relocate them.' : 'View your team\'s current assignments.'}</div>
       </div>
-      <div class="branch-pill ${isBranchScoped ? 'locked' : ''}">${isBranchScoped ? portalState.branches.find(b => b.id === u.branch).name : 'All Branches'}</div>
+      <div class="branch-pill ${isBranchScoped ? 'locked' : ''}">${isBranchScoped ? (portalState.branches.find(b => b.id === u.branch)?.name || 'Your branch') : 'All Branches'}</div>
     </div>`;
 
   if (canDrag) {
@@ -5596,6 +5802,8 @@ function dbOrderToPortalOrder(o) {
     completedAt:  o.completed_at ? new Date(o.completed_at).getTime() : null,
     branch: 'laspinas',
     paymentMethod: o.payment_method || 'cash',
+    paymentStatus: o.payment_status || 'pending',
+    serviceCharge: Number(o.service_charge || 0),
     specialReq: o.notes || ''
   };
 }
@@ -5697,7 +5905,7 @@ function renderOrders(main) {
   ];
   let html = `<div class="portal-header">
     <div><h1>Live Orders</h1><div class="portal-header-sub">Active order queue. Click "next" buttons to advance through the workflow.</div></div>
-    <div class="branch-pill ${isBranchScoped ? 'locked' : ''}">${isBranchScoped ? portalState.branches.find(b => b.id === u.branch).name : 'All Branches'}</div>
+    <div class="branch-pill ${isBranchScoped ? 'locked' : ''}">${isBranchScoped ? (portalState.branches.find(b => b.id === u.branch)?.name || 'Your branch') : 'All Branches'}</div>
   </div>
   <div class="order-grid">`;
   lanes.forEach(lane => {
@@ -5724,6 +5932,7 @@ function renderOrders(main) {
           </div>
         </div>
         ${lane.next ? `<button class="order-advance" onclick="advanceOrder('${JA(o.id)}','${JA(lane.next)}')">${E(lane.nextLabel)}</button>` : ''}
+        ${window.openPaymentPanel ? `<button class="order-advance pay-btn ${o.paymentStatus === 'paid' ? 'is-paid' : ''}" style="margin-top:6px;" onclick="openPaymentPanel('${JA(o.dbId||o.id)}')" aria-label="Payment for order ${E(o.id)}: ${o.paymentStatus === 'paid' ? 'paid' : 'not paid yet'}">${o.paymentStatus === 'paid' ? '✅ Paid' : o.paymentStatus === 'refunded' ? '↩️ Refunded' : '💳 Take payment'}</button>` : ''}
         ${canDiscount && lane.id !== 'done' ? `<button class="order-advance" style="margin-top:6px;background:transparent;color:var(--brick,#8B1A0E);border:1px solid var(--brick,#8B1A0E);" onclick="openDiscountPicker('${JA(o.dbId||o.id)}')">💸 Discount</button>` : ''}
         ${lane.id !== 'done' ? (canVoid
           ? `<button class="order-advance" style="margin-top:6px;background:transparent;color:var(--danger);border:1px solid var(--danger);" onclick="openVoidItemsModal('${JA(o.dbId||o.id)}')">🚫 Void items</button>`
@@ -5781,10 +5990,11 @@ function renderKDS(main) {
 
   let html = `<div class="kds-wrap">
     <div class="kds-topbar">
-      <div class="kds-title">🍳 Kitchen Display</div>
+      <div class="kds-title">🍳 Kitchen Queue</div>
       <div class="kds-stats">
         <span class="kds-stat"><span class="kds-stat-num">${portalState.orders.filter(o=>o.status==='received').length}</span> new</span>
         <span class="kds-stat"><span class="kds-stat-num">${portalState.orders.filter(o=>o.status==='preparing').length}</span> cooking</span>
+        ${window.open86Panel && TPN.can && (TPN.can('menu.86') || TPN.can('menu.edit')) ? `<button class="btn-ghost" style="padding:6px 14px;min-height:36px" onclick="open86Panel()">🚫 Sold out (86)</button>` : ''}
       </div>
     </div>`;
 
@@ -7445,16 +7655,76 @@ async function openDiscountPicker(orderDbId, opts) {
     </div>`);
 }
 
+// Statutory discounts (Senior Citizen RA 9994, PWD RA 10754) are VAT-exempt
+// on the qualifying guest's share only (sql/31). One dialog collects the ID
+// and the share; nothing here computes money — the server does.
 async function applyDiscountFromPicker(orderDbId, templateId, requiresId, tName) {
-  let idRef = null;
-  if (requiresId === true || requiresId === 'true') {
-    idRef = window.prompt(`Enter the physical ID number for "${E(tName)}" (min 3 chars):`, '');
-    if (idRef === null) return;
-    if (!idRef || idRef.trim().length < 3) { toast('ID number is required (min 3 chars).'); return; }
-    idRef = idRef.trim();
+  const t = (_discountState.templates || []).find(x => x.id === templateId) || {};
+  const statutory = !!t.legal_law;
+  const order = portalState.orders.find(x => x.dbId === orderDbId) || {};
+  const sub = Number(order.subtotal || order.total || 0) - Number(order.discountAmount || 0);
+  if (!(requiresId === true || requiresId === 'true') && !statutory) {
+    return _doApplyDiscount(orderDbId, templateId, null, null);
   }
+  showModal(`<div class="modal-title">${E(tName)}</div>
+    <div class="modal-content" id="discDlg">
+      ${(requiresId === true || requiresId === 'true') ? `<div class="form-row full"><div>
+        <label class="form-label" for="dd-id">${t.legal_law === 'RA 9994' ? 'OSCA / Senior Citizen ID no.' : t.legal_law === 'RA 10754' ? 'PWD ID no.' : 'ID number'} *</label>
+        <input class="form-input" id="dd-id" autocomplete="off" minlength="3" data-no-draft></div></div>` : ''}
+      ${statutory ? `
+      <fieldset class="form-row full" style="border:0;padding:0;margin:0;"><div>
+        <legend class="form-label">Whose share does it cover?</legend>
+        <div class="tpn-dlg-chips" role="radiogroup">
+          <label class="tpn-chip"><input type="radio" name="dd-mode" value="all" checked> Whole bill (they ate alone)</label>
+          <label class="tpn-chip"><input type="radio" name="dd-mode" value="share"> Shared table</label>
+          <label class="tpn-chip"><input type="radio" name="dd-mode" value="amount"> Exact amount</label>
+        </div>
+        <div id="dd-share" hidden><div style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;">
+          <div><label class="form-label" for="dd-q">Qualifying guests</label><input class="form-input" id="dd-q" type="number" min="1" value="1" inputmode="numeric" style="width:110px"></div>
+          <div><label class="form-label" for="dd-n">Everyone at the table</label><input class="form-input" id="dd-n" type="number" min="1" value="4" inputmode="numeric" style="width:110px"></div>
+        </div></div>
+        <div id="dd-amt" hidden><label class="form-label" for="dd-a">Their dishes come to (₱)</label><input class="form-input" id="dd-a" type="number" min="1" step="0.01" inputmode="decimal"></div>
+        <div class="pref-row-hint" id="dd-preview" aria-live="polite"></div>
+      </div></fieldset>` : ''}
+      <div class="form-error" id="dd-err" role="alert"></div>
+    </div>
+    <div class="modal-actions"><button class="btn-back" onclick="closeModal()">Cancel</button>
+      <button class="btn-next" id="dd-ok">Apply</button></div>`);
+  const dlg = document.getElementById('discDlg');
+  const covered = () => {
+    const mode = (dlg.querySelector('[name=dd-mode]:checked') || {}).value || 'all';
+    if (mode === 'share') {
+      const q = Math.max(1, +document.getElementById('dd-q').value || 1), n = Math.max(q, +document.getElementById('dd-n').value || q);
+      return Math.round(sub * q / n * 100) / 100;
+    }
+    if (mode === 'amount') return +document.getElementById('dd-a').value || 0;
+    return null;
+  };
+  const refresh = () => {
+    const mode = (dlg.querySelector('[name=dd-mode]:checked') || {}).value;
+    const sh = document.getElementById('dd-share'), am = document.getElementById('dd-amt');
+    if (sh) sh.hidden = mode !== 'share';
+    if (am) am.hidden = mode !== 'amount';
+    const c = covered(), base = c == null ? sub : c, pv = document.getElementById('dd-preview');
+    if (pv && statutory && base > 0) {
+      const vat = base - base / 1.12, off = base / 1.12 * (Number(t.value || 20) / 100);
+      pv.textContent = `About ${peso(vat + off)} off: ${peso(vat)} VAT exemption + ${peso(off)} (${t.value || 20}%) on ${peso(base)}. Final amount is computed by the server.`;
+    }
+  };
+  dlg.addEventListener('input', refresh); dlg.addEventListener('change', refresh); refresh();
+  document.getElementById('dd-ok').onclick = async () => {
+    const idEl = document.getElementById('dd-id'); const err = document.getElementById('dd-err');
+    const idRef = idEl ? idEl.value.trim() : null;
+    if (idEl && idRef.length < 3) { err.textContent = 'Enter the ID number (at least 3 characters).'; idEl.focus(); return; }
+    const c = statutory ? covered() : null;
+    if (c !== null && !(c > 0)) { err.textContent = 'Enter the amount their share comes to.'; return; }
+    closeModal();
+    await _doApplyDiscount(orderDbId, templateId, idRef, c);
+  };
+}
+async function _doApplyDiscount(orderDbId, templateId, idRef, covered) {
   try {
-    await TPN.applyDiscount(orderDbId, templateId, idRef);
+    await TPN.applyDiscount(orderDbId, templateId, idRef, covered);
     toast('✓ Discount applied');
     try {
       const fresh = await TPN.getOrder(orderDbId);
@@ -7471,6 +7741,8 @@ async function applyDiscountFromPicker(orderDbId, templateId, requiresId, tName)
       template_not_found:      'Template not found.',
       id_ref_required:         'This discount requires a physical ID number.',
       order_terminal:          'This order is already closed.',
+      order_already_paid:      'This bill is already paid. Refund first if it needs a discount.',
+      bad_covered_amount:      'The share amount must be more than zero.',
       below_min_subtotal:      'Order is below the minimum subtotal for this discount.',
       not_stackable:           'This discount cannot be combined with the ones already applied.'
     };
@@ -7480,7 +7752,8 @@ async function applyDiscountFromPicker(orderDbId, templateId, requiresId, tName)
 }
 
 async function removeAppliedDiscount(appliedId, orderDbId) {
-  const reason = window.prompt('Reason for removing this discount (optional):', '') || '';
+  const reason = await tpnAsk('Why remove this discount?', { chips: ['Applied by mistake', 'Wrong discount', 'ID not valid', 'Customer request'], allowEmpty: true, input: { placeholder: 'Reason (optional)' }, confirmText: 'Remove' });
+  if (reason === null) return;
   try {
     await TPN.removeDiscount(appliedId, reason.trim());
     toast('✓ Discount removed');
@@ -7547,7 +7820,7 @@ function _prettyOrderType(t) {
   return ({ dine_in: 'Dine-in', pickup: 'Pickup', delivery: 'Delivery' })[t] || t;
 }
 function _prettyPayment(m) {
-  return ({ cash: 'Cash', card: 'Card', gcash: 'GCash', maya: 'Maya', bank: 'Bank Transfer', unspecified: 'Unspecified' })[m] || m;
+  return ({ cash: 'Cash', card: 'Card', gcash: 'GCash', maya: 'Maya', paymaya: 'Maya', hitpay: 'HitPay (online)', bank: 'Bank Transfer', unspecified: 'Unspecified' })[m] || m;
 }
 
 async function renderPerformance(main) {
@@ -10374,6 +10647,8 @@ function applyPrefs() {
   el.setAttribute('data-theme',   p.theme);
   el.setAttribute('data-density', p.density);
   el.setAttribute('data-motion',  p.motion);
+  el.setAttribute('data-glass',   p.glass || 'on');
+  el.setAttribute('data-text',    p.text  || 'normal');
 }
 
 // Before first paint, so nobody sees a white flash on the way to dark.
@@ -10852,7 +11127,8 @@ function _renderClose() {
 
   const voided = r.voided_items || {};
   const cancelled = r.cancelled || {};
-  const declaredCash = Number(r.declared_cash || 0);
+  const declaredCash = Number(r.received_cash ?? r.declared_cash ?? 0);
+  const unpaid = r.unpaid || {}; const pendingBank = r.pending_bank || {};
 
   el.innerHTML = `
     <div class="fin-grid">
@@ -10870,7 +11146,9 @@ function _renderClose() {
         <div class="fin-tile-note">${E(T('close.inDrawer'))}</div></div>
     </div>
 
-    <div class="fin-basis">⚠️ ${E(T('close.declaredWarning'))}</div>
+    <div class="fin-basis">ℹ️ ${E(T('close.declaredWarning'))}</div>
+    ${Number(unpaid.orders) ? `<div class="pay-alert" role="alert">⚠️ <strong>${unpaid.orders} order${unpaid.orders > 1 ? 's' : ''} not fully paid</strong> (₱${N(unpaid.value,2)}). Open them from Live Orders → Take payment before closing.</div>` : ''}
+    ${Number(pendingBank.count) ? `<div class="pay-alert">🏦 ${pendingBank.count} bank transfer${pendingBank.count > 1 ? 's' : ''} waiting for confirmation (₱${N(pendingBank.value,2)}) — see Payments.</div>` : ''}
 
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;margin-bottom:18px;">
       <div class="panel" style="padding:14px 16px;">
@@ -10933,7 +11211,7 @@ function _closeHistory() {
 
 function openCloseTill() {
   const r = _closeState.report || {};
-  const expected = Number(r.declared_cash || 0);
+  const expected = Number(r.received_cash ?? r.declared_cash ?? 0);
   const m = document.getElementById('modal');
   m.innerHTML = `
     <div class="modal-title">${E(T('close.countDrawer'))}</div>
@@ -10962,7 +11240,8 @@ function openCloseTill() {
 // Show the variance as they type — finding a shortfall before you commit
 // beats discovering it in a report afterwards.
 function _ccPreview() {
-  const expected = Number((_closeState.report || {}).declared_cash || 0);
+  const rr = _closeState.report || {};
+  const expected = Number(rr.received_cash ?? rr.declared_cash ?? 0);
   const counted  = Number((document.getElementById('ccCounted') || {}).value || 0);
   const v = counted - expected;
   const el = document.getElementById('ccVar');
@@ -11118,6 +11397,10 @@ function renderStaffSidebar() {
     { id: 'staff-attendance', label: T('nav.attendance'), icon: '✓' },
     { id: 'staff-notifications', label: T('nav.notifications'), icon: '🔔', badge: portalState.unreadNotifCount || null },   // real unread: cleared by marking read, not acking
     { id: 'staff-messages', label: T('nav.messages'), icon: '✉️', badge: window._tpnUnreadMsgs || null },
+    ...(window.TPN_MOD ? TPN_MOD.navFor('staff').map(d => {
+      let badge = null; try { badge = d.badge ? d.badge() : null; } catch (e) {}
+      return { id: d.id, label: TPN_MOD.label(d), icon: d.icon, badge };
+    }) : []),
     { section: T('sec.you') },
     { id: 'preferences', label: T('nav.preferences'), icon: '⚙️' },
     { id: 'staff-settings', label: 'Settings', icon: '⚙️' },
@@ -11125,7 +11408,7 @@ function renderStaffSidebar() {
   document.getElementById('staffNav').innerHTML = langSwitchHtml() + items.map(it => {
     if (it.section) return `<div class="portal-nav-section">${it.section}</div>`;
     return `<div class="portal-nav-item" data-staff-route="${it.id}" onclick="routeStaff('${it.id}')">
-      <span class="portal-nav-icon">${it.icon}</span><span>${it.label}</span>
+      <span class="portal-nav-icon">${it.icon}</span><span>${E(it.label)}</span>
       ${it.badge ? `<span class="portal-nav-badge">${it.badge}</span>` : ''}
     </div>`;
   }).join('');
@@ -11178,7 +11461,8 @@ function renderStaffRouteInto(r, main) {
     case 'tasks': renderTasks(main); break;
     case 'preferences': renderPreferences(main); break;
     case 'staff-settings': renderStaffSettings(main); break;
-    default: renderStaffHome(main);
+    default:
+      if (!(window.TPN_MOD && TPN_MOD.render(r, main, 'staff'))) renderStaffHome(main);
   }
 }
 async function renderStaffHome(main) {
@@ -11282,7 +11566,10 @@ async function renderStaffHome(main) {
   }
 }
 
+// Clock-in opens the camera check (modules/clockin.js). If that module did
+// not load, the plain clock-in still works and a manager reviews it.
 async function doClockIn() {
+  if (window.openClockinCamera) return openClockinCamera();
   try { await TPN.clockIn(); toast('✓ Clocked in'); routeStaff('staff-home'); }
   catch(e) { toast('⚠️ ' + (e.message || 'Could not clock in')); }
 }
@@ -11934,6 +12221,13 @@ function guardAsync(name) {
  'savePayLine', 'saveGuestNote', 'deletePayRun', 'deleteMenuItem', 'doCloseTill',
  'doBuildPayRun', 'recalcPayRun', 'advanceOrder'].forEach(guardAsync);
 
+// Deep links to public pages: index.html#faq, #events, #menu …
+window.addEventListener('DOMContentLoaded', () => {
+  const h = (location.hash || '').slice(1);
+  if (h && document.getElementById('page-' + h) && !/[?&]view=/.test(location.search)) navigate(h);
+  if (window.tpnDraft) tpnDraft.bind('event-form', document.getElementById('page-events'));
+});
+
 // Initial render fallback (in case DOMContentLoaded already fired)
 if (document.readyState !== 'loading') {
   renderFeatured();
@@ -11943,5 +12237,13 @@ if (document.readyState !== 'loading') {
 }
 
 </script>
+<!-- Portal modules: each adds its own tab through TPN_MOD (tpn-kit.js). -->
+<script src="modules/website.js?v=20261016b"></script>
+<script src="vendor/qrcode-generator-1.4.4.js"></script>
+<script src="modules/payments.js?v=20261016b"></script>
+<script src="modules/pos.js?v=20261016b"></script>
+<script src="modules/clockin.js?v=20261016b"></script>
+<script src="modules/stamps.js?v=20261016b"></script>
+<script src="modules/excel-io.js?v=20261016b"></script>
 </body>
 </html>
