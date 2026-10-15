@@ -2,9 +2,21 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="config.js?v=20261002"></script>
-<script src="tpn-supabase.js?v=20261002"></script>
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https://xjlqfpnzobfqxetgkkai.supabase.co https://api.qrserver.com; connect-src 'self' https://xjlqfpnzobfqxetgkkai.supabase.co wss://xjlqfpnzobfqxetgkkai.supabase.co; media-src 'self' data: blob:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<script>
+  // GitHub Pages cannot send X-Frame-Options, so refuse to run inside
+  // someone else's frame (clickjacking: tricking staff into clicks).
+  if (window.top !== window.self) { try { window.top.location = window.self.location; } catch (e) { document.documentElement.style.display = "none"; } }
+</script>
+<script src="vendor/supabase-js-2.117.2.js"></script>
+<script>
+  // Local copy first; if it is missing, the same pinned version from the CDN,
+  // refused by the browser unless its hash matches.
+  if (!window.supabase) document.write('<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js" integrity="sha384-Rj26LVGvoeRVR6+mwQmFfcR3QOBEwT+ZmuCWpuiqeTzJpCs0ER4ITAWGb4Hiy3Ok" crossorigin="anonymous"><' + '/script>');
+</script>
+<script src="config.js?v=20261015"></script>
+<script src="tpn-supabase.js?v=20261015"></script>
 <script src="tpn-kit.js?v=20261015"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="description" content="Tyo Paeng Nyo — Authentic Filipino cuisine in Las Piñas since 2003. Order online, book events, or inquire about catering.">
@@ -2886,7 +2898,7 @@ async function loadAddonSuggestions() {
           <div class="upsell-title">${E(label)} — ₱${N(a.price, 0)}</div>
           <div class="upsell-sub">${E(a.addon_group || (TPN_LANG === 'tl' ? 'Pwedeng idagdag' : 'Add to your order'))}</div>
         </div>
-        <button class="upsell-add" onclick="addToCart('${E(a.id)}','single')">+ ${E(T('common.add'))}</button>
+        <button class="upsell-add" onclick="addToCart('${JA(a.id)}','single')">+ ${E(T('common.add'))}</button>
       </div>`;
     }).join('');
   } catch (e) { /* nothing to suggest is a fine outcome */ }
@@ -3430,8 +3442,8 @@ function renderFeatured() {
   track.innerHTML = featured.map((f, i) => `
     <div class="featured-slide ${i === 0 ? 'active' : ''}" data-feat="${i}">
       <div class="featured-emoji">${f.emoji}</div>
-      <div class="featured-tag">${f.tag}</div>
-      <div class="featured-name">${f.name}</div>
+      <div class="featured-tag">${E(f.tag)}</div>
+      <div class="featured-name">${E(f.name)}</div>
       <div class="featured-price">${f.price}</div>
     </div>`).join('');
   dots.innerHTML = featured.map((_, i) => `<div class="featured-dot ${i === 0 ? 'active' : ''}" onclick="goFeat(${i})"></div>`).join('');
@@ -3451,7 +3463,7 @@ let activeCategory = 'all';
 function renderCategoryChips() {
   const chips = document.getElementById('catChips');
   const cats = [{cat:'all', catName:'All'}, ...menuData];
-  chips.innerHTML = cats.map(c => `<button class="chip ${c.cat === activeCategory ? 'active' : ''}" onclick="setCategory('${c.cat}')">${c.catName}</button>`).join('');
+  chips.innerHTML = cats.map(c => `<button class="chip ${c.cat === activeCategory ? 'active' : ''}" onclick="setCategory('${c.cat}')">${E(c.catName)}</button>`).join('');
 }
 function setCategory(c) { activeCategory = c; renderCategoryChips(); renderMenu(); }
 function renderMenu() {
@@ -3463,7 +3475,7 @@ function renderMenu() {
     if (activeCategory !== 'all' && activeCategory !== cat.cat) return;
     const items = cat.items.filter(it => !q || it.name.toLowerCase().includes(q) || (it.desc || '').toLowerCase().includes(q));
     if (!items.length) return;
-    html += `<div class="menu-cat-header"><div class="menu-cat-title">${cat.catName}</div><div class="menu-cat-sub">${cat.catSub}</div></div>`;
+    html += `<div class="menu-cat-header"><div class="menu-cat-title">${E(cat.catName)}</div><div class="menu-cat-sub">${cat.catSub}</div></div>`;
     html += '<div class="menu-grid">';
     items.forEach(it => {
       html += `<div class="menu-card ${it.best || it.chefpick ? 'has-bestseller' : ''}">`;
@@ -3471,8 +3483,8 @@ function renderMenu() {
       if (it.chefpick) html += '<div class="chefpick-badge">👨‍🍳 Chef\'s Pick</div>';
       if (it.isNew) html += '<div class="new-badge">✨ New</div>';
       html += `<div class="menu-emoji">${it.emoji}</div>`;
-      html += `<div class="menu-name">${it.name}</div>`;
-      html += `<div class="menu-desc">${it.desc || ''}</div>`;
+      html += `<div class="menu-name">${E(it.name)}</div>`;
+      html += `<div class="menu-desc">${E(it.desc || '')}</div>`;
       html += '<div class="menu-pricing">';
       if (it.pricePax) {
         Object.entries(it.pricePax).forEach(([pax, price]) => {
@@ -3529,7 +3541,7 @@ function addToCart(id, paxKey) {
   else cart.push({ cartKey, id, name: it.name, emoji: it.emoji, paxLabel: paxKey === 'single' ? '' : paxKey + ' pax', price, qty: 1 });
   persistCart();
   updateCartUI();
-  toast(`🛒 ${it.name} added!`);
+  toast(`🛒 ${E(it.name)} added!`);
   // Shake the cart button
   const btn = document.querySelector('.cart-btn');
   if (btn) { btn.classList.remove('shake'); void btn.offsetWidth; btn.classList.add('shake'); }
@@ -3559,7 +3571,7 @@ function updateCartUI() {
       html += `<div class="cart-item">
         <div class="cart-item-emoji">${c.emoji}</div>
         <div>
-          <div class="cart-item-name">${c.name}</div>
+          <div class="cart-item-name">${E(c.name)}</div>
           ${c.paxLabel ? `<div class="cart-item-meta">${c.paxLabel}</div>` : ''}
           <div class="cart-item-price">₱${(c.price * c.qty).toFixed(2)}</div>
         </div>
@@ -3684,17 +3696,17 @@ function renderCheckoutStep() {
         <h2>Your Information</h2>
         <p class="checkout-sub">We just need a few details so we can serve you right.</p>
         <div class="form-row">
-          <div><label class="form-label">Full Name *</label><input type="text" class="form-input" id="ck-name" placeholder="Juan Dela Cruz" value="${checkoutData.name || ''}"><div class="form-error" id="err-name">Pakilagay ang iyong pangalan para malaman namin kung sino ang mag-oorder 😊</div></div>
-          <div><label class="form-label">Phone *</label><input type="tel" class="form-input" id="ck-phone" placeholder="09171234567" value="${checkoutData.phone || ''}"><div class="form-error" id="err-phone">Parang may mali sa numero mo — i-check lang ulit (dapat 09XXXXXXXXX) 📱</div></div>
+          <div><label class="form-label">Full Name *</label><input type="text" class="form-input" id="ck-name" placeholder="Juan Dela Cruz" value="${E(checkoutData.name || '')}"><div class="form-error" id="err-name">Pakilagay ang iyong pangalan para malaman namin kung sino ang mag-oorder 😊</div></div>
+          <div><label class="form-label">Phone *</label><input type="tel" class="form-input" id="ck-phone" placeholder="09171234567" value="${E(checkoutData.phone || '')}"><div class="form-error" id="err-phone">Parang may mali sa numero mo — i-check lang ulit (dapat 09XXXXXXXXX) 📱</div></div>
         </div>
 <!-- dine-in removed from online flow -->
         ${isDel ? `
           <div class="form-row full">
-            <div><label class="form-label">Delivery Address *</label><textarea class="form-input" id="ck-address" placeholder="Building, unit, street, barangay, landmark" rows="3">${checkoutData.address || ''}</textarea><div class="form-error" id="err-address">Kailangan namin malaman kung saan ipapadala — i-lagay ang iyong address 📍</div></div>
+            <div><label class="form-label">Delivery Address *</label><textarea class="form-input" id="ck-address" placeholder="Building, unit, street, barangay, landmark" rows="3">${E(checkoutData.address || '')}</textarea><div class="form-error" id="err-address">Kailangan namin malaman kung saan ipapadala — i-lagay ang iyong address 📍</div></div>
           </div>
         ` : ''}
         <div class="form-row full">
-          <div><label class="form-label">Special Requests (Optional)</label><textarea class="form-input" id="ck-notes" placeholder="Allergies, less spicy, extra sauce, etc.">${checkoutData.notes || ''}</textarea></div>
+          <div><label class="form-label">Special Requests (Optional)</label><textarea class="form-input" id="ck-notes" placeholder="Allergies, less spicy, extra sauce, etc.">${E(checkoutData.notes || '')}</textarea></div>
         </div>
         <div class="checkout-actions">
           <button class="btn-back" onclick="checkoutBack()">← Back</button>
@@ -3743,7 +3755,7 @@ function renderCheckoutStep() {
         <p class="checkout-sub">Please check the details below before placing your order.</p>
         <div style="margin-bottom:20px;">
           ${cart.map(c => `<div class="review-row">
-            <div><span class="review-value">${c.emoji} ${c.name}</span>${c.paxLabel ? ` <span style="color:var(--ink-muted);font-size:12px;">(${c.paxLabel})</span>` : ''} <span style="color:var(--ink-muted);">× ${c.qty}</span></div>
+            <div><span class="review-value">${c.emoji} ${E(c.name)}</span>${c.paxLabel ? ` <span style="color:var(--ink-muted);font-size:12px;">(${c.paxLabel})</span>` : ''} <span style="color:var(--ink-muted);">× ${c.qty}</span></div>
             <span class="review-value">₱${(c.price * c.qty).toFixed(2)}</span>
           </div>`).join('')}
           <div class="review-row" style="margin-top:8px;border-top:2px solid var(--line);padding-top:14px;">
@@ -3754,12 +3766,12 @@ function renderCheckoutStep() {
         <div style="background:var(--bg-2);border-radius:8px;padding:18px;margin-bottom:20px;">
           <div class="review-row"><span class="review-label">Type</span><span class="review-value">${typeLabels[checkoutData.orderType]}</span></div>
           <div class="review-row"><span class="review-label">When</span><span class="review-value">${sched}</span></div>
-          <div class="review-row"><span class="review-label">Name</span><span class="review-value">${checkoutData.name || '—'}</span></div>
-          <div class="review-row"><span class="review-label">Phone</span><span class="review-value">${checkoutData.phone || '—'}</span></div>
+          <div class="review-row"><span class="review-label">Name</span><span class="review-value">${E(checkoutData.name || '—')}</span></div>
+          <div class="review-row"><span class="review-label">Phone</span><span class="review-value">${E(checkoutData.phone || '—')}</span></div>
 
-          ${checkoutData.orderType === 'delivery' ? `<div class="review-row"><span class="review-label">Address</span><span class="review-value">${checkoutData.address || '—'}</span></div>` : ''}
+          ${checkoutData.orderType === 'delivery' ? `<div class="review-row"><span class="review-label">Address</span><span class="review-value">${E(checkoutData.address || '—')}</span></div>` : ''}
           <div class="review-row"><span class="review-label">Payment</span><span class="review-value">${payLabels[checkoutData.paymentMethod]}</span></div>
-          ${checkoutData.notes ? `<div class="review-row"><span class="review-label">Notes</span><span class="review-value">${checkoutData.notes}</span></div>` : ''}
+          ${checkoutData.notes ? `<div class="review-row"><span class="review-label">Notes</span><span class="review-value">${E(checkoutData.notes)}</span></div>` : ''}
         </div>
         <div class="checkout-actions">
           <button class="btn-back" onclick="checkoutBack()">← Back</button>
@@ -3773,7 +3785,7 @@ function renderCheckoutStep() {
       <div class="checkout-card confirm-card">
         <div class="confirm-emoji">🎉</div>
         <h2 class="confirm-title">Order <em>Placed!</em></h2>
-        <p class="confirm-sub">Thank you, ${checkoutData.name || 'kabayan'}. Your order is in our queue.</p>
+        <p class="confirm-sub">Thank you, ${E(checkoutData.name || 'kabayan')}. Your order is in our queue.</p>
         <div class="confirm-ref">
           <div class="confirm-ref-label">Your Reference</div>
           <div class="confirm-ref-num">${ref}</div>
@@ -3963,7 +3975,7 @@ async function submitConcession() {
   const recentDupe = portalState.inquiries.find(i => i.type === 'b2b' && (i.email === email || i.phone === phone) && i.status === 'new' && i.time === 'just now');
   showConfirmModal('✅ Inquiry Received!', `
     <div style="text-align:center;margin-bottom:16px;font-size:40px;">📩</div>
-    <p>Salamat, <strong>${name}</strong>! Natanggap na namin ang iyong inquiry.</p>
+    <p>Salamat, <strong>${E(name)}</strong>! Natanggap na namin ang iyong inquiry.</p>
     <div style="background:var(--bg-2);border:1px dashed var(--gold);border-radius:8px;padding:14px;margin:14px 0;">
       <div style="font-size:11px;color:var(--ink-muted);text-transform:uppercase;letter-spacing:0.12em;margin-bottom:4px;">Reference Number</div>
       <div style="font-family:'Playfair Display',serif;font-size:20px;font-weight:900;color:var(--brick);">${ref}</div>
@@ -3998,7 +4010,7 @@ async function submitEvent() {
   ['ev-name','ev-phone','ev-pax','ev-date','ev-venue','ev-notes'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
   showConfirmModal('✅ Event Inquiry Sent!', `
     <div style="text-align:center;margin-bottom:16px;font-size:40px;">🎉</div>
-    <p>Salamat, <strong>${name}</strong>! Natanggap na namin ang iyong event inquiry.</p>
+    <p>Salamat, <strong>${E(name)}</strong>! Natanggap na namin ang iyong event inquiry.</p>
     <div style="background:var(--bg-2);border:1px dashed var(--gold);border-radius:8px;padding:14px;margin:14px 0;">
       <div style="font-size:11px;color:var(--ink-muted);text-transform:uppercase;letter-spacing:0.12em;margin-bottom:4px;">Reference Number</div>
       <div style="font-family:'Playfair Display',serif;font-size:20px;font-weight:900;color:var(--brick);">${ref}</div>
@@ -4039,6 +4051,11 @@ const portalState = {
 // UnoSys: short alias so template literals stay readable. Every DB
 // value that hits innerHTML MUST go through E().
 const E = (v) => (window.TPN && TPN.esc) ? TPN.esc(v) : String(v == null ? '' : v).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+// For a value placed inside a JS string inside an inline handler:
+// onclick="f('${JA(v)}')". The browser HTML-decodes the attribute before
+// running it, so E() alone lets a ' through. JS-escape first, then HTML.
+const JA = (v) => E(String(v == null ? '' : v).replace(/[\\'"<>\n\r\u2028\u2029]/g, c => '\\u' + c.charCodeAt(0).toString(16).padStart(4, '0')));
 
 // One error panel for every portal list that fails to load. Says what
 // failed, why (offline vs. the server refusing), and offers a retry, so a
@@ -4589,7 +4606,7 @@ function clearBadge(route, count) {
 function badgeClearBtn(route, count) {
   if (!badgeFor(route, count)) return '';
   return `<button class="btn-ghost" style="padding:6px 12px;font-size:11px;"
-            onclick="clearBadge('${E(route)}', ${Number(count) || 0})"
+            onclick="clearBadge('${JA(route)}', ${Number(count) || 0})"
             title="${E(T('badge.clear'))}">✓ ${E(T('badge.clear'))}</button>`;
 }
 
@@ -4808,7 +4825,7 @@ function renderAdminSidebar() {
     }).join('');
 
     return `<button type="button" class="portal-nav-section collapsible${isShut ? ' collapsed' : ''}"
-                    data-section="${E(sec.key)}" onclick="toggleNavSection('${E(sec.key)}')">
+                    data-section="${E(sec.key)}" onclick="toggleNavSection('${JA(sec.key)}')">
         <span>${E(T(sec.key))}</span>
         ${isShut ? `<span class="portal-nav-count">${sec.items.length}</span>` : ''}
         <span class="portal-nav-chevron">▼</span>
@@ -5014,7 +5031,7 @@ function renderDashboard(main) {
   main.innerHTML = `
     <div class="portal-header">
       <div>
-        <h1>Magandang araw${tierGreeting ? ', ' + tierGreeting : ''} ${u.name.split(' ')[0]}.</h1>
+        <h1>Magandang araw${tierGreeting ? ', ' + tierGreeting : ''} ${E(u.name.split(' ')[0])}.</h1>
         <div class="portal-header-sub">Here's what's happening at Las Piñas today.</div>
       </div>
       <div class="branch-pill locked">Las Piñas</div>
@@ -5088,7 +5105,7 @@ function renderStaffBoard(main) {
     const branchStaff = portalState.staff.filter(s => s.branch === br.id && s.accountState === 'active');
     html += `<div class="branch-column" data-branch="${br.id}" ondragover="boardDragOver(event)" ondragleave="boardDragLeave(event)" ondrop="boardDrop(event)">
       <div class="branch-col-header">
-        <div class="branch-col-name">${br.name}</div>
+        <div class="branch-col-name">${E(br.name)}</div>
         <div class="branch-col-meta">
           <span class="branch-col-count">${branchStaff.length} active</span>
           <span class="branch-col-status ${br.isPublic ? 'status-public' : 'status-internal'}">${br.isPublic ? 'Public' : 'Internal'}</span>
@@ -5223,7 +5240,7 @@ function moveStaff(staffId, newBranch, newRole) {
       <div style="display:flex;justify-content:space-between;font-size:13px;color:var(--ink-muted);margin-bottom:8px;">
         <div><div style="text-transform:uppercase;letter-spacing:0.1em;font-size:10px;color:var(--ink-muted);">From</div><div style="color:var(--ink);font-weight:600;margin-top:4px;">${E(oldBranch)} • ${E(s.role)}</div></div>
         <div style="font-size:24px;color:var(--gold);">→</div>
-        <div><div style="text-transform:uppercase;letter-spacing:0.1em;font-size:10px;color:var(--ink-muted);">To</div><div style="color:var(--brick);font-weight:700;margin-top:4px;">${newBranchName} • ${role}</div></div>
+        <div><div style="text-transform:uppercase;letter-spacing:0.1em;font-size:10px;color:var(--ink-muted);">To</div><div style="color:var(--brick);font-weight:700;margin-top:4px;">${E(newBranchName)} • ${role}</div></div>
       </div>
     </div>
     <div class="modal-actions">
@@ -5251,7 +5268,7 @@ async function confirmMoveStaff(staffId, newBranch, newRole, oldBranch) {
       branchId = br.id;
     }
     await TPN.updateStaffAssignment(staffId, { role: newRole, branchId });
-    toast(`Moved ${s.name} to ${portalState.branches.find(b => b.id === newBranch)?.name || newBranch}`);
+    toast(`Moved ${E(s.name)} to ${E(portalState.branches.find(b => b.id === newBranch)?.name || newBranch)}`);
   } catch (e) {
     console.error('confirmMoveStaff:', e);
     // Rollback
@@ -5399,10 +5416,10 @@ function editScheduleNote(staffId) {
   const s = portalState.staff.find(x => x.id === staffId);
   const cache = _schedulesCache[staffId] || { shifts: {}, notes: '' };
   showModal(`
-    <div class="modal-title">Note for ${s?.name || 'staff'}</div>
+    <div class="modal-title">Note for ${E(s?.name || 'staff')}</div>
     <div class="modal-sub">This note appears on their My Schedule tab.</div>
     <div class="modal-content">
-      <textarea class="form-input" id="schedNoteInput" rows="4" placeholder="e.g. Meron tayong big group booking sa Friday…">${(cache.notes||'').replace(/</g,'&lt;')}</textarea>
+      <textarea class="form-input" id="schedNoteInput" rows="4" placeholder="e.g. Meron tayong big group booking sa Friday…">${E(cache.notes||'')}</textarea>
     </div>
     <div class="modal-actions">
       <button class="btn-back" onclick="closeModal()">Cancel</button>
@@ -5498,8 +5515,8 @@ function renderInquiries(main) {
         </div>
         <div class="inquiry-body">${E(inq.notes)}</div>
         <div class="inquiry-actions">
-          ${inq.status === 'new' ? `<button class="table-btn primary" onclick="updateInquiryStatus('${E(inq.id)}','in-progress')">Mark In Progress</button>` : ''}
-          ${inq.status !== 'closed' ? `<button class="table-btn" onclick="updateInquiryStatus('${E(inq.id)}','closed')">Close</button>` : ''}
+          ${inq.status === 'new' ? `<button class="table-btn primary" onclick="updateInquiryStatus('${JA(inq.id)}','in-progress')">Mark In Progress</button>` : ''}
+          ${inq.status !== 'closed' ? `<button class="table-btn" onclick="updateInquiryStatus('${JA(inq.id)}','closed')">Close</button>` : ''}
           ${_telHref  ? `<a class="table-btn" href="${_telHref}"  style="text-decoration:none;display:inline-block;">📞 Call</a>` : ''}
           ${_mailHref ? `<a class="table-btn" href="${_mailHref}" style="text-decoration:none;display:inline-block;">✉️ Email</a>` : ''}
         </div>
@@ -5579,7 +5596,7 @@ function dbOrderToPortalOrder(o) {
     phone: o.customer_phone || '—',
     type: o.order_type === 'dine_in' ? 'dine-in' : o.order_type,
     table: o.restaurant_tables?.table_number || null,
-    items: (o.order_items || []).map(i => `${i.quantity}× ${i.name_snapshot}`).join(', '),
+    items: (o.order_items || []).map(i => `${i.quantity}× ${E(i.name_snapshot)}`).join(', '),
     itemsList: (o.order_items || []).map(i => ({ qty: i.quantity, name: i.name_snapshot, pax: i.pax_size, notes: i.notes })),
     total: Number(o.total),
     subtotal: Number(o.subtotal || 0),
@@ -5664,7 +5681,7 @@ function subscribeToSupabaseOrders() {
         showToastPortal(`📳 Table ${t.table_number} is requesting assistance!`);
       }
       if (!old.bill && t.bill_requested_at) {
-        showToastPortal(`💳 Table ${t.table_number}: bill (${t.bill_payment_method || '?'}, ${_peso(t.bill_total)})`);
+        showToastPortal(`💳 Table ${t.table_number}: bill (${E(t.bill_payment_method || '?')}, ${_peso(t.bill_total)})`);
       }
       _portalLastSig[t.id] = { call: !!t.call_staff_at, bill: !!t.bill_requested_at };
     })
@@ -5721,13 +5738,13 @@ function renderOrders(main) {
             ${(() => { const age = getOrderAge(o); return '<span class="order-time order-time-' + age.level + '">' + (age.level==='urgent'?'🔴 ':age.level==='warn'?'🟡 ':'') + age.label + '</span>'; })()}
           </div>
         </div>
-        ${lane.next ? `<button class="order-advance" onclick="advanceOrder('${E(o.id)}','${E(lane.next)}')">${E(lane.nextLabel)}</button>` : ''}
-        ${canDiscount && lane.id !== 'done' ? `<button class="order-advance" style="margin-top:6px;background:transparent;color:var(--brick,#8B1A0E);border:1px solid var(--brick,#8B1A0E);" onclick="openDiscountPicker('${E(o.dbId||o.id)}')">💸 Discount</button>` : ''}
+        ${lane.next ? `<button class="order-advance" onclick="advanceOrder('${JA(o.id)}','${JA(lane.next)}')">${E(lane.nextLabel)}</button>` : ''}
+        ${canDiscount && lane.id !== 'done' ? `<button class="order-advance" style="margin-top:6px;background:transparent;color:var(--brick,#8B1A0E);border:1px solid var(--brick,#8B1A0E);" onclick="openDiscountPicker('${JA(o.dbId||o.id)}')">💸 Discount</button>` : ''}
         ${lane.id !== 'done' ? (canVoid
-          ? `<button class="order-advance" style="margin-top:6px;background:transparent;color:var(--danger);border:1px solid var(--danger);" onclick="openVoidItemsModal('${E(o.dbId||o.id)}')">🚫 Void items</button>`
+          ? `<button class="order-advance" style="margin-top:6px;background:transparent;color:var(--danger);border:1px solid var(--danger);" onclick="openVoidItemsModal('${JA(o.dbId||o.id)}')">🚫 Void items</button>`
           /* Below manager: same modal, but every button files a request
              that a manager has to approve. */
-          : `<button class="order-advance" style="margin-top:6px;background:transparent;color:var(--ink-muted);border:1px solid var(--line);" onclick="openVoidItemsModal('${E(o.dbId||o.id)}')">🚫 Request void</button>`) : ''}
+          : `<button class="order-advance" style="margin-top:6px;background:transparent;color:var(--ink-muted);border:1px solid var(--line);" onclick="openVoidItemsModal('${JA(o.dbId||o.id)}')">🚫 Request void</button>`) : ''}
       </div>`;
     });
     html += '</div>';
@@ -6065,13 +6082,13 @@ async function approveAccount(id) {
   if (!s) return;
   const ok = await persistAccountState(id, 'active');
   if (!ok) { route('accounts'); return; }
-  showConfirmModal('Account Activated', `<strong>${s.name}</strong> is now active. They can now sign in with the credentials you set at creation time.`, () => route('accounts'));
+  showConfirmModal('Account Activated', `<strong>${E(s.name)}</strong> is now active. They can now sign in with the credentials you set at creation time.`, () => route('accounts'));
 }
 async function rejectAccount(id) {
   const s = portalState.staff.find(x => x.id === id);
   if (!s) return;
   const ok = await persistAccountState(id, 'disabled');
-  if (ok) toast(`${s.name} rejected`);
+  if (ok) toast(`${E(s.name)} rejected`);
   route('accounts');
 }
 function recommendDisable(id) {
@@ -6096,9 +6113,9 @@ async function confirmDisableRec(id) {
 
   if (currentUser.tier === 'director') {
     const ok = await persistAccountState(id, 'disabled', { reason });
-    if (ok) toast(`${s.name} disabled`);
+    if (ok) toast(`${E(s.name)} disabled`);
   } else {
-    const ok = await persistAccountState(id, 'recommended', { reason: `${reason} — Recommended by ${currentUser.name}` });
+    const ok = await persistAccountState(id, 'recommended', { reason: `${E(reason)} — Recommended by ${E(currentUser.name)}` });
     if (ok) toast(`Recommendation sent to Director`);
   }
   route('accounts');
@@ -6107,21 +6124,21 @@ async function approveDisable(id) {
   const s = portalState.staff.find(x => x.id === id);
   if (!s) return;
   const ok = await persistAccountState(id, 'disabled');
-  if (ok) toast(`${s.name} disabled`);
+  if (ok) toast(`${E(s.name)} disabled`);
   route('accounts');
 }
 async function cancelDisableRec(id) {
   const s = portalState.staff.find(x => x.id === id);
   if (!s) return;
   const ok = await persistAccountState(id, 'active', { reason: null });
-  if (ok) toast(`${s.name} reinstated`);
+  if (ok) toast(`${E(s.name)} reinstated`);
   route('accounts');
 }
 async function reinstateAccount(id) {
   const s = portalState.staff.find(x => x.id === id);
   if (!s) return;
   const ok = await persistAccountState(id, 'active');
-  if (ok) toast(`${s.name} reinstated`);
+  if (ok) toast(`${E(s.name)} reinstated`);
   route('accounts');
 }
 function showCreateStaffModal() {
@@ -6143,7 +6160,7 @@ function showCreateStaffModal() {
       <option value="dine_in_display">Dine-In Display — dining floor screen</option>
     </optgroup>
   ` : '';
-  const branchOpts = portalState.branches.map(b => `<option value="${b.id}">${b.name}</option>`).join('');
+  const branchOpts = portalState.branches.map(b => `<option value="${b.id}">${E(b.name)}</option>`).join('');
   showModal(`
     <div class="modal-title">Add Staff Account</div>
     <div class="modal-sub">Creates a real login. Staff receives the password from you and can change it after their first sign-in.</div>
@@ -6250,10 +6267,10 @@ async function createStaff() {
     closeModal();
     const status = data.initial_status || 'active';
     if (status === 'pending') {
-      toast(`✓ ${name} created — awaiting CEO/Director validation`);
+      toast(`✓ ${E(name)} created — awaiting CEO/Director validation`);
       activeAccTab = 'pending';
     } else {
-      toast(`✓ ${name} added as ${role}`);
+      toast(`✓ ${E(name)} added as ${role}`);
       activeAccTab = 'active';
     }
     await loadStaffFromSupabase();
@@ -6306,14 +6323,14 @@ async function renderTableQR(main) {
 
       html += `<div class="panel" style="margin-bottom:24px;">
         <div class="panel-header">
-          <div class="panel-title">${br.name} <span style="font-size:12px;color:var(--ink-muted);font-weight:500;margin-left:8px;">${tableNumbers.length} table${tableNumbers.length===1?'':'s'}</span></div>
+          <div class="panel-title">${E(br.name)} <span style="font-size:12px;color:var(--ink-muted);font-weight:500;margin-left:8px;">${tableNumbers.length} table${tableNumbers.length===1?'':'s'}</span></div>
           <div style="display:flex;gap:8px;">
             <button class="btn-ghost" style="padding:6px 12px;font-size:12px;" onclick="promptAddTable('${br.id}')">+ Add Table</button>
             <button class="panel-link" onclick="window.print()">🖨️ Print All</button>
           </div>
         </div>`;
       if (!tableNumbers.length) {
-        html += `<div style="text-align:center;color:var(--ink-faint);padding:30px;">No tables registered for ${br.name} yet. Click <strong>+ Add Table</strong> to create one.</div>`;
+        html += `<div style="text-align:center;color:var(--ink-faint);padding:30px;">No tables registered for ${E(br.name)} yet. Click <strong>+ Add Table</strong> to create one.</div>`;
       } else {
         html += `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:16px;padding-top:8px;">`;
         for (const t of tableNumbers) {
@@ -6322,7 +6339,7 @@ async function renderTableQR(main) {
           html += `<div style="background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;text-align:center;">
             <div style="font-family:'Playfair Display',serif;font-size:18px;font-weight:900;color:var(--brick);margin-bottom:10px;">Table ${t}</div>
             <img src="${qrUrl}" alt="Table ${t} QR" style="width:120px;height:120px;border-radius:8px;border:2px solid var(--brick);" loading="lazy">
-            <div style="font-size:10px;color:var(--ink-faint);margin-top:8px;letter-spacing:0.08em;">${br.name.toUpperCase()}</div>
+            <div style="font-size:10px;color:var(--ink-faint);margin-top:8px;letter-spacing:0.08em;">${E(br.name.toUpperCase())}</div>
             <a href="${baseUrl}?table=${t}&branch=${encodeURIComponent(br.name)}&branchId=${br.id}" target="_blank" style="display:block;margin-top:8px;font-size:11px;color:var(--brick);font-weight:600;">Open Menu →</a>
           </div>`;
         }
@@ -6411,7 +6428,6 @@ async function refreshMenuManager() {
           ? Object.entries(it.pax_options).map(([k,v]) => `${E(k)}: ₱${E(v)}`).join(' · ')
           : '₱' + N(it.price, 0);
         // UnoSys: escape for JS-attr context in the Delete confirm handler.
-        const safeName = (it.name || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
         html += `<tr>
           <td style="font-size:20px;">${E(it.emoji || '🍽️')}</td>
           <td><div style="font-weight:600;color:var(--ink);">${E(it.name)}</div><div style="font-size:11px;color:var(--ink-muted);">${E(it.description || '')}</div></td>
@@ -6419,9 +6435,9 @@ async function refreshMenuManager() {
           <td>${it.is_featured ? `<span style="font-size:11px;background:var(--gold);color:#fff;padding:2px 8px;border-radius:10px;">${E(it.featured_tag||'Featured')}</span>` : '—'}</td>
           <td>${it.is_available ? '<span style="color:var(--success);">✓ Available</span>' : '<span style="color:var(--danger);">✗ Off menu</span>'}</td>
           <td class="table-actions">
-            <button class="btn-secondary" onclick="showMenuItemModal('${E(it.id)}')">✎ Edit</button>
-            <button class="btn-secondary" onclick="toggleMenuAvail('${E(it.id)}', ${!it.is_available})">${it.is_available ? '✕ Sold Out' : '↻ Restock'}</button>
-            <button class="btn-secondary danger" onclick="deleteMenuItem('${E(it.id)}', '${E(safeName)}')">Delete</button>
+            <button class="btn-secondary" onclick="showMenuItemModal('${JA(it.id)}')">✎ Edit</button>
+            <button class="btn-secondary" onclick="toggleMenuAvail('${JA(it.id)}', ${!it.is_available})">${it.is_available ? '✕ Sold Out' : '↻ Restock'}</button>
+            <button class="btn-secondary danger" onclick="deleteMenuItem('${JA(it.id)}', '${JA(it.name || '')}')">Delete</button>
           </td>
         </tr>`;
       });
@@ -6445,25 +6461,25 @@ async function showMenuItemModal(itemId) {
     const { data } = await sb.from('menu_items').select('*').eq('id', itemId).single();
     item = data;
   }
-  const catOpts = (cats || []).map(c => `<option value="${c.id}" ${item?.category_id === c.id ? 'selected' : ''}>${c.icon || ''} ${c.name}</option>`).join('');
+  const catOpts = (cats || []).map(c => `<option value="${c.id}" ${item?.category_id === c.id ? 'selected' : ''}>${c.icon || ''} ${E(c.name)}</option>`).join('');
   const isShare = item?.is_shareable || false;
   const paxJson = item?.pax_options ? JSON.stringify(item.pax_options) : '{"2-3":0,"4-6":0}';
   showModal(`
     <div class="modal-title">${itemId ? 'Edit Menu Item' : 'Add Menu Item'}</div>
     <div class="modal-content">
       <div class="form-row">
-        <div style="flex:2;"><label class="form-label">Name</label><input type="text" class="form-input" id="miName" value="${item?.name || ''}" placeholder="Kare-Kare"></div>
-        <div><label class="form-label">Emoji</label><input type="text" class="form-input" id="miEmoji" value="${item?.emoji || ''}" placeholder="🥜" maxlength="4"></div>
+        <div style="flex:2;"><label class="form-label">Name</label><input type="text" class="form-input" id="miName" value="${E(item?.name || '')}" placeholder="Kare-Kare"></div>
+        <div><label class="form-label">Emoji</label><input type="text" class="form-input" id="miEmoji" value="${E(item?.emoji || '')}" placeholder="🥜" maxlength="4"></div>
       </div>
-      <div style="margin-top:12px;"><label class="form-label">Tagalog Name (optional)</label><input type="text" class="form-input" id="miNameTl" value="${item?.name_tagalog || ''}" placeholder="Kare-Kare"></div>
-      <div style="margin-top:12px;"><label class="form-label">Description</label><textarea class="form-input" id="miDesc" rows="2" placeholder="Peanut stew with oxtail, banana blossom">${item?.description || ''}</textarea></div>
+      <div style="margin-top:12px;"><label class="form-label">Tagalog Name (optional)</label><input type="text" class="form-input" id="miNameTl" value="${E(item?.name_tagalog || '')}" placeholder="Kare-Kare"></div>
+      <div style="margin-top:12px;"><label class="form-label">Description</label><textarea class="form-input" id="miDesc" rows="2" placeholder="Peanut stew with oxtail, banana blossom">${E(item?.description || '')}</textarea></div>
       <div class="form-row" style="margin-top:12px;">
         <div><label class="form-label">Category</label><select class="form-input" id="miCat">${catOpts}</select></div>
         <div><label class="form-label"><input type="checkbox" id="miShare" ${isShare ? 'checked' : ''}> Shareable (pax pricing)</label></div>
       </div>
       <div id="miPriceSingle" style="margin-top:12px;${isShare ? 'display:none;' : ''}">
         <label class="form-label">Price (₱)</label>
-        <input type="number" class="form-input" id="miPrice" value="${item?.price || ''}" placeholder="139">
+        <input type="number" class="form-input" id="miPrice" value="${E(item?.price || '')}" placeholder="139">
       </div>
       <div id="miPricePax" style="margin-top:12px;${!isShare ? 'display:none;' : ''}">
         <label class="form-label">Pax pricing (JSON, e.g. {"2-3":289,"4-6":489})</label>
@@ -6471,7 +6487,7 @@ async function showMenuItemModal(itemId) {
       </div>
       <div class="form-row" style="margin-top:12px;">
         <div><label class="form-label"><input type="checkbox" id="miFeat" ${item?.is_featured ? 'checked' : ''}> Featured on homepage</label></div>
-        <div><label class="form-label">Featured tag</label><input type="text" class="form-input" id="miFeatTag" value="${item?.featured_tag || ''}" placeholder="Bestseller"></div>
+        <div><label class="form-label">Featured tag</label><input type="text" class="form-input" id="miFeatTag" value="${E(item?.featured_tag || '')}" placeholder="Bestseller"></div>
       </div>
       <div style="margin-top:12px;"><label class="form-label"><input type="checkbox" id="miAvail" ${item?.is_available !== false ? 'checked' : ''}> Available for order</label></div>
       <div id="miErr" style="display:none;margin-top:12px;padding:10px;background:rgba(200,40,40,0.08);border:1px solid rgba(200,40,40,0.25);border-radius:6px;color:#c02828;font-size:13px;"></div>
@@ -6544,7 +6560,7 @@ async function toggleMenuAvail(itemId, newValue) {
 }
 
 async function deleteMenuItem(itemId, name) {
-  if (!confirm(`Delete "${name}" from the menu? This can't be undone.`)) return;
+  if (!confirm(`Delete "${E(name)}" from the menu? This can't be undone.`)) return;
   try {
     const { error } = await sb.from('menu_items').delete().eq('id', itemId);
     if (error) throw error;
@@ -6658,7 +6674,7 @@ async function renderAttendanceAdmin(main) {
         const status = r.clock_out_at ? 'complete' : 'on-shift';
         const correctedNote = r.corrected_at ? '<div style="font-size:10px;color:var(--gold);margin-top:2px;">✎ corrected</div>' : '';
         html += `<tr>
-          <td><div style="font-weight:600;color:var(--ink);">${staffName}</div>${correctedNote}</td>
+          <td><div style="font-weight:600;color:var(--ink);">${E(staffName)}</div>${correctedNote}</td>
           <td style="text-transform:capitalize;">${role}</td>
           <td style="font-family:monospace;">${fmtTime(r.clock_in_at)}</td>
           <td style="font-family:monospace;">${fmtTime(r.clock_out_at)}</td>
@@ -6681,7 +6697,7 @@ async function renderAttendanceAdmin(main) {
       activeStaff.forEach(s => {
         const sum = summary[s.id] || { shifts: 0, complete: 0, open: 0 };
         html += `<tr>
-          <td style="font-weight:600;">${s.name}</td>
+          <td style="font-weight:600;">${E(s.name)}</td>
           <td style="text-transform:capitalize;">${s.role}</td>
           <td>${sum.shifts}</td>
           <td>${sum.complete}</td>
@@ -6826,8 +6842,8 @@ async function renderMessagesAdmin(main) {
             <div class="msg-from"><span style="font-size:10px;color:var(--ink-muted);font-weight:500;">${label}:</span> ${otherParty}${isBroadcast ? ' <span style=\"font-size:10px;color:var(--gold);font-weight:600;\">📣 BROADCAST</span>' : ''}</div>
             <div class="msg-time">${timeAgo(new Date(m.created_at))}</div>
           </div>
-          ${m.subject ? `<div style="font-weight:600;color:var(--ink);font-size:13px;margin-bottom:4px;">${m.subject}</div>` : ''}
-          <div class="msg-snippet">${(m.body || '').slice(0, 200)}${m.body && m.body.length > 200 ? '…' : ''}</div>
+          ${m.subject ? `<div style="font-weight:600;color:var(--ink);font-size:13px;margin-bottom:4px;">${E(m.subject)}</div>` : ''}
+          <div class="msg-snippet">${E((m.body || '').slice(0, 200))}${m.body && m.body.length > 200 ? '…' : ''}</div>
         </div>
       </div>`;
     }).join('') + `</div>`;
@@ -6857,7 +6873,7 @@ let _voidModalOrder = null;
 function _voidItemName(itemId) {
   const it = (_voidModalOrder?.order_items || []).find(x => x.id === itemId);
   if (!it) return 'this item';
-  return `${it.quantity}× ${it.name_snapshot}${it.pax_size ? ' (' + it.pax_size + ')' : ''}`;
+  return `${it.quantity}× ${E(it.name_snapshot)}${it.pax_size ? ' (' + it.pax_size + ')' : ''}`;
 }
 
 async function openVoidItemsModal(orderDbId) {
@@ -6888,14 +6904,14 @@ async function openVoidItemsModal(orderDbId) {
     let action;
     if (voided) {
       action = canVoid
-        ? `<button class="btn-secondary" onclick="unvoidItem('${E(it.id)}','${E(orderDbId)}')">↺ Undo void</button>`
+        ? `<button class="btn-secondary" onclick="unvoidItem('${JA(it.id)}','${JA(orderDbId)}')">↺ Undo void</button>`
         : `<span style="font-size:12px;color:var(--ink-muted);">voided</span>`;
     } else if (waiting) {
       action = `<span style="font-size:12px;color:var(--gold,#b8800f);font-weight:700;">⏳ Awaiting manager</span>`;
     } else if (canVoid) {
-      action = `<button class="btn-secondary danger" onclick="promptVoidItem('${E(it.id)}','${E(orderDbId)}')">Void</button>`;
+      action = `<button class="btn-secondary danger" onclick="promptVoidItem('${JA(it.id)}','${JA(orderDbId)}')">Void</button>`;
     } else {
-      action = `<button class="btn-secondary" onclick="promptRequestVoid('${E(orderDbId)}','${E(it.id)}')">Request void</button>`;
+      action = `<button class="btn-secondary" onclick="promptRequestVoid('${JA(orderDbId)}','${JA(it.id)}')">Request void</button>`;
     }
 
     return `<div class="void-row" data-item="${E(it.id)}" style="display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--line);align-items:center;">
@@ -6912,8 +6928,8 @@ async function openVoidItemsModal(orderDbId) {
   const wholeOrderBtn = wholeOrderPending
     ? `<div style="margin-top:14px;padding:10px;border-radius:8px;background:rgba(184,128,15,0.10);border:1px solid rgba(184,128,15,0.35);font-size:13px;color:var(--ink);">⏳ A whole-order void request is already waiting for a manager.</div>`
     : (canVoid
-        ? `<button class="btn-secondary danger" style="margin-top:14px;width:100%;" onclick="promptVoidWholeOrder('${E(orderDbId)}','${E(order.order_number||'')}')">Void the entire order</button>`
-        : `<button class="btn-secondary" style="margin-top:14px;width:100%;" onclick="promptRequestVoid('${E(orderDbId)}',null)">Request whole-order void</button>`);
+        ? `<button class="btn-secondary danger" style="margin-top:14px;width:100%;" onclick="promptVoidWholeOrder('${JA(orderDbId)}','${JA(order.order_number||'')}')">Void the entire order</button>`
+        : `<button class="btn-secondary" style="margin-top:14px;width:100%;" onclick="promptRequestVoid('${JA(orderDbId)}',null)">Request whole-order void</button>`);
 
   showModal(`
     <div class="modal-title">${canVoid ? 'Void items' : 'Request a void'} · ${E(order.order_number || '')}</div>
@@ -7118,11 +7134,11 @@ async function renderVoidRequests(main, mode) {
 
     const actions = (approver && r.status === 'pending')
       ? `<div style="display:flex;gap:8px;margin-top:12px;">
-           <button class="btn-next" onclick="approveVoidReq('${E(r.id)}')">✓ Approve void</button>
-           <button class="btn-secondary danger" onclick="denyVoidReq('${E(r.id)}')">✗ Deny</button>
+           <button class="btn-next" onclick="approveVoidReq('${JA(r.id)}')">✓ Approve void</button>
+           <button class="btn-secondary danger" onclick="denyVoidReq('${JA(r.id)}')">✗ Deny</button>
          </div>`
       : (!approver && r.status === 'pending')
-        ? `<div style="margin-top:12px;"><button class="btn-secondary" onclick="withdrawVoidReq('${E(r.id)}')">Withdraw request</button></div>`
+        ? `<div style="margin-top:12px;"><button class="btn-secondary" onclick="withdrawVoidReq('${JA(r.id)}')">Withdraw request</button></div>`
         : '';
 
     // reviewed_by_name comes through the staff join, which is RLS-scoped —
@@ -7263,8 +7279,8 @@ function _renderDiscountList() {
         ${t.description ? `<div style="font-size:12px;color:var(--ink-muted);">${E(t.description)}</div>` : ''}
       </div>
       ${canEdit ? `<div style="flex-shrink:0;display:flex;gap:6px;flex-direction:column;">
-        <button class="btn-secondary" onclick="openDiscountTemplateEditor('${E(t.id)}')">Edit</button>
-        ${!t.legal_law ? `<button class="btn-secondary danger" onclick="deleteDiscountTemplate('${E(t.id)}','${E((t.name||'').replace(/'/g,"&#39;"))}')">Delete</button>` : ''}
+        <button class="btn-secondary" onclick="openDiscountTemplateEditor('${JA(t.id)}')">Edit</button>
+        ${!t.legal_law ? `<button class="btn-secondary danger" onclick="deleteDiscountTemplate('${JA(t.id)}','${JA(t.name||'')}')">Delete</button>` : ''}
       </div>` : ''}
     </div>`;
   }).join('');
@@ -7367,7 +7383,7 @@ async function saveDiscountTemplate(id, locked) {
 }
 
 async function deleteDiscountTemplate(id, name) {
-  if (!window.confirm(`Delete template "${name}"? This cannot be undone.`)) return;
+  if (!window.confirm(`Delete template "${E(name)}"? This cannot be undone.`)) return;
   try {
     await TPN.deleteDiscountTemplate(id);
     toast('✓ Deleted');
@@ -7396,7 +7412,7 @@ async function openDiscountPicker(orderDbId, opts) {
           <div style="font-weight:600;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${E(a.name_snapshot)}${a.legal_law?` <span style="font-size:10px;color:var(--ink-muted);">(${E(a.legal_law)})</span>`:''}</div>
           <div style="font-size:11px;color:var(--ink-muted);">−₱${N(a.amount_applied,2)}${a.id_ref?` · ID ${E(a.id_ref)}`:''}</div>
         </div>
-        ${canRemove ? `<button class="btn-secondary danger" onclick="removeAppliedDiscount('${E(a.id)}','${E(orderDbId)}')">Remove</button>` : ''}
+        ${canRemove ? `<button class="btn-secondary danger" onclick="removeAppliedDiscount('${JA(a.id)}','${JA(orderDbId)}')">Remove</button>` : ''}
       </div>`).join('')
     : '<div style="padding:12px;color:var(--ink-muted);text-align:center;font-size:12px;">No discounts on this order yet.</div>';
 
@@ -7415,7 +7431,7 @@ async function openDiscountPicker(orderDbId, opts) {
           ? `<span style="flex:0 0 auto;font-size:9px;color:var(--ink-faint);white-space:nowrap;">ID</span>`
           : '';
         return `<button class="disc-row" title="${E(t.description || t.name)}"
-            onclick="applyDiscountFromPicker('${E(orderDbId)}','${E(t.id)}',${t.requires_id?'true':'false'},'${E((t.name||'').replace(/'/g,"&#39;"))}')">
+            onclick="applyDiscountFromPicker('${JA(orderDbId)}','${JA(t.id)}',${t.requires_id?'true':'false'},'${JA(t.name||'')}')">
           <span class="disc-icon">${E(t.icon||'💸')}</span>
           <span class="disc-name">${E(t.name)}</span>
           ${lawChip}${idChip}
@@ -7447,7 +7463,7 @@ async function openDiscountPicker(orderDbId, opts) {
 async function applyDiscountFromPicker(orderDbId, templateId, requiresId, tName) {
   let idRef = null;
   if (requiresId === true || requiresId === 'true') {
-    idRef = window.prompt(`Enter the physical ID number for "${tName}" (min 3 chars):`, '');
+    idRef = window.prompt(`Enter the physical ID number for "${E(tName)}" (min 3 chars):`, '');
     if (idRef === null) return;
     if (!idRef || idRef.trim().length < 3) { toast('ID number is required (min 3 chars).'); return; }
     idRef = idRef.trim();
@@ -7832,9 +7848,16 @@ function _loadExcelJS() {
   if (_excelJSPromise) return _excelJSPromise;
   _excelJSPromise = new Promise((resolve, reject) => {
     const s = document.createElement('script');
-    s.src = 'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js';
+    // Local copy first, pinned CDN second.
+    s.src = 'vendor/exceljs-4.4.0.min.js';
     s.onload = () => resolve(window.ExcelJS);
-    s.onerror = () => { _excelJSPromise = null; reject(new Error('Failed to load Excel library')); };
+    s.onerror = () => {
+      const c = document.createElement('script');
+      c.src = 'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js';
+      c.onload = () => resolve(window.ExcelJS);
+      c.onerror = () => { _excelJSPromise = null; reject(new Error('Failed to load Excel library')); };
+      document.head.appendChild(c);
+    };
     document.head.appendChild(s);
   });
   return _excelJSPromise;
@@ -8412,7 +8435,7 @@ function notifRow(n) {
         </div>
         ${n.body ? `<div style="font-size:13px;color:var(--ink-muted);margin-top:2px;line-height:1.4;">${E(n.body)}</div>` : ''}
       </div>
-      <button class="table-btn" style="align-self:flex-start;flex-shrink:0;" onclick="event.stopPropagation();deleteNotification('${E(n.id)}')" title="Dismiss">×</button>
+      <button class="table-btn" style="align-self:flex-start;flex-shrink:0;" onclick="event.stopPropagation();deleteNotification('${JA(n.id)}')" title="Dismiss">×</button>
     </div>`;
 }
 
@@ -8639,7 +8662,7 @@ function _renderRolePermissions(role, cells, canEdit) {
         return `<label style="display:flex;gap:9px;align-items:flex-start;padding:5px 0;${locked ? 'opacity:.5;' : ''}">
           <input type="checkbox" ${on ? 'checked' : ''} ${(!editable || locked) ? 'disabled' : ''}
                  style="margin-top:3px;flex:0 0 auto;"
-                 onchange="setRoleCell('${role.id}','${E(c.permission_key)}',this.checked,this)">
+                 onchange="setRoleCell('${role.id}','${JA(c.permission_key)}',this.checked,this)">
           <span style="flex:1;min-width:0;">
             <span style="font-size:13px;">${E(label)}</span>
             <span class="perm-hint">${E(c.description || '')}${locked ? ' — ' + E(T('matrix.locked')) : ''}</span>
@@ -9902,7 +9925,7 @@ async function openPayRates() {
                 ${c ? '₱' + N(Number(c.rate) + Number(c.allowance || 0), 2) + ' ' + E(cadence) : 'No rate set'}
               </div>
             </span>
-            ${canEdit ? `<button class="btn-ghost" style="padding:4px 10px;font-size:11px;" onclick="openSetPay('${p.id}','${E(p.full_name).replace(/'/g, "\\'")}')">${c ? E(T('common.edit')) : E(T('common.add'))}</button>` : ''}
+            ${canEdit ? `<button class="btn-ghost" style="padding:4px 10px;font-size:11px;" onclick="openSetPay('${p.id}','${JA(p.full_name)}')">${c ? E(T('common.edit')) : E(T('common.add'))}</button>` : ''}
           </div>`;
         }).join('') : `<div style="padding:12px;color:var(--ink-muted);">${E(T('common.none'))}</div>`}
       </div>
@@ -10659,7 +10682,7 @@ function _renderGuestList() {
           <td style="padding:10px 12px;border-bottom:1px solid var(--line-soft);text-align:right;color:var(--ink-faint);white-space:nowrap;">
             ${r.last_order_at ? E(_timeAgo(r.last_order_at)) : '—'}</td>
           <td style="padding:10px 12px;border-bottom:1px solid var(--line-soft);text-align:right;white-space:nowrap;">
-            ${TPN.can('orders.manage') ? `<button class="btn-ghost" style="padding:4px 10px;font-size:11px;" onclick="openGuestEditor('${E(r.device_id)}')">${E(T('common.edit'))}</button>` : ''}
+            ${TPN.can('orders.manage') ? `<button class="btn-ghost" style="padding:4px 10px;font-size:11px;" onclick="openGuestEditor('${JA(r.device_id)}')">${E(T('common.edit'))}</button>` : ''}
           </td>
         </tr>`).join('')}</tbody>
       </table>
@@ -10687,19 +10710,19 @@ function openGuestEditor(deviceId) {
           <div style="font-size:12px;color:var(--brick);margin-bottom:8px;">
             ${E(T('guests.currentlyFlagged'))}${r.flag_reason ? ' — ' + E(r.flag_reason) : ''}
           </div>
-          <button class="btn-ghost" style="padding:7px 14px;font-size:12px;" onclick="doUnflagGuest('${E(deviceId)}')">${E(T('guests.unflag'))}</button>`
+          <button class="btn-ghost" style="padding:7px 14px;font-size:12px;" onclick="doUnflagGuest('${JA(deviceId)}')">${E(T('guests.unflag'))}</button>`
         : `
           <input type="text" class="form-input" id="gReason" placeholder="${E(T('guests.reasonPlaceholder'))}" style="margin-bottom:8px;">
           <label style="display:flex;gap:8px;align-items:center;font-size:12px;color:var(--ink-muted);cursor:pointer;margin-bottom:10px;">
             <input type="checkbox" id="gNoShow" checked> ${E(T('guests.countNoShow'))}
           </label>
-          <button class="btn-ghost" style="padding:7px 14px;font-size:12px;color:var(--brick);" onclick="doFlagGuest('${E(deviceId)}')">${E(T('guests.flagThis'))}</button>`}
+          <button class="btn-ghost" style="padding:7px 14px;font-size:12px;color:var(--brick);" onclick="doFlagGuest('${JA(deviceId)}')">${E(T('guests.flagThis'))}</button>`}
         <div class="pref-row-hint" style="margin-top:10px;">${E(T('guests.flagHint'))}</div>
       </div>
     </div>
     <div class="modal-actions">
       <button class="btn-back" onclick="closeModal()">${E(T('common.close'))}</button>
-      <button class="btn-next" onclick="saveGuestNote('${E(deviceId)}')">${E(T('common.save'))}</button>
+      <button class="btn-next" onclick="saveGuestNote('${JA(deviceId)}')">${E(T('common.save'))}</button>
     </div>`;
   document.getElementById('modalOverlay').classList.add('open');
 }
@@ -11270,7 +11293,7 @@ async function renderStaffHome(main) {
           <div class="msg-avatar">${E((m.from_staff?.full_name || '?').split(' ').map(s=>s[0]).join('').slice(0,2))}</div>
           <div class="msg-content">
             <div class="msg-header"><div class="msg-from">${E(m.from_staff?.full_name || 'System')}</div><div class="msg-time">${E(timeAgo(new Date(m.created_at)))}</div></div>
-            <div class="msg-snippet">${(m.body || '').slice(0, 120)}${m.body && m.body.length > 120 ? '…' : ''}</div>
+            <div class="msg-snippet">${E((m.body || '').slice(0, 120))}${m.body && m.body.length > 120 ? '…' : ''}</div>
           </div>
         </div>`).join('');
     }
@@ -11353,7 +11376,7 @@ async function renderStaffSchedule(main) {
       <div class="schedule-week">${cells}</div>
       ${notes ? `<div class="panel" style="margin-top:24px;">
         <div class="panel-header"><div class="panel-title">Note from your manager</div></div>
-        <div style="font-size:14px;color:var(--ink-soft);line-height:1.6;background:var(--bg);padding:14px;border-radius:8px;border-left:3px solid var(--gold);">${notes.replace(/</g,'&lt;')}</div>
+        <div style="font-size:14px;color:var(--ink-soft);line-height:1.6;background:var(--bg);padding:14px;border-radius:8px;border-left:3px solid var(--gold);">${E(notes)}</div>
       </div>` : (row ? '' : `<div class="panel" style="margin-top:24px;text-align:center;color:var(--ink-muted);padding:40px;">
         No schedule posted for this week yet. Check back later or ask your manager.
       </div>`)}`;
@@ -11476,8 +11499,8 @@ async function renderStaffMessages(main) {
             <div class="msg-from">${from}${isBroadcast ? ' <span style=\"font-size:10px;color:var(--gold);font-weight:600;\">📣 BROADCAST</span>' : ''}</div>
             <div class="msg-time">${timeAgo(new Date(m.created_at))}</div>
           </div>
-          ${m.subject ? `<div style="font-weight:600;color:var(--ink);font-size:13px;margin-bottom:4px;">${m.subject}</div>` : ''}
-          <div class="msg-snippet">${(m.body || '').slice(0, 200)}${m.body && m.body.length > 200 ? '…' : ''}</div>
+          ${m.subject ? `<div style="font-weight:600;color:var(--ink);font-size:13px;margin-bottom:4px;">${E(m.subject)}</div>` : ''}
+          <div class="msg-snippet">${E((m.body || '').slice(0, 200))}${m.body && m.body.length > 200 ? '…' : ''}</div>
         </div>
       </div>`;
     }).join('') + `</div>`;
@@ -11511,9 +11534,9 @@ async function openMessageDetail(id) {
     const from = m.from_staff?.full_name || 'System';
     const when = new Date(m.created_at).toLocaleString();
     showModal(`
-      <div class="modal-title">${m.subject || 'Message'}</div>
+      <div class="modal-title">${E(m.subject || 'Message')}</div>
       <div class="modal-sub">From <strong>${from}</strong> • ${when}</div>
-      <div class="modal-content" style="max-height:60vh;overflow-y:auto;white-space:pre-wrap;line-height:1.6;color:var(--ink);">${(m.body||'').replace(/</g, '&lt;')}</div>
+      <div class="modal-content" style="max-height:60vh;overflow-y:auto;white-space:pre-wrap;line-height:1.6;color:var(--ink);">${E(m.body||'')}</div>
       <div class="modal-actions">
         <button class="btn-next" onclick="closeModal()">Close</button>
       </div>`);
@@ -11523,7 +11546,7 @@ async function openMessageDetail(id) {
 async function openComposeMessageModal() {
   if (!TPN.hasRole('manager')) { toast('Only managers can send messages'); return; }
   const staff = portalState.staff.filter(s => s.accountState === 'active');
-  const opts = staff.map(s => `<option value="${s.id}">${s.name} (${s.role})</option>`).join('');
+  const opts = staff.map(s => `<option value="${s.id}">${E(s.name)} (${s.role})</option>`).join('');
   showModal(`
     <div class="modal-title">Compose Message</div>
     <div class="modal-sub">Send to a specific person, or broadcast to your whole branch.</div>
@@ -11582,8 +11605,8 @@ function renderStaffSettings(main) {
     <div class="panel" style="margin-bottom:20px;">
       <div class="panel-header"><div class="panel-title">Account</div></div>
       <div style="display:grid;gap:14px;">
-        <div><div style="font-size:11px;color:var(--ink-muted);letter-spacing:0.12em;text-transform:uppercase;font-weight:700;margin-bottom:4px;">Email</div><div style="color:var(--ink);font-weight:600;">${u.email || u.username || '—'}</div></div>
-        <div><div style="font-size:11px;color:var(--ink-muted);letter-spacing:0.12em;text-transform:uppercase;font-weight:700;margin-bottom:4px;">Display Name</div><div style="color:var(--ink);font-weight:600;">${u.name}</div></div>
+        <div><div style="font-size:11px;color:var(--ink-muted);letter-spacing:0.12em;text-transform:uppercase;font-weight:700;margin-bottom:4px;">Email</div><div style="color:var(--ink);font-weight:600;">${E(u.email || u.username || '—')}</div></div>
+        <div><div style="font-size:11px;color:var(--ink-muted);letter-spacing:0.12em;text-transform:uppercase;font-weight:700;margin-bottom:4px;">Display Name</div><div style="color:var(--ink);font-weight:600;">${E(u.name)}</div></div>
         <div><div style="font-size:11px;color:var(--ink-muted);letter-spacing:0.12em;text-transform:uppercase;font-weight:700;margin-bottom:4px;">Role</div><div style="color:var(--ink);font-weight:600;">${roleLabel} • Las Piñas</div></div>
         <button class="btn-ghost" style="width:fit-content;" onclick="openChangePasswordModal()">Change Password</button>
       </div>

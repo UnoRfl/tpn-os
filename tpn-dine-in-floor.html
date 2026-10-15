@@ -2,9 +2,21 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="config.js?v=20261002"></script>
-<script src="tpn-supabase.js?v=20261002"></script>
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https://xjlqfpnzobfqxetgkkai.supabase.co https://api.qrserver.com; connect-src 'self' https://xjlqfpnzobfqxetgkkai.supabase.co wss://xjlqfpnzobfqxetgkkai.supabase.co; media-src 'self' data: blob:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<script>
+  // GitHub Pages cannot send X-Frame-Options, so refuse to run inside
+  // someone else's frame (clickjacking: tricking staff into clicks).
+  if (window.top !== window.self) { try { window.top.location = window.self.location; } catch (e) { document.documentElement.style.display = "none"; } }
+</script>
+<script src="vendor/supabase-js-2.117.2.js"></script>
+<script>
+  // Local copy first; if it is missing, the same pinned version from the CDN,
+  // refused by the browser unless its hash matches.
+  if (!window.supabase) document.write('<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js" integrity="sha384-Rj26LVGvoeRVR6+mwQmFfcR3QOBEwT+ZmuCWpuiqeTzJpCs0ER4ITAWGb4Hiy3Ok" crossorigin="anonymous"><' + '/script>');
+</script>
+<script src="config.js?v=20261015"></script>
+<script src="tpn-supabase.js?v=20261015"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
 <meta name="theme-color" content="#1a0a00">
 <title>Tyo Paeng Nyo · Dine-In Floor</title>
@@ -26,6 +38,11 @@
     const M = { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' };
     return String(v).replace(/[&<>"']/g, c => M[c]);
   };
+  window.JA = function(v){
+    // JS-string escape, then HTML escape: safe inside onclick="f('${JA(v)}')".
+    return window.E(String(v == null ? '' : v).replace(/[\\'"<>\n\r\u2028\u2029]/g, function(c){ return '\\u' + c.charCodeAt(0).toString(16).padStart(4, '0'); }));
+  };
+
   window.N = function(v, d){
     const n = Number(v); d = (typeof d === 'number') ? d : 2;
     return Number.isFinite(n) ? n.toFixed(d) : (0).toFixed(d);
@@ -453,7 +470,7 @@ function applyDisplayMode() {
 function _voidItemLabel(orderDbId, itemId) {
   const o = dineInOrders.find(x => x.dbId === orderDbId);
   const it = o && (o.items || []).find(x => x.id === itemId);
-  return it ? `${it.qty}× ${it.name}` : 'this item';
+  return it ? `${it.qty}× ${E(it.name)}` : 'this item';
 }
 
 async function requestVoid(orderDbId, itemId) {
@@ -960,7 +977,7 @@ function renderFloor() {
   </div>
   <div class="branch-selector" id="branch-selector">`;
   branches.filter(b => b.active).forEach(b => {
-    html += `<div class="branch-pill ${b.name === currentBranch ? 'active' : ''}" onclick="switchBranch('${E(b.name)}')">${E(b.name)}</div>`;
+    html += `<div class="branch-pill ${b.name === currentBranch ? 'active' : ''}" onclick="switchBranch('${JA(b.name)}')">${E(b.name)}</div>`;
   });
   html += `</div><div class="floor-grid">`;
 
@@ -995,14 +1012,14 @@ function renderFloor() {
           <div class="table-order-count">📋 ${tableOrders.length} active order(s)</div>
           <div class="table-total">₱${(tbl.sessionTotal || 0).toLocaleString('en', {minimumFractionDigits:2})}</div>
         ` : `<div style="padding:10px 0;text-align:center;font-size:24px;color:var(--border)">🪑</div>`}
-        <div class="qr-badge" onclick="event.stopPropagation(); openQRModal(${i}, '${branch.name}', '${qrUrl}')">📱 QR Code</div>
+        <div class="qr-badge" onclick="event.stopPropagation(); openQRModal(${i}, '${JA(branch.name)}', '${qrUrl}')">📱 QR Code</div>
         <div class="table-actions">
           ${status !== 'empty' ? `
             <button class="t-btn view" onclick="event.stopPropagation(); openTableModal(${i}, '${branch.id}')">View</button>
             ${IS_DISPLAY_ACCOUNT ? '' : `
             ${tbl.billRequested ? `<button class="t-btn bill" onclick="event.stopPropagation(); closeTable(${i}, '${branch.id}')">Close Table</button>` : `<button class="t-btn advance" onclick="event.stopPropagation(); markBillReady(${i}, '${branch.id}')">Bill</button>`}
             <button class="t-btn clear" onclick="event.stopPropagation(); requestClearTable(${i}, '${branch.id}')">Clear</button>`}
-          ` : `<button class="t-btn view" onclick="event.stopPropagation(); openQRModal(${i}, '${branch.name}', '${qrUrl}')">Open QR</button>`}
+          ` : `<button class="t-btn view" onclick="event.stopPropagation(); openQRModal(${i}, '${JA(branch.name)}', '${qrUrl}')">Open QR</button>`}
         </div>
       </div>
     </div>`;
@@ -1079,10 +1096,10 @@ function renderOrders() {
         <div class="order-total">₱${N(order.total, 2)}</div>
       </div>
       <div class="order-actions">
-        <button class="o-btn view" onclick="openOrderModal('${E(order.ref)}')">View</button>
-        ${order.status === 'received' ? `<button class="o-btn advance" onclick="advanceOrder('${E(order.ref)}')">→ Preparing</button>` : ''}
-        ${order.status === 'preparing' ? `<button class="o-btn done-btn" onclick="advanceOrder('${E(order.ref)}')">→ Ready</button>` : ''}
-        ${order.status === 'ready' ? `<button class="o-btn advance" onclick="advanceOrder('${E(order.ref)}')">✓ Served</button>` : ''}
+        <button class="o-btn view" onclick="openOrderModal('${JA(order.ref)}')">View</button>
+        ${order.status === 'received' ? `<button class="o-btn advance" onclick="advanceOrder('${JA(order.ref)}')">→ Preparing</button>` : ''}
+        ${order.status === 'preparing' ? `<button class="o-btn done-btn" onclick="advanceOrder('${JA(order.ref)}')">→ Ready</button>` : ''}
+        ${order.status === 'ready' ? `<button class="o-btn advance" onclick="advanceOrder('${JA(order.ref)}')">✓ Served</button>` : ''}
       </div>
     </div></div>`;
   });
@@ -1441,7 +1458,7 @@ async function openFloorDiscountPicker(orderDbIds, label, onDone) {
           <div style="font-weight:600;">${E(a.name_snapshot)}${a.legal_law?` <span style="font-size:10px;color:var(--text-muted);">(${E(a.legal_law)})</span>`:''}</div>
           <div style="font-size:11px;color:var(--text-muted);">−₱${Number(a.amount_applied).toFixed(2)}${a.id_ref?` · ID ${E(a.id_ref)}`:''}</div>
         </div>
-        ${canRemove ? `<button class="topbar-btn secondary" onclick="removeFloorAppliedDiscount('${E(a.id)}', '${E(JSON.stringify(orderDbIds).replace(/'/g,'&#39;'))}', '${E(label)}')">Remove</button>` : ''}
+        ${canRemove ? `<button class="topbar-btn secondary" onclick="removeFloorAppliedDiscount('${JA(a.id)}', '${JA(JSON.stringify(orderDbIds))}', '${JA(label)}')">Remove</button>` : ''}
       </div>`).join('')
     : `<div style="padding:12px;color:var(--text-muted);text-align:center;font-size:12px;">No discounts on this bill yet.</div>`;
 
@@ -1449,7 +1466,7 @@ async function openFloorDiscountPicker(orderDbIds, label, onDone) {
     ? active.map(t => {
         const valLabel = t.kind === 'percent' ? `${Number(t.value)}% off` : `−₱${Number(t.value).toFixed(2)}`;
         const vatBadge = t.kind === 'percent' && t.vat_treatment === 'net_of_vat' ? '<span style="font-size:11px;color:var(--text-muted);">🧾 Net of VAT</span>' : '';
-        return `<button class="topbar-btn secondary" style="width:100%;text-align:left;padding:12px;margin-bottom:6px;display:flex;gap:10px;align-items:center;" onclick='applyFloorDiscount(${JSON.stringify(orderDbIds).replace(/'/g,"&#39;")}, "${E(t.id)}", ${t.requires_id?'true':'false'}, "${E((t.name||'').replace(/"/g,'\\"'))}", "${E(label)}")'>
+        return `<button class="topbar-btn secondary" style="width:100%;text-align:left;padding:12px;margin-bottom:6px;display:flex;gap:10px;align-items:center;" onclick='applyFloorDiscount(${E(JSON.stringify(orderDbIds))}, "${JA(t.id)}", ${t.requires_id?'true':'false'}, "${JA(t.name||'')}", "${JA(label)}")'>
           <span style="font-size:24px;">${E(t.icon||'💸')}</span>
           <span style="flex:1;">
             <span style="display:block;font-weight:600;">${E(t.name)} <span style="font-weight:400;color:var(--text-muted);font-size:12px;">${valLabel}</span></span>
@@ -1524,12 +1541,12 @@ async function toggleMenuItem(idx) {
     const { error } = await sb.from('menu_items').update({ is_available: newState }).eq('id', item.id);
     if (error) throw error;
     await TPN.logAudit('menu.toggle_availability', 'menu_item', item.id, { available: newState });
-    showToast(`${item.name} marked as ${newState ? 'available' : 'unavailable'}.`);
+    showToast(`${E(item.name)} marked as ${newState ? 'available' : 'unavailable'}.`);
   } catch(e) {
     console.error('toggleMenuItem:', e);
     item.available = !newState;   // rollback
     renderTab();
-    showToast(`⚠️ Could not update ${item.name} — ${e.message||'try again'}`);
+    showToast(`⚠️ Could not update ${E(item.name)} — ${e.message||'try again'}`);
   }
 }
 
@@ -1559,13 +1576,13 @@ function updateBranchTables(idx, val) {
   if (isNaN(n) || n < 1) return;
   branches[idx].tables = n;
   initTableStates();
-  showToast(`${branches[idx].name} updated to ${n} tables.`);
+  showToast(`${E(branches[idx].name)} updated to ${n} tables.`);
   if (currentTab === 'floor') renderTab();
 }
 
 function toggleBranch(idx, active) {
   branches[idx].active = active;
-  showToast(`${branches[idx].name} ${active ? 'enabled' : 'disabled'}.`);
+  showToast(`${E(branches[idx].name)} ${active ? 'enabled' : 'disabled'}.`);
 }
 
 function addBranch() {
@@ -1582,7 +1599,7 @@ function addBranch() {
 function openAddTableModal() {
   const branch = branches.find(b => b.name === currentBranch);
   if (!branch) return;
-  openModal(`Add Tables — ${branch.name}`, `
+  openModal(`Add Tables — ${E(branch.name)}`, `
     <p style="margin-bottom:14px;color:var(--text-muted)">Current tables: <strong>${branch.tables}</strong></p>
     <label style="font-size:13px;font-weight:600;display:block;margin-bottom:6px">Total number of tables</label>
     <input id="add-table-input" class="settings-input" type="number" min="1" max="50" value="${branch.tables}" style="width:100%;text-align:left">
@@ -1603,7 +1620,7 @@ function openTableModal(tableNum, branchId) {
   <div style="display:flex;gap:16px;margin-bottom:16px;flex-wrap:wrap">
     <div style="flex:1;min-width:120px;background:var(--cream);border-radius:10px;padding:12px">
       <div style="font-size:11px;color:var(--text-muted);font-weight:700;margin-bottom:4px">GUEST</div>
-      <div style="font-size:15px;font-weight:700">${tbl.guest}</div>
+      <div style="font-size:15px;font-weight:700">${E(tbl.guest)}</div>
     </div>
     <div style="flex:1;min-width:120px;background:var(--cream);border-radius:10px;padding:12px">
       <div style="font-size:11px;color:var(--text-muted);font-weight:700;margin-bottom:4px">PAX</div>
@@ -1634,7 +1651,7 @@ function openTableModal(tableNum, branchId) {
     if (order.allergies?.length) {
       order.allergies.forEach(a => { content += `<span class="order-flag flag-allergy" style="margin-top:6px;display:inline-block">⚠️ ${a}</span>`; });
     }
-    if (order.specialReq) content += `<div style="margin-top:6px;font-size:12px;color:var(--amber)">📝 ${order.specialReq}</div>`;
+    if (order.specialReq) content += `<div style="margin-top:6px;font-size:12px;color:var(--amber)">📝 ${E(order.specialReq)}</div>`;
     content += `</div>`;
   });
   content += `</div>`;
@@ -1686,7 +1703,7 @@ async function loadTableGuests(tbl) {
           </div>
           <div style="font-weight:700;white-space:nowrap">₱${Number(g.subtotal).toFixed(2)}</div>
           ${splittable && g.device_id ? `<button class="t-btn view"
-              onclick="confirmSplit('${E(bill.order_id)}','${E(g.device_id)}','${E((g.guest||'Walk-in').replace(/'/g,"&#39;"))}')"
+              onclick="confirmSplit('${JA(bill.order_id)}','${JA(g.device_id)}','${JA(g.guest||'Walk-in')}')"
               title="Move this phone's items onto their own bill">Split</button>` : ''}
         </div>`).join('')}
       ${splittable
@@ -1750,7 +1767,7 @@ function openOrderModal(ref) {
           // Only ids in the attribute — dish names carry apostrophes and
           // quotes; requestVoid() looks the name up from state.
           : `<button class="detail-void-btn" title="Ask a manager to void this line"
-               onclick="requestVoid('${E(order.dbId)}','${E(item.id)}')">✕</button>`)
+               onclick="requestVoid('${JA(order.dbId)}','${JA(item.id)}')">✕</button>`)
       : '';
     content += `<div class="detail-item" style="${item.voided ? 'opacity:0.5;' : ''}">
       <div class="detail-item-emoji">${item.emoji || '🍽️'}</div>
@@ -1771,7 +1788,7 @@ function openOrderModal(ref) {
     order.allergies.forEach(a => { content += `<span class="order-flag flag-allergy" style="display:inline-block;margin:2px">⚠️ ${a}</span>`; });
     content += `</div>`;
   }
-  if (order.specialReq) content += `<div style="margin-top:10px;background:var(--amber-light);border-radius:8px;padding:10px;font-size:13px;color:var(--amber)">📝 <strong>Special request:</strong> ${order.specialReq}</div>`;
+  if (order.specialReq) content += `<div style="margin-top:10px;background:var(--amber-light);border-radius:8px;padding:10px;font-size:13px;color:var(--amber)">📝 <strong>Special request:</strong> ${E(order.specialReq)}</div>`;
 
   // A screen advances tickets but never closes them (see advanceOrder).
   const canAdvance = nextStatus && !(IS_DISPLAY_ACCOUNT && nextStatus === 'done');
@@ -1788,7 +1805,7 @@ function openQRModal(tableNum, branchName, url) {
   <div class="qr-display">
     <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px">Customers scan this to view the menu and order.</div>
     <div class="qr-placeholder">📱</div>
-    <div style="margin-bottom:10px;font-size:13px;font-weight:600">Table ${tableNum} — ${branchName}</div>
+    <div style="margin-bottom:10px;font-size:13px;font-weight:600">Table ${E(tableNum)} — ${E(branchName)}</div>
     <div class="qr-url">${url}?table=${tableNum}&branch=${encodeURIComponent(branchName)}</div>
     <div style="margin-top:12px;font-size:12px;color:var(--text-muted)">(QR code would be generated from this URL in production)</div>
   </div>
@@ -1812,7 +1829,7 @@ function showRevenueModal(totalRev) {
     const orderCount = tbl.orders?.filter(o => o.status !== 'done').length || 0;
     byType.dinein += tbl.sessionTotal;
     rows += `<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #f0e6d3;font-size:14px;">
-      <div><span style="font-weight:700;color:#2d1a0a;">Table ${i}</span> <span style="color:#7a5c3a;font-size:12px;">· ${tbl.guest || '—'} · ${tbl.pax || 0} pax</span></div>
+      <div><span style="font-weight:700;color:#2d1a0a;">Table ${i}</span> <span style="color:#7a5c3a;font-size:12px;">· ${E(tbl.guest || '—')} · ${tbl.pax || 0} pax</span></div>
       <div style="text-align:right;"><div style="font-weight:700;color:#8B1A0E;">₱${(tbl.sessionTotal||0).toLocaleString('en',{minimumFractionDigits:2})}</div><div style="font-size:11px;color:#7a5c3a;">${orderCount} active order(s)</div></div>
     </div>`;
   }
@@ -1844,7 +1861,7 @@ function showOccupiedTablesList(branchId) {
     rows += `<div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid #f0e6d3;cursor:pointer;" onclick="document.getElementById('modal').classList.remove('open');document.body.style.overflow='';openTableModal(${i},'${branchId}')">
       <div>
         <div style="font-weight:700;font-size:15px;color:#2d1a0a;">Table ${i}</div>
-        <div style="font-size:12px;color:#7a5c3a;">${tbl.guest || '—'} · ${tbl.pax || 0} pax · ${elapsed}</div>
+        <div style="font-size:12px;color:#7a5c3a;">${E(tbl.guest || '—')} · ${tbl.pax || 0} pax · ${elapsed}</div>
       </div>
       <div style="text-align:right;">
         <div style="font-size:11px;font-weight:700;color:${statusColors[tbl.status] || '#9e9e9e'};margin-bottom:3px;">${statusLabels[tbl.status] || tbl.status}</div>
@@ -1868,7 +1885,7 @@ function showBillRequestedList(branchId) {
     rows += `<div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid #f0e6d3;">
       <div>
         <div style="font-weight:700;font-size:15px;color:#2d1a0a;">Table ${i} <span style="font-size:12px;color:#1a4a7a;">💳 Bill Requested</span></div>
-        <div style="font-size:12px;color:#7a5c3a;">${tbl.guest || '—'} · ${tbl.pax || 0} pax</div>
+        <div style="font-size:12px;color:#7a5c3a;">${E(tbl.guest || '—')} · ${tbl.pax || 0} pax</div>
       </div>
       <div style="text-align:right;display:flex;flex-direction:column;gap:6px;align-items:flex-end;">
         <div style="font-weight:700;color:#8B1A0E;font-size:16px;">₱${(tbl.sessionTotal||0).toLocaleString('en',{minimumFractionDigits:2})}</div>

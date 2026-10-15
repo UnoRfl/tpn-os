@@ -11,7 +11,7 @@
 //         name: create-staff  → paste this file → Deploy
 // ═══════════════════════════════════════════════════════════════
 
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.117.2'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -68,11 +68,16 @@ Deno.serve(async (req) => {
     // Look up caller's role from staff table
     const { data: callerRow, error: roleErr } = await userClient
       .from('staff')
-      .select('role')
+      .select('role, employment_status')
       .eq('id', callerId)
       .single()
     if (roleErr || !callerRow) {
       return json({ error: 'No staff profile for caller' }, 403)
+    }
+    // A disabled or pending manager keeps a valid token until it expires;
+    // the database refuses them (sql/29), and so must this function.
+    if ((callerRow.employment_status ?? 'active') !== 'active') {
+      return json({ error: 'Your account is not active' }, 403)
     }
     const callerLevel = ROLE_HIERARCHY.indexOf(callerRow.role)
     if (callerLevel < ROLE_HIERARCHY.indexOf('manager')) {
