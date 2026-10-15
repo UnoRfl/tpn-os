@@ -1,6 +1,6 @@
 # TPN OS — Session Handoff
 
-**Last updated:** Oct 2, 2026 (rev 5 — UI/UX reliability pass, no migrations; see "Rev 5" below). Rev 4 (Aug 22): split bills, daily close, variance, working add-ons, low-stock alerts; migrations 18–28
+**Last updated:** Oct 16, 2026 (rev 6 — v2 overhaul, see "Rev 6" and GO-LIVE.md). Previously rev 5 — UI/UX reliability pass, no migrations; see "Rev 5" below). Rev 4 (Aug 22): split bills, daily close, variance, working add-ons, low-stock alerts; migrations 18–28
 **Deployed:** https://unorfl.github.io/tpn-os/
 **Repo:** https://github.com/UnoRfl/tpn-os
 **Supabase project ref:** `xjlqfpnzobfqxetgkkai` (single project, single branch)
@@ -57,6 +57,46 @@ tpn-os/
 | **Extensionless URLs** (`/tpn-table-menu`, `/tpn-dine-in-floor`) | ✅ live |
 
 ---
+
+## Rev 6 — v2 overhaul + security hotfix (Oct 15–16, 2026)
+
+**Live on main:** sql/29 (security hotfix) and sql/29c (size fix). Everything else
+is on `feature/tpn-v2-overhaul`; see GO-LIVE.md for the order to ship it.
+
+Rules that are new and must not be broken:
+
+- **One ordering door.** Every order — website, QR menu, counter POS — goes
+  through `submit_order()`, which prices lines from `menu_items` (+ modifiers)
+  on the server. anon has no direct access to `orders`/`order_items`; staff
+  have no direct INSERT on `order_items`. Do not add another path.
+- **Payment status is derived** from `public.payments` by
+  `private.settle_order()` (flag `tpn.settle`, like `tpn.recompute`). Nobody,
+  not even a manager, types "paid". HitPay payments are completed **only** by
+  the `hitpay-webhook` edge function after the HMAC check.
+- **Daily close counts received cash** (payments ledger), not declared cash.
+  The "declared" warning is gone with it, as the old note required.
+- **Senior / PWD** templates are `vat_treatment = 'vat_exempt'`: VAT removed +
+  20% on the covered share (`p_covered_amount`). `applied_discounts`
+  records `covered_amount` and `vat_exempt_amount` for BIR reporting.
+- **Clock-in/out are server functions** (`clock_in_verified`,
+  `clock_out_verified`); staff cannot write `attendance` directly (this closed
+  back-dating an open shift). Photos: private bucket, 60-day retention,
+  deleted through the Storage API by `purgeOld()` when a manager opens the queue.
+- **Stamps come only from the `trg_order_stamp` trigger** on paid orders.
+- **New portal tabs are modules** (`modules/*.js`, registered with
+  `TPN_MOD.register` from `tpn-kit.js`), not new cases in `index.html`.
+- **Escaping:** `E()` for HTML, `JA()` for values inside inline
+  `onclick="f('…')"` strings (HTML-decoding runs first, so `E()` alone is
+  not enough there).
+- **Asset version** is now `?v=20261016b` on all pages. Bump it on every
+  release that touches shared JS.
+- **Tests:** `cd tests/db && npm install && node run.mjs` replays every
+  migration into PGlite and runs `t_*.sql` (82 checks). Add a test with any
+  new RPC or policy. `prod-drift-after-17.sql` holds columns production has
+  that no migration creates.
+- Production drift found: migration 06 had never been applied (the public
+  menu query failed live). 29 adds those columns. Compare the live schema
+  with the migrations before trusting either.
 
 ## Rev 5 — UI/UX reliability pass (Oct 2, 2026)
 
