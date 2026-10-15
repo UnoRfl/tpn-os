@@ -203,13 +203,18 @@
     bind(name, container) {
       if (!container) return;
       const saved = this.load(name);
-      if (saved) container.querySelectorAll('[name]').forEach(el => {
-        if (saved[el.name] == null) return;
-        if (el.type === 'checkbox') el.checked = !!saved[el.name]; else if (!el.value) el.value = saved[el.name];
+      // Fields are keyed by name, or by id when they have none. Passwords
+      // and card-like fields are never stored.
+      const fields = () => [...container.querySelectorAll('input[name], textarea[name], select[name], input[id], textarea[id], select[id]')]
+        .filter(el => !/password|hidden|file/.test(el.type) && !el.hasAttribute('data-no-draft'));
+      const key = (el) => el.name || el.id;
+      if (saved) fields().forEach(el => {
+        if (saved[key(el)] == null) return;
+        if (el.type === 'checkbox') el.checked = !!saved[key(el)]; else if (!el.value) el.value = saved[key(el)];
       });
       const snap = () => {
         const d = {};
-        container.querySelectorAll('[name]').forEach(el => { d[el.name] = el.type === 'checkbox' ? el.checked : el.value; });
+        fields().forEach(el => { d[key(el)] = el.type === 'checkbox' ? el.checked : el.value; });
         this.save(name, d);
       };
       container.addEventListener('input', snap);
