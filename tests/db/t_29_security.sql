@@ -107,3 +107,18 @@ do $$ declare b uuid; m uuid; i int; hit boolean := false; begin
 end $$;
 
 select name, ok, left(detail,140) detail from public.t_results;
+
+do $$ declare b uuid; m public.menu_items%rowtype; r jsonb; k text; begin
+  -- What the pages really send: QR menu "2-3 pax", website with no size.
+  select id into b from public.branches limit 1;
+  insert into public.menu_items (name, price, is_available, pax_options) values ('Size Test', 300, true, '{"2-3": 300, "4-6": 520}') returning * into m;
+  r := public.submit_order(b, 'pickup', jsonb_build_array(jsonb_build_object('menu_item_id', m.id, 'pax_size', '4-6 pax')));
+  insert into public.t_results values ('size "4-6 pax" accepted', (r->>'total')::numeric = 520, r::text);
+  r := public.submit_order(b, 'pickup', jsonb_build_array(jsonb_build_object('menu_item_id', m.id)));
+  insert into public.t_results values ('no size = menu price', (r->>'total')::numeric = 300, r::text);
+  begin perform public.submit_order(b, 'pickup', jsonb_build_array(jsonb_build_object('menu_item_id', m.id, 'pax_size', '9-99')));
+    insert into public.t_results values ('made-up size refused', false, '');
+  exception when others then insert into public.t_results values ('made-up size refused', sqlerrm like 'unknown_size%', sqlerrm); end;
+end $$;
+
+select name, ok, detail from public.t_results;

@@ -158,15 +158,16 @@ begin
     if v_qty < 1 or v_qty > 50 then
       raise exception 'bad_quantity: % (1 to 50 per line)', v_mi.name using errcode = '22023';
     end if;
-    v_pax := nullif(btrim(coalesce(v_item->>'pax_size', '')), '');
-    if v_mi.pax_options is not null and jsonb_typeof(v_mi.pax_options) = 'object' and v_mi.pax_options <> '{}'::jsonb then
-      if v_pax is null then select key into v_pax from jsonb_each(v_mi.pax_options) limit 1; end if;
-      if not (v_mi.pax_options ? v_pax) then
+    -- Size as in sql/29c: "2-3" or "2-3 pax"; listed size → its price,
+    -- no size → the menu price.
+    v_pax := nullif(regexp_replace(btrim(coalesce(v_item->>'pax_size', '')), '\s*pax$', '', 'i'), '');
+    if v_pax is not null then
+      if v_mi.pax_options is null or jsonb_typeof(v_mi.pax_options) <> 'object' or not (v_mi.pax_options ? v_pax) then
         raise exception 'unknown_size: % (%)', v_mi.name, v_pax using errcode = '22023';
       end if;
       v_price := (v_mi.pax_options->>v_pax)::numeric;
     else
-      v_pax := null; v_price := v_mi.price;
+      v_price := v_mi.price;
     end if;
     if v_price is null or v_price < 0 then
       raise exception 'item_has_no_price: %', v_mi.name using errcode = '22023';
