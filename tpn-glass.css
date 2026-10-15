@@ -370,3 +370,7 @@ details.tpn-menu > summary::-webkit-details-marker { display: none; }
 .ci-check { border: 0; padding: 0; margin: 6px 0; display: grid; grid-template-columns: 1fr 1fr; gap: 4px 10px; font-size: 13px; }
 .ci-check label { display: flex; gap: 6px; align-items: center; min-height: 32px; }
 .ci-btns { display: flex; gap: 6px; flex-wrap: wrap; }
+
+/* Export / Import menus in page headers (modules/excel-io.js) */
+.tpn-io { display: inline-flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-left: auto; }
+.portal-header { flex-wrap: wrap; gap: 10px; }
