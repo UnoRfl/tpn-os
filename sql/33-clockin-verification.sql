@@ -79,6 +79,7 @@ create index if not exists idx_attendance_review on public.attendance (verify_st
 
 -- Staff lose direct writes; managers keep the correction path.
 drop policy if exists attendance_self_insert on public.attendance;
+drop policy if exists attendance_self_write on public.attendance;   -- live-only duplicate of self_insert
 drop policy if exists attendance_self_update on public.attendance;
 drop policy if exists attendance_manager_update on public.attendance;
 create policy attendance_manager_update on public.attendance for update to authenticated
