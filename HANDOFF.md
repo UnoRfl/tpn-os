@@ -1,6 +1,6 @@
 # TPN OS — Session Handoff
 
-**Last updated:** Oct 16, 2026 (rev 6 — v2 overhaul, see "Rev 6" and GO-LIVE.md). Previously rev 5 — UI/UX reliability pass, no migrations; see "Rev 5" below). Rev 4 (Aug 22): split bills, daily close, variance, working add-ons, low-stock alerts; migrations 18–28
+**Last updated:** Oct 17, 2026 (rev 7 — portal split out of the website, hubs, Counter on the floor screen; see "Rev 7"). Rev 6 (Oct 16 — v2 overhaul, see "Rev 6" and GO-LIVE.md). Previously rev 5 — UI/UX reliability pass, no migrations; see "Rev 5" below). Rev 4 (Aug 22): split bills, daily close, variance, working add-ons, low-stock alerts; migrations 18–28
 **Deployed:** https://unorfl.github.io/tpn-os/
 **Repo:** https://github.com/UnoRfl/tpn-os
 **Supabase project ref:** `xjlqfpnzobfqxetgkkai` (single project, single branch)
@@ -14,7 +14,11 @@
 ### File layout
 ```
 tpn-os/
-├── index.html                 ~5500 lines — public site + staff portal (single-page app)
+├── index.html                 public website only (~130 KB)
+├── portal.html                staff portal (~460 KB); index.html?view=… redirects here
+├── tpn-app.css                styles shared by index.html + portal.html (cached once)
+├── tpn-glass.css              glass layer; real blur only on floating chrome (see Rev 7)
+├── tpn-ui.css                 portal controls for non-portal pages (the floor screen hosts the Counter)
 ├── tpn-supabase.js            ~625 lines — TPN.* helper layer over supabase-js
 ├── config.js                  Supabase URL + anon key (never commit real secrets from other envs)
 ├── tpn-table-menu.html        ~870 lines — customer-facing QR-scanned menu
@@ -57,6 +61,14 @@ tpn-os/
 | **Extensionless URLs** (`/tpn-table-menu`, `/tpn-dine-in-floor`) | ✅ live |
 
 ---
+
+## Rev 7 — faster pages, hubs, Counter on the floor (Oct 17, 2026)
+
+- **Split:** `index.html` is the website, `portal.html` the staff portal, `tpn-app.css` their shared styles. Customers no longer download ~400 KB of portal script. The Staff Login button, `?view=` bookmarks and the wall screens' "Go to Staff Login" all lead to `portal.html`. A portal change goes in `portal.html`; a shared style change in `tpn-app.css`.
+- **Speed:** `backdrop-filter` only on the top bar, menus, dialogs and drawers (a handful on screen at once). Cards, tiles, buttons and table headers use a frosted tint with no blur — every blurred box is re-sampled on each scroll frame. Overlays blur only while open. The paper grain no longer blends. Kitchen-ticket pulses animate opacity, not box-shadow. The home carousel and the portal's timed re-renders pause when off screen or in a hidden tab.
+- **Hubs:** the portal sidebar is ~10 hubs (Service, Team, Money …) instead of 34 rows. A hub's pages are tabs across the top (one dropdown on phones); each hub reopens the tab used last. The map is `TPN_HUBS` in `portal.html`; a new module tab whose id is not in it lands in "More".
+- **Counter = floor screen:** the POS is a tab on `tpn-dine-in-floor` ("+ Order" on a table opens it for that table). Dine-in orders are paid at **Close table**, which now takes cash for every open order at the table in one transaction (`settle_table_cash`, sql/35) before completing them; card or bank go through "Other way…" (the per-order payment panel). Before this, closing a table recorded no money at all. Take-out and delivery still pay at once.
+- **Fixed on the way:** the Add-ons & choices module was never loaded by any page; Preferences → Change password called a function that did not exist.
 
 ## Rev 6 — v2 overhaul + security hotfix (Oct 15–16, 2026)
 

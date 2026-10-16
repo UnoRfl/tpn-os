@@ -5,11 +5,11 @@
 | Step | State |
 |---|---|
 | 0 Leaked password protection, backups | **Skipped**: needs a paid Supabase plan. Revisit if the plan is upgraded. |
-| 1 Database (29a–34) | ✅ Live. Advisors clean apart from the intended public functions. |
+| 1 Database (29a–35) | ✅ Live. Advisors clean apart from the intended public functions. 35 (pay a whole table at Close table) added Oct 17. |
 | 2 Website + portal | ✅ Merged to `main` and live. FAQs with `[Fill in]` stay unpublished (open questions on hold). |
 | 3 Clock-in | ⏸ Waiting: needs someone at the restaurant (trust Wi-Fi, phone camera test). |
 | 4 HitPay | ⏸ Waiting on the HitPay meeting. "How do I pay?" FAQ says cash/bank only until then — put online payment back in when it goes live. |
-| 5 POS / cash drawer | ✅ Usable now. No add-ons set up; add them only when the menu actually has paid extras. |
+| 5 POS / cash drawer | ✅ Usable now — the Counter is a tab on the floor screen (Floor & Counter); dine-in tables pay at Close table. No add-ons set up; add them only when the menu actually has paid extras. |
 | 6 Stamp cards | ⏸ Off on purpose: the reward (₱300 min, 10 stamps, free dish ≤ ₱300) is a placeholder and costs real money. When the owner approves an offer: Rewards → set it, tick on. The footer link appears by itself; re-publish the stamp-card FAQ in the Website tab. |
 | Open questions | On hold. |
 
@@ -34,6 +34,7 @@ Run each file **on its own**, in this order. All are safe to re-run.
 | `sql/32-pos-cash-modifiers.sql` | counter POS, cash drawer shifts, add-ons & choices, 86 |
 | `sql/33-clockin-verification.sql` | trusted network + clock-in photo (creates the private `attendance-photos` bucket) |
 | `sql/34-stamp-cards.sql` | stamp cards (starts **off**) |
+| `sql/35-table-settle.sql` | Close table takes cash for the whole table in one go |
 
 Then: Supabase → Advisors → Security. Expected warnings only: the customer functions (`submit_order`, `track_order`, `claim_stamp_card`, `my_stamp_card`, `stamp_card_code`, `my_guest_profile`, `addon_suggestions`, `signal_*`) are public on purpose.
 

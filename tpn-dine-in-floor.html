@@ -15,10 +15,11 @@
   // refused by the browser unless its hash matches.
   if (!window.supabase) document.write('<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js" integrity="sha384-Rj26LVGvoeRVR6+mwQmFfcR3QOBEwT+ZmuCWpuiqeTzJpCs0ER4ITAWGb4Hiy3Ok" crossorigin="anonymous"><' + '/script>');
 </script>
-<script src="config.js?v=20261016c"></script>
-<script src="tpn-supabase.js?v=20261016c"></script>
-<script src="tpn-kit.js?v=20261016c"></script>
-<link rel="stylesheet" href="tpn-glass.css?v=20261016c">
+<script src="config.js?v=20261017a"></script>
+<script src="tpn-supabase.js?v=20261017a"></script>
+<script src="tpn-kit.js?v=20261017a"></script>
+<link rel="stylesheet" href="tpn-glass.css?v=20261017a">
+<link rel="stylesheet" href="tpn-ui.css?v=20261017a">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
 <meta name="theme-color" content="#1a0a00">
 <title>Tyo Paeng Nyo · Dine-In Floor</title>
@@ -139,6 +140,12 @@
   .table-card.occupied { border-color: var(--amber); }
   .table-card.active-orders { border-color: var(--brick); }
   .table-card.ready { border-color: var(--green); }
+  .close-pay { background: var(--cream); border-radius: 12px; padding: 14px 16px; margin-bottom: 4px; }
+  .close-pay-input { width: 100%; font: 700 22px/1.2 'DM Sans', sans-serif; padding: 10px 12px; border-radius: 10px; border: 1.5px solid var(--border); background: #fff; color: var(--text); }
+  .close-pay-input.small { font-size: 15px; font-weight: 500; padding: 8px 10px; }
+  .close-pay-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+  .close-pay-chips button { min-height: 44px; padding: 0 16px; border-radius: 999px; border: 1px solid var(--border); background: #fff; font: 600 14px 'DM Sans', sans-serif; cursor: pointer; color: var(--text); }
+  .close-pay-change { margin-top: 10px; font-size: 16px; min-height: 22px; }
   .table-card.bill-requested { border-color: var(--blue); animation: borderPulse 1.5s infinite; }
   @keyframes borderPulse { 0%,100%{border-color:var(--blue)} 50%{border-color:#5090d0} }
 
@@ -356,7 +363,7 @@
   <div class="g-title">Tyo Paeng Nyo</div>
   <div class="g-spin"></div>
   <div class="g-sub" id="tpn-auth-msg">Checking your login…</div>
-  <button class="g-btn" id="tpn-auth-btn" style="display:none;" onclick="window.location.href='index.html'">Go to Staff Login</button>
+  <button class="g-btn" id="tpn-auth-btn" style="display:none;" onclick="window.location.href='portal.html'">Go to Staff Login</button>
 </div>
 
 <!-- TOPBAR -->
@@ -379,6 +386,7 @@
 <!-- TABS -->
 <div class="tab-nav" id="tab-nav">
   <button class="tab-btn active" onclick="showTab('floor')" id="tab-floor">🪑 Floor Map <span class="badge" id="badge-occupied">0</span></button>
+  <button class="tab-btn" onclick="showTab('counter')" id="tab-counter" hidden>🧾 Counter</button>
   <button class="tab-btn" onclick="showTab('orders')" id="tab-orders">📋 Dine-In Orders <span class="badge amber" id="badge-orders">0</span></button>
   <button class="tab-btn" data-manager-only onclick="showTab('menu')" id="tab-menu">🍽️ Menu Status</button>
   <button class="tab-btn" data-manager-only onclick="showTab('settings')" id="tab-settings">⚙️ Settings</button>
@@ -388,6 +396,9 @@
 <div class="content" id="main-content"></div>
 
 <!-- MODAL -->
+<div class="modal-overlay" id="uiModal" onclick="if (event.target === this) closeModal()">
+  <div class="tpn-ui ui-modal" id="uiModalBox" role="dialog" aria-modal="true"></div>
+</div>
 <div class="modal-overlay" id="modal" onclick="closeModal(event)">
   <div class="modal-box" onclick="event.stopPropagation()">
     <div class="modal-top">
@@ -578,6 +589,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (dbTables && dbTables.length) branches[0].tables = dbTables.length;
     }
   } catch(e) { console.warn('table count fetch:', e); }
+  try { await TPN.loadPermissions(); } catch (e) { /* falls back to the tier */ }
+  document.getElementById('tab-counter').hidden = !canCounter();
   initTableStates();
   seedTableStates();
   updateBadges();
@@ -913,6 +926,7 @@ function checkCallStaff() {
 function showTab(tab) {
   // Menu Status and Settings change the menu and the branch config —
   // manager territory. The screen account is bounced back to the floor.
+  if (tab === 'counter' && !canCounter()) { tab = 'floor'; }
   if (IS_DISPLAY_ACCOUNT && (tab === 'menu' || tab === 'settings')) {
     showToast('That section is for managers.');
     tab = 'floor';
@@ -925,6 +939,12 @@ function showTab(tab) {
 
 function renderTab() {
   const el = document.getElementById('main-content');
+  if (currentTab === 'counter') {
+    // Realtime updates re-render the active tab; the Counter keeps its own
+    // state, so only draw it when it is not already on screen.
+    if (!document.getElementById('counterHost')) { el.innerHTML = '<div class="tpn-ui" id="counterHost"></div>'; TPN_MOD.render('pos', document.getElementById('counterHost'), 'floor'); }
+    return;
+  }
   if (currentTab === 'floor') el.innerHTML = renderFloor();
   else if (currentTab === 'orders') el.innerHTML = renderOrders();
   else if (currentTab === 'menu') el.innerHTML = renderMenuStatus();
@@ -1019,10 +1039,11 @@ function renderFloor() {
         <div class="table-actions">
           ${status !== 'empty' ? `
             <button class="t-btn view" onclick="event.stopPropagation(); openTableModal(${i}, '${branch.id}')">View</button>
+            ${canCounter() ? `<button class="t-btn advance" onclick="event.stopPropagation(); floorAddOrder(${i}, '${branch.id}')">+ Order</button>` : ''}
             ${IS_DISPLAY_ACCOUNT ? '' : `
             ${tbl.billRequested ? `<button class="t-btn bill" onclick="event.stopPropagation(); closeTable(${i}, '${branch.id}')">Close Table</button>` : `<button class="t-btn advance" onclick="event.stopPropagation(); markBillReady(${i}, '${branch.id}')">Bill</button>`}
             <button class="t-btn clear" onclick="event.stopPropagation(); requestClearTable(${i}, '${branch.id}')">Clear</button>`}
-          ` : `<button class="t-btn view" onclick="event.stopPropagation(); openQRModal(${i}, '${JA(branch.name)}', '${qrUrl}')">Open QR</button>`}
+          ` : `<button class="t-btn view" onclick="event.stopPropagation(); openQRModal(${i}, '${JA(branch.name)}', '${qrUrl}')">Open QR</button>${canCounter() ? `<button class="t-btn advance" onclick="event.stopPropagation(); floorAddOrder(${i}, '${branch.id}')">+ Order</button>` : ''}`}
         </div>
       </div>
     </div>`;
@@ -1328,9 +1349,11 @@ async function closeTable(tableNum, branchId) {
   if (!tbl) return;
 
   // Pull the live DB numbers for every active order at this table so subtotal /
-  // discount / total reflect any voids or discounts applied since page load.
+  // discount / total reflect any voids or discounts applied since page load,
+  // and ask the database what is still owed (an order paid online on the QR
+  // menu owes nothing here).
   const orderIds = (tbl.orders || []).filter(o => o.dbId && o.status !== 'done').map(o => o.dbId);
-  let subtotalSum = 0, discountSum = 0, totalSum = 0;
+  let subtotalSum = 0, discountSum = 0, totalSum = 0, dueSum = 0, dueKnown = false;
   const applied = [];
   if (orderIds.length) {
     for (const id of orderIds) {
@@ -1343,11 +1366,18 @@ async function closeTable(tableNum, branchId) {
         ad.forEach(a => applied.push(Object.assign({}, a, { _orderId: id })));
       } catch(e) { console.warn('closeTable refresh failed for', id, e); }
     }
+    try {
+      const dues = await TPN.ordersAmountDue(orderIds);
+      dueSum = dues.reduce((a, d) => a + Number(d.amount_due || 0), 0);
+      dueKnown = true;
+    } catch (e) { console.warn('closeTable: amount due', e); }
   } else {
     totalSum = tbl.sessionTotal || 0;
     subtotalSum = totalSum;
   }
   tbl.sessionTotal = totalSum;
+  dueSum = Math.round(dueSum * 100) / 100;
+  window._floorClose = { tableNum, branchId, orderIds, due: dueSum };
 
   const orderIdsJson = JSON.stringify(orderIds).replace(/"/g,'&quot;');
   const appliedBlock = applied.length
@@ -1359,8 +1389,23 @@ async function closeTable(tableNum, branchId) {
     ? `<button class="topbar-btn" style="width:100%;margin-bottom:10px;background:transparent;color:var(--brick);border:1px solid var(--brick);" onclick='openFloorDiscountPicker(${orderIdsJson}, "Table ${tableNum}", () => closeTable(${tableNum}, "${branchId}"))'>💸 Apply / manage discounts</button>`
     : '';
 
+  // Money first: the table closes only once what it owes has come in.
+  const owes = dueKnown && dueSum > 0;
+  const chips = owes ? [...new Set([dueSum, Math.ceil(dueSum / 100) * 100, Math.ceil(dueSum / 500) * 500, Math.ceil(dueSum / 1000) * 1000])] : [];
+  const payBlock = !orderIds.length ? '' : !dueKnown
+    ? `<p style="color:var(--brick);font-size:13px;margin-bottom:10px">Could not check what is owed. Check the connection and try again.</p>`
+    : !owes
+      ? `<p style="font-size:14px;margin-bottom:10px">✅ Already paid. Nothing to collect.</p>`
+      : `<div class="close-pay">
+          <label for="closeTendered" style="display:block;font-size:13px;font-weight:600;margin-bottom:6px">Cash received</label>
+          <input id="closeTendered" class="close-pay-input" type="number" inputmode="decimal" min="0" step="0.01" placeholder="₱" oninput="floorCloseCalc()">
+          <div class="close-pay-chips">${chips.map(c => `<button type="button" onclick="floorCloseChip(${c})">₱${c.toLocaleString('en', { minimumFractionDigits: c % 1 ? 2 : 0 })}</button>`).join('')}</div>
+          <label for="closeTip" style="display:block;font-size:12px;color:var(--text-muted);margin:8px 0 4px">Tip (optional)</label>
+          <input id="closeTip" class="close-pay-input small" type="number" inputmode="decimal" min="0" step="0.01" value="" oninput="floorCloseCalc()">
+          <div id="closeChange" class="close-pay-change" aria-live="polite"></div>
+        </div>`;
+
   openModal('Close Table ' + tableNum, `
-    <p style="margin-bottom:14px;color:var(--text-muted)">Confirm payment received and close this table session.</p>
     <div style="background:var(--cream);border-radius:12px;padding:16px;margin-bottom:10px">
       <div style="display:flex;justify-content:space-between;margin-bottom:8px;font-size:14px"><span>Guest</span><strong>${E(tbl.guest||'—')}</strong></div>
       <div style="display:flex;justify-content:space-between;margin-bottom:8px;font-size:14px"><span>Pax</span><strong>${tbl.pax||1}</strong></div>
@@ -1369,66 +1414,105 @@ async function closeTable(tableNum, branchId) {
         ${appliedBlock}
         ${discountSum>0?`<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px;font-weight:700;"><span>Total discount</span><span style="color:var(--brick)">−₱${discountSum.toFixed(2)}</span></div>`:''}
       </div>
-      <div style="display:flex;justify-content:space-between;font-size:16px"><span>Total Paid</span><strong style="color:var(--brick)">₱${totalSum.toFixed(2)}</strong></div>
+      <div style="display:flex;justify-content:space-between;font-size:16px"><span>Total</span><strong>₱${totalSum.toFixed(2)}</strong></div>
+      ${owes ? `<div style="display:flex;justify-content:space-between;font-size:18px;margin-top:6px"><span>To collect</span><strong style="color:var(--brick)">₱${dueSum.toFixed(2)}</strong></div>` : ''}
     </div>
     ${discountBtn}
+    ${payBlock}
   `, [
     { label: 'Cancel', cls: 'secondary', fn: 'closeModal()' },
-    { label: '✓ Confirm & Close Table', cls: 'primary', fn: `confirmCloseTable(${tableNum}, '${branchId}')` }
+    ...(owes && window.openPaymentPanel ? [{ label: 'Other way…', cls: 'secondary', fn: 'floorPayOther()' }] : []),
+    owes
+      ? { label: '✓ Cash received · Close table', cls: 'primary', fn: `confirmCloseTable(${tableNum}, '${branchId}', 'cash')` }
+      : { label: dueKnown || !orderIds.length ? '✓ Close table' : '↻ Try again', cls: 'primary', fn: dueKnown || !orderIds.length ? `confirmCloseTable(${tableNum}, '${branchId}')` : `closeTable(${tableNum}, '${branchId}')` }
   ]);
+  if (owes) setTimeout(() => document.getElementById('closeTendered')?.focus(), 50);
+}
+function floorCloseChip(v) { const i = document.getElementById('closeTendered'); if (i) { i.value = v; floorCloseCalc(); } }
+function floorCloseCalc() {
+  const c = window._floorClose; if (!c) return;
+  const t = Number(document.getElementById('closeTendered')?.value || 0);
+  const tip = Number(document.getElementById('closeTip')?.value || 0);
+  const ch = Math.round((t - c.due - tip) * 100) / 100;
+  const el = document.getElementById('closeChange'); if (!el) return;
+  el.innerHTML = !t ? '' : ch >= 0 ? `Change: <strong>₱${ch.toFixed(2)}</strong>` : `<span style="color:var(--brick)">Short by ₱${(-ch).toFixed(2)}</span>`;
+}
+// Card terminal, bank transfer, or a part payment: the per-order payment panel.
+function floorPayOther() {
+  const c = window._floorClose; if (!c || !c.orderIds.length) return;
+  closeModal();
+  if (c.orderIds.length === 1) { openPaymentPanel(c.orderIds[0]); return; }
+  openModal('Which order?', `<p style="color:var(--text-muted);margin-bottom:10px">Each round at the table is its own bill. Pick one. Cash for the whole table is on the Close Table screen.</p>
+    ${c.orderIds.map(id => { const o = dineInOrders.find(x => x.dbId === id); return `<button class="topbar-btn" style="width:100%;margin-bottom:8px" onclick="closeModal();openPaymentPanel('${JA(id)}')">${E(o ? o.ref : id.slice(0, 8))} · ₱${N(o ? o.total : 0)}</button>`; }).join('')}`,
+    [{ label: 'Back', cls: 'secondary', fn: `closeTable(${c.tableNum}, '${c.branchId}')` }]);
 }
 
 /* ────────────────────────────────────────────────────────────────
    Actually close the table.
 
-   This used to be `clearTable(); closeModal();` — purely local. No
-   order was written to 'completed' and neither signal was
-   acknowledged, so a refresh brought the table straight back,
-   occupied and still flagged for billing. The cash was taken and the
-   system never knew.
+   This used to be `clearTable(); closeModal();` — purely local. Then it
+   completed the orders but recorded no money, so they sat as unpaid in
+   the daily close and the cash never reached the drawer report.
 
-   Now: every live order at the table is advanced to completed, both
-   table signals are cleared server-side, and only then is the local
-   state reset.
+   Now: cash for everything still owed is recorded in one transaction
+   (settle_table_cash, sql/35), then every live order is advanced to
+   completed, both table signals are cleared server-side, and only then
+   is the local state reset.
    ──────────────────────────────────────────────────────────────── */
-async function confirmCloseTable(tableNum, branchId) {
+let _closingTable = false;
+async function confirmCloseTable(tableNum, branchId, mode) {
+  if (_closingTable) return;
   const key = branchId + '_' + tableNum;
   const tbl = tableStates[key];
   if (!tbl) { closeModal(); return; }
 
   const live = (tbl.orders || []).filter(o => o.dbId && o.status !== 'done');
-  let ok = 0, failed = 0, lastErr = '';
-
-  for (const o of live) {
-    try {
-      await TPN.advanceOrderStatus(o.dbId, 'completed', 'floor_panel');
-      o.status = 'done';
-      ok++;
-    } catch (e) {
-      failed++;
-      lastErr = e.message || String(e);
-      console.error('close table — could not complete order', o.dbId, e);
+  _closingTable = true;
+  try {
+    if (mode === 'cash') {
+      const c = window._floorClose || {};
+      const tendered = Number(document.getElementById('closeTendered')?.value || 0);
+      const tip = Number(document.getElementById('closeTip')?.value || 0);
+      if (!tendered) { showToast('Enter the cash received.'); document.getElementById('closeTendered')?.focus(); return; }
+      if (tendered + 0.001 < c.due + tip) { showToast(`Not enough cash: need ₱${(c.due + tip).toFixed(2)}.`); return; }
+      try {
+        const r = await TPN.settleTableCash(live.map(o => o.dbId), tendered, { tip });
+        showToast(`💵 Paid · change ₱${Number(r.change_due || 0).toFixed(2)}`);
+      } catch (e) { showToast('⚠️ ' + (e.message || 'Payment not recorded')); return; }
     }
-  }
 
-  // Clear the call-staff / bill-request flags on the table row itself,
-  // otherwise loadOrdersFromSupabase() re-raises them on next load.
-  await clearTableSignals(tableNum, branchId);
-  removeRequest(branchId + '_' + tableNum, 'call');
-  removeRequest(branchId + '_' + tableNum, 'bill');
+    let ok = 0, failed = 0, lastErr = '';
+    for (const o of live) {
+      try {
+        await TPN.advanceOrderStatus(o.dbId, 'completed', 'floor_panel');
+        o.status = 'done';
+        ok++;
+      } catch (e) {
+        failed++;
+        lastErr = e.message || String(e);
+        console.error('close table — could not complete order', o.dbId, e);
+      }
+    }
 
-  closeModal();
+    // Clear the call-staff / bill-request flags on the table row itself,
+    // otherwise loadOrdersFromSupabase() re-raises them on next load.
+    await clearTableSignals(tableNum, branchId);
+    removeRequest(branchId + '_' + tableNum, 'call');
+    removeRequest(branchId + '_' + tableNum, 'bill');
 
-  if (failed) {
-    // Leave the table on screen so nobody assumes it is settled.
-    showToast(`⚠️ Closed ${ok}/${live.length} order(s). ${lastErr}`);
-    updateBadges();
-    renderTab();
-    return;
-  }
+    closeModal();
 
-  clearTable(tableNum, branchId);
-  if (live.length) showToast(`✅ Table ${tableNum} closed · ${live.length} order(s) completed.`);
+    if (failed) {
+      // Leave the table on screen so nobody assumes it is settled.
+      showToast(`⚠️ Closed ${ok}/${live.length} order(s). ${lastErr}`);
+      updateBadges();
+      renderTab();
+      return;
+    }
+
+    clearTable(tableNum, branchId);
+    if (live.length) showToast(`✅ Table ${tableNum} closed · ${live.length} order(s) completed.`);
+  } finally { _closingTable = false; }
 }
 
 // ─── FLOOR-SIDE DISCOUNT PICKER ─────────────────────────────────
@@ -1923,6 +2007,7 @@ function openModal(title, content, buttons = []) {
 function closeModal(e) {
   if (e && e.target !== document.getElementById('modal')) return;
   document.getElementById('modal').classList.remove('open');
+  document.getElementById('uiModal')?.classList.remove('open');
   document.body.style.overflow = '';
 }
 
@@ -1932,6 +2017,49 @@ function showToast(msg) {
   el.textContent = msg; el.classList.add('show');
   setTimeout(() => el.classList.remove('show'), 2400);
 }
+
+/* ─── COUNTER (modules/pos.js) + PAYMENTS (modules/payments.js) ───
+   The counter used to be a portal tab. It lives here now, beside the
+   tables it rings up for: "+ Order" on a table opens it as Dine-in for
+   that table, the Counter tab handles take-out and delivery, and Close
+   Table takes the money. The modules were written for the portal, so
+   these adapters give them the portal's helpers. */
+function canCounter() { return !IS_DISPLAY_ACCOUNT && !!(window.TPN && TPN.can && TPN.can('pos.use')); }
+window.toast = (m) => showToast(m);
+window.showModal = function (html) {
+  document.getElementById('uiModalBox').innerHTML = html;
+  document.getElementById('uiModal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+};
+window.getPref = window.getPref || function (k) {
+  try { return (JSON.parse(localStorage.getItem('tpn.prefs') || '{}') || {})[k]; } catch (e) { return undefined; }
+};
+window.loadErrorPanel = window.loadErrorPanel || function (what, err, retryJs) {
+  return '<div class="panel" role="alert" style="padding:28px;text-align:center"><div style="font-size:32px">⚠️</div>'
+    + '<p>Couldn’t load ' + E(what) + ': ' + E((err && err.message) || String(err)) + '</p>'
+    + (retryJs ? '<button class="btn-next" onclick="' + E(retryJs) + '">↻ Try again</button>' : '') + '</div>';
+};
+window.route = function (id) { if (id === 'pos') { document.getElementById('counterHost')?.remove(); showTab('counter'); } };
+// One click at a time on buttons that write (same contract as the portal's).
+window.guardAsync = window.guardAsync || function (name) {
+  const fn = window[name]; if (typeof fn !== 'function' || fn._guarded) return;
+  let busy = false;
+  const g = async function (...a) { if (busy) return; busy = true; try { return await fn.apply(this, a); } finally { busy = false; } };
+  g._guarded = true; window[name] = g;
+};
+function floorAddOrder(tableNum, branchId) {
+  const tbl = tableStates[branchId + '_' + tableNum] || {};
+  if (window.posStartFor) posStartFor({ type: 'dine_in', table: tableNum, name: tbl.guest || '' });
+  document.getElementById('counterHost')?.remove();
+  showTab('counter');
+}
+// After a dine-in order is sent, go back to the floor so the table shows it.
+window.onPosSent = function (o, type) {
+  if (type === 'dine_in') setTimeout(() => { showTab('floor'); reloadFloor && reloadFloor(); }, 600);
+};
 </script>
+<script src="vendor/qrcode-generator-1.4.4.js"></script>
+<script src="modules/payments.js?v=20261017a"></script>
+<script src="modules/pos.js?v=20261017a"></script>
 </body>
 </html>

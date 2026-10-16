@@ -1,0 +1,60 @@
+/* ═══════════════════════════════════════════════════════════════
+   TPN UI — the portal's base controls, for pages that are not the portal.
+
+   The floor screen hosts the Counter (modules/pos.js) and the payment
+   panel (modules/payments.js). Those were written for the portal and
+   expect its buttons, fields, dialog rows and colour tokens. Everything
+   here is scoped to .tpn-ui so it cannot restyle the host page; wrap the
+   area that renders portal modules in class="tpn-ui".
+
+   Load after tpn-glass.css. Values match index.html (Daylight theme).
+   ═══════════════════════════════════════════════════════════════ */
+.tpn-ui {
+  --brick: #8B1A0E; --brick-deep: #5C1008; --ember: #C43D1A; --amber: #D4720A;
+  --gold: #B8800F; --gold-light: #D4960F; --gold-hi: #E8B340;
+  --bg: #F2E4C7; --bg-2: #EDDCB8; --surface: #F7EDD3; --surface-2: #E8D4A8; --surface-3: #DEC592;
+  --ink: #2B1810; --ink-soft: #4A2F1D; --ink-muted: #6B4A35; --ink-faint: #9C7F65;
+  --line: rgba(139, 26, 14, 0.16); --line-soft: rgba(139, 26, 14, 0.08);
+  --shadow-sm: 0 1px 2px rgba(74, 47, 29, 0.10);
+  --success: #5C8A3A; --warn: #C8881A; --danger: #B22A1A; --info: #2C6B8A;
+  color: var(--ink);
+}
+
+.tpn-ui .panel { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 20px; box-shadow: var(--shadow-sm); }
+
+.tpn-ui .portal-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 18px; flex-wrap: wrap; }
+.tpn-ui .portal-header h1 { font-family: 'Playfair Display', serif; font-size: 28px; font-weight: 700; color: var(--ink); margin: 0; letter-spacing: -0.015em; line-height: 1.1; }
+.tpn-ui .portal-header-sub { color: var(--ink-muted); font-size: 14px; max-width: 62ch; line-height: 1.5; }
+
+.tpn-ui .btn-next { background: var(--ember); color: #FFF8E8; border: none; padding: 12px 28px; border-radius: 999px; cursor: pointer; font: 600 15px 'DM Sans', sans-serif; min-height: 44px; }
+.tpn-ui .btn-next:disabled { opacity: .45; cursor: not-allowed; }
+.tpn-ui .btn-back, .tpn-ui .btn-ghost { background: transparent; border: 1px solid var(--line); color: var(--ink-muted); padding: 10px 20px; border-radius: 999px; cursor: pointer; font: 600 14px 'DM Sans', sans-serif; min-height: 44px; }
+.tpn-ui .btn-back:hover, .tpn-ui .btn-ghost:hover { border-color: var(--ink); color: var(--ink); }
+.tpn-ui .table-btn { background: var(--surface); border: 1px solid var(--line); color: var(--ink); padding: 8px 14px; border-radius: 999px; cursor: pointer; font: 600 13px 'DM Sans', sans-serif; min-height: 40px; }
+.tpn-ui .table-btn[aria-pressed="true"] { background: var(--brick); color: #fff; border-color: var(--brick); }
+.tpn-ui .qty-btn { background: transparent; border: none; color: var(--ink); width: 40px; height: 40px; font-size: 18px; cursor: pointer; border-radius: 50%; }
+.tpn-ui .qty-btn:hover { background: var(--surface-3); }
+
+.tpn-ui .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+.tpn-ui .form-row.full { grid-template-columns: 1fr; }
+.tpn-ui .form-label { display: block; font-size: 12px; color: var(--ink-muted); font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; margin: 8px 0 6px; }
+.tpn-ui .form-input { width: 100%; box-sizing: border-box; background: var(--bg); border: 1.5px solid var(--line); border-radius: 10px; padding: 11px 13px; color: var(--ink); font: 400 15px 'DM Sans', sans-serif; }
+.tpn-ui .form-input:focus { outline: none; border-color: var(--gold); box-shadow: 0 0 0 3px rgba(184, 128, 15, 0.14); }
+.tpn-ui .form-input::placeholder { color: var(--ink-faint); }
+.tpn-ui .form-error { color: var(--danger); font-size: 13px; margin-top: 6px; min-height: 1em; }
+.tpn-ui .pref-row-hint { font-size: 12px; color: var(--ink-faint); margin-top: 2px; line-height: 1.45; }
+
+.tpn-ui .data-table { width: 100%; border-collapse: collapse; background: var(--surface); }
+.tpn-ui .data-table th { text-align: left; padding: 10px 12px; font-size: 11px; font-weight: 700; color: var(--ink-muted); letter-spacing: 0.1em; text-transform: uppercase; background: var(--surface-2); }
+.tpn-ui .data-table td { padding: 10px 12px; border-top: 1px solid var(--line-soft); font-size: 13px; }
+
+/* Portal-style dialogs: <div class="modal-title"> + .modal-content + .modal-actions */
+.tpn-ui.ui-modal { background: var(--surface); padding: 22px 24px; border-radius: 22px; width: 100%; max-width: 560px; max-height: 90vh; overflow-y: auto; box-sizing: border-box; }
+.tpn-ui .modal-title { font-family: 'Playfair Display', serif; font-size: 22px; font-weight: 700; color: var(--ink); margin-bottom: 8px; }
+.tpn-ui .modal-content { padding: 0; margin: 6px 0 20px; }
+.tpn-ui .modal-actions { display: flex; justify-content: flex-end; gap: 10px; flex-wrap: wrap; }
+
+@media (max-width: 640px) {
+  .tpn-ui .form-row { grid-template-columns: 1fr; }
+  .tpn-ui .modal-actions > * { flex: 1 1 auto; }
+}

@@ -31,7 +31,15 @@
     if (c.error) throw c.error; if (i.error) throw i.error;
     st.cats = c.data; st.items = i.data; st.mods = m; st.tables = t; st.session = s;
     window.tpnCashSessionId = s || null;
+    // The floor screen opens the counter for a table: Dine-in, that table, the guest's name.
+    if (st.pending) {
+      const p = st.pending; st.pending = null;
+      if (p.type) st.type = p.type;
+      if (p.table != null) st.table = (st.tables.find(x => Number(x.table_number) === Number(p.table)) || {}).id || '';
+      if (p.name && !st.name) st.name = p.name;
+    }
   }
+  window.posStartFor = function (opts) { st.pending = opts || null; };
 
   async function render(main) {
     main.innerHTML = `
@@ -211,7 +219,8 @@
       ${st.type === 'delivery' ? `<label class="form-label" for="posAddr">Delivery address *</label><textarea id="posAddr" class="form-input" rows="2" oninput="posSet('address',this.value)">${E(st.address)}</textarea>` : ''}
       <div class="pos-total"><span>Total</span><strong>${peso(total)}</strong></div>
       <p class="form-hint" style="margin:0 0 8px">Final price is checked by the server when you send.</p>
-      <button class="btn-next pos-send" ${st.ticket.length ? '' : 'disabled'} onclick="posSend()">Send to kitchen & take payment</button>`;
+      <button class="btn-next pos-send" ${st.ticket.length ? '' : 'disabled'} onclick="posSend()">${st.type === 'dine_in' ? 'Send to kitchen' : 'Send to kitchen & take payment'}</button>
+      ${st.type === 'dine_in' ? '<p class="form-hint" style="margin:6px 0 0">Dine-in is paid when the table closes (Floor → Close table).</p>' : ''}`;
   }
   window.posQty = (i, d) => { const l = st.ticket[i]; l.qty += d; if (l.qty <= 0) st.ticket.splice(i, 1); save(); drawTicket(); };
   window.posClear = async () => { if (await tpnConfirm('Clear this order? Nothing has been sent yet.', { confirmText: 'Clear' })) { st.ticket = []; save(); drawTicket(); } };
@@ -228,11 +237,13 @@
         source: 'pos', joinTableBill: true,
         items: st.ticket.map(l => ({ menu_item_id: l.id, name: l.name, quantity: l.qty, pax_size: l.size, notes: l.note || null, modifiers: l.mods }))
       });
-      const printed = st.ticket.slice();
+      const printed = st.ticket.slice(), type = st.type;
       st.ticket = []; st.name = st.phone = st.address = st.table = ''; save(); drawTicket();
       toast('Sent to the kitchen: ' + o.order_number);
-      printKitchenTicket(o.order_number, printed, st.type);
-      if (window.openPaymentPanel) openPaymentPanel(o.id);
+      printKitchenTicket(o.order_number, printed, type);
+      // Take-out and delivery pay now; a dine-in table pays when it closes.
+      if (type !== 'dine_in' && window.openPaymentPanel) openPaymentPanel(o.id);
+      else if (window.onPosSent) window.onPosSent(o, type);
     } catch (e) { toast(e.message); }
   };
   ['posSend'].forEach(n => window.guardAsync && guardAsync(n));
@@ -273,5 +284,8 @@
     };
   };
 
-  TPN_MOD.register({ id: 'pos', side: 'both', section: 'sec.workspace', after: 'orders', perm: 'pos.use', icon: '🧾', label: 'Counter (POS)', labelTl: 'Counter (POS)', render });
+  // The Counter lives on the floor screen (tpn-dine-in-floor → Counter tab),
+  // next to the tables it rings up for. No separate portal tab; the portal
+  // keeps this file only for the 86 panel on the kitchen board.
+  TPN_MOD.register({ id: 'pos', side: 'both', hidden: true, perm: 'pos.use', icon: '🧾', label: 'Counter (POS)', labelTl: 'Counter (POS)', render });
 })();

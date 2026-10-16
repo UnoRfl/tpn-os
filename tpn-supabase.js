@@ -2255,6 +2255,21 @@ TPN.prettyPaymentError = function (msg) {
   return msg;
 };
 
+/* Whole table in one tender (sql/35). Each order still gets its own
+   payments row for exactly what it owed. */
+TPN.ordersAmountDue = async function (orderIds) {
+  const { data, error } = await sb.rpc('orders_amount_due', { p_order_ids: orderIds });
+  if (error) throw error;
+  return data || [];
+};
+TPN.settleTableCash = async function (orderIds, tendered, { tip = 0, cashSession = null, note = null } = {}) {
+  const { data, error } = await sb.rpc('settle_table_cash', {
+    p_order_ids: orderIds, p_tendered: tendered, p_tip: tip || 0,
+    p_cash_session: cashSession || window.tpnCashSessionId || null, p_note: note });
+  if (error) throw new Error(TPN.prettyPaymentError(error.message));
+  return data;
+};
+
 /* ═════ POS + CASH DRAWER (sql/32) ═══════════════════════════════ */
 TPN.loadModifiers = async function () {
   const [g, m, l] = await Promise.all([
