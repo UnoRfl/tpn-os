@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https://xjlqfpnzobfqxetgkkai.supabase.co https://api.qrserver.com; connect-src 'self' https://xjlqfpnzobfqxetgkkai.supabase.co wss://xjlqfpnzobfqxetgkkai.supabase.co; media-src 'self' data: blob:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https://xjlqfpnzobfqxetgkkai.supabase.co https://api.qrserver.com https://tile.openstreetmap.org; connect-src 'self' https://xjlqfpnzobfqxetgkkai.supabase.co wss://xjlqfpnzobfqxetgkkai.supabase.co; media-src 'self' data: blob:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'">
 <meta name="referrer" content="strict-origin-when-cross-origin">
 <script>
   // GitHub Pages cannot send X-Frame-Options, so refuse to run inside
@@ -122,6 +122,7 @@
     <div class="photo-blur" aria-hidden="true"></div>
     <div class="wash"></div>
     <div class="vig"></div>
+    <div class="v3-mandala" aria-hidden="true"><img data-spin="3" src="assets/site/mandala-b.webp" alt="" decoding="async"></div>
     <div class="inner">
       <h1 class="v3-sr">Tyo Paeng Nyo</h1>
       <div class="v3-bleed" aria-hidden="true" data-lines="Tyo Paeng Nyo"></div>
@@ -135,6 +136,7 @@
   <!-- Bestsellers: live from the menu (is_featured), dishes with a photo first -->
   <section class="v3-best v3-tex v3-section" id="v3Best">
     <div class="v3-pat"></div>
+    <div class="v3-mandala" aria-hidden="true"><img data-spin="-4" src="assets/site/mandala-a.webp" alt="" decoding="async"></div>
     <div class="v3-wrap">
       <div class="v3-head">
         <span class="v3-eyebrow" data-i18n="v3.best.eyebrow">Everyone’s favorites</span><br>
@@ -152,7 +154,8 @@
   </section>
 
   <!-- Our place: photo panels. To fill one, set data-src="assets/site/photos/your-file.jpg" -->
-  <section class="v3-section" id="v3Place">
+  <section class="v3-section v3-bgwrap" id="v3Place">
+    <div class="v3-mandala" aria-hidden="true"><img data-spin="4" src="assets/site/mandala-b.webp" alt="" decoding="async"></div>
     <div class="v3-wrap">
       <div class="v3-head">
         <span class="v3-eyebrow" data-i18n="v3.place.eyebrow">Visit us</span>
@@ -162,19 +165,21 @@
         <figure class="v3-photo v3-reveal" data-src="" data-ph="v3.ph.interior"><div class="img"></div><figcaption data-i18n="v3.cap.dining">Dining room</figcaption></figure>
         <figure class="v3-photo v3-reveal" style="--i:1" data-src="" data-ph="v3.ph.food"><div class="img"></div><figcaption data-i18n="v3.cap.food">Fresh from the kitchen</figcaption></figure>
         <figure class="v3-photo v3-reveal" style="--i:2" data-src="" data-ph="v3.ph.kitchen"><div class="img"></div><figcaption data-i18n="v3.cap.kitchen">The kitchen</figcaption></figure>
-        <figure class="v3-photo v3-reveal" style="--i:3" data-src="" data-ph="v3.ph.front"><div class="img"></div><figcaption data-i18n="v3.cap.front">Our storefront</figcaption></figure>
+        <div class="v3-map v3-reveal" style="--i:3" data-zoom="16"></div>
       </div>
     </div>
   </section>
 
   <section class="v3-thanks v3-tex">
     <div class="v3-pat"></div>
+    <div class="v3-mandala" aria-hidden="true"><img data-spin="3" src="assets/site/mandala-a.webp" alt="" decoding="async"></div>
     <div class="v3-bleed" aria-hidden="true" data-lines="Salamat <i>po!</i>"></div>
   </section>
 </div>
 
 <!-- MENU -->
 <div class="page" id="page-menu">
+  <div class="v3-mandala" aria-hidden="true"><img data-spin="-3" src="assets/site/mandala-a.webp" alt="" decoding="async"></div>
   <div class="page-header">
     <span class="v3-eyebrow" data-i18n="v3.menu.eyebrow">Order online</span>
     <h1><span data-i18n="v3.menu.titleA">Our</span> <em data-i18n="v3.menu.titleB">menu</em></h1>
@@ -196,10 +201,10 @@
   </div>
   <section class="restaurant-feature">
     <div class="rest-feature-wrap">
-      <div class="rest-feature-img">
+      <figure class="rest-feature-img v3-photo" style="--img:url('assets/site/spread.webp')">
+        <div class="img"></div>
         <span class="rest-feature-badge">Official Branch</span>
-        🍲
-      </div>
+      </figure>
       <div class="rest-feature-content">
         <h2>Las Piñas <em>City</em></h2>
         <p><strong>We've moved — just behind our old spot.</strong> Our new home on Real Street, facing Shell and near the Robinsons Las Piñas exit, has more seats and its own parking.</p>
@@ -229,6 +234,15 @@
           <button class="btn-outline" onclick="navigate('events')">Book an Event</button>
         </div>
       </div>
+    </div>
+  </section>
+  <section class="v3-section v3-locate">
+    <div class="v3-wrap">
+      <div class="v3-head">
+        <span class="v3-eyebrow" data-i18n="v3.locate.eyebrow">Where to find us</span>
+        <h2 class="v3-title" data-i18n-html="v3.locate.title">Come <i>visit</i></h2>
+      </div>
+      <div class="v3-map" data-zoom="17"></div>
     </div>
   </section>
 </div>

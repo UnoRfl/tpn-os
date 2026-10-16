@@ -55,6 +55,12 @@
     'v3.f.cash':        { en: 'Cash', tl: 'Cash' },
     'v3.f.cards':       { en: 'Cards', tl: 'Card' },
     'v3.f.parking':     { en: 'Free parking', tl: 'Libreng parking' },
+    'v3.map.title':     { en: 'Find us', tl: 'Hanapin kami' },
+    'v3.map.open':      { en: 'Open in Maps ↗', tl: 'Buksan sa Maps ↗' },
+    'v3.map.label':     { en: 'Map showing Tyo Paeng Nyo in Las Piñas', tl: 'Mapa ng Tyo Paeng Nyo sa Las Piñas' },
+    'v3.map.near':      { en: 'Facing Shell, near the Robinsons Las Piñas exit', tl: 'Tapat ng Shell, malapit sa labasan ng Robinsons Las Piñas' },
+    'v3.locate.eyebrow':{ en: 'Where to find us', tl: 'Saan kami matatagpuan' },
+    'v3.locate.title':  { en: 'Come <i>visit</i>', tl: 'Dumalaw <i>kayo</i>' },
   };
   const tr = (k, vars) => {
     const row = (typeof TPN_STRINGS === 'object' && TPN_STRINGS[k]) || STR[k];
@@ -176,7 +182,7 @@
 
   /* ---------- photo panels ---------- */
   function renderPhotos() {
-    document.querySelectorAll('.v3-photo').forEach(f => {
+    document.querySelectorAll('.v3-photo[data-ph]').forEach(f => {
       const src = f.dataset.src;
       f.classList.toggle('empty', !src);
       if (src) f.style.setProperty('--img', `url('${src.replace(/'/g, '%27')}')`);
@@ -185,6 +191,42 @@
       ph.innerHTML = `${svg('cam')}<span>${esc(tr(f.dataset.ph))}</span>`;
     });
   }
+
+  /* ---------- map: OpenStreetMap tiles, laid out by hand ----------
+     No map library: the tiles around the pin are placed as plain <img>s, so
+     the map costs a handful of image requests and no script.
+     The pin is approximate — across Alabang–Zapote Rd (Real St.) from the
+     Shell station by Robinsons Las Piñas. To move it, change MAP below, or put
+     a Google Maps link with "@lat,lng" or "q=lat,lng" in Website → contact
+     map link and the pin follows it. */
+  const MAP = { lat: 14.44262, lon: 120.99757, zoom: 17 };
+  function mapPoint() {
+    const href = document.querySelector('[data-site="contact.map_url"]')?.getAttribute('href') || '';
+    const m = href.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/) || href.match(/[?&](?:q|ll)=(-?\d+\.\d+),\s*(-?\d+\.\d+)/);
+    return m ? { lat: +m[1], lon: +m[2], href } : { lat: MAP.lat, lon: MAP.lon, href: href || `https://www.google.com/maps/search/?api=1&query=${MAP.lat},${MAP.lon}` };
+  }
+  const pinSvg = '<svg viewBox="0 0 38 50" aria-hidden="true"><path d="M19 1C9 1 1 9 1 19c0 13 18 30 18 30s18-17 18-30C37 9 29 1 19 1z" fill="currentColor" stroke="#fffdf8" stroke-width="2"/><circle cx="19" cy="19" r="6.5" fill="#fffdf8"/></svg>';
+  function drawMap(el) {
+    const w = el.clientWidth, h = el.clientHeight;
+    if (!w || !h) return;                                  // page hidden; drawn again when shown
+    const { lat, lon, href } = mapPoint(), z = +el.dataset.zoom || MAP.zoom, n = 2 ** z;
+    const r = lat * Math.PI / 180;
+    const px = (lon + 180) / 360 * n * 256, py = (1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2 * n * 256;
+    const left = px - w / 2, top = py - h * .45;           // pin sits a little above centre, clear of the card
+    let tiles = '';
+    for (let x = Math.floor(left / 256); x <= Math.floor((left + w) / 256); x++)
+      for (let y = Math.floor(top / 256); y <= Math.floor((top + h) / 256); y++)
+        tiles += `<img alt="" loading="lazy" decoding="async" src="https://tile.openstreetmap.org/${z}/${x}/${y}.png" style="left:${Math.round(x * 256 - left)}px;top:${Math.round(y * 256 - top)}px">`;
+    const addr = document.querySelector('[data-site="contact.address"]')?.textContent.trim() || '';
+    el.setAttribute('role', 'img'); el.setAttribute('aria-label', tr('v3.map.label'));
+    el.onclick = e => { if (!e.target.closest('a')) window.open(href, '_blank', 'noopener'); };
+    el.innerHTML = `<div class="tiles">${tiles}</div>
+      <div class="pin" style="top:${Math.round(h * .45)}px">${pinSvg}</div>
+      <div class="card"><b>${esc(tr('v3.map.title'))}</b><span>${esc(addr)}<br>${esc(tr('v3.map.near'))}</span>
+        <a href="${esc(href)}" target="_blank" rel="noopener">${esc(tr('v3.map.open'))}</a></div>
+      <div class="attr">© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors</div>`;
+  }
+  const drawMaps = () => document.querySelectorAll('.v3-map').forEach(drawMap);
 
   /* ---------- bleed titles ---------- */
   const bleeds = [];
@@ -284,7 +326,7 @@
 
   /* ---------- language: everything this file draws ---------- */
   function relang() {
-    buildBleeds(); renderBestsellers(); renderPhotos();
+    buildBleeds(); renderBestsellers(); renderPhotos(); drawMaps();
     const logo = document.querySelector('.nav-badge'); if (logo) logo.alt = tr('v3.logoAlt');
   }
 
@@ -292,7 +334,7 @@
     card, renderMenuGrid, emptySearch, renderBestsellers, relang, afterRender,
     pop(btn) { btn.classList.remove('pop'); void btn.offsetWidth; btn.classList.add('pop'); kick += 3; },
     // called by navigate(): titles measure 0×0 while their page is hidden
-    shown() { requestAnimationFrame(() => { alignBleeds(); lastY = -1; }); },
+    shown() { requestAnimationFrame(() => { alignBleeds(); drawMaps(); lastY = -1; }); },
     scrollToBest() { document.getElementById('v3Best')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); },
   };
 
@@ -303,7 +345,9 @@
     relang();
     afterRender(document);
     heroScroll(scrollY);
-    addEventListener('resize', alignBleeds, { passive: true });
+    let rz; addEventListener('resize', () => { alignBleeds(); clearTimeout(rz); rz = setTimeout(drawMaps, 150); }, { passive: true });
+    // the address and map link can arrive from site settings after load
+    setTimeout(drawMaps, 1500);
     if (document.fonts) document.fonts.ready.then(alignBleeds);
     requestAnimationFrame(frame);
   });
