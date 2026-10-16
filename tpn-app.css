@@ -1634,15 +1634,14 @@
    uses Workspace does not re-close TEAM every morning.
    ════════════════════════════════════════════════════ */
 /* Hub tab strip: sits above the page, sticks while you scroll it. */
-.hub-tabs { position: sticky; top: 0; z-index: 5; margin: -8px 0 14px; padding: 8px 0 10px;
-  /* A solid band, so the page does not scroll visibly behind the tabs.
-     Widened sideways by shadow to the main area's padding, then clipped. */
-  background: rgba(var(--glass-tint-2, 242, 228, 199), 0.96);
-  box-shadow: 0 0 0 40px rgba(var(--glass-tint-2, 242, 228, 199), 0.96), 0 10px 14px -12px rgba(43, 24, 16, .25);
-  clip-path: inset(0 -40px -14px); }
-@media (max-width: 900px) { .hub-tabs { box-shadow: 0 0 0 16px rgba(var(--glass-tint-2, 242, 228, 199), 0.96); clip-path: inset(0 -16px -14px); } }
+/* No band behind it: just the pill, sized to its tabs. The pill is frosted
+   glass, so the page blurs behind it while scrolling. */
+.hub-tabs { position: sticky; top: 0; z-index: 5; margin: -8px 0 14px; padding: 8px 0 10px; pointer-events: none; }
 .hub-tabs[hidden] { display: none; }
-.hub-tabs .tpn-tabs { margin-bottom: 0; }
+.hub-tabs .tpn-tabs { margin-bottom: 0; width: fit-content; max-width: 100%; pointer-events: auto;
+  background: rgba(var(--glass-tint, 247, 237, 211), 0.72);
+  -webkit-backdrop-filter: blur(18px) saturate(1.4); backdrop-filter: blur(18px) saturate(1.4);
+  box-shadow: 0 6px 20px -10px rgba(0, 0, 0, .35); }
 .portal-nav-section.collapsible {
   display: flex; align-items: center; gap: 7px;
   cursor: pointer; user-select: none;
