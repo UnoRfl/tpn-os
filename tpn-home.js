@@ -56,6 +56,8 @@
     'v3.f.cards':       { en: 'Cards', tl: 'Card' },
     'v3.f.parking':     { en: 'Free parking', tl: 'Libreng parking' },
     'v3.map.title':     { en: 'Find us', tl: 'Hanapin kami' },
+    'v3.map.close':     { en: 'Close', tl: 'Isara' },
+    'v3.map.show':      { en: 'Show address', tl: 'Ipakita ang address' },
     'v3.map.open':      { en: 'Open in Maps ↗', tl: 'Buksan sa Maps ↗' },
     'v3.map.label':     { en: 'Map showing Tyo Paeng Nyo in Las Piñas', tl: 'Mapa ng Tyo Paeng Nyo sa Las Piñas' },
     'v3.map.near':      { en: 'Facing Shell, near the Robinsons Las Piñas exit', tl: 'Tapat ng Shell, malapit sa labasan ng Robinsons Las Piñas' },
@@ -219,14 +221,29 @@
         tiles += `<img alt="" loading="lazy" decoding="async" src="https://tile.openstreetmap.org/${z}/${x}/${y}.png" style="left:${Math.round(x * 256 - left)}px;top:${Math.round(y * 256 - top)}px">`;
     const addr = document.querySelector('[data-site="contact.address"]')?.textContent.trim() || '';
     el.setAttribute('role', 'img'); el.setAttribute('aria-label', tr('v3.map.label'));
-    el.onclick = e => { if (!e.target.closest('a')) window.open(href, '_blank', 'noopener'); };
+    el.onclick = e => {
+      if (e.target.closest('a')) return;
+      if (e.target.closest('.x')) { el.classList.add('closed'); return; }          // hide the address card
+      if (e.target.closest('.pin') && el.classList.contains('closed')) { el.classList.remove('closed'); return; }  // pin brings it back
+      window.open(href, '_blank', 'noopener');
+    };
     el.innerHTML = `<div class="tiles">${tiles}</div>
-      <div class="pin" style="top:${Math.round(h * .45)}px">${pinSvg}</div>
-      <div class="card"><b>${esc(tr('v3.map.title'))}</b><span>${esc(addr)}<br>${esc(tr('v3.map.near'))}</span>
+      <div class="pin" style="top:${Math.round(h * .45)}px" title="${esc(tr('v3.map.show'))}">${pinSvg}</div>
+      <div class="card"><button type="button" class="x" aria-label="${esc(tr('v3.map.close'))}">×</button><b>${esc(tr('v3.map.title'))}</b><span>${esc(addr)}<br>${esc(tr('v3.map.near'))}</span>
         <a href="${esc(href)}" target="_blank" rel="noopener">${esc(tr('v3.map.open'))}</a></div>
       <div class="attr">© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors</div>`;
   }
   const drawMaps = () => document.querySelectorAll('.v3-map').forEach(drawMap);
+
+  /* ---------- paisley sway: transform on the pattern layer (compositor only);
+     titles in that section get the same offset so their engraving stays aligned ---------- */
+  const PAT_PAD = 140;
+  const pats = [];
+  function collectPats() {
+    document.querySelectorAll('.v3-pat').forEach((el, i) => {
+      if (!pats.find(p => p.el === el)) { const p = { el, seed: i * 1.3, vis: false, x: 0, y: 0 }; pats.push(p); onScreen.observe(el); }
+    });
+  }
 
   /* ---------- bleed titles ---------- */
   const bleeds = [];
@@ -245,10 +262,13 @@
   function alignBleeds() {
     for (const b of bleeds) {
       const sec = b.el.closest('.v3-tex') || b.el.parentElement;
+      const pat = sec.querySelector(':scope > .v3-pat');
+      b.pat = pat ? pats.find(p => p.el === pat) : null;
+      const pad = pat ? PAT_PAD : 0;                       // the paisley layer starts 140px outside its section
       const sr = sec.getBoundingClientRect(), r = b.el.getBoundingClientRect();
       if (!r.width) continue;                              // page not visible yet
-      b.eng.style.setProperty('--ox', (sr.left - r.left) + 'px');
-      b.eng.style.setProperty('--oy', (sr.top - r.top) + 'px');
+      b.eng.style.setProperty('--ox', (sr.left - pad - r.left) + 'px');
+      b.eng.style.setProperty('--oy', (sr.top - pad - r.top) + 'px');
       b.w = r.width; b.h = r.height;
       const lh = b.el.querySelector('.solid .t').getBoundingClientRect().height;
       b.el.style.setProperty('--r1', (lh * .6).toFixed(0) + 'px');
@@ -268,7 +288,7 @@
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const spinners = new Map();
   const onScreen = new IntersectionObserver(es => es.forEach(e => {
-    const s = spinners.get(e.target) || bleeds.find(b => b.el === e.target);
+    const s = spinners.get(e.target) || bleeds.find(b => b.el === e.target) || pats.find(p => p.el === e.target);
     if (s) s.vis = e.isIntersecting;
   }), { rootMargin: '120px' });
   const revealer = new IntersectionObserver(es => es.forEach(e => {
@@ -277,19 +297,25 @@
   function afterRender(root) {
     for (const el of spinners.keys()) if (!el.isConnected) { onScreen.unobserve(el); spinners.delete(el); }
     root.querySelectorAll('[data-spin]').forEach(el => {
-      if (!spinners.has(el)) { spinners.set(el, { base: +el.dataset.spin, a: Math.random() * 360, vis: false }); onScreen.observe(el); }
+      if (!spinners.has(el)) { spinners.set(el, { base: +el.dataset.spin, a: Math.random() * 360, vis: false, inHero: !!el.closest('.v3-hero') }); onScreen.observe(el); }
     });
     root.querySelectorAll('.v3-reveal:not(.in)').forEach(el => revealer.observe(el));
   }
 
   /* ---------- motion loop ---------- */
-  let hero, hPhoto, hBlur, hVig, hInner, lastY = -1, prevY = 0, boost = 0, kick = 0, last = performance.now();
+  let hero, hPhoto, hBlur, hVig, hInner, hMand, hMandSharp, hMandBlur, heroGone = false, lastY = -1, prevY = 0, boost = 0, kick = 0, last = performance.now();
   function heroScroll(y) {
     if (!hero || !hero.offsetHeight) return;
     const hp = Math.min(1, Math.max(0, y / hero.offsetHeight));
     const sc = `scale(${(1 - hp * .03).toFixed(4)})`;
     hPhoto.style.transform = sc; hBlur.style.transform = sc;
     hBlur.style.opacity = hp.toFixed(3);
+    if (hMand) {                                   // the mandala recedes and blurs with the photo
+      hMand.style.transform = sc;
+      hMandBlur.style.opacity = hp.toFixed(3);
+      hMandSharp.style.opacity = (1 - hp).toFixed(3);
+    }
+    heroGone = hp >= 1;
     hVig.style.opacity = (.55 + hp * .45).toFixed(3);
     hInner.style.transform = `translate3d(0, ${(-hp * 90).toFixed(1)}px, 0)`;
     hInner.style.opacity = Math.max(0, 1 - hp * 1.4).toFixed(3);
@@ -306,12 +332,18 @@
       if (y !== lastY && hero && hero.offsetParent !== null && y < hero.offsetHeight * 1.2) { heroScroll(y); lastY = y; }
 
       for (const [el, s] of spinners) {
-        if (!s.vis) continue;
+        if (!s.vis || (heroGone && s.inHero)) continue;
         s.a = (s.a + s.base * mult * dt) % 360;
         el.style.transform = `rotate(${s.a.toFixed(2)}deg)`;
       }
+      if (!reduce) for (const p of pats) {
+        if (!p.vis) continue;
+        p.x = Math.sin(tt * .07 + p.seed) * 90; p.y = Math.cos(tt * .05 + p.seed) * 50;
+        p.el.style.transform = `translate3d(${p.x.toFixed(1)}px, ${p.y.toFixed(1)}px, 0)`;
+      }
       for (const b of bleeds) {
         if (!b.vis || !b.w) continue;
+        if (b.pat) { b.eng.style.setProperty('--sx', b.pat.x.toFixed(1) + 'px'); b.eng.style.setProperty('--sy', b.pat.y.toFixed(1) + 'px'); }
         const wx = b.w * (.5 + .46 * Math.sin(tt * .32 + b.seed)), wy = b.h * (.5 + .38 * Math.sin(tt * .51 + b.seed * 2));
         const gx = b.tx ?? b.w * (.5 + .46 * Math.sin(tt * .23 + b.seed + 2.4)), gy = b.ty ?? b.h * (.5 + .4 * Math.cos(tt * .37 + b.seed));
         b.cx = b.cx == null ? gx : b.cx + (gx - b.cx) * Math.min(1, dt * 4);
@@ -341,7 +373,9 @@
   document.addEventListener('DOMContentLoaded', () => {
     if (typeof TPN_STRINGS === 'object') Object.assign(TPN_STRINGS, STR);
     hero = document.querySelector('.v3-hero');
-    if (hero) { hPhoto = hero.querySelector('.photo'); hBlur = hero.querySelector('.photo-blur'); hVig = hero.querySelector('.vig'); hInner = hero.querySelector('.inner'); }
+    if (hero) { hMand = hero.querySelector('.bg-mandala'); hMandSharp = hMand && hMand.querySelector('img:not(.m-blur)'); hMandBlur = hMand && hMand.querySelector('.m-blur');
+      hPhoto = hero.querySelector('.photo'); hBlur = hero.querySelector('.photo-blur'); hVig = hero.querySelector('.vig'); hInner = hero.querySelector('.inner'); }
+    collectPats();
     relang();
     afterRender(document);
     heroScroll(scrollY);

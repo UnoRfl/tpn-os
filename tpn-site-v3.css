@@ -75,7 +75,9 @@ body::after { display: none; }                               /* old mesh glow */
 
 /* ─────────────── BLEED TITLES ─────────────── */
 .v3-tex { position: relative; isolation: isolate; overflow: hidden; --bg-size: 1100px auto; }
-.v3-tex > .v3-pat { position: absolute; inset: 0; z-index: -2; opacity: .5; background: url(assets/site/paisley-light.webp) 0 0 / var(--bg-size) repeat; }
+/* oversized by 140px each side so the slow sway (a transform, set by
+   tpn-home.js) never shows an edge */
+.v3-tex > .v3-pat { position: absolute; inset: -140px; z-index: -2; opacity: .5; background: url(assets/site/paisley-light.webp) 0 0 / var(--bg-size) repeat; will-change: transform; }
 /* padding reaches past the descenders (y, g, p) so the engraved layer's
    background-clip:text covers the whole glyph; negative margin keeps spacing */
 .v3-bleed { position: relative; display: inline-block; --r1: 120px; --r2: 90px; padding: .14em .1em .34em; margin-bottom: -.24em; }
@@ -97,7 +99,7 @@ body::after { display: none; }                               /* old mesh glow */
   calc(var(--s) * .383) calc(var(--s) * -.924) 0 var(--c), calc(var(--s) * -.383) calc(var(--s) * -.924) 0 var(--c),
   0 calc(var(--s) + .03em) 0 var(--c), 0 .1em .3em rgba(58,29,16,.18); }
 .v3-bleed .engrave {
-  background: url(assets/site/paisley-engrave.webp) var(--ox, 0px) var(--oy, 0px) / var(--bg-size) repeat;
+  background: url(assets/site/paisley-engrave.webp) calc(var(--ox, 0px) + var(--sx, 0px)) calc(var(--oy, 0px) + var(--sy, 0px)) / var(--bg-size) repeat;
   -webkit-background-clip: text; background-clip: text;
   --m: radial-gradient(circle at var(--h1x, -999px) var(--h1y, 0px), #000 0 var(--r1), transparent calc(var(--r1) * 1.7)),
        radial-gradient(circle at var(--h2x, -999px) var(--h2y, 0px), #000 0 var(--r2), transparent calc(var(--r2) * 1.7));
@@ -123,7 +125,7 @@ body::after { display: none; }                               /* old mesh glow */
 #page-home.active { animation: tpnFade .45s var(--v3-ease) both !important; }
 .v3-hero { position: relative; min-height: 100dvh; display: grid; place-items: center; text-align: center; padding: 110px var(--v3-gutter) 90px;
   clip-path: inset(0); background: var(--v3-cocoa); }
-.v3-hero .photo, .v3-hero .photo-blur { position: fixed; inset: -2%; z-index: -4; background: url(assets/site/hero.webp) center / cover; will-change: transform; }
+.v3-hero .photo, .v3-hero .photo-blur { position: fixed; inset: -2%; z-index: -5; background: url(assets/site/hero.webp) center / cover; will-change: transform; }
 /* pre-blurred, pre-dimmed copy — scrolling only fades it in */
 .v3-hero .photo-blur { background-image: url(assets/site/hero-blur.webp); opacity: 0; will-change: transform, opacity; }
 .v3-hero .wash { position: fixed; inset: 0; z-index: -3; pointer-events: none; background: radial-gradient(ellipse 52% 46% at 50% 47%, rgba(40,18,8,.62), rgba(40,18,8,.22) 78%); }
@@ -210,12 +212,20 @@ body::after { display: none; }                               /* old mesh glow */
 .v3-bgwrap { position: relative; isolation: isolate; overflow: hidden; }
 .v3-mandala { position: absolute; z-index: -1; pointer-events: none; opacity: var(--mo, .14); width: var(--mw, 620px); aspect-ratio: 1; }
 .v3-mandala img { width: 100%; height: 100%; display: block; will-change: transform; }
-.v3-hero .v3-mandala { inset: 0; margin: auto; --mw: min(108vh, 980px, 140vw); --mo: .2; }
-.v3-best .v3-mandala { right: -240px; top: -80px; --mo: .2; }
-#v3Place .v3-mandala { left: -280px; top: 40px; --mo: .12; }
-.v3-thanks .v3-mandala { inset: 0; margin: auto; --mw: min(70vw, 760px); --mo: .16; }
+/* hero mandala is part of the fixed background (like the photo), not the content */
+.v3-hero .bg-mandala { position: fixed; inset: 0; z-index: -4; display: grid; place-items: center; pointer-events: none; will-change: transform; }
+.v3-hero .bg-mandala .rot { position: relative; width: min(108vh, 980px, 140vw); aspect-ratio: 1; opacity: .2; will-change: transform; }
+.v3-hero .bg-mandala img { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.v3-hero .bg-mandala .m-blur { opacity: 0; will-change: opacity; }
+.v3-best .v3-mandala.m1 { right: -240px; top: -80px; --mo: .2; }
+#v3Place .v3-mandala.m1 { left: -280px; top: 40px; --mo: .12; }
+.v3-thanks .v3-mandala.m1 { inset: 0; margin: auto; --mw: min(70vw, 760px); --mo: .16; }
 #page-menu { position: relative; overflow-x: clip; }
-#page-menu > .v3-mandala { right: -220px; top: 40px; --mo: .12; z-index: 0; }
+#page-menu > .v3-mandala { z-index: 0; }
+#page-menu > .v3-mandala.m1 { right: -220px; top: 40px; --mo: .12; }
+/* other customer pages: scattered mandalas behind the content */
+.v3-decor { overflow-x: clip; }
+.v3-decor > .v3-mandala { z-index: -1; }
 #page-menu > :not(.v3-mandala) { position: relative; z-index: 1; }
 
 /* map: OpenStreetMap tiles laid out by tpn-home.js, warmed to beige and darkened a touch */
@@ -230,6 +240,13 @@ body::after { display: none; }                               /* old mesh glow */
 @keyframes v3ping { 0% { transform: scale(.6); opacity: .9; } 100% { transform: scale(3.2); opacity: 0; } }
 .v3-map .card { position: absolute; z-index: 3; left: 16px; bottom: 16px; right: 16px; max-width: 380px; display: grid; gap: 4px; padding: 14px 16px; border-radius: 16px;
   background: rgba(255,253,248,.94); box-shadow: 0 0 0 1px var(--v3-hair), var(--v3-shadow); text-align: left; }
+.v3-map .card { transition: opacity .3s var(--v3-ease), transform .3s var(--v3-ease); }
+.v3-map.closed .card { opacity: 0; transform: translateY(8px); pointer-events: none; }
+.v3-map .card .x { position: absolute; top: 8px; right: 8px; width: 28px; height: 28px; border-radius: 50%; border: 1px solid var(--v3-hair);
+  background: var(--v3-card); color: var(--v3-ink-2); font: 600 18px/1 var(--v3-ui); display: grid; place-items: center; cursor: pointer; padding: 0; }
+.v3-map .card .x:hover { background: var(--v3-paper-2); color: var(--v3-ink); }
+.v3-map .card b { padding-right: 32px; }
+.v3-map.closed .pin { cursor: pointer; }
 .v3-map .card b { font-family: var(--v3-display); font-size: 18px; font-variation-settings: "SOFT" 100; color: var(--v3-ink); }
 .v3-map .card span { font-size: 13px; color: var(--v3-ink-2); line-height: 1.45; }
 .v3-map .card a { font-size: 13px; font-weight: 600; color: var(--v3-accent); text-decoration: none; margin-top: 4px; }
@@ -295,7 +312,8 @@ footer .footer-pay li { font-size: 12px; padding: 5px 10px; border-radius: 999px
   .v3-gallery { grid-template-columns: 1fr; grid-template-rows: none; grid-auto-rows: 240px; }
   .v3-gallery > :nth-child(n) { grid-column: auto; grid-row: auto; }
   .v3-gallery > .v3-map { grid-row: span 2; }               /* room for the pin above the address card */
-  .v3-best .v3-mandala, #v3Place .v3-mandala, #page-menu > .v3-mandala { --mw: 380px; }
+  .v3-best .v3-mandala.m1, #v3Place .v3-mandala.m1, #page-menu > .v3-mandala.m1 { --mw: 380px; }
+  .v3-mandala.x { width: calc(var(--mw) * .6); }
   .v3-hero .v3-bleed .t { font-size: 10.6vw; }
   .v3-best .v3-bleed .t, .v3-thanks .v3-bleed .t { font-size: clamp(40px, 13vw, 60px); white-space: normal; }
   .v3-best .v3-bleed, .v3-thanks .v3-bleed { max-width: 100%; }

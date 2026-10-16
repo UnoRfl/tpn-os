@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https://xjlqfpnzobfqxetgkkai.supabase.co https://api.qrserver.com https://tile.openstreetmap.org; connect-src 'self' https://xjlqfpnzobfqxetgkkai.supabase.co wss://xjlqfpnzobfqxetgkkai.supabase.co; media-src 'self' data: blob:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'">
 <meta name="referrer" content="strict-origin-when-cross-origin">
+<meta name="color-scheme" content="only light">
 <script>
   // GitHub Pages cannot send X-Frame-Options, so refuse to run inside
   // someone else's frame (clickjacking: tricking staff into clicks).
@@ -20,7 +21,7 @@
 <script src="tpn-kit.js?v=20261017i"></script>
 <script src="tpn-site.js?v=20261017i"></script>
 <script src="tpn-i18n.js?v=20261017i"></script>
-<script src="tpn-home.js?v=20261017v4"></script>
+<script src="tpn-home.js?v=20261017v7"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="description" content="Tyo Paeng Nyo — Authentic Filipino cuisine in Las Piñas since 2003. Order online, book events, or inquire about catering.">
 <meta name="theme-color" content="#8B1A0E">
@@ -55,7 +56,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=Lora:ital,wght@0,400;0,600;1,400&family=DM+Sans:wght@300;400;500;700&family=Fraunces:ital,opsz,wght,SOFT,WONK@0,9..144,500..900,0..100,0..1;1,9..144,500..900,0..100,0..1&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="tpn-app.css?v=20261017i">
 <link rel="stylesheet" href="tpn-glass.css?v=20261017i">
-<link rel="stylesheet" href="tpn-site-v3.css?v=20261017v4">
+<link rel="stylesheet" href="tpn-site-v3.css?v=20261017v7">
 </head>
 <body>
 <a class="skip-link" href="#main-content" onclick="event.preventDefault();var t=document.querySelector('.page.active h1, .portal-page.active main');if(t){t.setAttribute('tabindex','-1');t.focus();}">Skip to content</a>
@@ -120,9 +121,13 @@
   <header class="v3-hero v3-tex">
     <div class="photo" aria-hidden="true"></div>
     <div class="photo-blur" aria-hidden="true"></div>
+    <!-- part of the background: fixed with the photo, swept under on scroll, blurs with it -->
+    <div class="bg-mandala" aria-hidden="true"><div class="rot" data-spin="3">
+      <img src="assets/site/mandala-b.webp" alt="" decoding="async">
+      <img class="m-blur" src="assets/site/mandala-b-blur.webp" alt="" decoding="async">
+    </div></div>
     <div class="wash"></div>
     <div class="vig"></div>
-    <div class="v3-mandala" aria-hidden="true"><img data-spin="3" src="assets/site/mandala-b.webp" alt="" decoding="async"></div>
     <div class="inner">
       <h1 class="v3-sr">Tyo Paeng Nyo</h1>
       <div class="v3-bleed" aria-hidden="true" data-lines="Tyo Paeng Nyo"></div>
@@ -136,7 +141,9 @@
   <!-- Bestsellers: live from the menu (is_featured), dishes with a photo first -->
   <section class="v3-best v3-tex v3-section" id="v3Best">
     <div class="v3-pat"></div>
-    <div class="v3-mandala" aria-hidden="true"><img data-spin="-4" src="assets/site/mandala-a.webp" alt="" decoding="async"></div>
+    <div class="v3-mandala m1" aria-hidden="true"><img data-spin="-4" src="assets/site/mandala-a.webp" alt="" decoding="async"></div>
+    <div class="v3-mandala x" style="--mw:260px;--mo:.16;left:-70px;bottom:40px" aria-hidden="true"><img data-spin="5" src="assets/site/mandala-b.webp" alt="" decoding="async" loading="lazy"></div>
+    <div class="v3-mandala x" style="--mw:120px;--mo:.14;left:46%;top:34px" aria-hidden="true"><img data-spin="-7" src="assets/site/mandala-a.webp" alt="" decoding="async" loading="lazy"></div>
     <div class="v3-wrap">
       <div class="v3-head">
         <span class="v3-eyebrow" data-i18n="v3.best.eyebrow">Everyone’s favorites</span><br>
@@ -155,7 +162,9 @@
 
   <!-- Our place: photo panels. To fill one, set data-src="assets/site/photos/your-file.jpg" -->
   <section class="v3-section v3-bgwrap" id="v3Place">
-    <div class="v3-mandala" aria-hidden="true"><img data-spin="4" src="assets/site/mandala-b.webp" alt="" decoding="async"></div>
+    <div class="v3-mandala m1" aria-hidden="true"><img data-spin="4" src="assets/site/mandala-b.webp" alt="" decoding="async"></div>
+    <div class="v3-mandala x" style="--mw:320px;--mo:.12;right:-110px;top:-60px" aria-hidden="true"><img data-spin="-4" src="assets/site/mandala-a.webp" alt="" decoding="async" loading="lazy"></div>
+    <div class="v3-mandala x" style="--mw:150px;--mo:.14;right:4%;bottom:-30px" aria-hidden="true"><img data-spin="6" src="assets/site/mandala-b.webp" alt="" decoding="async" loading="lazy"></div>
     <div class="v3-wrap">
       <div class="v3-head">
         <span class="v3-eyebrow" data-i18n="v3.place.eyebrow">Visit us</span>
@@ -172,14 +181,21 @@
 
   <section class="v3-thanks v3-tex">
     <div class="v3-pat"></div>
-    <div class="v3-mandala" aria-hidden="true"><img data-spin="3" src="assets/site/mandala-a.webp" alt="" decoding="async"></div>
+    <div class="v3-mandala m1" aria-hidden="true"><img data-spin="3" src="assets/site/mandala-a.webp" alt="" decoding="async"></div>
+    <div class="v3-mandala x" style="--mw:220px;--mo:.14;left:4%;top:12%" aria-hidden="true"><img data-spin="-5" src="assets/site/mandala-b.webp" alt="" decoding="async" loading="lazy"></div>
+    <div class="v3-mandala x" style="--mw:130px;--mo:.16;right:7%;bottom:14%" aria-hidden="true"><img data-spin="6" src="assets/site/mandala-a.webp" alt="" decoding="async" loading="lazy"></div>
     <div class="v3-bleed" aria-hidden="true" data-lines="Salamat <i>po!</i>"></div>
   </section>
 </div>
 
 <!-- MENU -->
 <div class="page" id="page-menu">
-  <div class="v3-mandala" aria-hidden="true"><img data-spin="-3" src="assets/site/mandala-a.webp" alt="" decoding="async"></div>
+  <div class="v3-mandala m1" aria-hidden="true"><img data-spin="-3" src="assets/site/mandala-a.webp" alt="" decoding="async"></div>
+  <div class="v3-mandala x" style="--mw:360px;--mo:.1;left:-170px;top:820px" aria-hidden="true"><img data-spin="4" src="assets/site/mandala-b.webp" alt="" decoding="async" loading="lazy"></div>
+  <div class="v3-mandala x" style="--mw:220px;--mo:.12;right:-80px;top:1650px" aria-hidden="true"><img data-spin="-5" src="assets/site/mandala-a.webp" alt="" decoding="async" loading="lazy"></div>
+  <div class="v3-mandala x" style="--mw:160px;--mo:.12;left:-50px;top:2500px" aria-hidden="true"><img data-spin="6" src="assets/site/mandala-b.webp" alt="" decoding="async" loading="lazy"></div>
+  <div class="v3-mandala x" style="--mw:300px;--mo:.1;right:-120px;top:3300px" aria-hidden="true"><img data-spin="-3" src="assets/site/mandala-a.webp" alt="" decoding="async" loading="lazy"></div>
+  <div class="v3-mandala x" style="--mw:200px;--mo:.1;left:-70px;top:4300px" aria-hidden="true"><img data-spin="5" src="assets/site/mandala-b.webp" alt="" decoding="async" loading="lazy"></div>
   <div class="page-header">
     <span class="v3-eyebrow" data-i18n="v3.menu.eyebrow">Order online</span>
     <h1><span data-i18n="v3.menu.titleA">Our</span> <em data-i18n="v3.menu.titleB">menu</em></h1>
@@ -194,7 +210,9 @@
 </div>
 
 <!-- OUR RESTAURANT -->
-<div class="page" id="page-restaurant">
+<div class="page v3-decor" id="page-restaurant">
+  <div class="v3-mandala x" style="--mw:460px;--mo:.11;right:-190px;top:60px" aria-hidden="true"><img data-spin="3" src="assets/site/mandala-a.webp" alt="" decoding="async" loading="lazy"></div>
+  <div class="v3-mandala x" style="--mw:240px;--mo:.12;left:-90px;top:900px" aria-hidden="true"><img data-spin="-5" src="assets/site/mandala-b.webp" alt="" decoding="async" loading="lazy"></div>
   <div class="page-header">
     <h1>Our <em>Restaurant</em></h1>
     <p>Our Las Piñas branch is the heart of everything we do — where the recipes were perfected and where you'll find us every day.</p>
@@ -248,7 +266,9 @@
 </div>
 
 <!-- CONCESSIONS -->
-<div class="page" id="page-concessions">
+<div class="page v3-decor" id="page-concessions">
+  <div class="v3-mandala x" style="--mw:360px;--mo:.1;right:-150px;top:100px" aria-hidden="true"><img data-spin="4" src="assets/site/mandala-a.webp" alt="" decoding="async" loading="lazy"></div>
+  <div class="v3-mandala x" style="--mw:180px;--mo:.12;left:-60px;top:1100px" aria-hidden="true"><img data-spin="-4" src="assets/site/mandala-b.webp" alt="" decoding="async" loading="lazy"></div>
   <section class="conc-hero">
     <div class="conc-hero-inner">
       <span class="conc-eyebrow">For Businesses & Organizations</span>
@@ -400,7 +420,9 @@
 </div>
 
 <!-- EVENTS -->
-<div class="page" id="page-events">
+<div class="page v3-decor" id="page-events">
+  <div class="v3-mandala x" style="--mw:380px;--mo:.1;left:-170px;top:80px" aria-hidden="true"><img data-spin="4" src="assets/site/mandala-b.webp" alt="" decoding="async" loading="lazy"></div>
+  <div class="v3-mandala x" style="--mw:200px;--mo:.12;right:-60px;top:760px" aria-hidden="true"><img data-spin="-6" src="assets/site/mandala-a.webp" alt="" decoding="async" loading="lazy"></div>
   <div class="page-header">
     <h1>Events & <em>Celebrations</em></h1>
     <p>Celebrations, weddings and debuts, corporate events — or a menu built just for you. Let us handle the food so you can focus on your people.</p>
@@ -469,7 +491,9 @@
 </div>
 
 <!-- ABOUT -->
-<div class="page" id="page-about">
+<div class="page v3-decor" id="page-about">
+  <div class="v3-mandala x" style="--mw:340px;--mo:.1;right:-140px;top:120px" aria-hidden="true"><img data-spin="-4" src="assets/site/mandala-a.webp" alt="" decoding="async" loading="lazy"></div>
+  <div class="v3-mandala x" style="--mw:160px;--mo:.12;left:-50px;top:700px" aria-hidden="true"><img data-spin="5" src="assets/site/mandala-b.webp" alt="" decoding="async" loading="lazy"></div>
   <div class="about-wrap">
     <div class="about-block">
       <h3>Our <em>Story</em></h3>
@@ -495,7 +519,9 @@
 </div>
 
 <!-- FAQ -->
-<div class="page" id="page-faq">
+<div class="page v3-decor" id="page-faq">
+  <div class="v3-mandala x" style="--mw:300px;--mo:.1;left:-120px;top:140px" aria-hidden="true"><img data-spin="5" src="assets/site/mandala-b.webp" alt="" decoding="async" loading="lazy"></div>
+  <div class="v3-mandala x" style="--mw:150px;--mo:.12;right:-40px;top:620px" aria-hidden="true"><img data-spin="-5" src="assets/site/mandala-a.webp" alt="" decoding="async" loading="lazy"></div>
   <div class="page-header">
     <h1>Questions &amp; <em>Answers</em></h1>
     <p>Location, parking, payment and events. Can't find it? Call <a href="tel:+639998887817" data-site="contact.phone" data-site-href="tel">0999 888 7817</a>.</p>
