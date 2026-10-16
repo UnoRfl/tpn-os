@@ -189,8 +189,8 @@
       f.classList.toggle('empty', !src);
       if (src) f.style.setProperty('--img', `url('${src.replace(/'/g, '%27')}')`);
       let ph = f.querySelector('.ph');
-      if (!ph) { ph = document.createElement('div'); ph.className = 'ph'; f.insertBefore(ph, f.querySelector('figcaption')); }
-      ph.innerHTML = `${svg('cam')}<span>${esc(tr(f.dataset.ph))}</span>`;
+      if (!ph) { ph = document.createElement('div'); ph.className = 'ph'; f.appendChild(ph); }
+      ph.innerHTML = svg('cam');                          // no label: the panels don't say what goes in them
     });
   }
 
