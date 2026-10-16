@@ -164,6 +164,7 @@
     "Business": "Negosyo",
     "By": "Ni",
     "By Order Type": "Ayon sa uri ng order",
+    "by phone or email. This isn't an auto-reply; a real person will talk to you.": "sa phone o email. Hindi ito auto-reply; tao ang makikipag-usap sa inyo.",
     "By revenue this month": "Ayon sa benta ngayong buwan",
     "Call": "Tumawag",
     "Call me": "Tawagan ako",
@@ -393,6 +394,9 @@
     "Drawer open with": "Binuksan ang drawer na may",
     "Drop staff here": "Ilagay dito ang staff",
     "Duration": "Tagal",
+    "e.g. Before stock count": "hal. Bago mag-inventory",
+    "e.g. Big group booking on Friday…": "hal. May malaking group booking sa Biyernes…",
+    "e.g. spoiled in the freezer": "hal. nasira sa freezer",
     "Each QR code links directly to the table menu with the table number and branch pre-filled. Customers scan → order → pay. Orders appear instantly in Live Orders.": "Bawat QR code ay diretso sa menu ng mesa, kasama na ang numero ng mesa at branch. I-scan → mag-order → magbayad. Agad lumalabas ang order sa Live Orders.",
     "Each round at the table is its own bill. Pick one. Cash for the whole table is on the Close Table screen.": "Hiwalay na bill ang bawat round sa mesa. Pumili ng isa. Ang cash para sa buong mesa ay nasa screen ng Isara ang mesa.",
     "Edit": "I-edit",
@@ -491,6 +495,8 @@
     "Go to Concessions": "Pumunta sa Concessions",
     "Go to Events": "Pumunta sa Events",
     "Go to Staff Login": "Pumunta sa Staff Login",
+    "Good day": "Magandang araw",
+    "Good day,": "Magandang araw,",
     "Google Maps link": "Link sa Google Maps",
     "Government / NGO": "Gobyerno / NGO",
     "Gross — apply to full subtotal (most promos)": "Gross — ilapat sa buong subtotal (karamihan ng promo)",
@@ -520,6 +526,7 @@
     "ID number for": "ID number para kay",
     "ID number is required (min 3 chars).": "Kailangan ang ID number (min 3 character).",
     "ID required": "Kailangan ng ID",
+    "If you don't hear back in 24 hours, feel free to message again.": "Huwag mag-atubiling mag-ulit kung hindi nakatanggap ng reply sa loob ng 24 oras.",
     "If you're exploring food service for your organization,": "Kung naghahanap ka ng food service para sa organisasyon mo,",
     "Import": "Mag-import",
     "Import add-ons": "Mag-import ng add-on",
@@ -576,6 +583,8 @@
     "Location, parking, payment and events. Can't find it? Call": "Lokasyon, parking, bayad at events. Hindi mahanap? Tumawag sa",
     "Log rent, gas, utilities and other operating costs.": "Itala ang upa, gas, kuryente/tubig at iba pang gastos.",
     "Look up": "Hanapin",
+    "Looking for your order…": "Hinahanap ang iyong order…",
+    "Looks like your connection has a problem. Your order may not go through.": "Mukhang may problema sa iyong koneksyon. Baka hindi makuha ang iyong order.",
     "Lowercase, no spaces. Cannot be changed later.": "Maliliit na titik, walang espasyo. Hindi na mababago.",
     "LPG refill": "Pa-refill ng LPG",
     "m ago": "min ang nakalipas",
@@ -593,6 +602,7 @@
     "Mark In Progress": "Markahang ginagawa",
     "Mark Ready": "Markahang handa",
     "Max. discount cap (₱)": "Pinakamataas na discount (₱)",
+    "Maybe a typo? Or try another dish — we cook 60+ dishes.": "Baka may typo? O subukan mo ang ibang ulam — 60+ dishes ang luto namin.",
     "Measure from stock usage": "Sukatin mula sa nagamit na stock",
     "Meat": "Karne",
     "Menu & Pricing": "Menu at presyo",
@@ -673,6 +683,7 @@
     "No matching question. Try another word, or call us.": "Walang tugmang tanong. Subukan ang ibang salita, o tawagan kami.",
     "No menu items yet": "Wala pang item sa menu",
     "No messages yet.": "Wala pang mensahe.",
+    "No new orders": "Walang bagong order",
     "No occupied tables at this time.": "Walang mesang may tao ngayon.",
     "No occupied tables right now.": "Walang mesang may tao ngayon.",
     "No open orders. This marks the table empty on every screen and clears any call or bill request.": "Walang bukas na order. Mamarkahang bakante ang mesa sa bawat screen at mabubura ang anumang tawag o hingi ng bill.",
@@ -702,7 +713,7 @@
     "Note for the kitchen": "Tala para sa kusina",
     "Note from your manager": "Tala mula sa manager mo",
     "Note saved": "Na-save ang tala",
-    "Nothing here": "Walang laman",
+    "Nothing here": "Wala dito",
     "Nothing here yet.": "Wala pang laman.",
     "Nothing needs attention right now.": "Walang kailangang asikasuhin ngayon.",
     "Nothing waiting. Everyone who clocked in recently is verified.": "Walang naghihintay. Verified lahat ng nag-clock in kamakailan.",
@@ -792,6 +803,8 @@
     "Our Restaurant": "Ang Aming Restaurant",
     "Our restaurant has been the gathering place for families, neighbors, and regulars for over two decades. Walk in any afternoon and you'll find the same warm hospitality and the same recipes that started it all.": "Mahigit dalawampung taon nang tagpuan ng mga pamilya, kapitbahay at suki ang restaurant namin. Pumasok kahit anong hapon at madadatnan mo ang parehong mainit na pagtanggap at parehong resipe na pinagsimulan ng lahat.",
     "Our story": "Ang kwento namin",
+    "Our team will get in touch within": "Makikipag-ugnayan sa inyo ang aming team sa loob ng",
+    "Our team will reach you within": "Aabutin kayo ng team namin sa loob ng",
     "Oversight across the business.": "Nangangasiwa sa buong negosyo.",
     "Package name": "Pangalan ng package",
     "Password updated": "Na-update ang password",
@@ -827,6 +840,7 @@
     "Please check the details below before placing your order.": "Pakitingnan ang mga detalye sa ibaba bago ilagay ang order.",
     "Please check the email address.": "Pakitingnan ang email address.",
     "Please enter a branch name.": "Ilagay ang pangalan ng branch.",
+    "Please enter your name so we know who is ordering 😊": "Pakilagay ang iyong pangalan para malaman namin kung sino ang mag-oorder 😊",
     "Please fill in all required fields": "Pakisagutan ang lahat ng kailangang field",
     "Please pick a date and time": "Pumili ng petsa at oras",
     "Pork Belly": "Liempo",
@@ -1004,6 +1018,7 @@
     "See stock": "Tingnan ang stock",
     "See the dashboard": "Tingnan ang dashboard",
     "See the kitchen queue": "Tingnan ang pila sa kusina",
+    "See the Menu": "Tingnan ang Menu",
     "See the menu manager": "Tingnan ang menu manager",
     "See the money view": "Tingnan ang pananalapi",
     "See the task board": "Tingnan ang task board",
@@ -1065,6 +1080,8 @@
     "Sold out today?": "Ubos na ngayong araw?",
     "Some uniform items are not ticked. Approve anyway?": "May mga parte ng uniform na hindi naka-check. Aprubahan pa rin?",
     "Something different in mind? Build your own menu with our team.": "May iba kang naiisip? Gumawa ng sariling menu kasama ang team namin.",
+    "Something is missing — please fill in the required fields 📝": "May kulang pa — pakibuuin ang required fields 📝",
+    "Something went wrong while checking. Try again.": "Nagka-error sa pag-check. Subukan ulit.",
     "Sound": "Tunog",
     "Sound for new orders and table calls": "Tunog para sa bagong order at tawag ng mesa",
     "Sound for new orders and table calls needs one tap after the screen turns on. Without it they arrive silently.": "Kailangan ng isang tap pagbukas ng screen para tumunog ang bagong order at tawag ng mesa. Kung wala, tahimik silang darating.",
@@ -1089,6 +1106,7 @@
     "Start Cooking": "Simulan ang pagluto",
     "Start cooking and mark ready from the kitchen queue.": "Magsimulang magluto at markahang handa mula sa pila sa kusina.",
     "Start the Conversation": "Simulan ang usapan",
+    "Start with the menu — 60+ dishes are waiting.": "Simulan mo sa menu — 60+ dishes ang naghihintay.",
     "Starting": "Magsisimula",
     "Starting price (₱)": "Panimulang presyo (₱)",
     "Starts": "Magsisimula",
@@ -1141,6 +1159,7 @@
     "Testimonials": "Mga testimonial",
     "Thank you,": "Salamat,",
     "That code is already in use.": "Gamit na ang code na iyan.",
+    "That number looks wrong — please check it (09XXXXXXXXX) 📱": "Parang may mali sa numero mo — i-check lang ulit (dapat 09XXXXXXXXX) 📱",
     "That section is for managers.": "Para sa mga manager ang bahaging iyan.",
     "The \"SEC\" badge only appears once this is filled in.": "Lalabas lang ang \"SEC\" badge kapag napunan ito.",
     "The \"VAT\" badge only appears once this is filled in.": "Lalabas lang ang \"VAT\" badge kapag napunan ito.",
@@ -1261,14 +1280,18 @@
     "Waiting for dining pickup": "Hinihintay na kunin ng dining",
     "We accept": "Tumatanggap kami ng",
     "We cook every plate like it's for our own family. We treat every customer like a regular, even on their first visit. We charge fair prices for honest food. And we don't take shortcuts on the things that matter — the lechon kawali is still hand-fried, the sinigang is still simmered for hours, the pancit is still made fresh per order.": "Niluluto namin ang bawat plato na parang para sa sarili naming pamilya. Suki ang turing namin sa bawat customer, kahit unang bisita pa lang. Tapat ang presyo para sa tapat na pagkain. At hindi kami nagsha-shortcut sa mahalaga — pinipirito pa rin nang mano-mano ang lechon kawali, ilang oras pa ring pinakukuluan ang sinigang, at bagong luto pa rin ang pancit bawat order.",
+    "We couldn't find that order. Check the reference number.": "Hindi mahanap ang order na iyan. Tiyakin ang reference number.",
     "We couldn't open the payment page.": "Hindi namin mabuksan ang payment page.",
     "We Deliver": "Naghahatid kami",
     "We just need a few details so we can serve you right.": "Kaunting detalye lang para mapagsilbihan ka namin nang tama.",
     "We map out menu, headcount, schedule, and pricing — tailored to your situation.": "Pinaplano namin ang menu, dami ng tao, schedule at presyo — ayon sa sitwasyon mo.",
+    "We need to know where to deliver — please enter your address 📍": "Kailangan namin malaman kung saan ipapadala — i-lagay ang iyong address 📍",
     "We Plan Together": "Sabay tayong magplano",
     "We Reach Out": "Kami ang lalapit",
     "We'll call you within one business day to set your tasting.": "Tatawagan ka namin sa loob ng isang araw na may pasok para sa tasting mo.",
     "We've moved — just behind our old spot.": "Lumipat na kami — sa likod lang ng dati naming puwesto.",
+    "We've received your event inquiry.": "Natanggap na namin ang iyong event inquiry.",
+    "We've received your inquiry.": "Natanggap na namin ang iyong inquiry.",
     "Wed": "Miy",
     "Wedding / Debut": "Kasal / Debut",
     "Week of": "Linggo ng",
@@ -1319,6 +1342,7 @@
     "You're all caught up": "Wala ka nang hindi nababasa",
     "Your account cannot give rewards.": "Hindi makakapagbigay ng reward ang account mo.",
     "Your account, your security, your choice.": "Account mo, seguridad mo, desisyon mo.",
+    "Your cart is empty!": "Wala pang laman ang cart mo!",
     "Your company name": "Pangalan ng kumpanya mo",
     "Your inbox and messages you've sent. Compose to send to a person or broadcast to Las Piñas.": "Ang inbox mo at mga mensaheng naipadala mo. Gumawa ng mensahe para sa isang tao o sa buong Las Piñas.",
     "Your inbox is empty.": "Walang laman ang inbox mo.",
@@ -1338,7 +1362,7 @@
   const dict = new Map(Object.entries(PHRASES).map(([k, v]) => [norm(k), v]));
   // Keys that may start a longer message: "Could not save: <error>",
   // "No audit rows on 2026-10-16", "Week of Oct 12 – 18".
-  const leads = [...dict.keys()].filter(k => /[:—…]$/.test(k) || /\s(on|for|of|from|by|to|in|at|with|across|since|until)$/i.test(k)).sort((a, b) => b.length - a.length);
+  const leads = [...dict.keys()].filter(k => /[:—…,]$/.test(k) || /\s(on|for|of|from|by|to|in|at|with|across|since|until)$/i.test(k)).sort((a, b) => b.length - a.length);
   const LEAD_REST = /^\s+[\d₱"“A-Z(]/;   // what may follow a multi-word lead: a date, amount, name
 
   const PRE = /^[^A-Za-z0-9À-ɏ“"'(]+/;                                   // icons, bullets, + ✓ ←
@@ -1365,7 +1389,7 @@
     for (const k of leads) {
       if (!rest.startsWith(k)) continue;
       const tail = rest.slice(k.length);
-      if (/[:—…]$/.test(k) || LEAD_REST.test(tail)) return pre + dict.get(k) + tail;
+      if (/[:—…,]$/.test(k) || LEAD_REST.test(tail)) return pre + dict.get(k) + tail;
     }
     return null;
   }

@@ -15,11 +15,11 @@
   // refused by the browser unless its hash matches.
   if (!window.supabase) document.write('<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js" integrity="sha384-Rj26LVGvoeRVR6+mwQmFfcR3QOBEwT+ZmuCWpuiqeTzJpCs0ER4ITAWGb4Hiy3Ok" crossorigin="anonymous"><' + '/script>');
 </script>
-<script src="config.js?v=20261017c"></script>
-<script src="tpn-supabase.js?v=20261017c"></script>
-<script src="tpn-kit.js?v=20261017c"></script>
-<script src="tpn-site.js?v=20261017c"></script>
-<script src="tpn-i18n.js?v=20261017c"></script>
+<script src="config.js?v=20261017d"></script>
+<script src="tpn-supabase.js?v=20261017d"></script>
+<script src="tpn-kit.js?v=20261017d"></script>
+<script src="tpn-site.js?v=20261017d"></script>
+<script src="tpn-i18n.js?v=20261017d"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="description" content="Tyo Paeng Nyo staff portal.">
 <meta name="robots" content="noindex, nofollow">
@@ -49,8 +49,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=Lora:ital,wght@0,400;0,600;1,400&family=DM+Sans:wght@300;400;500;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="tpn-app.css?v=20261017c">
-<link rel="stylesheet" href="tpn-glass.css?v=20261017c">
+<link rel="stylesheet" href="tpn-app.css?v=20261017d">
+<link rel="stylesheet" href="tpn-glass.css?v=20261017d">
 </head>
 <body>
 <a class="skip-link" href="#main-content" onclick="event.preventDefault();var t=document.querySelector('.page.active h1, .portal-page.active main');if(t){t.setAttribute('tabindex','-1');t.focus();}">Skip to content</a>
@@ -63,7 +63,7 @@
 
 <!-- CONNECTION STATUS BANNER -->
 <div class="connection-banner" id="connectionBanner">
-  <span>📶 Mukhang may problema sa iyong koneksyon. Baka hindi makuha ang iyong order.</span>
+  <span>📶 Looks like your connection has a problem. Your order may not go through.</span>
   <button onclick="location.reload()">I-reload →</button>
 </div>
 
@@ -1763,7 +1763,7 @@ function refreshTodaySummary(force) {
 
 function renderDashboard(main) {
   const u = currentUser;
-  const tierGreeting = { director: 'Direktor', ceo: 'CEO', admin: 'Admin', manager: 'Manager' }[u.tier];
+  const tierGreeting = { director: TPN_LANG === 'tl' ? 'Direktor' : 'Director', ceo: 'CEO', admin: 'Admin', manager: 'Manager' }[u.tier];
   const isBranchScoped = u.tier === 'manager';
   const scope = isBranchScoped ? (portalState.branches.find(b => b.id === u.branch)?.name || 'Your branch') : 'All Branches';
 
@@ -1805,7 +1805,7 @@ function renderDashboard(main) {
   main.innerHTML = `
     <div class="portal-header">
       <div>
-        <h1>Magandang araw${tierGreeting ? ', ' + tierGreeting : ''} ${E(u.name.split(' ')[0])}.</h1>
+        <h1>Good day${tierGreeting ? ', ' + tierGreeting : ''} ${E(u.name.split(' ')[0])}.</h1>
         <div class="portal-header-sub">Here's what's happening at Las Piñas today.</div>
       </div>
       <div class="branch-pill locked">Las Piñas</div>
@@ -2193,7 +2193,7 @@ function editScheduleNote(staffId) {
     <div class="modal-title">Note for ${E(s?.name || 'staff')}</div>
     <div class="modal-sub">This note appears on their My Schedule tab.</div>
     <div class="modal-content">
-      <textarea class="form-input" id="schedNoteInput" rows="4" placeholder="e.g. Meron tayong big group booking sa Friday…">${E(cache.notes||'')}</textarea>
+      <textarea class="form-input" id="schedNoteInput" rows="4" placeholder="e.g. Big group booking on Friday…">${E(cache.notes||'')}</textarea>
     </div>
     <div class="modal-actions">
       <button class="btn-back" onclick="closeModal()">Cancel</button>
@@ -2495,7 +2495,7 @@ function renderOrders(main) {
     const laneOrders = orders.filter(o => o.status === lane.id);
     html += `<div class="order-lane ${lane.class}">
       <div class="order-lane-header"><div class="order-lane-title">${lane.label}</div><div class="order-lane-count">${laneOrders.length}</div></div>`;
-    if (!laneOrders.length) html += '<div class="portal-empty-lane"><div style="font-size:28px;margin-bottom:6px;">' + (lane.id==='done'?'✓':lane.id==='received'?'🕐':lane.id==='preparing'?'👨‍🍳':'🔔') + '</div><div style="font-size:12px;color:var(--ink-faint);">' + (lane.id==='received'?'Walang bagong order':'Wala sa estadong ito') + '</div></div>';
+    if (!laneOrders.length) html += '<div class="portal-empty-lane"><div style="font-size:28px;margin-bottom:6px;">' + (lane.id==='done'?'✓':lane.id==='received'?'🕐':lane.id==='preparing'?'👨‍🍳':'🔔') + '</div><div style="font-size:12px;color:var(--ink-faint);">' + (lane.id==='received'?'No new orders':'Nothing here') + '</div></div>';
     else laneOrders.forEach(o => {
       const canVoid = currentUser && ['manager','admin','director','ceo'].includes(currentUser.tier);
       const canDiscount = currentUser && ['supervisor','manager','admin','director','ceo'].includes(currentUser.tier);
@@ -5587,7 +5587,7 @@ function openRoleEditor(id) {
       </div>
       <div style="margin-bottom:12px;">
         <label class="form-label">Tagalog name (optional)</label>
-        <input type="text" class="form-input" id="roLabelTl" value="${role ? E(role.label_tl || '') : ''}" placeholder="Namamahala sa Floor">
+        <input type="text" class="form-input" id="roLabelTl" value="${role ? E(role.label_tl || '') : ''}" placeholder="e.g. Namamahala sa Floor">
       </div>
       ${role ? '' : `<div style="margin-bottom:12px;">
         <label class="form-label">Key</label>
@@ -6023,7 +6023,7 @@ function openTaskEditor(id) {
       </div>
       <div style="margin-bottom:12px;">
         <label class="form-label">Details</label>
-        <textarea class="form-input" id="tkDesc" rows="2" placeholder="Bago mag-inventory">${t ? E(t.description || '') : ''}</textarea>
+        <textarea class="form-input" id="tkDesc" rows="2" placeholder="e.g. Before stock count">${t ? E(t.description || '') : ''}</textarea>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
         <div>
@@ -6400,7 +6400,7 @@ function openStockMovement(ingredientId, defaultType) {
         </div>
         <div>
           <label class="form-label">${E(T('common.notes'))}</label>
-          <input type="text" class="form-input" id="mvNotes" placeholder="nasira sa freezer">
+          <input type="text" class="form-input" id="mvNotes" placeholder="e.g. spoiled in the freezer">
         </div>
       </div>
       <div style="font-size:11px;color:var(--ink-faint);margin-top:6px;">
@@ -8061,7 +8061,7 @@ async function renderStaffHome(main) {
   main.innerHTML = `
     <div class="staff-hero">
       <div class="staff-hero-content">
-        <h1>Magandang araw, ${first}!</h1>
+        <h1>Good day, ${first}!</h1>
         <div class="staff-hero-sub">${u.tier === 'dining' ? 'Dining Staff' : u.tier === 'kitchen' ? 'Kitchen Staff' : (u.tier.charAt(0).toUpperCase()+u.tier.slice(1))} • Las Piñas Branch</div>
       </div>
       <div class="staff-hero-stats" id="staffHeroStats">
@@ -8798,14 +8798,15 @@ function guardAsync(name) {
 
 </script>
 <!-- Portal modules: each adds its own tab through TPN_MOD (tpn-kit.js). -->
-<script src="modules/website.js?v=20261017c"></script>
+<script src="modules/website.js?v=20261017d"></script>
 <script src="vendor/qrcode-generator-1.4.4.js"></script>
-<script src="modules/payments.js?v=20261017c"></script>
-<script src="modules/pos.js?v=20261017c"></script>
-<script src="modules/modifiers.js?v=20261017c"></script>
-<script src="modules/clockin.js?v=20261017c"></script>
-<script src="modules/stamps.js?v=20261017c"></script>
-<script src="modules/excel-io.js?v=20261017c"></script>
-<script src="modules/guide.js?v=20261017c"></script>
+<script src="modules/payments.js?v=20261017d"></script>
+<script src="modules/pos.js?v=20261017d"></script>
+<script src="modules/modifiers.js?v=20261017d"></script>
+<script src="modules/clockin.js?v=20261017d"></script>
+<script src="modules/stamps.js?v=20261017d"></script>
+<script src="modules/excel-io.js?v=20261017d"></script>
+<script src="modules/guide.js?v=20261017d"></script>
+<script src="modules/search.js?v=20261017d"></script>
 </body>
 </html>

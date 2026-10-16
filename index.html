@@ -15,11 +15,11 @@
   // refused by the browser unless its hash matches.
   if (!window.supabase) document.write('<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js" integrity="sha384-Rj26LVGvoeRVR6+mwQmFfcR3QOBEwT+ZmuCWpuiqeTzJpCs0ER4ITAWGb4Hiy3Ok" crossorigin="anonymous"><' + '/script>');
 </script>
-<script src="config.js?v=20261017c"></script>
-<script src="tpn-supabase.js?v=20261017c"></script>
-<script src="tpn-kit.js?v=20261017c"></script>
-<script src="tpn-site.js?v=20261017c"></script>
-<script src="tpn-i18n.js?v=20261017c"></script>
+<script src="config.js?v=20261017d"></script>
+<script src="tpn-supabase.js?v=20261017d"></script>
+<script src="tpn-kit.js?v=20261017d"></script>
+<script src="tpn-site.js?v=20261017d"></script>
+<script src="tpn-i18n.js?v=20261017d"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="description" content="Tyo Paeng Nyo — Authentic Filipino cuisine in Las Piñas since 2003. Order online, book events, or inquire about catering.">
 <meta name="theme-color" content="#8B1A0E">
@@ -52,8 +52,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=Lora:ital,wght@0,400;0,600;1,400&family=DM+Sans:wght@300;400;500;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="tpn-app.css?v=20261017c">
-<link rel="stylesheet" href="tpn-glass.css?v=20261017c">
+<link rel="stylesheet" href="tpn-app.css?v=20261017d">
+<link rel="stylesheet" href="tpn-glass.css?v=20261017d">
 </head>
 <body>
 <a class="skip-link" href="#main-content" onclick="event.preventDefault();var t=document.querySelector('.page.active h1, .portal-page.active main');if(t){t.setAttribute('tabindex','-1');t.focus();}">Skip to content</a>
@@ -601,7 +601,7 @@
 
 <!-- CONNECTION STATUS BANNER -->
 <div class="connection-banner" id="connectionBanner">
-  <span>📶 Mukhang may problema sa iyong koneksyon. Baka hindi makuha ang iyong order.</span>
+  <span>📶 Looks like your connection has a problem. Your order may not go through.</span>
   <button onclick="location.reload()">I-reload →</button>
 </div>
 
@@ -1360,8 +1360,8 @@ function renderMenu() {
     const q2 = (document.getElementById('menuSearch')?.value || '').trim();
     sec.innerHTML = `<div class="empty-state">
       <div class="empty-state-icon">🔍</div>
-      <div class="empty-state-title">Wala pa kaming ${q2 ? '"' + E(q2) + '"' : 'results'} sa menu ngayon.</div>
-      <div class="empty-state-body">Baka may typo? O subukan mo ang ibang ulam — 60+ dishes ang luto namin.</div>
+      <div class="empty-state-title">No ${q2 ? '"' + E(q2) + '"' : 'results'} on the menu right now.</div>
+      <div class="empty-state-body">Maybe a typo? Or try another dish — we cook 60+ dishes.</div>
       <button class="empty-state-cta" onclick="document.getElementById('menuSearch').value='';setCategory('all')">Clear search →</button>
     </div>`;
     return;
@@ -1413,7 +1413,7 @@ function updateCartUI() {
   }
   const itemsEl = document.getElementById('cartItems');
   let html = '';
-  if (!cart.length) html = '<div class="cart-empty"><div class="cart-empty-icon">🍽️</div><div class="cart-empty-msg">Wala pang laman ang cart mo!</div><div class="cart-empty-sub">Simulan mo sa menu — 60+ dishes ang naghihintay.</div><button class="cart-empty-cta" onclick="toggleCart();navigate(\'menu\')">Tingnan ang Menu →</button></div>';
+  if (!cart.length) html = '<div class="cart-empty"><div class="cart-empty-icon">🍽️</div><div class="cart-empty-msg">Your cart is empty!</div><div class="cart-empty-sub">Start with the menu — 60+ dishes are waiting.</div><button class="cart-empty-cta" onclick="toggleCart();navigate(\'menu\')">See the Menu →</button></div>';
   else {
     cart.forEach(c => {
       html += `<div class="cart-item">
@@ -1544,13 +1544,13 @@ function renderCheckoutStep() {
         <h2>Your Information</h2>
         <p class="checkout-sub">We just need a few details so we can serve you right.</p>
         <div class="form-row">
-          <div><label class="form-label">Full Name *</label><input type="text" class="form-input" id="ck-name" placeholder="Juan Dela Cruz" value="${E(checkoutData.name || '')}"><div class="form-error" id="err-name">Pakilagay ang iyong pangalan para malaman namin kung sino ang mag-oorder 😊</div></div>
-          <div><label class="form-label">Phone *</label><input type="tel" class="form-input" id="ck-phone" placeholder="09171234567" value="${E(checkoutData.phone || '')}"><div class="form-error" id="err-phone">Parang may mali sa numero mo — i-check lang ulit (dapat 09XXXXXXXXX) 📱</div></div>
+          <div><label class="form-label">Full Name *</label><input type="text" class="form-input" id="ck-name" placeholder="Juan Dela Cruz" value="${E(checkoutData.name || '')}"><div class="form-error" id="err-name">Please enter your name so we know who is ordering 😊</div></div>
+          <div><label class="form-label">Phone *</label><input type="tel" class="form-input" id="ck-phone" placeholder="09171234567" value="${E(checkoutData.phone || '')}"><div class="form-error" id="err-phone">That number looks wrong — please check it (09XXXXXXXXX) 📱</div></div>
         </div>
 <!-- dine-in removed from online flow -->
         ${isDel ? `
           <div class="form-row full">
-            <div><label class="form-label">Delivery Address *</label><textarea class="form-input" id="ck-address" placeholder="Building, unit, street, barangay, landmark" rows="3">${E(checkoutData.address || '')}</textarea><div class="form-error" id="err-address">Kailangan namin malaman kung saan ipapadala — i-lagay ang iyong address 📍</div></div>
+            <div><label class="form-label">Delivery Address *</label><textarea class="form-input" id="ck-address" placeholder="Building, unit, street, barangay, landmark" rows="3">${E(checkoutData.address || '')}</textarea><div class="form-error" id="err-address">We need to know where to deliver — please enter your address 📍</div></div>
           </div>
         ` : ''}
         <div class="form-row full">
@@ -1801,11 +1801,11 @@ async function checkOrderStatus() {
   const ref = document.getElementById('trackInput')?.value?.trim();
   const el = document.getElementById('trackResult');
   if (!ref) { if (el) el.textContent = 'I-type ang iyong reference number.'; return; }
-  if (el) el.innerHTML = '<span style="color:var(--ink-muted);">Hinahanap ang iyong order…</span>';
+  if (el) el.innerHTML = '<span style="color:var(--ink-muted);">Looking for your order…</span>';
   try {
     const order = await TPN.getOrderByNumber(ref);
     if (!order) {
-      if (el) el.innerHTML = '<span style="color:var(--danger);">Hindi mahanap ang order na iyan. Tiyakin ang reference number.</span>';
+      if (el) el.innerHTML = '<span style="color:var(--danger);">We couldn\'t find that order. Check the reference number.</span>';
       return;
     }
     // DB status enum → customer-facing message
@@ -1821,7 +1821,7 @@ async function checkOrderStatus() {
     if (el) el.innerHTML = '<strong>' + (statusMsg[order.status] || 'Nakita ang order.') + '</strong>';
   } catch (e) {
     console.error('checkOrderStatus:', e);
-    if (el) el.innerHTML = '<span style="color:var(--danger);">Nagka-error sa pag-check. Subukan ulit.</span>';
+    if (el) el.innerHTML = '<span style="color:var(--danger);">Something went wrong while checking. Try again.</span>';
   }
 }
 function resetCheckout() {
@@ -1869,12 +1869,12 @@ async function submitConcession() {
   const recentDupe = portalState.inquiries.find(i => i.type === 'b2b' && (i.email === email || i.phone === phone) && i.status === 'new' && i.time === 'just now');
   showConfirmModal('✅ Inquiry Received!', `
     <div style="text-align:center;margin-bottom:16px;font-size:40px;">📩</div>
-    <p>Salamat, <strong>${E(name)}</strong>! Natanggap na namin ang iyong inquiry.</p>
+    <p>Thank you, <strong>${E(name)}</strong>! We've received your inquiry.</p>
     <div style="background:var(--bg-2);border:1px dashed var(--gold);border-radius:8px;padding:14px;margin:14px 0;">
       <div style="font-size:11px;color:var(--ink-muted);text-transform:uppercase;letter-spacing:0.12em;margin-bottom:4px;">Reference Number</div>
       <div style="font-family:'Playfair Display',serif;font-size:20px;font-weight:900;color:var(--brick);">${ref}</div>
     </div>
-    <p style="color:var(--ink-muted);font-size:14px;line-height:1.6;">Aabutin kayo ng team namin — usually within <strong>1 business day</strong> — sa phone o email. Hindi ito auto-reply; tao ang makikipag-usap sa inyo.</p>
+    <p style="color:var(--ink-muted);font-size:14px;line-height:1.6;">Our team will reach you within <strong>1 business day</strong> by phone or email. This isn't an auto-reply; a real person will talk to you.</p>
   `, () => navigate('home'));
 }
 async function submitEvent() {
@@ -1883,7 +1883,7 @@ async function submitEvent() {
   const pax = document.getElementById('ev-pax').value;
   const date = document.getElementById('ev-date').value;
   const email = (document.getElementById('ev-email')?.value || '').trim();
-  if (!name || !phone || !pax || !date) { toast('May kulang pa — pakibuuin ang required fields 📝'); return; }
+  if (!name || !phone || !pax || !date) { toast('Something is missing — please fill in the required fields 📝'); return; }
   if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { toast('Please check the email address.'); return; }
   let ref;
   try {
@@ -1907,12 +1907,12 @@ async function submitEvent() {
   ['ev-name','ev-phone','ev-email','ev-pax','ev-date','ev-venue','ev-notes'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
   showConfirmModal('✅ Event Inquiry Sent!', `
     <div style="text-align:center;margin-bottom:16px;font-size:40px;">🎉</div>
-    <p>Salamat, <strong>${E(name)}</strong>! Natanggap na namin ang iyong event inquiry.</p>
+    <p>Thank you, <strong>${E(name)}</strong>! We've received your event inquiry.</p>
     <div style="background:var(--bg-2);border:1px dashed var(--gold);border-radius:8px;padding:14px;margin:14px 0;">
       <div style="font-size:11px;color:var(--ink-muted);text-transform:uppercase;letter-spacing:0.12em;margin-bottom:4px;">Reference Number</div>
       <div style="font-family:'Playfair Display',serif;font-size:20px;font-weight:900;color:var(--brick);">${ref}</div>
     </div>
-    <p style="color:var(--ink-muted);font-size:14px;line-height:1.6;">Makikipag-ugnayan sa inyo ang aming team sa loob ng <strong>1 business day</strong>. Huwag mag-atubiling mag-ulit kung hindi nakatanggap ng reply sa loob ng 24 oras.</p>
+    <p style="color:var(--ink-muted);font-size:14px;line-height:1.6;">Our team will get in touch within <strong>1 business day</strong>. If you don't hear back in 24 hours, feel free to message again.</p>
   `, () => navigate('home'));
 }
 
@@ -1984,7 +1984,7 @@ async function submitTasting() {
       eventDate: date, expectedPax: parseInt(v('ts-pax')) || null
     });
     if (window.tpnDraft) tpnDraft.clear('tasting-form');
-    showConfirmModal('✅ Request sent', `<p>Salamat, <strong>${E(name)}</strong>! We'll call you within one business day to set your tasting.</p>
+    showConfirmModal('✅ Request sent', `<p>Thank you, <strong>${E(name)}</strong>! We'll call you within one business day to set your tasting.</p>
       <p style="color:var(--ink-muted);font-size:13px;margin-top:10px;">Reference: <strong>TPN-T-${E(r.id.slice(0, 6).toUpperCase())}</strong></p>`);
   } catch (e) {
     err.textContent = e.message || 'Could not send. Please call us instead.';
