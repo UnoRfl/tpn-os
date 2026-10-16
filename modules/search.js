@@ -246,14 +246,14 @@
 
   /* ── Entry points ───────────────────────────────────────────── */
   function mountButtons() {
-    document.querySelectorAll('.portal-sidebar').forEach(side => {
-      if (side.querySelector('.tpn-cmdk-btn')) return;
+    // Top right of the page, on the same row as the hub tabs.
+    document.querySelectorAll('.portal-topbar').forEach(top => {
+      if (top.querySelector('.tpn-cmdk-btn')) return;
       const b = document.createElement('button');
       b.type = 'button'; b.className = 'tpn-cmdk-btn';
       b.innerHTML = `<span aria-hidden="true">🔍</span><span class="cmdk-field-label"></span><kbd translate="no">${/Mac|iPhone|iPad/.test(navigator.platform) ? '⌘K' : 'Ctrl K'}</kbd>`;
       b.addEventListener('click', () => open());
-      const brand = side.querySelector('.portal-brand');
-      brand ? brand.after(b) : side.prepend(b);
+      top.appendChild(b);
     });
     document.querySelectorAll('.portal-mobile-bar').forEach(bar => {
       if (bar.querySelector('.portal-mobile-search')) return;

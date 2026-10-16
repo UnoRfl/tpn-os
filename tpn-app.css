@@ -1636,9 +1636,23 @@
 /* Hub tab strip: sits above the page, sticks while you scroll it. */
 /* No band behind it: just the pill, sized to its tabs. The pill is frosted
    glass, so the page blurs behind it while scrolling. */
-.hub-tabs { position: sticky; top: 0; z-index: 5; margin: -8px 0 14px; padding: 8px 0 10px; pointer-events: none; }
+/* Top bar: hub tabs on the left, search on the right. Tabs shrink and
+   scroll sideways before they ever run under the search button. */
+.portal-topbar { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: 12px;
+  margin: -8px 0 14px; padding: 8px 0 10px; pointer-events: none; }
+.portal-topbar > * { pointer-events: auto; }
+.hub-tabs { flex: 1 1 auto; min-width: 0; }
 .hub-tabs[hidden] { display: none; }
-.hub-tabs .tpn-tabs { margin-bottom: 0; width: fit-content; max-width: 100%; pointer-events: auto;
+.portal-topbar .tpn-cmdk-btn { flex: 0 0 auto; width: auto; min-width: 190px; margin: 0 0 0 auto; border-radius: 999px;
+  -webkit-backdrop-filter: blur(18px) saturate(1.4); backdrop-filter: blur(18px) saturate(1.4);
+  box-shadow: 0 6px 20px -10px rgba(0, 0, 0, .35); }
+/* Phones use the 🔍 in the top mobile bar instead. */
+@media (max-width: 880px) {
+  .portal-topbar .tpn-cmdk-btn { display: none; }
+  .portal-topbar:has(> .hub-tabs[hidden]) { display: none; }
+}
+.hub-tabs .tpn-tabs-select { margin-bottom: 0; }
+.hub-tabs .tpn-tabs { margin-bottom: 0; width: fit-content; max-width: 100%;
   background: rgba(var(--glass-tint, 247, 237, 211), 0.72);
   -webkit-backdrop-filter: blur(18px) saturate(1.4); backdrop-filter: blur(18px) saturate(1.4);
   box-shadow: 0 6px 20px -10px rgba(0, 0, 0, .35); }
