@@ -15,10 +15,10 @@
   // refused by the browser unless its hash matches.
   if (!window.supabase) document.write('<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js" integrity="sha384-Rj26LVGvoeRVR6+mwQmFfcR3QOBEwT+ZmuCWpuiqeTzJpCs0ER4ITAWGb4Hiy3Ok" crossorigin="anonymous"><' + '/script>');
 </script>
-<script src="config.js?v=20261016b"></script>
-<script src="tpn-supabase.js?v=20261016b"></script>
-<script src="tpn-kit.js?v=20261016b"></script>
-<script src="tpn-site.js?v=20261016b"></script>
+<script src="config.js?v=20261016c"></script>
+<script src="tpn-supabase.js?v=20261016c"></script>
+<script src="tpn-kit.js?v=20261016c"></script>
+<script src="tpn-site.js?v=20261016c"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="description" content="Tyo Paeng Nyo — Authentic Filipino cuisine in Las Piñas since 2003. Order online, book events, or inquire about catering.">
 <meta name="theme-color" content="#8B1A0E">
@@ -2207,7 +2207,7 @@ html[data-theme="dark"]  .panel, html[data-theme="night"] .panel {
 .kds-guest-chip { flex-wrap: wrap; min-width: 0; }
 .kds-guest-chip > span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
 </style>
-<link rel="stylesheet" href="tpn-glass.css?v=20261016b">
+<link rel="stylesheet" href="tpn-glass.css?v=20261016c">
 </head>
 <body>
 <a class="skip-link" href="#main-content" onclick="event.preventDefault();var t=document.querySelector('.page.active h1, .portal-page.active main');if(t){t.setAttribute('tabindex','-1');t.focus();}">Skip to content</a>
@@ -2238,7 +2238,7 @@ html[data-theme="dark"]  .panel, html[data-theme="night"] .panel {
       <div class="nav-drop glass" role="menu">
         <a role="menuitem" onclick="navigate('restaurant')" data-nav="restaurant"><span data-i18n="nav.restaurant">Our Restaurant</span><small>Address, hours, parking</small></a>
         <a role="menuitem" onclick="navigate('about')" data-nav="about"><span data-i18n="nav.about">About</span><small>Our story</small></a>
-        <a role="menuitem" onclick="navigate('faq')" data-nav="faq"><span data-i18n="nav.faq">FAQ</span><small>Payment, parking, rewards</small></a>
+        <a role="menuitem" onclick="navigate('faq')" data-nav="faq"><span data-i18n="nav.faq">FAQ</span><small>Payment, parking, events</small></a>
       </div>
     </li>
     <li><button class="cart-btn" onclick="toggleCart()">🍽️ <span data-i18n="nav.tray">Tray</span> <span class="cart-count" id="navCartCount">0</span></button></li>
@@ -2658,7 +2658,7 @@ html[data-theme="dark"]  .panel, html[data-theme="night"] .panel {
 <div class="page" id="page-faq">
   <div class="page-header">
     <h1>Questions &amp; <em>Answers</em></h1>
-    <p>Location, parking, payment, events and rewards. Can't find it? Call <a href="tel:+639998887817" data-site="contact.phone" data-site-href="tel">0999 888 7817</a>.</p>
+    <p>Location, parking, payment and events. Can't find it? Call <a href="tel:+639998887817" data-site="contact.phone" data-site-href="tel">0999 888 7817</a>.</p>
     <label class="faq-search glass"><span class="sr-only">Search the questions</span>
       <input type="search" placeholder="Search: parking, GCash, minimum pax…" oninput="filterFaqs(this.value)" autocomplete="off">
     </label>
@@ -2700,7 +2700,7 @@ html[data-theme="dark"]  .panel, html[data-theme="night"] .panel {
         <li><a onclick="navigate('events')">Events</a></li>
         <li><a onclick="navigate('about')">About</a></li>
         <li><a onclick="navigate('faq')">FAQ</a></li>
-        <li><a href="tpn-rewards">Stamp card</a></li>
+        <li data-site-if="rewards.enabled" hidden><a href="tpn-rewards">Stamp card</a></li>
       </ul>
     </div>
     <div class="footer-col">
@@ -12238,12 +12238,12 @@ if (document.readyState !== 'loading') {
 
 </script>
 <!-- Portal modules: each adds its own tab through TPN_MOD (tpn-kit.js). -->
-<script src="modules/website.js?v=20261016b"></script>
+<script src="modules/website.js?v=20261016c"></script>
 <script src="vendor/qrcode-generator-1.4.4.js"></script>
-<script src="modules/payments.js?v=20261016b"></script>
-<script src="modules/pos.js?v=20261016b"></script>
-<script src="modules/clockin.js?v=20261016b"></script>
-<script src="modules/stamps.js?v=20261016b"></script>
-<script src="modules/excel-io.js?v=20261016b"></script>
+<script src="modules/payments.js?v=20261016c"></script>
+<script src="modules/pos.js?v=20261016c"></script>
+<script src="modules/clockin.js?v=20261016c"></script>
+<script src="modules/stamps.js?v=20261016c"></script>
+<script src="modules/excel-io.js?v=20261016c"></script>
 </body>
 </html>

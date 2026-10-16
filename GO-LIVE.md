@@ -1,6 +1,18 @@
 # TPN OS v2 — Go-live checklist
 
-Branch: `feature/tpn-v2-overhaul` (not live). `main` already has the security hotfix (sql/29 + 29c), which **is live**.
+## Status (2026-10-16)
+
+| Step | State |
+|---|---|
+| 0 Leaked password protection, backups | **Skipped**: needs a paid Supabase plan. Revisit if the plan is upgraded. |
+| 1 Database (29a–34) | ✅ Live. Advisors clean apart from the intended public functions. |
+| 2 Website + portal | ✅ Merged to `main` and live. FAQs with `[Fill in]` stay unpublished (open questions on hold). |
+| 3 Clock-in | ⏸ Waiting: needs someone at the restaurant (trust Wi-Fi, phone camera test). |
+| 4 HitPay | ⏸ Waiting on the HitPay meeting. "How do I pay?" FAQ says cash/bank only until then — put online payment back in when it goes live. |
+| 5 POS / cash drawer | ✅ Usable now. No add-ons set up; add them only when the menu actually has paid extras. |
+| 6 Stamp cards | ⏸ Off on purpose: the reward (₱300 min, 10 stamps, free dish ≤ ₱300) is a placeholder and costs real money. When the owner approves an offer: Rewards → set it, tick on. The footer link appears by itself; re-publish the stamp-card FAQ in the Website tab. |
+| Open questions | On hold. |
+
 Do the steps in order. Each one is safe to stop after: nothing later is required for earlier steps to work.
 
 ## 0. Before you start (5 minutes)

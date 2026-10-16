@@ -65,6 +65,11 @@
       else if (el.dataset.siteHref === 'url') { if (/^https:\/\//.test(v)) el.href = v; }
       else el.textContent = v;
     });
+    // <x data-site-if="rewards.enabled" hidden> shows only while that switch is on.
+    document.querySelectorAll('[data-site-if]').forEach(el => {
+      const v = S(el.dataset.siteIf);
+      el.hidden = !(v === true || v === 'true' || v === 'yes');
+    });
     // Trust badges are claims; show a registration only once its number is on file.
     const trust = document.getElementById('concTrust');
     if (trust) {
