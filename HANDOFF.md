@@ -62,6 +62,13 @@ tpn-os/
 
 ---
 
+## Rev 9 — manual payments, delivery, iMin counter, glass + motion (Oct 17, 2026)
+
+- **Payments are all taken by hand (sql/37a, 37b).** No payment app talks to the system. Staff show the shop's QR (GCash/Maya/QR Ph) or run the card terminal, check it went through, then record it with the reference / approval code: `record_manual_payment`, or `settle_table_manual` for a whole table at Close table. Counts as paid at once and keeps who/when/reference. HitPay code stays but is hidden while `payments.online_enabled` is off. Customers pick what they will pay with (Cash / GCash-Maya-QR Ph / Card at pickup) so staff bring the QR or terminal; the QR menu bill request shows it on the floor.
+- **Delivery (sql/38).** `delivery_zones` (area, fee, minimum, time); the fee is on the bill via `recompute_order_totals` and only changes through `set_delivery_fee` (supervisor+, with a reason). `submit_order` gained `p_delivery_zone_id` (old 13-arg version dropped). `deliveries` holds dispatch: our rider (staff) or Lalamove / Grab / other with tracking link and courier cost; waiting → assigned → on_the_way (order = served) → delivered (order = completed), or failed with a reason. `track_delivery(number, token)` for the customer. Portal: Service → Deliveries (board + Areas & fees, with a starter set). No zones = no fee and no area question.
+- **iMin D4 counter (`modules/imin.js`, `vendor/imin-printer-1.4.0.min.js`, MIT).** With iMin's **iMinprinterplugin** installed on the device, the page prints receipts and kitchen tickets on the built-in 80mm printer and pops the cash drawer (`ws://127.0.0.1:8081`, allowed in the floor/portal CSP). Cash payments open the drawer; receipts print after payment when "Auto-print receipts" is on (printer chip on the floor top bar). Elsewhere it falls back to the browser print window. `counter.webmanifest` makes the floor screen installable full-screen.
+- **Glass + motion.** The floor, QR menu and kitchen screens get the frosted glass look; pages and tabs rise in once (`tpnEnter`), cards cascade, dialogs ease up. Opacity/transform only; off under reduce-motion.
+
 ## Rev 8 — read receipts, Tagalog everywhere, layout pass, beginner guide (Oct 17, 2026)
 
 - **Notifications/messages that came back after reading (sql/36):** branch-wide rows had one shared `read_at` and only managers could update them, so crew "reads" failed silently and a manager's read hid it for everyone. Now `read_receipts` holds one row per person; the client calls `my_notifications`, `my_unread_counts`, `mark_read(kind, ids|null)`, `dismiss_notification`. Also closed a hole: any branch member could UPDATE a broadcast message's text — staff now have `UPDATE (read_at)` only, on rows addressed to them.

@@ -44,7 +44,8 @@
     accounts: 'users staff account add staff password', roles: 'permissions access', 'access-matrix': 'permissions grid', audit: 'log who did what',
     preferences: 'theme dark language tagalog text size settings', 'staff-home': 'home clock in', 'staff-schedule': 'my schedule shift',
     'staff-attendance': 'my attendance', 'staff-notifications': 'alerts', 'staff-messages': 'inbox', 'staff-settings': 'password account',
-    floor: 'tables counter pos cashier dine-in close table', 'kitchen-station': 'kitchen screen wall'
+    floor: 'tables counter pos cashier dine-in close table', 'kitchen-station': 'kitchen screen wall',
+    deliveries: 'delivery rider lalamove grab courier dispatch area fee zone'
   };
 
   const kind = () => document.getElementById('portal-staff')?.classList.contains('active') ? 'staff'

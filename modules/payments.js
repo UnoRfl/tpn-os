@@ -3,7 +3,8 @@
    Server rules: sql/31-payments.sql. Online: supabase/functions/hitpay-*.
 
    What staff can do here, by permission:
-     payments.take      cash (with change), online QR via HitPay, bank transfer
+     payments.take      cash (with change); GCash, Maya, QR Ph, card and bank
+                        taken by hand and recorded with their reference (sql/37b)
      payments.confirm   mark a pending bank transfer received
      payments.refund    refund (cash/bank here; HitPay through HitPay)
      orders.service_charge  add / remove service charge
@@ -13,7 +14,17 @@
 (function () {
   'use strict';
   const can = (k) => !!(window.TPN && TPN.can && TPN.can(k));
-  const METHOD = { cash: '💵 Cash', hitpay: '🔳 Online (HitPay)', bank: '🏦 Bank transfer', card_terminal: '💳 Card terminal', other: 'Other' };
+  const METHOD = { cash: '💵 Cash', gcash: '📱 GCash', maya: '📲 Maya', qrph: '🔳 QR Ph', card: '💳 Card', hitpay: '🔳 Online (HitPay)', bank: '🏦 Bank transfer', card_terminal: '💳 Card terminal', other: 'Other' };
+  // Taken by hand: staff show the shop's QR or run the card terminal, check
+  // it went through, and type the reference shown on the customer's screen.
+  const MANUAL = {
+    gcash: { ref: 'GCash reference no.', hint: 'Check the customer\'s GCash shows the payment to Tyo Paeng Nyo, then type the reference number.' },
+    maya:  { ref: 'Maya reference no.',  hint: 'Check the customer\'s Maya shows the payment, then type the reference number.' },
+    qrph:  { ref: 'QR Ph reference no.', hint: 'Check the payment went through on the customer\'s app, then type the reference number.' },
+    card:  { ref: 'Approval code',       hint: 'Run the card on the terminal. Type the approval code from the terminal slip.' },
+    bank:  { ref: 'Bank reference no.',  hint: 'Check the transfer arrived in the bank app, then type the reference number.' }
+  };
+  const onlineOn = () => { const v = window.tpnSite && tpnSite.state.settings['payments.online_enabled']; return v === true || v === 'true' || v === 'yes'; };
   const STATUS = { completed: ['ok', 'Received'], pending: ['warn', 'Waiting'], failed: ['bad', 'Failed'], cancelled: ['bad', 'Cancelled'], expired: ['bad', 'Expired'] };
   let cur = null;           // current order payments summary
   let liveChan = null;
@@ -58,13 +69,14 @@
         <div><dt>Subtotal</dt><dd>${peso(p.subtotal)}</dd></div>
         ${Number(p.discount) ? `<div><dt>Discounts</dt><dd>− ${peso(p.discount)}</dd></div>` : ''}
         <div><dt>Service charge ${can('orders.service_charge') && !paid ? `<button class="link-btn" onclick="payServiceCharge()">change</button>` : ''}</dt><dd>${peso(p.service_charge || 0)}</dd></div>
+        ${(() => { const fee = Number(p.total) - (Number(p.subtotal) - Number(p.discount || 0) + Number(p.service_charge || 0)); return fee > 0.004 ? `<div><dt>Delivery fee</dt><dd>${peso(fee)}</dd></div>` : ''; })()}
         <div class="pay-total"><dt>Total</dt><dd>${peso(p.total)}</dd></div>
       </dl>
       ${due > 0 && can('payments.take') ? `
       <div class="pay-actions" role="group" aria-label="Take payment">
         <button class="btn-next" onclick="payCash()">💵 Cash</button>
-        <button class="btn-ghost" onclick="payOnline()">🔳 QR Ph / GCash / Maya / Card</button>
-        <button class="btn-ghost" onclick="payBank()">🏦 Bank transfer</button>
+        ${['gcash', 'maya', 'qrph', 'card', 'bank'].map(m => `<button class="btn-ghost" onclick="payManual('${m}')">${METHOD[m]}</button>`).join('')}
+        ${onlineOn() ? '<button class="btn-ghost" onclick="payOnline()">🌐 Online link</button>' : ''}
       </div>` : ''}
       <div id="payWork"></div>
       <h3 class="pay-sub">Payments on this order</h3>
@@ -124,6 +136,8 @@
     try {
       const r = await TPN.recordCash(cur.order_id, ten, { amount: amt, tip, cashSession: window.tpnCashSessionId || null });
       toast(r.change_due > 0 ? `Recorded. Give change: ${peso(r.change_due)}` : 'Recorded.');
+      // iMin counter: pop the cash drawer (and print, if that is switched on).
+      if (window.TPN_PRINT) { TPN_PRINT.openDrawer('cash payment'); TPN_PRINT.receipt(cur.order_id).catch(() => {}); }
       await refresh(cur.order_id);
     } catch (e) { toast(e.message); }
   };
@@ -146,6 +160,37 @@
     }
   };
   ['payOnline'].forEach(n => window.guardAsync && guardAsync(n));
+
+  // GCash / Maya / QR Ph / card / bank: recorded as received straight away.
+  window.payManual = function (method) {
+    const due = Number(cur.amount_due), m = MANUAL[method];
+    document.getElementById('payWork').innerHTML = `
+      <div class="pay-work glass">
+        <p class="pref-row-hint">${E(m.hint)}</p>
+        <div class="form-row">
+          <div><label class="form-label" for="pm-amt">Amount</label><input class="form-input" id="pm-amt" type="number" step="0.01" min="0.01" max="${due}" value="${due.toFixed(2)}" inputmode="decimal"></div>
+          <div><label class="form-label" for="pm-ref">${E(m.ref)} *</label><input class="form-input pay-big" id="pm-ref" autocomplete="off" inputmode="${method === 'card' ? 'text' : 'numeric'}"></div>
+        </div>
+        <div class="form-row">
+          <div><label class="form-label" for="pm-tip">Tip (optional)</label><input class="form-input" id="pm-tip" type="number" step="0.01" min="0" value="0" inputmode="decimal"></div>
+          <div><label class="form-label" for="pm-note">Note (optional)</label><input class="form-input" id="pm-note"></div>
+        </div>
+        <div class="modal-actions"><button class="btn-next" onclick="payManualSave('${method}')">✓ Received</button></div>
+      </div>`;
+    document.getElementById('pm-ref').focus();
+  };
+  window.payManualSave = async function (method) {
+    const ref = document.getElementById('pm-ref').value.trim();
+    if (ref.length < 3) { toast('Type the reference / approval code.'); document.getElementById('pm-ref').focus(); return; }
+    try {
+      await TPN.recordManualPayment(cur.order_id, method, ref, { amount: +document.getElementById('pm-amt').value,
+        tip: +document.getElementById('pm-tip').value || 0, note: document.getElementById('pm-note').value.trim() });
+      toast('Recorded.');
+      if (window.TPN_PRINT) TPN_PRINT.receipt(cur.order_id).catch(() => {});
+      await refresh(cur.order_id);
+    } catch (e) { toast(e.message); }
+  };
+  ['payManualSave'].forEach(n => window.guardAsync && guardAsync(n));
 
   window.payBank = function () {
     const due = Number(cur.amount_due);
@@ -232,6 +277,7 @@
       <tr class="tot"><td>Subtotal</td><td class="r">${E(Number(o.subtotal).toFixed(2))}</td></tr>
       ${Number(o.discount_amount) ? `<tr><td>Less discounts</td><td class="r">-${E(Number(o.discount_amount).toFixed(2))}</td></tr>` : ''}
       ${Number(o.service_charge) ? `<tr><td>Service charge</td><td class="r">${E(Number(o.service_charge).toFixed(2))}</td></tr>` : ''}
+      ${Number(o.delivery_fee) ? `<tr><td>Delivery fee</td><td class="r">${E(Number(o.delivery_fee).toFixed(2))}</td></tr>` : ''}
       <tr class="tot"><td>TOTAL</td><td class="r">₱${E(Number(o.total).toFixed(2))}</td></tr>
       ${p.payments.filter(x => x.status === 'completed').map(x => `<tr><td>${x.kind === 'refund' ? 'Refund' : E((METHOD[x.method] || x.method).replace(/^\S+\s/, ''))}</td><td class="r">${x.kind === 'refund' ? '-' : ''}${E(Number(x.amount).toFixed(2))}</td></tr>${x.change_due ? `<tr><td>Change</td><td class="r">${E(Number(x.change_due).toFixed(2))}</td></tr>` : ''}`).join('')}
       <tr><td>Balance</td><td class="r">${E(Number(p.amount_due).toFixed(2))}</td></tr></table><hr>

@@ -263,7 +263,8 @@ const TPN = {
       p_scheduled_for:    opts.scheduledFor ?? null,
       p_device_id:        this.deviceId(),
       p_join_table_bill:  opts.joinTableBill !== false,
-      p_source:           opts.source || null
+      p_source:           opts.source || null,
+      p_delivery_zone_id: opts.deliveryZoneId || null
     });
     if (error) throw new Error(this.prettyOrderError(error.message));
     // The tracking token proves this device placed the order; without it
@@ -296,6 +297,9 @@ const TPN = {
     msg = msg || 'Could not place the order';
     if (/no_items/.test(msg))              return 'Your order is empty.';
     if (/delivery_needs_address/.test(msg))return 'Please add a delivery address.';
+    if (/delivery_needs_zone/.test(msg))   return 'Please choose your delivery area.';
+    if (/delivery_zone_unknown/.test(msg)) return 'We don\'t deliver to that area right now. Please pick another or choose pickup.';
+    if (/delivery_min_order/.test(msg))    return 'The minimum order for delivery to your area is ₱' + ((msg.match(/delivery_min_order:\s*([\d.]+)/) || [])[1] || '') + '.';
     if (/table_not_in_branch/.test(msg))   return 'That table QR is not valid for this branch — please call staff.';
     if (/bad_order_type/.test(msg))        return 'Something went wrong with the order type. Please try again.';
     if (/negative_price/.test(msg))        return 'One of the prices looked wrong. Please reload the menu.';
@@ -2210,6 +2214,83 @@ TPN.recordCash = async function (orderId, tendered, { amount = null, tip = 0, ca
   if (error) throw new Error(TPN.prettyPaymentError(error.message));
   return data;
 };
+// GCash / Maya / QR Ph / card / bank, taken by hand (sql/37b).
+TPN.recordManualPayment = async function (orderId, method, reference, { amount = null, tip = 0, note = null } = {}) {
+  const { data, error } = await sb.rpc('record_manual_payment', {
+    p_order_id: orderId, p_method: method, p_reference: reference, p_amount: amount, p_tip: tip || 0, p_note: note || null });
+  if (error) throw new Error(TPN.prettyPaymentError(error.message));
+  return data;
+};
+TPN.settleTableManual = async function (orderIds, method, reference, { tip = 0, note = null } = {}) {
+  const { data, error } = await sb.rpc('settle_table_manual', {
+    p_order_ids: orderIds, p_method: method, p_reference: reference, p_tip: tip || 0, p_note: note || null });
+  if (error) throw new Error(TPN.prettyPaymentError(error.message));
+  return data;
+};
+
+/* ═════ DELIVERY (sql/38) ════════════════════════════════════════ */
+TPN.deliveryZones = async function (includeOff = false) {
+  let q = sb.from('delivery_zones').select('*').order('sort').order('name');
+  if (!includeOff) q = q.eq('is_active', true);
+  const { data, error } = await q;
+  if (error) throw error;
+  return data || [];
+};
+TPN.saveDeliveryZone = async function (zone) {
+  const row = { name: zone.name, name_tl: zone.name_tl || null, areas: zone.areas || null, fee: +zone.fee || 0,
+                min_order: +zone.min_order || 0, eta_minutes: zone.eta_minutes ? +zone.eta_minutes : null,
+                is_active: zone.is_active !== false, sort: +zone.sort || 100, updated_at: new Date().toISOString() };
+  const q = zone.id ? sb.from('delivery_zones').update(row).eq('id', zone.id)
+                    : sb.from('delivery_zones').insert(Object.assign(row, { branch_id: zone.branch_id }));
+  const { data, error } = await q.select().single();
+  if (error) throw error;
+  return data;
+};
+TPN.deleteDeliveryZone = async function (id) {
+  const { error } = await sb.from('delivery_zones').delete().eq('id', id);
+  if (error) throw error;
+};
+// Open and recent delivery orders with their dispatch row.
+TPN.deliveryBoard = async function ({ sinceHours = 18 } = {}) {
+  const since = new Date(Date.now() - sinceHours * 3600e3).toISOString();
+  const { data, error } = await sb.from('orders')
+    .select('id, order_number, status, customer_name, customer_phone, delivery_address, notes, total, subtotal, delivery_fee, payment_status, payment_method, placed_at, scheduled_for, delivery_zone_id, delivery_zones(name, eta_minutes), deliveries(*), order_items(name_snapshot, quantity, pax_size, voided_at)')
+    .eq('order_type', 'delivery')
+    .or(`status.not.in.(completed,cancelled),placed_at.gte.${since}`)
+    .order('placed_at', { ascending: false }).limit(100);
+  if (error) throw error;
+  return (data || []).map(o => Object.assign(o, { delivery: Array.isArray(o.deliveries) ? o.deliveries[0] : o.deliveries }));
+};
+TPN.deliveryAssign = async function (orderId, { courier, riderStaffId = null, riderName = null, riderPhone = null, trackingUrl = null, courierCost = null, note = null }) {
+  const { error } = await sb.rpc('delivery_assign', { p_order_id: orderId, p_courier: courier, p_rider_staff_id: riderStaffId,
+    p_rider_name: riderName, p_rider_phone: riderPhone, p_tracking_url: trackingUrl, p_courier_cost: courierCost, p_note: note });
+  if (error) throw new Error(TPN.prettyDeliveryError(error.message));
+};
+TPN.deliveryUpdate = async function (orderId, status, reason) {
+  const { error } = await sb.rpc('delivery_update', { p_order_id: orderId, p_status: status, p_reason: reason || null });
+  if (error) throw new Error(TPN.prettyDeliveryError(error.message));
+};
+TPN.setDeliveryFee = async function (orderId, { zoneId = null, fee = null, reason = null } = {}) {
+  const { data, error } = await sb.rpc('set_delivery_fee', { p_order_id: orderId, p_zone_id: zoneId, p_fee: fee, p_reason: reason });
+  if (error) throw new Error(TPN.prettyDeliveryError(error.message));
+  return data;
+};
+TPN.trackDelivery = async function (orderNumber, token) {
+  const { data, error } = await sb.rpc('track_delivery', { p_order_number: orderNumber, p_token: token });
+  if (error) throw error;
+  return data;
+};
+TPN.prettyDeliveryError = function (msg) {
+  msg = String(msg || '');
+  if (/assign_first/.test(msg)) return 'Assign a rider or courier first.';
+  if (/bad_tracking_url/.test(msg)) return 'The tracking link must start with https://';
+  if (/reason_required/.test(msg)) return 'Please give a reason.';
+  if (/order_closed/.test(msg)) return 'This order is already closed.';
+  if (/order_already_paid/.test(msg)) return 'This order is already paid. Refund first to change the fee.';
+  if (/permission/.test(msg)) return 'Your account is not allowed to do that.';
+  return msg;
+};
+
 TPN.recordBankTransfer = async function (orderId, amount, reference, note) {
   const { data, error } = await sb.rpc('record_bank_transfer', { p_order_id: orderId, p_amount: amount, p_reference: reference, p_note: note || null });
   if (error) throw new Error(TPN.prettyPaymentError(error.message));
@@ -2248,7 +2329,8 @@ TPN.prettyPaymentError = function (msg) {
   if (/nothing_due/.test(msg)) return 'This bill is already fully paid.';
   if (/bad_amount/.test(msg)) return 'That amount is more than what is left' + (m(/is ([\d.]+)/) ? ' (₱' + m(/is ([\d.]+)/) + ')' : '') + '.';
   if (/needs_second_person/.test(msg)) return 'Someone else has to confirm a transfer you recorded.';
-  if (/reference_required/.test(msg)) return 'Enter the bank reference number.';
+  if (/reference_required/.test(msg)) return 'Type the reference or approval code (at least 3 characters).';
+  if (/bad_method/.test(msg)) return 'Pick how they paid.';
   if (/reason_required/.test(msg)) return 'Please give a reason.';
   if (/use_hitpay_refund/.test(msg)) return 'Online payments are refunded through HitPay — use Refund on that payment.';
   if (/order_already_paid/.test(msg)) return 'This bill is already paid. Refund first if it needs changing.';

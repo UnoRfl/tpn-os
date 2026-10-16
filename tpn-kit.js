@@ -469,6 +469,14 @@
   // tpnTabs('website', [{id:'faqs', label:'FAQs', badge:3}, …], 'faqs', 'fnName')
   // A pill bar on wide screens; on phones the same choices fold into one
   // dropdown, so a page with eight sections still fits on one line.
+  // Play the rise-in once when a page opens. Removed again so a live
+  // refresh that redraws the same page does not replay it.
+  window.tpnEnter = function (el) {
+    if (!el) return;
+    el.classList.remove('tpn-enter'); void el.offsetWidth; el.classList.add('tpn-enter');
+    clearTimeout(el._tpnEnterT); el._tpnEnterT = setTimeout(() => el.classList.remove('tpn-enter'), 900);
+  };
+
   window.tpnTabs = function (name, tabs, current, onChangeFn) {
     const lab = (t) => esc(t.label) + (t.badge ? ` (${esc(t.badge)})` : '');
     return `<div class="tpn-tabs fold glass" role="tablist" aria-label="${esc(name)}">

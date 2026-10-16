@@ -12,7 +12,7 @@
   const can = (k) => !!(window.TPN && TPN.can && TPN.can(k));
   const TICKET_KEY = 'tpn.pos.ticket';
   const st = {
-    cats: [], items: [], mods: { groups: [], byItem: {} }, tables: [], branch: null,
+    cats: [], items: [], mods: { groups: [], byItem: {} }, tables: [], branch: null, zones: [], zone: '',
     cat: 'all', q: '', session: null, report: null,
     ticket: load(), type: 'pickup', table: '', name: '', phone: '', address: '', notes: ''
   };
@@ -28,6 +28,7 @@
       TPN.getTablesForBranch(st.branch.id).catch(() => []),
       can('cash.drawer') ? TPN.myOpenCashSession().catch(() => null) : Promise.resolve(null)
     ]);
+    st.zones = await (TPN.deliveryZones ? TPN.deliveryZones().catch(() => []) : []);
     if (c.error) throw c.error; if (i.error) throw i.error;
     st.cats = c.data; st.items = i.data; st.mods = m; st.tables = t; st.session = s;
     window.tpnCashSessionId = s || null;
@@ -199,7 +200,9 @@
   /* ── Ticket ──────────────────────────────────────────────── */
   function drawTicket() {
     const el = document.getElementById('posTicket'); if (!el) return;
-    const total = st.ticket.reduce((a, l) => a + l.price * l.qty, 0);
+    const zone = st.type === 'delivery' ? st.zones.find(z => z.id === st.zone) : null;
+    const fee = zone ? Number(zone.fee) || 0 : 0;
+    const total = st.ticket.reduce((a, l) => a + l.price * l.qty, 0) + fee;
     el.innerHTML = `
       <div class="pos-ticket-head"><h2>Order</h2>${st.ticket.length ? `<button class="link-btn" onclick="posClear()">Clear</button>` : ''}</div>
       <div class="sr-only" aria-live="polite" id="posLive"></div>
@@ -217,6 +220,8 @@
       <div class="form-row"><div><label class="form-label" for="posName">Customer</label><input id="posName" class="form-input" value="${E(st.name)}" oninput="posSet('name',this.value)" placeholder="Name (optional)"></div>
         <div><label class="form-label" for="posPhone">Phone</label><input id="posPhone" class="form-input" type="tel" value="${E(st.phone)}" oninput="posSet('phone',this.value)" placeholder="For stamps / pickup"></div></div>
       ${st.type === 'delivery' ? `<label class="form-label" for="posAddr">Delivery address *</label><textarea id="posAddr" class="form-input" rows="2" oninput="posSet('address',this.value)">${E(st.address)}</textarea>` : ''}
+      ${st.type === 'delivery' && st.zones.length ? `<label class="form-label" for="posZone">Delivery area *</label><select id="posZone" class="form-input" onchange="posSet('zone',this.value);posRedraw()"><option value="">— choose —</option>${st.zones.map(z => `<option value="${E(z.id)}" ${st.zone === z.id ? 'selected' : ''}>${E(z.name)} · ₱${Number(z.fee).toFixed(0)}</option>`).join('')}</select>` : ''}
+      ${fee ? `<div class="pos-total" style="font-size:14px"><span>Delivery fee</span><span>${peso(fee)}</span></div>` : ''}
       <div class="pos-total"><span>Total</span><strong>${peso(total)}</strong></div>
       <p class="form-hint" style="margin:0 0 8px">Final price is checked by the server when you send.</p>
       <button class="btn-next pos-send" ${st.ticket.length ? '' : 'disabled'} onclick="posSend()">${st.type === 'dine_in' ? 'Send to kitchen' : 'Send to kitchen & take payment'}</button>
@@ -226,19 +231,21 @@
   window.posClear = async () => { if (await tpnConfirm('Clear this order? Nothing has been sent yet.', { confirmText: 'Clear' })) { st.ticket = []; save(); drawTicket(); } };
   window.posType = (t) => { st.type = t; drawTicket(); };
   window.posSet = (k, v) => { st[k] = v; };
+  window.posRedraw = () => drawTicket();
   window.posSend = async function () {
     if (!st.ticket.length) return;
     if (st.type === 'dine_in' && !st.table) { toast('Choose the table.'); return; }
     if (st.type === 'delivery' && !st.address.trim()) { toast('Enter the delivery address.'); return; }
+    if (st.type === 'delivery' && st.zones.length && !st.zone) { toast('Choose the delivery area.'); return; }
     try {
       const o = await TPN.createOrder({
         branchId: st.branch.id, orderType: st.type, tableId: st.type === 'dine_in' ? st.table : null,
-        customerName: st.name || null, customerPhone: st.phone || null, deliveryAddress: st.type === 'delivery' ? st.address : null,
+        customerName: st.name || null, customerPhone: st.phone || null, deliveryAddress: st.type === 'delivery' ? st.address : null, deliveryZoneId: st.type === 'delivery' ? st.zone || null : null,
         source: 'pos', joinTableBill: true,
         items: st.ticket.map(l => ({ menu_item_id: l.id, name: l.name, quantity: l.qty, pax_size: l.size, notes: l.note || null, modifiers: l.mods }))
       });
       const printed = st.ticket.slice(), type = st.type;
-      st.ticket = []; st.name = st.phone = st.address = st.table = ''; save(); drawTicket();
+      st.ticket = []; st.name = st.phone = st.address = st.table = st.zone = ''; save(); drawTicket();
       toast('Sent to the kitchen: ' + o.order_number);
       printKitchenTicket(o.order_number, printed, type);
       // Take-out and delivery pay now; a dine-in table pays when it closes.
@@ -251,6 +258,8 @@
   // Kitchen ticket for a printer by the pass (optional; the KDS already has it).
   function printKitchenTicket(num, lines, type) {
     if (!window.getPref || getPref('posPrintTicket') !== 'on') return;
+    // iMin counter: straight to the built-in printer, no print window.
+    if (window.TPN_PRINT && TPN_PRINT.kitchen(num, lines, type)) return;
     const w = window.open('', '_blank', 'width=360,height=520'); if (!w) return;
     w.document.write(`<!doctype html><meta charset="utf-8"><title>${E(num)}</title><style>@page{size:80mm auto;margin:3mm}body{font:15px/1.3 ui-monospace,Consolas,monospace;width:74mm}h1{font-size:20px;margin:0}li{margin:4px 0}</style>
       <h1>${E(num)}</h1><div>${E({ pickup: 'TAKE-OUT', dine_in: 'DINE-IN', delivery: 'DELIVERY' }[type] || type)} · ${E(new Date().toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit' }))}</div><hr>

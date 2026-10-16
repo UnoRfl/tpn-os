@@ -1,0 +1,14 @@
+{
+  "name": "TPN Counter & Floor",
+  "short_name": "TPN Counter",
+  "description": "Tyo Paeng Nyo floor map, counter and payments.",
+  "start_url": "./tpn-dine-in-floor",
+  "scope": "./",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#1a0a00",
+  "theme_color": "#8B1A0E",
+  "icons": [
+    { "src": "icons/tpn-icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

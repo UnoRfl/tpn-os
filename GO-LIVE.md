@@ -5,10 +5,12 @@
 | Step | State |
 |---|---|
 | 0 Leaked password protection, backups | **Skipped**: needs a paid Supabase plan. Revisit if the plan is upgraded. |
-| 1 Database (29a–36) | ✅ Live. Advisors clean apart from the intended public functions. 35 (pay a whole table at Close table) and 36 (per-person read receipts) added Oct 17. |
+| 1 Database (29a–38) | ✅ Live. Advisors clean apart from the intended public functions. 35 (pay a whole table at Close table), 36 (per-person read receipts), 37a/37b (manual payments) and 38 (delivery) added Oct 17. |
 | 2 Website + portal | ✅ Merged to `main` and live. FAQs with `[Fill in]` stay unpublished (open questions on hold). |
 | 3 Clock-in | ⏸ Waiting: needs someone at the restaurant (trust Wi-Fi, phone camera test). |
-| 4 HitPay | ⏸ Waiting on the HitPay meeting. "How do I pay?" FAQ says cash/bank only until then — put online payment back in when it goes live. |
+| 4 HitPay | ⏸ Not used for now: every payment (cash, GCash/Maya, QR Ph, card, bank) is taken by hand and recorded with its reference. Update the "How do I pay?" FAQ (Website tab) to say GCash/Maya/QR Ph/card are accepted. |
+| Delivery | ✅ Live. Set your areas and fees in Service → Deliveries → Areas & fees before announcing delivery. |
+| iMin counter | ⏳ See section 8. |
 | 5 POS / cash drawer | ✅ Usable now — the Counter is a tab on the floor screen (Floor & Counter); dine-in tables pay at Close table. No add-ons set up; add them only when the menu actually has paid extras. |
 | 6 Stamp cards | ⏸ Off on purpose: the reward (₱300 min, 10 stamps, free dish ≤ ₱300) is a placeholder and costs real money. When the owner approves an offer: Rewards → set it, tick on. The footer link appears by itself; re-publish the stamp-card FAQ in the Website tab. |
 | Open questions | On hold. |
@@ -36,6 +38,9 @@ Run each file **on its own**, in this order. All are safe to re-run.
 | `sql/34-stamp-cards.sql` | stamp cards (starts **off**) |
 | `sql/35-table-settle.sql` | Close table takes cash for the whole table in one go |
 | `sql/36-read-receipts.sql` | notifications and branch messages stay read per person |
+| `sql/37a-payment-enum.sql` | ⚠️ run alone first — payment method `qrph` |
+| `sql/37b-manual-payments.sql` | GCash / Maya / QR Ph / card / bank recorded by hand with a reference |
+| `sql/38-delivery.sql` | delivery areas & fees, dispatch (our rider / Lalamove / Grab), tracking |
 
 Then: Supabase → Advisors → Security. Expected warnings only: the customer functions (`submit_order`, `track_order`, `claim_stamp_card`, `my_stamp_card`, `stamp_card_code`, `my_guest_profile`, `addon_suggestions`, `signal_*`) are public on purpose.
 
@@ -96,3 +101,18 @@ Then: Supabase → Advisors → Security. Expected warnings only: the customer f
 - Real email and SEC / TIN numbers, if you want them shown (the badges appear automatically once filled in).
 - Delivery radius and fee, minimum pax, booking lead time (FAQ answers).
 - Senior/PWD at shared tables: staff now enter the guest's share. Confirm this matches your accountant's practice.
+
+## 8. The iMin D4 at the counter
+
+The counter runs the floor screen in Chrome. Nothing needs to be built or sideloaded.
+
+1. On the iMin, open **iMin App Store** and install **iMinprinterplugin** (iMin's print service). Open it once.
+2. Open **Chrome** → `https://unorfl.github.io/tpn-os/tpn-dine-in-floor` → sign in with a counter account (dining staff or above; not the wall-screen account, which cannot take money).
+3. Chrome menu ⋮ → **Add to Home screen / Install app**. It opens full-screen as "TPN Counter".
+4. On the floor screen's top bar the printer chip should read **🖨 Printer ready**. Tap it → **Test print**, then **Open drawer**.
+   - "No printer service" = the plugin is not installed or not running. "Printer offline" = tap Reconnect.
+5. Tap it → **Auto-print receipts: On** if you want a bill printed after every payment.
+6. Cash payments pop the drawer by themselves. Every drawer open is in the audit log.
+7. Optional: Android Settings → Display → keep the screen on while charging.
+
+If the iMin is plugged into this PC by USB with **USB debugging** on (Settings → About → tap Build number 7×, then Developer options → USB debugging), Claude can open the page on it and check the setup with `adb`.

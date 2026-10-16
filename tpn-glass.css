@@ -424,3 +424,92 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--brick); }
   table.data-table td[data-label=""]::before, table.data-table td[data-label="Actions"]::before { content: none; }
   .data-table-wrap { overflow: visible; }
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   Glass on the wall screens and the QR menu
+   Those pages carry their own styles (loaded after this file), so these
+   rules are written one step more specific. Same recipe as the portal:
+   frosted tint, sheen and edge, no blur on cards (smooth scrolling), and
+   a soft colour wash behind so the glass has something to sit on.
+   ═══════════════════════════════════════════════════════════════ */
+:root { --ease-out: cubic-bezier(.22, 1, .36, 1); --ease-spring: cubic-bezier(.34, 1.4, .64, 1); }
+
+/* Floor & counter */
+html body:has(#tab-nav) {
+  background:
+    radial-gradient(60vmax 50vmax at 8% 0%, rgba(232, 179, 64, .20), transparent 60%),
+    radial-gradient(55vmax 45vmax at 100% 20%, rgba(196, 61, 26, .10), transparent 60%),
+    radial-gradient(60vmax 50vmax at 60% 110%, rgba(92, 138, 58, .10), transparent 60%),
+    #f6ecdc;
+  background-attachment: fixed;
+}
+html body .tab-nav {
+  background: rgba(255, 250, 242, .78); border-bottom: 1px solid rgba(139, 26, 14, .10);
+  -webkit-backdrop-filter: blur(14px) saturate(1.3); backdrop-filter: blur(14px) saturate(1.3);
+  position: sticky; top: 0; z-index: 50;
+}
+html body .stat-tile, html body .table-card, html body .order-card, html body .settings-card,
+html body .dish-card, html body .featured-card, html body .form-card, html body .progress-card,
+html body .session-total-card, html body .pay-method-card, html body .close-pay {
+  background: rgba(255, 250, 242, .78);
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, .55) 0, transparent 46%);
+  border: 1px solid rgba(139, 26, 14, .12);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, .7) inset, 0 8px 24px rgba(74, 47, 29, .08);
+}
+html body .table-card { border-radius: 18px; transition: transform .25s var(--ease-out), box-shadow .25s var(--ease-out), border-color .2s; }
+@media (hover: hover) { html body .table-card:hover { transform: translateY(-3px); box-shadow: 0 1px 0 rgba(255,255,255,.7) inset, 0 14px 30px rgba(74, 47, 29, .14); } }
+html body .table-card.occupied, html body .table-card.active-orders { background-color: rgba(255, 244, 236, .82); }
+html body .table-card.ready { background-color: rgba(238, 248, 236, .85); }
+html body .table-card.bill-requested { background-color: rgba(234, 242, 252, .86); }
+html body .modal-box, html body .modal-sheet, html body .ui-modal {
+  background: rgba(255, 250, 242, .92);
+  -webkit-backdrop-filter: blur(22px) saturate(1.4); backdrop-filter: blur(22px) saturate(1.4);
+  border: 1px solid rgba(255, 255, 255, .6); box-shadow: 0 24px 60px rgba(30, 15, 8, .30);
+}
+html body .modal-overlay .modal-box, html body .modal-overlay .ui-modal { transform: translateY(14px) scale(.98); opacity: 0; transition: transform .32s var(--ease-out), opacity .22s ease; }
+html body .modal-overlay.open .modal-box, html body .modal-overlay.open .ui-modal { transform: none; opacity: 1; }
+
+/* QR menu */
+html body .sticky-cats { background: rgba(255, 250, 242, .80); -webkit-backdrop-filter: blur(14px) saturate(1.3); backdrop-filter: blur(14px) saturate(1.3); }
+html body .cart-drawer, html body .cart-footer { background: rgba(255, 250, 242, .94); }
+html body .dish-card, html body .pay-method-card { transition: transform .22s var(--ease-out), box-shadow .22s var(--ease-out), border-color .18s; }
+html body .dish-card:active, html body .pay-method-card:active { transform: scale(.98); }
+
+/* Kitchen screen: frosted tickets on the dark board */
+html body .ticket {
+  background: rgba(255, 252, 246, .90);
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, .6) 0, transparent 40%);
+  border-radius: 14px; box-shadow: 0 10px 26px rgba(0, 0, 0, .28);
+}
+
+/* ═══ Motion ═════════════════════════════════════════════════════
+   Opacity and transform only (cheap for the GPU). Pages and tabs rise in,
+   the first cards follow one after another, dialogs ease up, selected
+   tabs and chips glide. Off under "reduce motion" (OS or Preferences). */
+@keyframes tpnRise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+@keyframes tpnFade { from { opacity: 0; } to { opacity: 1; } }
+.tpn-enter > * { animation: tpnRise .42s var(--ease-out) both; }
+.tpn-enter > *:nth-child(2) { animation-delay: .04s; }
+.tpn-enter > *:nth-child(3) { animation-delay: .08s; }
+.tpn-enter > *:nth-child(4) { animation-delay: .12s; }
+.tpn-enter > *:nth-child(n+5) { animation-delay: .16s; }
+.tpn-enter .tile, .tpn-enter .fin-tile, .tpn-enter .dlv-card, .tpn-enter .floor-grid > *, .tpn-enter .stat-grid > *, .tpn-enter .pos-tile {
+  animation: tpnRise .5s var(--ease-out) both;
+}
+.tpn-enter :is(.tile, .fin-tile, .dlv-card, .floor-grid > *, .stat-grid > *, .pos-tile):nth-child(2) { animation-delay: .05s; }
+.tpn-enter :is(.tile, .fin-tile, .dlv-card, .floor-grid > *, .stat-grid > *, .pos-tile):nth-child(3) { animation-delay: .09s; }
+.tpn-enter :is(.tile, .fin-tile, .dlv-card, .floor-grid > *, .stat-grid > *, .pos-tile):nth-child(4) { animation-delay: .13s; }
+.tpn-enter :is(.tile, .fin-tile, .dlv-card, .floor-grid > *, .stat-grid > *, .pos-tile):nth-child(n+5) { animation-delay: .17s; }
+.page.active { animation: tpnRise .45s var(--ease-out) both !important; }
+.tpn-tabs button, .acc-tab, .tab-btn, .cat-chip, .tpn-chip, .pos-type button, .close-pay-methods button, .portal-lang button {
+  transition: background-color .25s var(--ease-out), color .2s ease, box-shadow .25s var(--ease-out), transform .2s var(--ease-out);
+}
+.tpn-tabs button[aria-selected="true"] { animation: tpnFade .25s ease; }
+.portal-nav-item { transition: background-color .22s var(--ease-out), color .18s ease, border-color .22s, box-shadow .22s, transform .18s var(--ease-out); }
+.portal-nav-item:active { transform: scale(.98); }
+.tpn-cmdk { animation: tpnRise .28s var(--ease-out) both; }
+.tpn-cmdk-overlay { animation: tpnFade .2s ease both; }
+.tg-card { animation: tpnRise .3s var(--ease-out) both; }
+.toast.show, #toast.show { transition: transform .35s var(--ease-spring), opacity .25s ease; }
+html[data-motion="reduced"] .tpn-enter > *, html[data-motion="reduced"] .page.active { animation: none !important; }
+@media (prefers-reduced-motion: reduce) { .tpn-enter > *, .page.active, .tpn-enter * { animation: none !important; } }

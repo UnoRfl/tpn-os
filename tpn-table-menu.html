@@ -15,10 +15,10 @@
   // refused by the browser unless its hash matches.
   if (!window.supabase) document.write('<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js" integrity="sha384-Rj26LVGvoeRVR6+mwQmFfcR3QOBEwT+ZmuCWpuiqeTzJpCs0ER4ITAWGb4Hiy3Ok" crossorigin="anonymous"><' + '/script>');
 </script>
-<script src="config.js?v=20261017e"></script>
-<script src="tpn-supabase.js?v=20261017e"></script>
-<script src="tpn-kit.js?v=20261017e"></script>
-<link rel="stylesheet" href="tpn-glass.css?v=20261017e">
+<script src="config.js?v=20261017f"></script>
+<script src="tpn-supabase.js?v=20261017f"></script>
+<script src="tpn-kit.js?v=20261017f"></script>
+<link rel="stylesheet" href="tpn-glass.css?v=20261017f">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
 <meta name="theme-color" content="#1a0a00">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -534,6 +534,7 @@
     <div class="pay-methods-grid">
       <div class="pay-method-card selected" data-pay="cash" onclick="selectBillPayMethod('cash')"><div class="pay-method-icon">💵</div><div class="pay-method-name">Cash</div><div class="pay-method-sub">Staff will come to your table</div></div>
       <div class="pay-method-card" data-pay="online" id="pay-online-card" hidden onclick="selectBillPayMethod('online')"><div class="pay-method-icon">🔳</div><div class="pay-method-name">Pay on my phone</div><div class="pay-method-sub">QR Ph · GCash · Maya · card</div></div>
+      <div class="pay-method-card" data-pay="gcash" onclick="selectBillPayMethod('gcash')"><div class="pay-method-icon">📱</div><div class="pay-method-name">GCash / Maya</div><div class="pay-method-sub">Staff bring our QR to scan</div></div>
       <div class="pay-method-card" data-pay="card" onclick="selectBillPayMethod('card')"><div class="pay-method-icon">💳</div><div class="pay-method-name">Card</div><div class="pay-method-sub">Terminal brought to you</div></div>
     </div>
     <button class="bill-submit-btn" onclick="submitBillRequest()">Request Bill Now</button>
