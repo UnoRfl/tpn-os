@@ -21,7 +21,7 @@
 <script src="tpn-kit.js?v=20261017i"></script>
 <script src="tpn-site.js?v=20261017i"></script>
 <script src="tpn-i18n.js?v=20261017i"></script>
-<script src="tpn-home.js?v=20261017v8"></script>
+<script src="tpn-home.js?v=20261017v11"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="description" content="Tyo Paeng Nyo — Authentic Filipino cuisine in Las Piñas since 2003. Order online, book events, or inquire about catering.">
 <meta name="theme-color" content="#8B1A0E">
@@ -56,7 +56,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=Lora:ital,wght@0,400;0,600;1,400&family=DM+Sans:wght@300;400;500;700&family=Fraunces:ital,opsz,wght,SOFT,WONK@0,9..144,500..900,0..100,0..1;1,9..144,500..900,0..100,0..1&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="tpn-app.css?v=20261017i">
 <link rel="stylesheet" href="tpn-glass.css?v=20261017i">
-<link rel="stylesheet" href="tpn-site-v3.css?v=20261017v8">
+<link rel="stylesheet" href="tpn-site-v3.css?v=20261017v11">
 </head>
 <body>
 <a class="skip-link" href="#main-content" onclick="event.preventDefault();var t=document.querySelector('.page.active h1, .portal-page.active main');if(t){t.setAttribute('tabindex','-1');t.focus();}">Skip to content</a>
@@ -189,17 +189,20 @@
 </div>
 
 <!-- MENU -->
-<div class="page" id="page-menu">
-  <div class="v3-mandala m1" aria-hidden="true"><img data-spin="-3" src="assets/site/mandala-a.webp" alt="" decoding="async"></div>
-  <div class="v3-mandala x" style="--mw:360px;--mo:.1;left:-170px;top:820px" aria-hidden="true"><img data-spin="4" src="assets/site/mandala-b.webp" alt="" decoding="async" loading="lazy"></div>
-  <div class="v3-mandala x" style="--mw:220px;--mo:.12;right:-80px;top:1650px" aria-hidden="true"><img data-spin="-5" src="assets/site/mandala-a.webp" alt="" decoding="async" loading="lazy"></div>
-  <div class="v3-mandala x" style="--mw:160px;--mo:.12;left:-50px;top:2500px" aria-hidden="true"><img data-spin="6" src="assets/site/mandala-b.webp" alt="" decoding="async" loading="lazy"></div>
-  <div class="v3-mandala x" style="--mw:300px;--mo:.1;right:-120px;top:3300px" aria-hidden="true"><img data-spin="-3" src="assets/site/mandala-a.webp" alt="" decoding="async" loading="lazy"></div>
-  <div class="v3-mandala x" style="--mw:200px;--mo:.1;left:-70px;top:4300px" aria-hidden="true"><img data-spin="5" src="assets/site/mandala-b.webp" alt="" decoding="async" loading="lazy"></div>
-  <div class="page-header">
+<div class="page v3-decor" id="page-menu">
+  <div class="v3-mandala x" style="--mw:420px;--mo:0.11;right:-170px;top:2%" aria-hidden="true"><img data-spin="-3" src="assets/site/mandala-a.webp" alt="" decoding="async" loading="lazy"></div>
+  <div class="v3-mandala x" style="--mw:260px;--mo:0.11;left:-110px;top:22%" aria-hidden="true"><img data-spin="4" src="assets/site/mandala-b.webp" alt="" decoding="async" loading="lazy"></div>
+  <div class="v3-mandala x" style="--mw:180px;--mo:0.13;right:-60px;top:44%" aria-hidden="true"><img data-spin="-5" src="assets/site/mandala-a.webp" alt="" decoding="async" loading="lazy"></div>
+  <div class="v3-mandala x" style="--mw:320px;--mo:0.11;left:-140px;top:64%" aria-hidden="true"><img data-spin="5" src="assets/site/mandala-b.webp" alt="" decoding="async" loading="lazy"></div>
+  <div class="v3-mandala x" style="--mw:200px;--mo:0.13;right:-80px;top:86%" aria-hidden="true"><img data-spin="-4" src="assets/site/mandala-a.webp" alt="" decoding="async" loading="lazy"></div>
+<header class="v3-pagehead v3-tex">
+  <div class="v3-pat"></div>
+  <div class="v3-wrap">
     <span class="v3-eyebrow" data-i18n="v3.menu.eyebrow">Order online</span>
-    <h1><span data-i18n="v3.menu.titleA">Our</span> <em data-i18n="v3.menu.titleB">menu</em></h1>
+    <h1 class="v3-sr" data-i18n="v3.menu.sr">Our menu</h1>
+    <div class="v3-bleed" aria-hidden="true" data-i18n-lines="v3.menu.title"></div>
   </div>
+</header>
   <div class="menu-controls">
     <div class="search-wrap">
       <input type="text" class="search-input" id="menuSearch" placeholder="Search sinigang, lechon, sisig…" data-i18n-ph="v3.menu.search" aria-label="Search the menu" oninput="renderMenu()">
@@ -211,105 +214,77 @@
 
 <!-- OUR RESTAURANT -->
 <div class="page v3-decor" id="page-restaurant">
-  <div class="v3-mandala x" style="--mw:460px;--mo:.11;right:-190px;top:60px" aria-hidden="true"><img data-spin="3" src="assets/site/mandala-a.webp" alt="" decoding="async" loading="lazy"></div>
-  <div class="v3-mandala x" style="--mw:240px;--mo:.12;left:-90px;top:900px" aria-hidden="true"><img data-spin="-5" src="assets/site/mandala-b.webp" alt="" decoding="async" loading="lazy"></div>
-  <div class="page-header">
-    <h1>Our <em>Restaurant</em></h1>
-    <p>Our Las Piñas branch is the heart of everything we do — where the recipes were perfected and where you'll find us every day.</p>
+  <div class="v3-mandala x" style="--mw:440px;--mo:0.11;right:-180px;top:2%" aria-hidden="true"><img data-spin="3" src="assets/site/mandala-a.webp" alt="" decoding="async" loading="lazy"></div>
+  <div class="v3-mandala x" style="--mw:220px;--mo:0.13;left:-80px;top:45%" aria-hidden="true"><img data-spin="-5" src="assets/site/mandala-b.webp" alt="" decoding="async" loading="lazy"></div>
+  <div class="v3-mandala x" style="--mw:160px;--mo:0.13;right:-50px;top:80%" aria-hidden="true"><img data-spin="6" src="assets/site/mandala-a.webp" alt="" decoding="async" loading="lazy"></div>
+<header class="v3-pagehead v3-tex">
+  <div class="v3-pat"></div>
+  <div class="v3-wrap">
+    <h1 class="v3-sr" data-i18n="v3.rest.sr">Our restaurant</h1>
+    <div class="v3-bleed" aria-hidden="true" data-i18n-lines="v3.rest.title"></div>
   </div>
-  <section class="restaurant-feature">
-    <div class="rest-feature-wrap">
-      <figure class="rest-feature-img v3-photo" style="--img:url('assets/site/spread.webp')">
-        <div class="img"></div>
-        <span class="rest-feature-badge">Official Branch</span>
-      </figure>
-      <div class="rest-feature-content">
-        <h2>Las Piñas <em>City</em></h2>
-        <p><strong>We've moved — just behind our old spot.</strong> Our new home on Real Street, facing Shell and near the Robinsons Las Piñas exit, has more seats and its own parking.</p>
-        <p>Our restaurant has been the gathering place for families, neighbors, and regulars for over two decades. Walk in any afternoon and you'll find the same warm hospitality and the same recipes that started it all.</p>
-        <p>The kitchen runs on a simple rule: cook every plate like it's for your own family. After twenty years, that's still the only standard that matters.</p>
-        <div class="rest-details">
-          <div>
-            <div class="rest-detail-label">Address</div>
-            <div class="rest-detail-val"><span data-site="contact.address">KM 19, 316 Real St., Talon Uno, Las Piñas City</span><br>
-              <a data-site="contact.map_url" data-site-href="url" href="https://maps.google.com/?q=316+Real+St,+Talon+Uno,+Las+Pi%C3%B1as" target="_blank" rel="noopener" style="font-size:13px;">Open in Maps ↗</a></div>
-          </div>
-          <div>
-            <div class="rest-detail-label">Hours</div>
-            <div class="rest-detail-val" data-site="hours.text">Mon – Sun · 10:00 AM – 9:00 PM</div>
-          </div>
-          <div>
-            <div class="rest-detail-label">Phone</div>
-            <div class="rest-detail-val"><a href="tel:+639998887817" data-site="contact.phone" data-site-href="tel">0999 888 7817</a></div>
-          </div>
-          <div>
-            <div class="rest-detail-label">Parking</div>
-            <div class="rest-detail-val" data-site="contact.parking">Free on-site parking for diners</div>
-          </div>
-        </div>
-        <div style="margin-top: 32px; display: flex; gap: 12px; flex-wrap: wrap;">
-          <button class="btn-primary" onclick="navigate('menu')">Order Now</button>
-          <button class="btn-outline" onclick="navigate('events')">Book an Event</button>
-        </div>
-      </div>
+</header>
+<section class="v3-section v3-tight">
+  <div class="v3-wrap v3-rest">
+    <figure class="v3-photo v3-reveal" style="--img:url('assets/site/spread.webp')"><div class="img"></div></figure>
+    <dl class="v3-facts v3-reveal" style="--i:1">
+      <div><dt data-i18n="v3.fact.addr">Address</dt><dd><span data-site="contact.address">KM 19, 316 Real St., Talon Uno, Las Piñas City</span>
+        <a class="v3-sr" data-site="contact.map_url" data-site-href="url" href="https://maps.google.com/?q=316+Real+St,+Talon+Uno,+Las+Pi%C3%B1as" target="_blank" rel="noopener">Open in Maps</a></dd></div>
+      <div><dt data-i18n="v3.fact.hours">Hours</dt><dd data-site="hours.text">Mon – Sun · 10:00 AM – 9:00 PM</dd></div>
+      <div><dt data-i18n="v3.fact.phone">Phone</dt><dd><a href="tel:+639998887817" data-site="contact.phone" data-site-href="tel">0999 888 7817</a></dd></div>
+      <div><dt data-i18n="v3.fact.parking">Parking</dt><dd data-i18n="v3.fact.parkingVal">Free, on-site</dd></div>
+    </dl>
+  </div>
+</section>
+<!-- Relocation guide: three steps beside the map -->
+<section class="v3-section v3-tight v3-guide-wrap">
+  <div class="v3-wrap v3-guide">
+    <div class="v3-guide-text">
+      <h2 class="v3-title" data-i18n-html="v3.guide.title">We’ve <i>moved</i></h2>
+      <ol class="v3-steps">
+        <li class="v3-reveal"><span class="n">1</span><p data-i18n-html="v3.guide.s1"></p></li>
+        <li class="v3-reveal" style="--i:1"><span class="n">2</span><p data-i18n-html="v3.guide.s2"></p></li>
+        <li class="v3-reveal" style="--i:2"><span class="n">3</span><p data-i18n-html="v3.guide.s3"></p></li>
+      </ol>
     </div>
-  </section>
-  <section class="v3-section v3-locate">
-    <div class="v3-wrap">
-      <div class="v3-head">
-        <span class="v3-eyebrow" data-i18n="v3.locate.eyebrow">Where to find us</span>
-        <h2 class="v3-title" data-i18n-html="v3.locate.title">Come <i>visit</i></h2>
-      </div>
-      <div class="v3-map" data-zoom="17"></div>
-    </div>
-  </section>
+    <div class="v3-map v3-reveal" style="--i:1" data-zoom="17"></div>
+  </div>
+</section>
 </div>
 
 <!-- CONCESSIONS -->
 <div class="page v3-decor" id="page-concessions">
-  <div class="v3-mandala x" style="--mw:360px;--mo:.1;right:-150px;top:100px" aria-hidden="true"><img data-spin="4" src="assets/site/mandala-a.webp" alt="" decoding="async" loading="lazy"></div>
-  <div class="v3-mandala x" style="--mw:180px;--mo:.12;left:-60px;top:1100px" aria-hidden="true"><img data-spin="-4" src="assets/site/mandala-b.webp" alt="" decoding="async" loading="lazy"></div>
-  <section class="conc-hero">
-    <div class="conc-hero-inner">
-      <span class="conc-eyebrow">For Businesses & Organizations</span>
-      <h1 class="conc-title">Let's Feed Your <em>Team</em>.</h1>
-      <p class="conc-lead">For twenty years we've served corporate clients, building tenants, schools, and large events across Metro Manila. If you're looking for reliable Filipino food service for your office, building, or event — we'd love to talk.</p>
-      <p class="conc-second">Tell us what you're working on through the form below, and one of our team members will get back to you personally — usually within one business day.</p>
-    </div>
-  </section>
+  <div class="v3-mandala x" style="--mw:400px;--mo:0.11;left:-170px;top:2%" aria-hidden="true"><img data-spin="4" src="assets/site/mandala-b.webp" alt="" decoding="async" loading="lazy"></div>
+  <div class="v3-mandala x" style="--mw:220px;--mo:0.13;right:-80px;top:40%" aria-hidden="true"><img data-spin="-5" src="assets/site/mandala-a.webp" alt="" decoding="async" loading="lazy"></div>
+  <div class="v3-mandala x" style="--mw:160px;--mo:0.13;left:-50px;top:78%" aria-hidden="true"><img data-spin="6" src="assets/site/mandala-b.webp" alt="" decoding="async" loading="lazy"></div>
+<header class="v3-pagehead v3-tex">
+  <div class="v3-pat"></div>
+  <div class="v3-wrap">
+    <span class="v3-eyebrow" data-i18n="v3.conc.eyebrow">For businesses</span>
+    <h1 class="v3-sr" data-i18n="v3.conc.sr">Concessions and corporate catering</h1>
+    <div class="v3-bleed" aria-hidden="true" data-i18n-lines="v3.conc.title"></div>
+  </div>
+</header>
 
-  <section class="conc-trust">
-    <div class="conc-trust-grid" id="concTrust">
-      <div class="conc-trust-item"><div class="conc-trust-num">20+</div><div class="conc-trust-label">Years in Business</div></div>
-      <div class="conc-trust-item"><div class="conc-trust-num">BIR</div><div class="conc-trust-label">Official Receipts</div></div>
-      <div class="conc-trust-item"><div class="conc-trust-num">🅿️</div><div class="conc-trust-label">Free Parking</div></div>
-    </div>
-  </section>
 
   <section class="conc-handle">
     <div class="conc-handle-wrap">
-      <div class="section-eyebrow">What We Handle</div>
-      <h2 class="section-title">Built for <em>Business</em> Scale</h2>
       <div class="conc-handle-grid">
         <div class="conc-handle-card is-action" role="button" tabindex="0" data-service="Office Catering" aria-label="Office Catering: start an inquiry">
           <div class="conc-handle-icon">🏢</div>
-          <div class="conc-handle-title">Office Catering</div>
-          <div class="conc-handle-desc">Daily lunches, team meetings, executive briefings, and special company occasions. Flexible recurring or one-off arrangements.</div>
+          <div class="conc-handle-title" data-i18n="v3.conc.office">Office Catering</div>
         </div>
         <div class="conc-handle-card is-action" role="button" tabindex="0" data-service="On-Site Concession" aria-label="On-Site Concessions: start an inquiry">
           <div class="conc-handle-icon">🏬</div>
-          <div class="conc-handle-title">On-Site Concessions</div>
-          <div class="conc-handle-desc">Building cafeterias, food courts, and tenant amenities. We've operated concessions in BPO buildings and city government facilities.</div>
+          <div class="conc-handle-title" data-i18n="v3.conc.onsite">On-Site Concessions</div>
         </div>
         <div class="conc-handle-card is-action" role="button" tabindex="0" data-service="On-Site Concession" aria-label="Schools & Institutions: start an inquiry">
           <div class="conc-handle-icon">🎓</div>
-          <div class="conc-handle-title">Schools & Institutions</div>
-          <div class="conc-handle-desc">School canteens, university events, and institutional dining. Filipino-affordable, parent-friendly, and student-approved.</div>
+          <div class="conc-handle-title" data-i18n="v3.conc.schools">Schools &amp; Institutions</div>
         </div>
         <div class="conc-handle-card is-action" role="button" tabindex="0" data-service="Corporate Event" aria-label="Large Corporate Events: start an inquiry">
           <div class="conc-handle-icon">🎉</div>
-          <div class="conc-handle-title">Large Corporate Events</div>
-          <div class="conc-handle-desc">Anniversaries, year-end parties, conferences, and product launches up to 500 pax. We bring the team, the equipment, and the spread.</div>
+          <div class="conc-handle-title" data-i18n="v3.conc.events">Large Corporate Events</div>
         </div>
       </div>
     </div>
@@ -317,16 +292,7 @@
 
   <section class="conc-form-section">
     <div class="conc-form-wrap">
-      <div class="conc-form-intro">
-        <div class="section-eyebrow">Start the Conversation</div>
-        <h2 class="section-title">Tell Us About Your <em>Needs</em></h2>
-        <p style="color: var(--ink-muted); max-width: 540px; margin: -32px auto 0; font-size: 15px;">A team member will personally call or email you back. This isn't an auto-quote — we'll have a real conversation about what would actually work for you.</p>
-      <div style="margin-top:16px;display:inline-flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:12px 16px;">
-        <span style="font-size:22px;">🎉</span>
-        <span style="font-size:13px;color:var(--ink-soft);">Inquiry for a <strong>personal event</strong> (birthday, debut, baptism)?</span>
-        <button class="btn-ghost" style="padding:6px 14px;font-size:12px;white-space:nowrap;" onclick="navigate('events')">Go to Events →</button>
-      </div>
-      </div>
+      <div class="conc-form-intro"><h2 class="v3-title" data-i18n-html="v3.conc.form">Tell us what you <i>need</i></h2></div>
       <div class="checkout-card">
         <div class="form-row">
           <div><label class="form-label">Your Name *</label><input type="text" class="form-input" id="cf-name" placeholder="Juan Dela Cruz"></div>
@@ -405,44 +371,28 @@
     </div>
   </section>
 
-  <section class="conc-process">
-    <div class="conc-process-wrap">
-      <div class="section-eyebrow">What Happens Next</div>
-      <h2 class="section-title">A <em>Personal</em> Conversation</h2>
-      <div class="conc-steps">
-        <div class="conc-step"><div class="conc-step-num">1</div><div class="conc-step-title">You Submit</div><div class="conc-step-desc">Fill in the form. We get notified immediately — no auto-responder, no chatbot.</div></div>
-        <div class="conc-step"><div class="conc-step-num">2</div><div class="conc-step-title">We Reach Out</div><div class="conc-step-desc">Within one business day, a team member calls or emails you to discuss your needs.</div></div>
-        <div class="conc-step"><div class="conc-step-num">3</div><div class="conc-step-title">We Plan Together</div><div class="conc-step-desc">We map out menu, headcount, schedule, and pricing — tailored to your situation.</div></div>
-        <div class="conc-step"><div class="conc-step-num">4</div><div class="conc-step-title">We Deliver</div><div class="conc-step-desc">Tasting samples, formal quote, contract, and execution. Twenty years of doing this right.</div></div>
-      </div>
-    </div>
-  </section>
 </div>
 
 <!-- EVENTS -->
 <div class="page v3-decor" id="page-events">
-  <div class="v3-mandala x" style="--mw:380px;--mo:.1;left:-170px;top:80px" aria-hidden="true"><img data-spin="4" src="assets/site/mandala-b.webp" alt="" decoding="async" loading="lazy"></div>
-  <div class="v3-mandala x" style="--mw:200px;--mo:.12;right:-60px;top:760px" aria-hidden="true"><img data-spin="-6" src="assets/site/mandala-a.webp" alt="" decoding="async" loading="lazy"></div>
-  <div class="page-header">
-    <h1>Events & <em>Celebrations</em></h1>
-    <p>Celebrations, weddings and debuts, corporate events — or a menu built just for you. Let us handle the food so you can focus on your people.</p>
-    <div style="margin-top:20px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px 20px;display:inline-flex;align-items:center;gap:14px;text-align:left;">
-      <span style="font-size:28px;">🏢</span>
-      <div>
-        <div style="font-size:13px;font-weight:700;color:var(--ink);margin-bottom:3px;">Need a concessionaire for an office canteen?</div>
-        <div style="font-size:12px;color:var(--ink-muted);margin-bottom:8px;">For daily food service in offices, buildings and schools, we have a separate concessions process. One-off corporate events can be booked right here.</div>
-        <button class="btn-ghost" style="padding:7px 16px;font-size:12px;" onclick="navigate('concessions')">Go to Concessions →</button>
-      </div>
-    </div>
+  <div class="v3-mandala x" style="--mw:420px;--mo:0.11;right:-170px;top:2%" aria-hidden="true"><img data-spin="4" src="assets/site/mandala-a.webp" alt="" decoding="async" loading="lazy"></div>
+  <div class="v3-mandala x" style="--mw:240px;--mo:0.13;left:-90px;top:38%" aria-hidden="true"><img data-spin="-5" src="assets/site/mandala-b.webp" alt="" decoding="async" loading="lazy"></div>
+  <div class="v3-mandala x" style="--mw:170px;--mo:0.13;right:-60px;top:74%" aria-hidden="true"><img data-spin="6" src="assets/site/mandala-a.webp" alt="" decoding="async" loading="lazy"></div>
+<header class="v3-pagehead v3-tex">
+  <div class="v3-pat"></div>
+  <div class="v3-wrap">
+    <span class="v3-eyebrow" data-i18n="v3.ev.eyebrow">Events & catering</span>
+    <h1 class="v3-sr" data-i18n="v3.ev.sr">Events and celebrations</h1>
+    <div class="v3-bleed" aria-hidden="true" data-i18n-lines="v3.ev.title"></div>
   </div>
+</header>
   <div class="events-grid events-grid-4">
-    <button type="button" class="event-type-card is-action" data-event="Celebration"><div class="event-type-icon">🎂</div><div class="event-type-title">Celebrations</div><div class="event-type-desc">Birthdays, baptisms, anniversaries, graduations and despedidas. We scale to your guest list.</div></button>
-    <button type="button" class="event-type-card is-action" data-event="Wedding / Debut"><div class="event-type-icon">💍</div><div class="event-type-title">Weddings &amp; Debuts</div><div class="event-type-desc">Elegant menus for the big milestones, with options that please every generation.</div></button>
-    <button type="button" class="event-type-card is-action" data-event="Corporate Event"><div class="event-type-icon">🏢</div><div class="event-type-title">Corporate Events</div><div class="event-type-desc">Office parties, seminars, year-end gatherings and packed meals for teams.</div></button>
-    <button type="button" class="event-type-card is-action" data-event="Customize"><div class="event-type-icon">✨</div><div class="event-type-title">Customize</div><div class="event-type-desc">Something different in mind? Build your own menu with our team.</div></button>
+    <button type="button" class="event-type-card is-action" data-event="Celebration"><div class="event-type-icon">🎂</div><div class="event-type-title">Celebrations</div></button>
+    <button type="button" class="event-type-card is-action" data-event="Wedding / Debut"><div class="event-type-icon">💍</div><div class="event-type-title">Weddings &amp; Debuts</div></button>
+    <button type="button" class="event-type-card is-action" data-event="Corporate Event"><div class="event-type-icon">🏢</div><div class="event-type-title">Corporate Events</div></button>
+    <button type="button" class="event-type-card is-action" data-event="Customize"><div class="event-type-icon">✨</div><div class="event-type-title">Customize</div></button>
   </div>
   <section class="event-packages" id="eventPackages" hidden aria-labelledby="pkgTitle">
-    <div class="section-eyebrow">Sample Packages</div>
     <h2 class="section-title" id="pkgTitle">Starting <em>Rates</em></h2>
     <div class="pkg-grid" id="eventPackagesGrid"></div>
     <p class="pkg-note">Prices are starting points. Your final quote comes after a short consultation about your menu, headcount and venue.</p>
@@ -454,7 +404,6 @@
   </section>
   <div class="conc-form-wrap" style="padding: 60px 24px;">
     <div class="conc-form-intro">
-      <div class="section-eyebrow">Tell Us About Your Event</div>
       <h2 class="section-title">Let's Make It <em>Special</em></h2>
     </div>
     <div class="checkout-card">
@@ -492,47 +441,43 @@
 
 <!-- ABOUT -->
 <div class="page v3-decor" id="page-about">
-  <div class="v3-mandala x" style="--mw:340px;--mo:.1;right:-140px;top:120px" aria-hidden="true"><img data-spin="-4" src="assets/site/mandala-a.webp" alt="" decoding="async" loading="lazy"></div>
-  <div class="v3-mandala x" style="--mw:160px;--mo:.12;left:-50px;top:700px" aria-hidden="true"><img data-spin="5" src="assets/site/mandala-b.webp" alt="" decoding="async" loading="lazy"></div>
-  <div class="about-wrap">
-    <div class="about-block">
-      <h3>Our <em>Story</em></h3>
-      <p>Tyo Paeng Nyo started in 2003 with one small kitchen, one family recipe book, and a stubborn belief: that home-cooked Filipino food deserves a proper home. Twenty years later, we're still cooking from the same recipes, still using the same suppliers, still answering the phone ourselves.</p>
-      <p>The name comes from our founder — Tyo Paeng. The "Nyo" is for you. It's how everyone in Las Piñas has always said it: "Punta tayo kay Tyo Paeng, nyo." Come, let's go to Tyo Paeng's.</p>
-    </div>
-    <div class="about-block">
-      <h3>Our <em>Principles</em></h3>
-      <p>We cook every plate like it's for our own family. We treat every customer like a regular, even on their first visit. We charge fair prices for honest food. And we don't take shortcuts on the things that matter — the lechon kawali is still hand-fried, the sinigang is still simmered for hours, the pancit is still made fresh per order.</p>
-    </div>
-    <div class="credibility-strip">
-      <div class="cred-item"><div class="cred-num">2003</div><div class="cred-label">Founded</div></div>
-      <div class="cred-item"><div class="cred-num">SEC</div><div class="cred-label">Registered</div></div>
-      <div class="cred-item"><div class="cred-num">VAT</div><div class="cred-label">Compliant</div></div>
-      <div class="cred-item"><div class="cred-num">FDA</div><div class="cred-label">Standards</div></div>
-    </div>
-    <div class="about-block">
-      <h3>Why Businesses Choose Us for <em>Concessions</em></h3>
-      <p>Beyond our restaurant, we run on-site concessions and corporate catering for offices, buildings, and institutions across Metro Manila. Our partners stay with us because we show up on time, we cook in quantity without compromising quality, and we treat their teams like our own customers. Twenty years of operations means we've seen — and solved — almost every issue that comes up in food service.</p>
-      <p>If you're exploring food service for your organization, <a onclick="navigate('concessions')" style="color: var(--brick); cursor: pointer; font-weight: 600;">visit our Concessions page</a> to start a conversation.</p>
-    </div>
+  <div class="v3-mandala x" style="--mw:380px;--mo:0.11;left:-160px;top:4%" aria-hidden="true"><img data-spin="4" src="assets/site/mandala-b.webp" alt="" decoding="async" loading="lazy"></div>
+  <div class="v3-mandala x" style="--mw:240px;--mo:0.13;right:-90px;top:48%" aria-hidden="true"><img data-spin="-5" src="assets/site/mandala-a.webp" alt="" decoding="async" loading="lazy"></div>
+  <div class="v3-mandala x" style="--mw:150px;--mo:0.13;left:-40px;top:85%" aria-hidden="true"><img data-spin="6" src="assets/site/mandala-b.webp" alt="" decoding="async" loading="lazy"></div>
+<header class="v3-pagehead v3-tex">
+  <div class="v3-pat"></div>
+  <div class="v3-wrap">
+    <h1 class="v3-sr" data-i18n="v3.about.sr">Our story</h1>
+    <div class="v3-bleed" aria-hidden="true" data-i18n-lines="v3.about.title"></div>
   </div>
+</header>
+<section class="v3-section v3-tight">
+  <div class="v3-wrap v3-story">
+    <p>Tyo Paeng Nyo started in 2003 with one small kitchen, one family recipe book, and a stubborn belief: that home-cooked Filipino food deserves a proper home. Twenty years later, we're still cooking from the same recipes, still using the same suppliers, still answering the phone ourselves.</p>
+    <p>The name comes from our founder — Tyo Paeng. The "Nyo" is for you. It's how everyone in Las Piñas has always said it: "Punta tayo kay Tyo Paeng, nyo." Come, let's go to Tyo Paeng's.</p>
+    <p>We cook every plate like it's for our own family. We treat every customer like a regular, even on their first visit. We charge fair prices for honest food. And we don't take shortcuts on the things that matter — the lechon kawali is still hand-fried, the sinigang is still simmered for hours, the pancit is still made fresh per order.</p>
+  </div>
+</section>
 </div>
 
 <!-- FAQ -->
 <div class="page v3-decor" id="page-faq">
-  <div class="v3-mandala x" style="--mw:300px;--mo:.1;left:-120px;top:140px" aria-hidden="true"><img data-spin="5" src="assets/site/mandala-b.webp" alt="" decoding="async" loading="lazy"></div>
-  <div class="v3-mandala x" style="--mw:150px;--mo:.12;right:-40px;top:620px" aria-hidden="true"><img data-spin="-5" src="assets/site/mandala-a.webp" alt="" decoding="async" loading="lazy"></div>
-  <div class="page-header">
-    <h1>Questions &amp; <em>Answers</em></h1>
-    <p>Location, parking, payment and events. Can't find it? Call <a href="tel:+639998887817" data-site="contact.phone" data-site-href="tel">0999 888 7817</a>.</p>
-    <label class="faq-search glass"><span class="sr-only">Search the questions</span>
+  <div class="v3-mandala x" style="--mw:360px;--mo:0.11;right:-150px;top:4%" aria-hidden="true"><img data-spin="-4" src="assets/site/mandala-a.webp" alt="" decoding="async" loading="lazy"></div>
+  <div class="v3-mandala x" style="--mw:200px;--mo:0.13;left:-70px;top:50%" aria-hidden="true"><img data-spin="5" src="assets/site/mandala-b.webp" alt="" decoding="async" loading="lazy"></div>
+<header class="v3-pagehead v3-tex">
+  <div class="v3-pat"></div>
+  <div class="v3-wrap">
+    <h1 class="v3-sr" data-i18n="v3.faq.sr">Questions and answers</h1>
+    <div class="v3-bleed" aria-hidden="true" data-i18n-lines="v3.faq.title"></div>
+  </div>
+</header>
+<div class="faq-wrap">
+  <label class="faq-search glass"><span class="sr-only">Search the questions</span>
       <input type="search" placeholder="Search: parking, GCash, minimum pax…" oninput="filterFaqs(this.value)" autocomplete="off">
     </label>
-  </div>
-  <div class="faq-wrap">
-    <div id="faqList" aria-live="polite"><p class="faq-empty">Loading questions…</p></div>
-    <p id="faqNone" class="faq-empty" hidden>No matching question. Try another word, or call us.</p>
-  </div>
+  <div id="faqList" aria-live="polite"><p class="faq-empty">Loading questions…</p></div>
+  <p id="faqNone" class="faq-empty" hidden>No matching question. Try another word, or call us.</p>
+</div>
 </div>
 
 <!-- CHECKOUT -->
