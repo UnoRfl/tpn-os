@@ -1634,7 +1634,13 @@
    uses Workspace does not re-close TEAM every morning.
    ════════════════════════════════════════════════════ */
 /* Hub tab strip: sits above the page, sticks while you scroll it. */
-.hub-tabs { position: sticky; top: 0; z-index: 5; margin: -8px 0 14px; padding-top: 8px; }
+.hub-tabs { position: sticky; top: 0; z-index: 5; margin: -8px 0 14px; padding: 8px 0 10px;
+  /* A solid band, so the page does not scroll visibly behind the tabs.
+     Widened sideways by shadow to the main area's padding, then clipped. */
+  background: rgba(var(--glass-tint-2, 242, 228, 199), 0.96);
+  box-shadow: 0 0 0 40px rgba(var(--glass-tint-2, 242, 228, 199), 0.96), 0 10px 14px -12px rgba(43, 24, 16, .25);
+  clip-path: inset(0 -40px -14px); }
+@media (max-width: 900px) { .hub-tabs { box-shadow: 0 0 0 16px rgba(var(--glass-tint-2, 242, 228, 199), 0.96); clip-path: inset(0 -16px -14px); } }
 .hub-tabs[hidden] { display: none; }
 .hub-tabs .tpn-tabs { margin-bottom: 0; }
 .portal-nav-section.collapsible {
@@ -1704,9 +1710,21 @@ table.matrix thead th {
 table.matrix tbody th.perm {
   position: sticky; left: 0; z-index: 2;
   background: var(--bg); text-align: left; font-weight: 500;
-  min-width: 260px; max-width: 320px;
+  min-width: 190px; max-width: 240px; white-space: normal;
   border-right: 1px solid var(--line);
 }
+/* Compact grid: names run up the column so nine roles fit beside the list.
+   Descriptions sit in the row's tooltip; the one-role view shows them. */
+table.matrix .perm-hint { display: none; }
+table.matrix thead th.role-col { width: 44px; min-width: 44px; max-width: 44px; padding: 10px 4px 8px; vertical-align: bottom; }
+table.matrix td.cell { width: 44px; padding: 8px 4px; }
+.role-dot { display: block; width: 10px; height: 10px; border-radius: 50%; margin: 0 auto 6px; }
+.role-vert { display: inline-block; writing-mode: vertical-rl; transform: rotate(180deg); white-space: nowrap; max-height: 130px; overflow: hidden; text-overflow: ellipsis; letter-spacing: .06em; color: var(--ink); }
+/* Switch views by the room the page actually has, not the screen width:
+   a laptop with the sidebar open was getting a grid three roles wide. */
+#matrixBody { container-type: inline-size; }
+@container (max-width: 560px) { .matrix-desktop { display: none !important; } .matrix-mobile { display: block !important; } }
+@container (min-width: 561px) { .matrix-mobile { display: none !important; } .matrix-desktop { display: block !important; } }
 table.matrix thead th.corner { position: sticky; left: 0; z-index: 4; text-align: left; }
 table.matrix tr.cat-row th {
   position: sticky; left: 0; z-index: 2;
@@ -1725,6 +1743,12 @@ table.matrix td.cell.locked { cursor: not-allowed; background: repeating-linear-
 .perm-hint { display: block; font-size: 11px; color: var(--ink-faint); margin-top: 2px; line-height: 1.35; }
 .role-pill { display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px; border-radius: 999px; font-size: 11px; font-weight: 700; color: #fff; }
 .role-sys { font-size: 9px; opacity: 0.75; font-weight: 600; }
+/* Roles list: badge column fixed so descriptions line up. */
+.role-card-head { display: grid; grid-template-columns: 170px minmax(0, 1fr) auto; gap: 14px; align-items: center; padding: 14px 16px; cursor: pointer; }
+.role-card-head:hover { background: rgba(139, 26, 14, 0.03); }
+@media (max-width: 560px) { .role-card-head { grid-template-columns: minmax(0, 1fr) auto; } .role-card-head > :nth-child(2) { grid-column: 1 / -1; grid-row: 2; } }
+.perm-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 2px 22px; }
+.perm-lock { display: inline-block; margin-top: 3px; font-size: 10.5px; color: var(--ink-faint); }
 
 /* ════════════════════════════════════════════════════
    TASK BOARD
@@ -2153,3 +2177,15 @@ html[data-theme="dark"]  .panel, html[data-theme="night"] .panel {
 .kds-guest-chip { flex-wrap: wrap; min-width: 0; }
 .kds-guest-chip > span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
 
+
+/* Table QR codes drawn as SVG on the page. */
+.table-qr-img { width: 132px; height: 132px; margin: 0 auto; padding: 6px; background: #fff; border-radius: 8px; border: 2px solid var(--brick); box-sizing: border-box; }
+.table-qr-img svg { width: 100%; height: 100%; display: block; }
+
+/* Account filters: one line each, scroll sideways if the row is full. */
+.acc-tabs { overflow-x: auto; scrollbar-width: none; flex-wrap: nowrap; }
+.acc-tabs::-webkit-scrollbar { display: none; }
+.acc-tab { white-space: nowrap; flex: 0 0 auto; }
+
+/* Hub tabs never hide a tab off the edge: they wrap to a second row. */
+.hub-tabs .tpn-tabs.fold { flex-wrap: wrap; overflow: visible; border-radius: 22px; row-gap: 4px; }

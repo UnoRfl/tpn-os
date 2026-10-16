@@ -37,7 +37,7 @@
           <div id="rwResult" aria-live="assertive"></div>
           <hr style="border:0;border-top:1px solid var(--line-soft);margin:16px 0">
           <label class="form-label" for="rwLook">Check a customer's stamps</label>
-          <div style="display:flex;gap:8px"><input class="form-input" id="rwLook" type="tel" placeholder="Mobile number"><button class="btn-ghost" onclick="rwLookup()">Look up</button></div>
+          <div style="display:flex;gap:8px;align-items:center"><input class="form-input" id="rwLook" type="tel" placeholder="Mobile number" style="flex:1;min-width:0"><button class="btn-ghost" style="flex:0 0 auto" onclick="rwLookup()">Look up</button></div>
           <div id="rwLookOut"></div>
         </section>
         <section class="panel" aria-labelledby="rsTitle"><h2 id="rsTitle" style="font-family:'Playfair Display',serif;font-size:20px;color:var(--ink)">Settings</h2>

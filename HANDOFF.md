@@ -1,6 +1,6 @@
 # TPN OS — Session Handoff
 
-**Last updated:** Oct 17, 2026 (rev 7 — portal split out of the website, hubs, Counter on the floor screen; see "Rev 7"). Rev 6 (Oct 16 — v2 overhaul, see "Rev 6" and GO-LIVE.md). Previously rev 5 — UI/UX reliability pass, no migrations; see "Rev 5" below). Rev 4 (Aug 22): split bills, daily close, variance, working add-ons, low-stock alerts; migrations 18–28
+**Last updated:** Oct 17, 2026 (rev 8 — read receipts, Tagalog everywhere, layout, guide; see "Rev 8"). Rev 7 — portal split out of the website, hubs, Counter on the floor screen; see "Rev 7"). Rev 6 (Oct 16 — v2 overhaul, see "Rev 6" and GO-LIVE.md). Previously rev 5 — UI/UX reliability pass, no migrations; see "Rev 5" below). Rev 4 (Aug 22): split bills, daily close, variance, working add-ons, low-stock alerts; migrations 18–28
 **Deployed:** https://unorfl.github.io/tpn-os/
 **Repo:** https://github.com/UnoRfl/tpn-os
 **Supabase project ref:** `xjlqfpnzobfqxetgkkai` (single project, single branch)
@@ -61,6 +61,14 @@ tpn-os/
 | **Extensionless URLs** (`/tpn-table-menu`, `/tpn-dine-in-floor`) | ✅ live |
 
 ---
+
+## Rev 8 — read receipts, Tagalog everywhere, layout pass, beginner guide (Oct 17, 2026)
+
+- **Notifications/messages that came back after reading (sql/36):** branch-wide rows had one shared `read_at` and only managers could update them, so crew "reads" failed silently and a manager's read hid it for everyone. Now `read_receipts` holds one row per person; the client calls `my_notifications`, `my_unread_counts`, `mark_read(kind, ids|null)`, `dismiss_notification`. Also closed a hole: any branch member could UPDATE a broadcast message's text — staff now have `UPDATE (read_at)` only, on rows addressed to them.
+- **"Couldn't load tables":** the Table QR page made a branch lookup then a query per branch with no retry, and failed whole on one hiccup. Now one joined query through `tpnRetry`, and the QR codes are drawn locally (vendor/qrcode-generator) instead of fetched from api.qrserver.com.
+- **Tagalog:** `tpn-i18n.js` translates text written straight into the pages (≈1,300 phrases, English → Tagalog) on the website, portal, floor and kitchen screens, including dialogs and toasts; it restores the English exactly. Keyed labels (`data-i18n`, `T()`) still work as before. To add a phrase, add it to `PHRASES` in `tpn-i18n.js`. Use `translate="no"` on anything that must never change. Floor/kitchen have a 🌐 button and follow the device's choice.
+- **Layout:** Accounts & access fits (compact matrix with vertical role names; switches to one-role view by available width; role list aligned; two-column permission editor). Data tables become labelled cards on phones. Header buttons share one wrapping row; button labels never wrap; hub tabs wrap instead of hiding; the sticky tab bar is solid.
+- **Guide (`modules/guide.js`):** "?" button on every portal page and on the floor/kitchen screens → searchable "How do I…?" with Show me (opens the page and spotlights the button, matched by onclick so it works in both languages). A tour runs once per person per device on first sign-in. Topics/tours are bilingual inside the file.
 
 ## Rev 7 — faster pages, hubs, Counter on the floor (Oct 17, 2026)
 

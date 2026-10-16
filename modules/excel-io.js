@@ -271,7 +271,19 @@
     let tries = 0;
     const tryOnce = () => {
       const head = main.querySelector('.portal-header');
-      if (head && !head.querySelector('.tpn-io')) { const tb = toolbar(route); if (tb) head.appendChild(tb); return; }
+      if (head && !head.querySelector('.tpn-io')) {
+        const tb = toolbar(route); if (!tb) return;
+        // Join the page's own buttons in one right-hand group; appended on
+        // its own the bar wrapped to a lonely line under "Add …".
+        let act = head.querySelector(':scope > .portal-header-actions');
+        if (!act) {
+          act = document.createElement('div'); act.className = 'portal-header-actions';
+          [...head.children].slice(1).forEach(k => act.appendChild(k));
+          head.appendChild(act);
+        }
+        act.prepend(tb);
+        return;
+      }
       if (++tries < 30) { setTimeout(tryOnce, 100); return; }
       // Pages with their own header markup (Attendance, …): put the bar on top.
       if (!main.querySelector('.tpn-io')) { const tb = toolbar(route); if (tb) { tb.style.cssText = 'display:flex;justify-content:flex-end;margin-bottom:10px'; main.prepend(tb); } }

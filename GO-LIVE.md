@@ -5,7 +5,7 @@
 | Step | State |
 |---|---|
 | 0 Leaked password protection, backups | **Skipped**: needs a paid Supabase plan. Revisit if the plan is upgraded. |
-| 1 Database (29a–35) | ✅ Live. Advisors clean apart from the intended public functions. 35 (pay a whole table at Close table) added Oct 17. |
+| 1 Database (29a–36) | ✅ Live. Advisors clean apart from the intended public functions. 35 (pay a whole table at Close table) and 36 (per-person read receipts) added Oct 17. |
 | 2 Website + portal | ✅ Merged to `main` and live. FAQs with `[Fill in]` stay unpublished (open questions on hold). |
 | 3 Clock-in | ⏸ Waiting: needs someone at the restaurant (trust Wi-Fi, phone camera test). |
 | 4 HitPay | ⏸ Waiting on the HitPay meeting. "How do I pay?" FAQ says cash/bank only until then — put online payment back in when it goes live. |
@@ -35,6 +35,7 @@ Run each file **on its own**, in this order. All are safe to re-run.
 | `sql/33-clockin-verification.sql` | trusted network + clock-in photo (creates the private `attendance-photos` bucket) |
 | `sql/34-stamp-cards.sql` | stamp cards (starts **off**) |
 | `sql/35-table-settle.sql` | Close table takes cash for the whole table in one go |
+| `sql/36-read-receipts.sql` | notifications and branch messages stay read per person |
 
 Then: Supabase → Advisors → Security. Expected warnings only: the customer functions (`submit_order`, `track_order`, `claim_stamp_card`, `my_stamp_card`, `stamp_card_code`, `my_guest_profile`, `addon_suggestions`, `signal_*`) are public on purpose.
 

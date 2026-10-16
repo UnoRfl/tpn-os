@@ -15,10 +15,11 @@
   // refused by the browser unless its hash matches.
   if (!window.supabase) document.write('<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js" integrity="sha384-Rj26LVGvoeRVR6+mwQmFfcR3QOBEwT+ZmuCWpuiqeTzJpCs0ER4ITAWGb4Hiy3Ok" crossorigin="anonymous"><' + '/script>');
 </script>
-<script src="config.js?v=20261017a"></script>
-<script src="tpn-supabase.js?v=20261017a"></script>
-<script src="tpn-kit.js?v=20261017a"></script>
-<script src="tpn-site.js?v=20261017a"></script>
+<script src="config.js?v=20261017b"></script>
+<script src="tpn-supabase.js?v=20261017b"></script>
+<script src="tpn-kit.js?v=20261017b"></script>
+<script src="tpn-site.js?v=20261017b"></script>
+<script src="tpn-i18n.js?v=20261017b"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="description" content="Tyo Paeng Nyo staff portal.">
 <meta name="robots" content="noindex, nofollow">
@@ -48,8 +49,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=Lora:ital,wght@0,400;0,600;1,400&family=DM+Sans:wght@300;400;500;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="tpn-app.css?v=20261017a">
-<link rel="stylesheet" href="tpn-glass.css?v=20261017a">
+<link rel="stylesheet" href="tpn-app.css?v=20261017b">
+<link rel="stylesheet" href="tpn-glass.css?v=20261017b">
 </head>
 <body>
 <a class="skip-link" href="#main-content" onclick="event.preventDefault();var t=document.querySelector('.page.active h1, .portal-page.active main');if(t){t.setAttribute('tabindex','-1');t.focus();}">Skip to content</a>
@@ -350,7 +351,7 @@ const TPN_STRINGS = {
   'hub.money':   { en: 'Money',             tl: 'Pera' },
   'hub.inbox':   { en: 'Inbox',             tl: 'Inbox' },
   'hub.website': { en: 'Website',           tl: 'Website' },
-  'hub.admin':   { en: 'Accounts & access', tl: 'Account at access' },
+  'hub.admin':   { en: 'Accounts', tl: 'Mga account' },
   'hub.more':    { en: 'More',              tl: 'Iba pa' },
   'hub.you':     { en: 'You',               tl: 'Ikaw' },
 
@@ -399,6 +400,7 @@ const TPN_STRINGS = {
 
   'matrix.title':   { en: 'Access Matrix',  tl: 'Talaan ng Access' },
   'matrix.sub':     { en: 'Every role down the top, every permission down the side. Tap a cell to change it.', tl: 'Nasa itaas ang mga role, nasa gilid ang mga access. I-tap ang kahon para baguhin.' },
+  'matrix.lockedShort': { en: 'Needs a higher role', tl: 'Kailangan ng mas mataas na role' },
   'matrix.locked':  { en: 'Locked: this permission needs a higher permission floor than the role has.', tl: 'Sarado: mas mataas ang kailangang antas nito kaysa sa role.' },
   'matrix.readonly':{ en: 'You can see this grid but not change it.', tl: 'Pwede mong tingnan pero hindi baguhin.' },
 
@@ -674,6 +676,7 @@ function setLang(l) {
   });
 
   applyI18n(document);
+  if (window.TPN_I18N) TPN_I18N.apply(l);   // text written straight into the pages (tpn-i18n.js)
 
   // Re-render whatever is on screen so JS-built markup picks the new
   // language up too. The old setLang only showed a toast, which is why
@@ -1390,9 +1393,9 @@ function clearAllBadges() {
 function langSwitchHtml() {
   const en = TPN_LANG === 'en' ? ' class="active"' : '';
   const tl = TPN_LANG === 'tl' ? ' class="active"' : '';
-  const lit = ['inquiries','void-requests','tasks','inventory','accounts']
-    .some(r => document.querySelector(`.portal-nav-item[data-route="${r}"] .portal-nav-badge`));
-  return `<div class="portal-lang" role="group" aria-label="Language">
+  // Any red count in the sidebar (hubs carry the sum of their pages).
+  const lit = !!document.querySelector('#portalNav .portal-nav-badge, #staffNav .portal-nav-badge');
+  return `<div class="portal-lang" role="group" aria-label="Language" translate="no">
     <button${en} onclick="setLang('en')">English</button>
     <button${tl} onclick="setLang('tl')">Tagalog</button>
   </div>
@@ -1492,6 +1495,25 @@ function hubGo(kind, id) {
   if (it.external) { window.open(it.external, '_blank', 'noopener'); syncHub(kind, currentRoute); return; }
   (kind === 'staff' ? routeStaff : route)(id);
 }
+/* On a phone a five-column table pushes its buttons off the right edge.
+   Every .data-table gets each cell labelled with its column name, and the
+   CSS stacks rows as cards under 640px (tpn-glass.css). */
+function labelDataTables(root) {
+  (root || document).querySelectorAll('table.data-table').forEach(t => {
+    const heads = [...t.querySelectorAll('thead th')].map(th => th.textContent.trim());
+    if (!heads.length) return;
+    t.querySelectorAll('tbody tr').forEach(tr => [...tr.children].forEach((td, i) => {
+      if (!td.hasAttribute('data-label') && heads[i]) td.setAttribute('data-label', heads[i]);
+    }));
+  });
+}
+(function watchTables() {
+  let pending = false;
+  const mo = new MutationObserver(() => { if (pending) return; pending = true; setTimeout(() => { pending = false; labelDataTables(); }, 0); });
+  const start = () => ['portalMain', 'staffMain'].forEach(id => { const el = document.getElementById(id); if (el) mo.observe(el, { childList: true, subtree: true }); });
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
+})();
+
 function hubGoAdmin(id) { hubGo('admin', id); }
 function hubGoStaff(id) { hubGo('staff', id); }
 
@@ -2729,7 +2751,7 @@ function renderAccounts(main) {
     recommended: all.filter(s => s.accountState === 'recommended').length,
     disabled: all.filter(s => s.accountState === 'disabled').length,
   };
-  const stateMap = { active: 'Active', pending: 'Pending', suspended: 'Suspended', recommended: 'Recommended for Disable', disabled: 'Disabled' };
+  const stateMap = { active: 'Active', pending: 'Pending', suspended: 'Suspended', recommended: 'Flagged', disabled: 'Disabled' };
 
   let html = `<div class="portal-header">
     <div><h1>Accounts</h1><div class="portal-header-sub">${u.tier === 'director' ? 'Full control over all accounts. Director privilege — execute with care.' : u.tier === 'manager' ? 'Create new Dining/Kitchen staff for your branch. CEO/Operator will validate.' : 'Validate new staff accounts and manage existing team members.'}</div></div>
@@ -3067,15 +3089,17 @@ async function renderTableQR(main) {
   let html = '';
 
   try {
+    // One request for every table with its branch, retried on a dropped or
+    // stalled connection. This used to be a branch lookup and then a table
+    // query per branch, failing the whole page the first time either hiccuped.
+    const rows = await tpnRetry(async () => {
+      const { data, error } = await sb.from('restaurant_tables')
+        .select('table_number, branches!inner(code)').eq('is_active', true).order('table_number');
+      if (error) throw error;
+      return data || [];
+    }, { what: 'table list' });
     for (const br of branches) {
-      // Resolve to DB branch by code
-      const dbBranch = await TPN.getBranchByCode(br.id);   // portalState uses code as id
-      let tables = [];
-      if (dbBranch) {
-        try { tables = await TPN.getTablesForBranch(dbBranch.id); } catch(e) { tables = []; }
-      }
-      // Fallback: if no tables exist yet, offer to seed 1-12
-      const tableNumbers = tables.length ? tables.map(t => t.table_number).sort((a,b) => a - b) : [];
+      const tableNumbers = rows.filter(r => r.branches && r.branches.code === br.id).map(r => r.table_number);
 
       html += `<div class="panel" style="margin-bottom:24px;">
         <div class="panel-header">
@@ -3090,11 +3114,14 @@ async function renderTableQR(main) {
       } else {
         html += `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:16px;padding-top:8px;">`;
         for (const t of tableNumbers) {
-          const qrData = encodeURIComponent(`${baseUrl}?table=${t}&branch=${encodeURIComponent(br.name)}&branchId=${br.id}`);
-          const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${qrData}&color=8B1A0E&bgcolor=FDF6EC&margin=8`;
+          // Drawn here (vendor/qrcode-generator) rather than fetched one image
+          // per table from an outside service that may be slow or down.
+          const link = `${baseUrl}?table=${t}&branch=${encodeURIComponent(br.name)}&branchId=${br.id}`;
+          let qr = '';
+          if (typeof window.qrcode === 'function') { const q = qrcode(0, 'M'); q.addData(link); q.make(); qr = q.createSvgTag({ cellSize: 3, margin: 3, scalable: true }); }
           html += `<div style="background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;text-align:center;">
             <div style="font-family:'Playfair Display',serif;font-size:18px;font-weight:900;color:var(--brick);margin-bottom:10px;">Table ${t}</div>
-            <img src="${qrUrl}" alt="Table ${t} QR" style="width:120px;height:120px;border-radius:8px;border:2px solid var(--brick);" loading="lazy">
+            <div class="table-qr-img" role="img" aria-label="Table ${t} QR code">${qr}</div>
             <div style="font-size:10px;color:var(--ink-faint);margin-top:8px;letter-spacing:0.08em;">${E(br.name.toUpperCase())}</div>
             <a href="${baseUrl}?table=${t}&branch=${encodeURIComponent(br.name)}&branchId=${br.id}" target="_blank" style="display:block;margin-top:8px;font-size:11px;color:var(--brick);font-weight:600;">Open Menu →</a>
           </div>`;
@@ -3383,9 +3410,9 @@ async function renderAttendanceAdmin(main) {
 
   main.innerHTML = `<div class="portal-header">
     <div><h1>Attendance</h1><div class="portal-header-sub">Clock-in/out records for your branch.</div></div>
-    <div style="display:flex;gap:8px;align-items:center;">
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
       <button class="btn-ghost" onclick="attendanceNav(-1)">← Prev</button>
-      <div style="min-width:220px;text-align:center;font-weight:700;color:var(--ink);">${dateLabel}</div>
+      <div style="flex:1 1 160px;text-align:center;font-weight:700;color:var(--ink);">${dateLabel}</div>
       <button class="btn-ghost" onclick="attendanceNav(1)">Next →</button>
       <button class="btn-ghost" onclick="attendanceNav(0)">Today</button>
     </div>
@@ -4393,7 +4420,7 @@ async function renderPerformance(main) {
         <h1>Performance</h1>
         <div class="portal-header-sub">Monthly revenue, top dishes, peak hours — the numbers that tell you how the shop is doing. All roads lead here.</div>
       </div>
-      <div style="display:flex;gap:8px;">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
         <label style="display:flex;align-items:center;gap:6px;">
           <span style="font-size:11px;color:var(--ink-muted);text-transform:uppercase;letter-spacing:0.08em;">Month</span>
           <input type="month" id="perfMonth" value="${E(_perfState.month)}" max="${E(today.slice(0,7))}" style="padding:8px 10px;border:1px solid var(--line);border-radius:6px;font-size:14px;">
@@ -5435,13 +5462,13 @@ function _renderRolesList() {
     const open = _rolesState.openRole === role.id;
 
     return `<div style="border-bottom:1px solid var(--line-soft);">
-      <div style="padding:14px 16px;display:flex;gap:14px;align-items:center;flex-wrap:wrap;cursor:pointer;"
-           onclick="toggleRoleOpen('${role.id}')">
-        <span class="role-pill" style="background:${E(role.color || '#8B1A0E')};">
+      <div class="role-card-head" role="button" tabindex="0" aria-expanded="${open}"
+           onclick="toggleRoleOpen('${role.id}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}">
+        <span><span class="role-pill" style="background:${E(role.color || '#8B1A0E')};">
           ${E(TL(role, 'label', 'label_tl'))}
           ${role.is_system ? `<span class="role-sys">${E(T('roles.builtIn'))}</span>` : ''}
-        </span>
-        <div style="flex:1;min-width:180px;">
+        </span></span>
+        <div style="min-width:0;">
           <div style="font-size:12px;color:var(--ink-muted);">${E(role.description || '')}</div>
           <div style="font-size:11px;color:var(--ink-faint);margin-top:3px;">
             ${E(T('roles.basedOn'))} <strong>${E(role.base_tier)}</strong>
@@ -5474,6 +5501,7 @@ function _renderRolePermissions(role, cells, canEdit) {
   const body = cats.map(g => `
     <div style="margin-bottom:14px;">
       <div style="font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--brick);font-weight:700;margin-bottom:6px;">${E(g.name)}</div>
+      <div class="perm-grid">
       ${g.rows.map(c => {
         const locked = !c.grantable;
         const on = c.allowed;
@@ -5484,10 +5512,12 @@ function _renderRolePermissions(role, cells, canEdit) {
                  onchange="setRoleCell('${role.id}','${JA(c.permission_key)}',this.checked,this)">
           <span style="flex:1;min-width:0;">
             <span style="font-size:13px;">${E(label)}</span>
-            <span class="perm-hint">${E(c.description || '')}${locked ? ' — ' + E(T('matrix.locked')) : ''}</span>
+            <span class="perm-hint">${E(c.description || '')}</span>
+            ${locked ? `<span class="perm-lock" title="${E(T('matrix.locked'))}">🔒 ${E(T('matrix.lockedShort'))}</span>` : ''}
           </span>
         </label>`;
       }).join('')}
+      </div>
     </div>`).join('');
 
   return `<div style="padding:4px 16px 18px 16px;background:var(--surface-2,#F6EEDF);">
@@ -5717,11 +5747,9 @@ function _renderMatrixGrid(matrix) {
 
   const head = `<thead><tr>
       <th class="corner">Permission</th>
-      ${roles.map(r => `<th title="${E(r.label)} — based on ${E(r.tier)}">
-        <span class="role-pill" style="background:${E(r.color)};">${E(r.label)}</span>
-        <div style="font-size:9px;font-weight:600;color:var(--ink-faint);margin-top:4px;letter-spacing:0;text-transform:none;">
-          ${r.is_system ? E(T('roles.builtIn')) : E(T('roles.custom'))}${r.is_active ? '' : ' · off'}
-        </div>
+      ${roles.map(r => `<th class="role-col" title="${E(r.label)} — ${E(T('roles.basedOn'))} ${E(r.tier)}${r.is_system ? '' : ' · ' + E(T('roles.custom'))}${r.is_active ? '' : ' · off'}">
+        <span class="role-dot" style="background:${E(r.color)};"></span>
+        <span class="role-vert">${E(r.label)}</span>
       </th>`).join('')}
     </tr></thead>`;
 
@@ -5730,7 +5758,7 @@ function _renderMatrixGrid(matrix) {
     ${g.perms.map(p => {
       const label = TPN_LANG === 'tl' && p.label_tl ? p.label_tl : p.label;
       return `<tr>
-        <th class="perm">
+        <th class="perm" title="${E(p.description || '')}">
           <span class="perm-label">${E(label)}</span>
           <span class="perm-hint">${E(p.description || '')}</span>
         </th>
@@ -5784,7 +5812,8 @@ function _matrixMobileHtml(roles, cats, lookup, canEdit) {
       return `<div class="mx-row ${locked ? 'locked' : ''}">
         <div class="mx-row-body">
           <div class="mx-row-label">${E(label)}</div>
-          <div class="perm-hint">${E(p.description || '')}${locked ? ' — ' + E(T('matrix.locked')) : ''}</div>
+          <div class="perm-hint">${E(p.description || '')}</div>
+          ${locked ? `<div class="perm-lock">🔒 ${E(T('matrix.lockedShort'))}</div>` : ''}
         </div>
         <button class="mx-toggle ${on ? 'on' : ''}" ${editable ? '' : 'disabled'}
                 aria-pressed="${on}" aria-label="${E(label)}"
@@ -8346,7 +8375,7 @@ async function openMessageDetail(id) {
     const m = rows.find(x => x.id === id);
     if (!m) return;
     // Mark as read (fire-and-forget)
-    if (!m.read_at && m.to_staff_id === currentUser.id) {
+    if (!m.read_at && (m.to_staff_id === currentUser.id || (!m.to_staff_id && m.from_staff_id !== currentUser.id))) {   // broadcasts too: each reader has their own receipt (sql/36)
       TPN.markMessageRead(id).then(async () => {
         // Refresh badge
         try {
@@ -8769,13 +8798,14 @@ function guardAsync(name) {
 
 </script>
 <!-- Portal modules: each adds its own tab through TPN_MOD (tpn-kit.js). -->
-<script src="modules/website.js?v=20261017a"></script>
+<script src="modules/website.js?v=20261017b"></script>
 <script src="vendor/qrcode-generator-1.4.4.js"></script>
-<script src="modules/payments.js?v=20261017a"></script>
-<script src="modules/pos.js?v=20261017a"></script>
-<script src="modules/modifiers.js?v=20261017a"></script>
-<script src="modules/clockin.js?v=20261017a"></script>
-<script src="modules/stamps.js?v=20261017a"></script>
-<script src="modules/excel-io.js?v=20261017a"></script>
+<script src="modules/payments.js?v=20261017b"></script>
+<script src="modules/pos.js?v=20261017b"></script>
+<script src="modules/modifiers.js?v=20261017b"></script>
+<script src="modules/clockin.js?v=20261017b"></script>
+<script src="modules/stamps.js?v=20261017b"></script>
+<script src="modules/excel-io.js?v=20261017b"></script>
+<script src="modules/guide.js?v=20261017b"></script>
 </body>
 </html>

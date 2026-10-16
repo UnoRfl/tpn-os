@@ -397,3 +397,30 @@ details.tpn-menu > summary::-webkit-details-marker { display: none; }
   border: 1.5px solid var(--glass-edge-lo); background: rgba(var(--glass-tint-2), .7); }
 html[data-theme="dark"] .tpn-dlg { color: #F5E7D0; }
 html[data-theme="dark"] .tpn-dlg .form-input, html[data-theme="dark"] .tpn-dlg .btn-ghost, html[data-theme="dark"] .tpn-chip { color: #F5E7D0; }
+
+/* Header actions: every button on the right of a page title sits in one
+   wrapping row with even gaps, primary action last. */
+.portal-header-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: flex-end; margin-left: auto; }
+.portal-header-actions .tpn-io { margin-left: 0; }
+.portal-header-actions > * { margin: 0 !important; }
+@media (max-width: 640px) { .portal-header-actions { justify-content: flex-start; margin-left: 0; width: 100%; } }
+
+/* A button label never breaks over two lines; rows of buttons wrap instead. */
+.btn-primary, .btn-next, .btn-ghost, .btn-secondary, .btn-back, .btn-outline, .btn-danger, .table-btn { white-space: nowrap; }
+input[type="checkbox"], input[type="radio"] { accent-color: var(--brick); }
+/* Button rows inside a page header always wrap rather than run off-screen. */
+.portal-header > div:not(:first-child), .portal-header-actions > div { flex-wrap: wrap; min-width: 0; }
+
+/* Phones: data tables become one card per row, each value labelled. */
+@media (max-width: 640px) {
+  table.data-table, table.data-table tbody, table.data-table tr, table.data-table td { display: block; width: 100%; box-sizing: border-box; }
+  table.data-table { border: 0; background: transparent; min-width: 0 !important; }
+  table.data-table thead { display: none; }
+  table.data-table tr { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; margin-bottom: 10px; padding: 6px 4px; }
+  table.data-table td { display: flex; justify-content: space-between; align-items: center; gap: 12px; border-top: 0 !important; padding: 7px 12px !important; text-align: right !important; }
+  table.data-table td[data-label]::before { content: attr(data-label); font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-muted); text-align: left; flex: 0 0 auto; }
+  table.data-table td > * { min-width: 0; }
+  table.data-table td.table-actions, table.data-table td:last-child { flex-wrap: wrap; justify-content: flex-end; }
+  table.data-table td[data-label=""]::before, table.data-table td[data-label="Actions"]::before { content: none; }
+  .data-table-wrap { overflow: visible; }
+}

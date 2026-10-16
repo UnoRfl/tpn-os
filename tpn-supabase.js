@@ -725,6 +725,15 @@ const TPN = {
       .order('created_at', { ascending: false })
       .limit(limit);
     if (error) throw error;
+    // A branch broadcast is "read" once *I* have a receipt for it (sql/36);
+    // its own read_at only counts for reads made before receipts existed.
+    const shared = (data || []).filter(m => !m.to_staff_id).map(m => m.id);
+    if (shared.length) {
+      const { data: rc } = await sb.from('read_receipts').select('item_id, read_at')
+        .eq('kind', 'message').eq('user_id', this._user.id).in('item_id', shared);
+      const seen = new Map((rc || []).map(r => [r.item_id, r.read_at]));
+      data.forEach(m => { if (!m.to_staff_id) m.read_at = seen.get(m.id) || m.read_at || null; });
+    }
     return data || [];
   },
 
@@ -760,21 +769,19 @@ const TPN = {
   },
 
   async markMessageRead(id) {
-    const { data, error } = await sb.from('messages')
-      .update({ read_at: new Date().toISOString() })
-      .eq('id', id).is('read_at', null).select().maybeSingle();
+    const { error } = await sb.rpc('mark_read', { p_kind: 'message', p_ids: [id] });
     if (error) throw error;
-    return data;
+    return true;
+  },
+
+  async markAllMessagesRead() {
+    const { error } = await sb.rpc('mark_read', { p_kind: 'message', p_ids: null });
+    if (error) throw error;
+    return true;
   },
 
   async unreadMessageCount() {
-    if (!this._user) return 0;
-    const { count, error } = await sb.from('messages')
-      .select('id', { count: 'exact', head: true })
-      .or(`to_staff_id.eq.${this._user.id},and(to_staff_id.is.null,branch_id.eq.${this._user.branch_id || '00000000-0000-0000-0000-000000000000'})`)
-      .is('read_at', null);
-    if (error) return 0;
-    return count || 0;
+    try { return Number((await this.unreadCounts()).messages) || 0; } catch (e) { return 0; }
   },
 
   subscribeMessages(callback) {
@@ -1064,15 +1071,14 @@ TPN.listOrdersToday = async function (opts = {}) {
 //              'inquiry_new','message_new','attendance_correction',
 //              'table_signal','staff_pending','system'
 // ═════════════════════════════════════════════════════════════
+// Read state is per person (sql/36): a branch-wide row carries a receipt
+// for each reader, so read_at below is "read by ME". Direct table updates
+// used to fail silently for crew on branch rows, which is why read
+// notifications kept coming back.
 TPN.listNotifications = async function ({ limit = 50, includeRead = true } = {}) {
   if (!this._user) return [];
   try {
-    let q = sb.from('notifications')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .limit(limit);
-    if (!includeRead) q = q.is('read_at', null);
-    const { data, error } = await q;
+    const { data, error } = await sb.rpc('my_notifications', { p_limit: limit, p_unread_only: !includeRead });
     if (error) throw error;
     return data || [];
   } catch (e) {
@@ -1081,42 +1087,39 @@ TPN.listNotifications = async function ({ limit = 50, includeRead = true } = {})
   }
 };
 
+TPN.unreadCounts = async function () {
+  if (!this._user) return { notifications: 0, messages: 0 };
+  const { data, error } = await sb.rpc('my_unread_counts');
+  if (error) throw error;
+  return data || { notifications: 0, messages: 0 };
+};
+
 TPN.unreadNotifCount = async function () {
-  if (!this._user) return 0;
-  try {
-    const { count, error } = await sb.from('notifications')
-      .select('id', { count: 'exact', head: true })
-      .is('read_at', null);
-    if (error) return 0;
-    return count || 0;
-  } catch (e) { return 0; }
+  try { return Number((await this.unreadCounts()).notifications) || 0; } catch (e) { return 0; }
 };
 
 TPN.markNotifRead = async function (id) {
-  if (!id) return null;
+  if (!id) return false;
   try {
-    const { data, error } = await sb.from('notifications')
-      .update({ read_at: new Date().toISOString() })
-      .eq('id', id).is('read_at', null).select().maybeSingle();
+    const { error } = await sb.rpc('mark_read', { p_kind: 'notification', p_ids: [id] });
     if (error) throw error;
-    return data;
-  } catch (e) { console.warn('markNotifRead:', e.message||e); return null; }
+    return true;
+  } catch (e) { console.warn('markNotifRead:', e.message||e); return false; }
 };
 
 TPN.markAllNotifsRead = async function () {
   try {
-    const { error } = await sb.from('notifications')
-      .update({ read_at: new Date().toISOString() })
-      .is('read_at', null);
+    const { error } = await sb.rpc('mark_read', { p_kind: 'notification', p_ids: null });
     if (error) throw error;
     return true;
   } catch (e) { console.warn('markAllNotifsRead:', e.message||e); return false; }
 };
 
+// Mine: deleted. Branch-wide: hidden for me only, the rest still see it.
 TPN.deleteNotification = async function (id) {
   if (!id) return false;
   try {
-    const { error } = await sb.from('notifications').delete().eq('id', id);
+    const { error } = await sb.rpc('dismiss_notification', { p_id: id });
     if (error) throw error;
     return true;
   } catch (e) { console.warn('deleteNotification:', e.message||e); return false; }
