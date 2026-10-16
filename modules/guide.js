@@ -136,7 +136,7 @@
         steps: [t('Open Table QR Codes.', 'Buksan ang Table QR Codes.'),
                 t('Tap + Add Table or Print All.', 'I-tap ang + Add Table o Print All.')] }
     ] },
-    { group: t('Money', 'Pera'), items: [
+    { group: t('Sales & finance', 'Benta at pananalapi'), items: [
       { title: t('Close the day', 'Isara ang araw'), route: 'daily-close', show: '[onclick^="openCloseTill"], [onclick^="doCloseTill"]',
         steps: [t('Open Daily Close.', 'Buksan ang Daily Close.'),
                 t('Settle unpaid orders first.', 'Ayusin muna ang hindi bayad na order.'),
