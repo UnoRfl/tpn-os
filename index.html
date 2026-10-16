@@ -20,6 +20,7 @@
 <script src="tpn-kit.js?v=20261017i"></script>
 <script src="tpn-site.js?v=20261017i"></script>
 <script src="tpn-i18n.js?v=20261017i"></script>
+<script src="tpn-home.js?v=20261017v3"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="description" content="Tyo Paeng Nyo — Authentic Filipino cuisine in Las Piñas since 2003. Order online, book events, or inquire about catering.">
 <meta name="theme-color" content="#8B1A0E">
@@ -51,9 +52,10 @@
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=Lora:ital,wght@0,400;0,600;1,400&family=DM+Sans:wght@300;400;500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=Lora:ital,wght@0,400;0,600;1,400&family=DM+Sans:wght@300;400;500;700&family=Fraunces:ital,opsz,wght,SOFT,WONK@0,9..144,500..900,0..100,0..1;1,9..144,500..900,0..100,0..1&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="tpn-app.css?v=20261017i">
 <link rel="stylesheet" href="tpn-glass.css?v=20261017i">
+<link rel="stylesheet" href="tpn-site-v3.css?v=20261017v3">
 </head>
 <body>
 <a class="skip-link" href="#main-content" onclick="event.preventDefault();var t=document.querySelector('.page.active h1, .portal-page.active main');if(t){t.setAttribute('tabindex','-1');t.focus();}">Skip to content</a>
@@ -88,13 +90,13 @@
       </div>
     </li>
     <li><button class="cart-btn" onclick="toggleCart()">🍽️ <span data-i18n="nav.tray">Tray</span> <span class="cart-count" id="navCartCount">0</span></button></li>
-    <li><a class="nav-cta" onclick="navigate('menu')" data-i18n="nav.orderNow">Order Now</a></li>
     <li class="nav-lang">
       <button class="lang-btn active" onclick="setLang('en')" title="English">EN</button>
       <button class="lang-btn" onclick="setLang('tl')" title="Tagalog">TL</button>
     </li>
   </ul>
   <button class="nav-toggle" onclick="toggleMobileMenu()" aria-label="Open menu">☰</button>
+  <img class="nav-badge" src="assets/site/logo.webp" alt="Tyo Paeng Nyo logo" width="48" height="44" onclick="navigate('home')">
 </nav>
 
 <div class="mobile-menu" id="mobileMenu">
@@ -114,63 +116,32 @@
 
 <!-- HOME -->
 <div class="page active" id="page-home">
-  <section class="hero">
-    <div class="hero-bg"></div>
-    <div class="hero-ring"></div>
-    <div class="hero-plate">
-      <div class="featured-track" id="featuredTrack"></div>
-      <div class="featured-dots" id="featuredDots"></div>
-    </div>
-    <div class="hero-content">
-      <span class="hero-eyebrow">Established 2003 • Las Piñas</span>
-      <h1 class="hero-title">
-        <span class="line1">Authentic</span>
-        <span class="line2">Filipino</span>
-        <span class="line3">Flavors.</span>
-      </h1>
-      <p class="hero-tagline">Twenty years of family recipes, slow-cooked traditions, and the kind of comfort food that tastes like home.</p>
-      <p class="hero-quote">"Sarap na hindi mo malilimutan."</p>
-      <div class="hero-actions">
-        <button class="btn-primary" onclick="navigate('menu')">Order Now →</button>
-        <button class="btn-outline" onclick="navigate('restaurant')">Visit Us</button>
-        <button class="btn-ghost" onclick="navigate('concessions')">Concessions →</button>
+  <!-- Hero: fixed food-spread photo that recedes, blurs and dims on scroll (tpn-home.js) -->
+  <header class="v3-hero v3-tex">
+    <div class="photo" aria-hidden="true"></div>
+    <div class="photo-blur" aria-hidden="true"></div>
+    <div class="wash"></div>
+    <div class="vig"></div>
+    <div class="inner">
+      <h1 class="v3-sr">Tyo Paeng Nyo</h1>
+      <div class="v3-bleed" aria-hidden="true" data-lines="Tyo Paeng Nyo"></div>
+      <div class="ctas">
+        <button class="v3-btn primary" onclick="navigate('menu')"><span data-i18n="v3.cta.order">Start your order</span> <span class="arr"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span></button>
+        <button class="v3-btn ghost" onclick="tpnHome.scrollToBest()" data-i18n="v3.cta.best">See bestsellers</button>
       </div>
     </div>
-  </section>
+  </header>
 
-  <section class="stats-bar">
-    <div class="stat-item"><div class="stat-num">20+</div><div class="stat-label">Years Serving</div></div>
-    <div class="stat-item"><div class="stat-num">60+</div><div class="stat-label">Filipino Dishes</div></div>
-    <div class="stat-item"><div class="stat-num">🅿️</div><div class="stat-label">Free Parking</div></div>
-    <div class="stat-item"><div class="stat-num">QR Ph</div><div class="stat-label">GCash · Maya · Cards</div></div>
-  </section>
-
-  <section class="quick-actions">
-    <div class="qa-grid">
-      <button class="qa-card reveal" onclick="navigate('menu')">
-        <div class="qa-icon">🍽️</div>
-        <div class="qa-title">Order Online</div>
-        <div class="qa-desc">Dine-in, takeout, or delivery. Pay with cash, QR Ph, GCash, Maya, or card.</div>
-        <div class="qa-arrow">↗</div>
-      </button>
-      <button class="qa-card reveal" onclick="navigate('events')">
-        <div class="qa-icon">🎉</div>
-        <div class="qa-title">Reserve for Events</div>
-        <div class="qa-desc">Birthdays, baptisms, despedidas, debuts. We'll handle the food.</div>
-        <div class="qa-arrow">↗</div>
-      </button>
-      <button class="qa-card reveal" onclick="navigate('concessions')">
-        <div class="qa-icon">🏢</div>
-        <div class="qa-title">Office Concession</div>
-        <div class="qa-desc">B2B partnerships, corporate catering, and on-site concessions.</div>
-        <div class="qa-arrow">↗</div>
-      </button>
-      <button class="qa-card reveal" onclick="navigate('restaurant')">
-        <div class="qa-icon">📍</div>
-        <div class="qa-title">Visit Our Restaurant</div>
-        <div class="qa-desc">Hours, directions, and what makes our Las Piñas branch special.</div>
-        <div class="qa-arrow">↗</div>
-      </button>
+  <!-- Bestsellers: live from the menu (is_featured), dishes with a photo first -->
+  <section class="v3-best v3-tex v3-section" id="v3Best">
+    <div class="v3-pat"></div>
+    <div class="v3-wrap">
+      <div class="v3-head">
+        <span class="v3-eyebrow" data-i18n="v3.best.eyebrow">Everyone’s favorites</span><br>
+        <h2 class="v3-sr" data-i18n="v3.best.sr">Our bestsellers</h2>
+        <div class="v3-bleed" aria-hidden="true" data-i18n-lines="v3.best.title"></div>
+      </div>
+      <div class="v3-bento" id="v3Bento"></div>
     </div>
   </section>
 
@@ -180,28 +151,37 @@
     <div class="test-grid" id="testGrid"></div>
   </section>
 
-  <section class="payments-strip">
-    <span class="pay-label">We accept</span>
-    <div class="pay-methods">
-      <span class="pay-pill">💵 Cash</span>
-      <span class="pay-pill">🔳 QR Ph</span>
-      <span class="pay-pill">📱 GCash</span>
-      <span class="pay-pill">📲 Maya</span>
-      <span class="pay-pill">💳 Cards</span>
-      <span class="pay-pill">🏦 Bank transfer <small>(events &amp; catering)</small></span>
+  <!-- Our place: photo panels. To fill one, set data-src="assets/site/photos/your-file.jpg" -->
+  <section class="v3-section" id="v3Place">
+    <div class="v3-wrap">
+      <div class="v3-head">
+        <span class="v3-eyebrow" data-i18n="v3.place.eyebrow">Visit us</span>
+        <h2 class="v3-title" data-i18n-html="v3.place.title">Our <i>place</i></h2>
+      </div>
+      <div class="v3-gallery">
+        <figure class="v3-photo v3-reveal" data-src="" data-ph="v3.ph.interior"><div class="img"></div><figcaption data-i18n="v3.cap.dining">Dining room</figcaption></figure>
+        <figure class="v3-photo v3-reveal" style="--i:1" data-src="" data-ph="v3.ph.food"><div class="img"></div><figcaption data-i18n="v3.cap.food">Fresh from the kitchen</figcaption></figure>
+        <figure class="v3-photo v3-reveal" style="--i:2" data-src="" data-ph="v3.ph.kitchen"><div class="img"></div><figcaption data-i18n="v3.cap.kitchen">The kitchen</figcaption></figure>
+        <figure class="v3-photo v3-reveal" style="--i:3" data-src="" data-ph="v3.ph.front"><div class="img"></div><figcaption data-i18n="v3.cap.front">Our storefront</figcaption></figure>
+      </div>
     </div>
+  </section>
+
+  <section class="v3-thanks v3-tex">
+    <div class="v3-pat"></div>
+    <div class="v3-bleed" aria-hidden="true" data-lines="Salamat <i>po!</i>"></div>
   </section>
 </div>
 
 <!-- MENU -->
 <div class="page" id="page-menu">
   <div class="page-header">
-    <h1>Our <em>Menu</em></h1>
-    <p>From silog to seafood, kanin to kare-kare — sixty dishes built on twenty years of family cooking.</p>
+    <span class="v3-eyebrow" data-i18n="v3.menu.eyebrow">Order online</span>
+    <h1><span data-i18n="v3.menu.titleA">Our</span> <em data-i18n="v3.menu.titleB">menu</em></h1>
   </div>
   <div class="menu-controls">
     <div class="search-wrap">
-      <input type="text" class="search-input" id="menuSearch" placeholder="Search for sinigang, lechon, sisig..." oninput="renderMenu()">
+      <input type="text" class="search-input" id="menuSearch" placeholder="Search sinigang, lechon, sisig…" data-i18n-ph="v3.menu.search" aria-label="Search the menu" oninput="renderMenu()">
     </div>
     <div class="category-chips" id="catChips"></div>
   </div>
@@ -533,36 +513,31 @@
   <div class="footer-grid">
     <div>
       <div class="footer-brand-name">Tyo Paeng <span>Nyo</span></div>
-      <p class="footer-tagline">"Sarap na hindi mo malilimutan."</p>
-      <p class="footer-text">Authentic Filipino dining and catering serving Las Piñas and Metro Manila. Family-run.</p>
+      <p class="footer-est" data-i18n="v3.est">Established 2003 · Las Piñas</p>
+      <p class="footer-tagline" translate="no">"Kapag iyong natikman, hindi mo titigilan."</p>
       <p class="footer-social"><a data-site="contact.facebook" data-site-href="url" href="https://www.facebook.com/TyoPaengNyo2019.ph" target="_blank" rel="noopener">Facebook</a> · <a data-site="contact.instagram" data-site-href="url" href="https://www.instagram.com/tyopaengnyo" target="_blank" rel="noopener">Instagram</a></p>
     </div>
     <div class="footer-col">
-      <h4>Explore</h4>
-      <ul>
-        <li><a onclick="navigate('menu')">Menu</a></li>
-        <li><a onclick="navigate('restaurant')">Our Restaurant</a></li>
-        <li><a onclick="navigate('concessions')">Concessions</a></li>
-        <li><a onclick="navigate('events')">Events</a></li>
-        <li><a onclick="navigate('about')">About</a></li>
-        <li><a onclick="navigate('faq')">FAQ</a></li>
-        <li data-site-if="rewards.enabled" hidden><a href="tpn-rewards">Stamp card</a></li>
+      <h4 data-i18n="v3.f.accept">We accept</h4>
+      <ul class="footer-pay">
+        <li data-i18n="v3.f.cash">Cash</li><li>QR Ph</li><li>GCash</li><li>Maya</li><li data-i18n="v3.f.cards">Cards</li>
+        <li data-i18n="v3.f.bank">Bank transfer (events &amp; catering)</li>
       </ul>
     </div>
     <div class="footer-col">
-      <h4>Contact</h4>
+      <h4 data-i18n="v3.f.contact">Contact</h4>
       <ul>
         <li data-site="contact.address">KM 19, 316 Real St., Talon Uno, Las Piñas City</li>
         <li><a href="tel:+639998887817" data-site="contact.phone" data-site-href="tel">0999 888 7817</a></li>
         <li data-site-wrap hidden><a data-site="contact.email" data-site-optional></a></li>
+        <li data-i18n="v3.f.parking">Free parking</li>
       </ul>
     </div>
     <div class="footer-col">
-      <h4>Hours</h4>
+      <h4 data-i18n="v3.f.hours">Hours</h4>
       <ul>
         <li data-site="hours.text">Mon – Sun · 10:00 AM – 9:00 PM</li>
-        <li style="margin-top: 12px;"><strong style="color: var(--ink);">B2B Inquiries</strong></li>
-        <li><a onclick="navigate('concessions')">Concessions page →</a></li>
+        <li data-site-if="rewards.enabled" hidden style="margin-top: 12px;"><a href="tpn-rewards">Stamp card</a></li>
       </ul>
     </div>
   </div>
@@ -587,11 +562,6 @@
   </div>
 </div>
 
-<!-- MOBILE BAR -->
-<div class="mobile-bar">
-  <button class="btn-outline" onclick="navigate('events')">Reserve</button>
-  <button class="btn-primary" onclick="navigate('menu')">Order →</button>
-</div>
 
 <!-- FLOATING CART FAB -->
 <button class="cart-fab" id="cartFab" onclick="toggleCart()" aria-label="View cart">
@@ -1094,6 +1064,8 @@ function setLang(l) {
 
   applyI18n(document);
   if (window.TPN_I18N) TPN_I18N.apply(l);   // text written straight into the pages (tpn-i18n.js)
+  document.querySelectorAll('[data-i18n-html]').forEach(el => { const v = T(el.getAttribute('data-i18n-html')); if (v) el.innerHTML = v; });
+  if (window.tpnHome) tpnHome.relang();     // website v3: titles, bestsellers, photo panels
 
   // Re-render whatever is on screen so JS-built markup picks the new
   // language up too. The old setLang only showed a toast, which is why
@@ -1116,6 +1088,7 @@ function setLang(l) {
 document.addEventListener('DOMContentLoaded', function () {
   document.documentElement.setAttribute('lang', TPN_LANG === 'tl' ? 'tl' : 'en');
   applyI18n(document);
+  document.querySelectorAll('[data-i18n-html]').forEach(el => { const v = T(el.getAttribute('data-i18n-html')); if (v && v !== el.getAttribute('data-i18n-html')) el.innerHTML = v; });
   document.querySelectorAll('.lang-btn').forEach(b => {
     const owns = (b.getAttribute('onclick') || '').indexOf("'" + TPN_LANG + "'") !== -1;
     b.classList.toggle('active', owns);
@@ -1183,6 +1156,7 @@ async function loadMenuFromDB() {
   // this used to check for a #menuGrid that does not exist, so the menu page
   // never redrew when the data landed).
   if (document.getElementById('featuredTrack')) renderFeatured();
+  if (window.tpnHome) tpnHome.renderBestsellers();
   if (document.getElementById('catChips')) renderCategoryChips();
   if (document.getElementById('menuSection')) renderMenu();
 }
@@ -1210,6 +1184,7 @@ function navigate(page) {
   if (menu) { menu.classList.remove('open'); document.body.style.overflow = ''; }
   if (page === 'menu') renderMenu();
   if (page === 'checkout') renderCheckoutStep();
+  if (window.tpnHome) tpnHome.shown();
   // Hide FAB on checkout
   const fab = document.getElementById('cartFab');
   if (fab) fab.style.display = page === 'checkout' ? 'none' : '';
@@ -1310,8 +1285,8 @@ setInterval(() => {
 let activeCategory = 'all';
 function renderCategoryChips() {
   const chips = document.getElementById('catChips');
-  const cats = [{cat:'all', catName:'All'}, ...menuData];
-  chips.innerHTML = cats.map(c => `<button class="chip ${c.cat === activeCategory ? 'active' : ''}" onclick="setCategory('${c.cat}')">${E(c.catName)}</button>`).join('');
+  const cats = [{cat:'all', catName: TPN_LANG === 'tl' ? 'Lahat' : 'All'}, ...menuData];
+  chips.innerHTML = cats.map(c => `<button class="chip ${c.cat === activeCategory ? 'active' : ''}" onclick="setCategory('${c.cat}')">${E(TPN_LANG === 'tl' && c.catNameTl ? c.catNameTl : c.catName)}</button>`).join('');
 }
 function setCategory(c) { activeCategory = c; renderCategoryChips(); renderMenu(); }
 function renderMenu() {
@@ -1319,7 +1294,12 @@ function renderMenu() {
   const sec = document.getElementById('menuSection');
   const q = (document.getElementById('menuSearch')?.value || '').toLowerCase().trim();
   let html = '';
-  menuData.forEach(cat => {
+  if (window.tpnHome) {
+    html = tpnHome.renderMenuGrid(sec, menuData, activeCategory, q);
+    if (html) { sec.innerHTML = html; tpnHome.afterRender(sec); return; }
+    if (menuLoadState === 'ok') { sec.innerHTML = tpnHome.emptySearch((document.getElementById('menuSearch')?.value || '').trim()); return; }
+  }
+  if (!window.tpnHome) menuData.forEach(cat => {
     if (activeCategory !== 'all' && activeCategory !== cat.cat) return;
     const items = cat.items.filter(it => !q || it.name.toLowerCase().includes(q) || (it.desc || '').toLowerCase().includes(q));
     if (!items.length) return;
