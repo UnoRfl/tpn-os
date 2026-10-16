@@ -165,7 +165,10 @@ const TPN = {
       .eq('is_available', true).eq('is_featured', true)
       .order('display_order');
     if (error) throw error;
-    return (data || []).map(i => ({
+    // Most of the menu is starred, so the slideshow shows 8 at random.
+    const pick = (data || []).slice();
+    for (let k = pick.length - 1; k > 0; k--) { const j = Math.floor(Math.random() * (k + 1)); [pick[k], pick[j]] = [pick[j], pick[k]]; }
+    return pick.slice(0, 8).map(i => ({
       name:  i.name,
       emoji: i.emoji || '🍽️',
       tag:   i.featured_tag || 'Featured',
