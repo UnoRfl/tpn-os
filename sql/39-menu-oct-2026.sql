@@ -43,6 +43,8 @@ begin
 
   -- Old names that are the same dish under a new name.
   update public.menu_items set name = 'Cornedbeef Silog' where name = 'Cornsilog';
+  update public.menu_items set name = 'Chicksilog' where name = 'Chicken Silog'
+     and not exists (select 1 from public.menu_items where name = 'Chicksilog');
   update public.menu_items set name = 'Pork Sinigang' where name = 'Sinigang na Baboy';
 
   create temp table _menu (cat text, name text, price numeric, pax jsonb, star boolean, emoji text, descr text, ord int) on commit drop;
@@ -54,7 +56,7 @@ begin
     ('All-Day Breakfast Silog','Tocilog',           115, null, false, '🍳', 'Sweet tocino, garlic rice and egg', 4),
     ('All-Day Breakfast Silog','Cornedbeef Silog',  115, null, false, '🥫', 'Corned beef, garlic rice and egg', 5),
     ('All-Day Breakfast Silog','Sisig Silog',       115, null, true,  '🍳', 'Pork sisig, garlic rice and egg', 6),
-    ('All-Day Breakfast Silog','Chicken Silog',     105, null, true,  '🍗', 'Fried chicken, garlic rice and egg', 7),
+    ('All-Day Breakfast Silog','Chicksilog',        105, null, true,  '🍗', 'Fried chicken, garlic rice and egg', 7),
     ('All-Day Breakfast Silog','Pares',              95, null, true,  '🍲', 'Braised beef pares with rice', 8),
     ('All-Day Breakfast Silog','Goto Plain',         60, null, false, '🥣', 'Rice porridge with tripe', 9),
     ('All-Day Breakfast Silog','Goto',              100, null, false, '🥣', 'Rice porridge with tripe and egg', 10),

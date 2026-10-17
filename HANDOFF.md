@@ -70,6 +70,13 @@ tpn-os/
 - **Printed receipt:** step 5 of checkout prints a receipt out of a small printer (`.rcpt-*` in `tpn-site-v3.css`). Lines come from the tray; subtotal, delivery fee and total come from `submit_order`'s return (`checkoutData.receipt`, set in `confirmOrder`). Feed time scales with the line count (`--print`). The rest of the screen fades in afterwards, and the page scrolls the printer into view first. Off under reduced motion.
 - Asset versions: shared `?v=20261017j` (tpn-i18n.js gained 4 phrases), v3 files `?v=20261017v16`.
 
+## Rev 20 — silog photos, new laing and ginataang photos (Oct 17, 2026, branch `feature/silog-photos`)
+
+- **New dish photos:** Tocilog, Bacon Silog and Chicksilog are new (`tocilog`, `bacon-silog`, `chicksilog` in `PHOTOS`). Laing and Ginataang Sitaw at Kalabasa have new photos under the same file names. `PHOTO_V` is `20261017f`. The three silogs rank just above Tapsilog in `PHOTO_RANK`.
+- **How they were made:** the owner's photos were on pure white, two dishes per sheet. A flood fill from the border clears near-white and the pale drop shadow (min channel ≥ 165, spread ≤ 22), and the largest shapes are kept. A 2px edge is un-mixed from white so there is no halo. Each file is centred on its largest inscribed circle for the spin, at the source's full resolution (≈590–720px; Chicksilog 1076px), WebP q92 with lossless alpha.
+- **`sql/42-silog-menu.sql`** (data only) renames Chicken Silog to Chicksilog and puts Tocilog back (₱115, sql/39's order and description). It had gone missing on production. `sql/39` now says Chicksilog too, so re-running it can't undo the rename. Applied to production Oct 17. Test: `t_42_silog_menu.sql`; 126 passed.
+- Asset versions: v3 `?v=20261017v30` (tpn-home.js).
+
 ## Rev 19 — portal Parking and Landmark reach the website (Oct 17, 2026, branch `feature/site-parking-landmark`, stacked on Rev 18)
 
 No migration. The portal's Website → Contact & hours tab already saved `contact.parking` and `contact.landmark` (sql/30), but the site printed its own fixed text.

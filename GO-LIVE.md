@@ -44,6 +44,7 @@ Run each file **on its own**, in this order. All are safe to re-run.
 | `sql/39-menu-oct-2026.sql` | the real menu from the October boards |
 | `sql/40-menu-descriptions.sql` | short descriptions for the 42 dishes that had none (fills blanks only) |
 | `sql/41-order-idempotency.sql` | a retried order (dropped connection, refresh, second tap) returns the first order instead of placing a second one. Run it before or with the site release; the old site keeps working on it |
+| `sql/42-silog-menu.sql` | Chicken Silog is renamed Chicksilog; Tocilog (₱115) is back on the menu. Data only. Applied to production Oct 17 as `42_silog_menu` |
 
 Then: Supabase → Advisors → Security. Expected warnings only: the customer functions (`submit_order`, `track_order`, `claim_stamp_card`, `my_stamp_card`, `stamp_card_code`, `my_guest_profile`, `addon_suggestions`, `signal_*`) are public on purpose.
 
