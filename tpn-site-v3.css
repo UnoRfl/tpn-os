@@ -82,7 +82,7 @@ body::after { display: none; }                               /* old mesh glow */
 .v3-tex { position: relative; isolation: isolate; overflow: hidden; --bg-size: 1100px auto; }
 /* oversized by 140px each side so the slow sway (a transform, set by
    tpn-home.js) never shows an edge */
-.v3-tex > .v3-pat { position: absolute; inset: -140px; z-index: -2; opacity: .5; background: url(assets/site/paisley-light.webp) 0 0 / var(--bg-size) repeat; will-change: transform; }
+.v3-tex > .v3-pat { position: absolute; inset: -140px; z-index: -2; opacity: .5; background: url(assets/site/paisley-light.webp) 0 0 / var(--bg-size) repeat; }   /* will-change set while on screen (tpn-home.js onScreen) */
 /* padding reaches past the descenders (y, g, p) so the engraved layer's
    background-clip:text covers the whole glyph; negative margin keeps spacing */
 .v3-bleed { position: relative; display: inline-block; --r1: 120px; --r2: 90px; padding: .14em .1em .34em; margin-bottom: -.24em; }
@@ -159,7 +159,7 @@ body::after { display: none; }                               /* old mesh glow */
 .v3-glyph { width: 52px; height: 52px; border-radius: 16px; display: grid; place-items: center; background: var(--v3-paper); box-shadow: 0 0 0 1px var(--v3-hair); color: var(--v3-accent); font-size: 26px; }
 .v3-glyph svg { width: 28px; height: 28px; }
 .v3-thumb { width: 72px; height: 72px; margin: -4px 0 0 -4px; border-radius: 50%; box-shadow: 0 10px 18px -8px rgba(58,29,16,.35); }
-.v3-thumb img { width: 100%; height: 100%; object-fit: contain; display: block; will-change: transform; }
+.v3-thumb img { width: 100%; height: 100%; object-fit: contain; display: block; }
 .v3-tags { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
 .v3-tag { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: var(--v3-accent); white-space: nowrap; }
 .v3-tag::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--v3-saffron); }
@@ -189,7 +189,7 @@ body::after { display: none; }                               /* old mesh glow */
 .v3-stage::after { content: ""; position: absolute; inset: 0; z-index: 1; pointer-events: none;
   background: radial-gradient(ellipse 75% 70% at 50% 50%, transparent 40%, rgba(46,20,8,.5) 100%); box-shadow: inset 0 0 70px 10px rgba(46,20,8,.22); }
 .v3-stage .spin { position: relative; z-index: 2; width: min(78%, 360px); aspect-ratio: 1; border-radius: 50%; box-shadow: 0 30px 50px -20px rgba(46,20,8,.55); }
-.v3-stage .spin img { width: 100%; height: 100%; object-fit: contain; display: block; will-change: transform; }
+.v3-stage .spin img { width: 100%; height: 100%; object-fit: contain; display: block; }
 .v3-stage .big-emoji { position: relative; z-index: 2; font-size: 120px; }
 .v3-best-state { padding: 48px; text-align: center; color: var(--v3-ink-2); border: 1px dashed rgba(46,26,16,.2); border-radius: 22px; grid-column: 1 / -1; }
 
@@ -209,11 +209,7 @@ body::after { display: none; }                               /* old mesh glow */
 .v3-photo:not(.empty) .ph { display: none; }
 .v3-gallery { display: grid; grid-template-columns: 1.35fr 1fr 1fr; grid-template-rows: 280px 280px; gap: 14px; }
 .v3-gallery > :nth-child(1) { grid-row: span 2; }
-.v3-gallery > :nth-child(n+2) { grid-column: span 2; }          /* place photo, then the map */
-/* food strip between home sections: photos only */
-.v3-strip { padding-block: clamp(40px, 6vw, 72px); background: var(--v3-paper); }
-.v3-strip-grid { display: grid; grid-template-columns: 1fr 1.6fr 1fr; gap: 14px; }
-.v3-strip .v3-photo { min-height: 0; height: clamp(240px, 26vw, 360px); }
+.v3-gallery > .v3-map { grid-column: span 2; grid-row: span 2; }   /* the place photo, then the map beside it */
 
 .v3-thanks { text-align: center; padding-block: clamp(80px, 10vw, 140px); border-top: 1px solid var(--v3-hair); }
 .v3-thanks .v3-bleed { --stroke: clamp(2px, .2vw, 3px); }
@@ -222,7 +218,7 @@ body::after { display: none; }                               /* old mesh glow */
 /* background mandalas (decoration only: behind content, never clickable) */
 .v3-bgwrap { position: relative; isolation: isolate; overflow: hidden; }
 .v3-mandala { position: absolute; z-index: -1; pointer-events: none; opacity: var(--mo, .14); width: var(--mw, 620px); aspect-ratio: 1; }
-.v3-mandala img { width: 100%; height: 100%; display: block; will-change: transform; }
+.v3-mandala img { width: 100%; height: 100%; display: block; }
 /* hero mandala is part of the fixed background (like the photo), not the content */
 .v3-hero .bg-mandala { position: fixed; inset: 0; z-index: -4; display: grid; place-items: center; pointer-events: none; will-change: transform; }
 .v3-hero .bg-mandala .rot { position: relative; width: min(108vh, 980px, 140vw); aspect-ratio: 1; opacity: .2; will-change: transform; }
@@ -236,7 +232,6 @@ body::after { display: none; }                               /* old mesh glow */
 @media (max-width: 900px), (hover: none) and (pointer: coarse) {
   .v3-hero { overflow: hidden; min-height: 100vh; min-height: 100svh; min-height: var(--hero-h, 100svh); }
   .v3-hero .bg-mandala .rot { width: min(980px, 140vw); }          /* no vh: it moves with the toolbar */
-  .v3-hero .photo { background-image: url(assets/site/hero-sm.jpg); }   /* 280 KB instead of 1.3 MB */
   .v3-hero .photo, .v3-hero .photo-blur, .v3-hero .wash, .v3-hero .vig, .v3-hero .bg-mandala { position: absolute; will-change: auto; }
   .v3-hero .photo-blur { display: none; }
 }
@@ -446,17 +441,14 @@ footer .footer-pay li { font-size: 14px; color: var(--v3-ink-2); }
   #page-menu .menu-controls { grid-template-columns: 1fr; }
   .v3-gallery { grid-template-columns: 1fr 1fr; grid-template-rows: 300px 220px 220px; }
   .v3-gallery > :nth-child(1) { grid-column: span 2; grid-row: auto; }
-  .v3-gallery > :nth-child(n+2) { grid-column: span 2; }
+  .v3-gallery > .v3-map { grid-column: span 2; grid-row: span 2; }
 }
 @media (max-width: 600px) {
   .v3-bento { grid-template-columns: 1fr; }
   .v3-bento > :first-child { grid-column: auto; }
   .v3-gallery { grid-template-columns: 1fr; grid-template-rows: none; grid-auto-rows: 240px; }
   .v3-gallery > :nth-child(n) { grid-column: auto; grid-row: auto; }
-  .v3-gallery > .v3-map { grid-row: span 2; }               /* room for the pin above the address card */
-  .v3-strip-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
-  .v3-strip .v3-photo { height: 190px; }
-  .v3-strip .v3-photo:nth-child(2) { grid-column: span 2; order: -1; height: 220px; }
+  .v3-gallery > .v3-map, .v3-gallery > .v3-photo { grid-row: span 2; }   /* room for the pin above the address card */
   .v3-best .v3-mandala.m1, #v3Place .v3-mandala.m1, #page-menu > .v3-mandala.m1 { --mw: 380px; }
   .v3-mandala.x { width: calc(var(--mw) * .6); }
   .v3-hero .v3-bleed .t { font-size: 10.6vw; }

@@ -70,6 +70,13 @@ tpn-os/
 - **Printed receipt:** step 5 of checkout prints a receipt out of a small printer (`.rcpt-*` in `tpn-site-v3.css`). Lines come from the tray; subtotal, delivery fee and total come from `submit_order`'s return (`checkoutData.receipt`, set in `confirmOrder`). Feed time scales with the line count (`--print`). The rest of the screen fades in afterwards, and the page scrolls the printer into view first. Off under reduced motion.
 - Asset versions: shared `?v=20261017j` (tpn-i18n.js gained 4 phrases), v3 files `?v=20261017v16`.
 
+## Rev 14 — smooth scroll-up, full-resolution photos (Oct 17, 2026)
+
+- **Scrolling up no longer "unloads" anything on phones.** A phone toolbar sliding back fires `resize`, and `drawMap()` rebuilt the whole map (every tile reloaded). It now redraws only when its size, place, address or language changes (`data-drawn`). Spinners and paisley layers get `will-change` only while within 300px of the screen (`onScreen` in `tpn-home.js`), so phones aren't evicting and repainting 59 GPU layers. Don't put `will-change` back in the CSS for those.
+- **Full resolution only.** The owner found the recompressed photos blurry. Place photos are the original files (`assets/site/photos/dining-garden.webp`, `dining-evening.webp`), and phones use `hero.webp` again. `hero-sm.jpg` and the food-strip JPEGs are deleted. Don't downscale or recompress photos the owner sends.
+- **Our place** is the garden dining room and the map. The food strip is gone. The Restaurant page keeps `dining-evening.webp`.
+- v3 asset version `20261017v21`.
+
 ## Rev 13 — touch hero pinned, more dish photos (Oct 17, 2026)
 
 - **Touch hero height is pinned in px.** `lockHero()` in `tpn-home.js` sets `--hero-h` to `innerHeight` at load and re-reads it only when the width changes (rotation). In-app browsers such as Messenger and Instagram resize the page itself when their toolbar hides, so svh/vh still moved and the photo rescaled on the first scroll. The hero mandala width no longer uses vh on touch devices.
