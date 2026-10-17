@@ -73,9 +73,9 @@ tpn-os/
 ## Rev 15 — new sisig photo, Our place layout, dish descriptions (Oct 17, 2026)
 
 - **Pork Sisig** has a new cutout, shown as the whole oval sizzling plate centred on a sand disc (`#F4EAD8`) that fills the round frame, like an eye in an eyeball. It is not cropped. `PHOTO_V` is `20261017d`.
-- **Our place:** the garden room is a tall portrait on the left, spanning both rows. The evening room is a landscape at top right, and the map sits under it, shorter (380px / 250px rows on desktop). The resting zoom is off for these photos. Phones stack portrait, landscape (5:4) and a 230px map. Every gallery item has `min-height: 0`, so the rows set the heights and both sides end on the same line; the map's own 220px minimum used to push it 20px past the photo between 601 and 900px wide.
+- **Our place:** the garden room is a tall portrait on the left. On the right, the evening room is a square (`aspect-ratio: 1`) over a wide map (`aspect-ratio: 2.4`, `width: 100%`; 1.8 at 900px and below). The columns are `minmax(0,1.085fr) minmax(0,1fr)`, so the portrait stays near 3:4 and both sides end level; measured at 1440, 1280, 1024, 887 and 768px. Keep `width: 100%` on the map: its 220px minimum height otherwise widens it to keep the ratio. Phones stack portrait (3:4), square and a 230px map.
 - **`sql/40-menu-descriptions.sql` (not yet run on production):** short English descriptions for the 42 dishes that had none, matched by name. It only fills empty descriptions, so Menu Manager edits survive. The Tagalog for each is in `PHRASES` in `tpn-i18n.js`, because `menu_items` has no Tagalog description column. The wording is generic; correct any dish in Menu Manager. Not run through tests/db, since it is data only and the PGlite package was not installed on this machine.
-- Asset versions: shared `20261017k` (tpn-i18n.js), v3 `20261017v25`.
+- Asset versions: shared `20261017k` (tpn-i18n.js), v3 `20261017v26`.
 
 ## Rev 14 — smooth scroll-up, full-resolution photos (Oct 17, 2026)
 
