@@ -115,18 +115,21 @@
     'sisig silog': 'sisig-silog',
     'liemposilog': 'liempo-silog',
     'tapsilog': 'tapsilog',
+    'tocilog': 'tocilog',
+    'bacon silog': 'bacon-silog',
+    'chicksilog': 'chicksilog',
     'calamares': 'calamares',
     'beef bistek': 'bistek',
     'pancit bihon': 'pancit-bihon',
     'ginataang hipon': 'ginataang-hipon',
   };
   // bump when a photo is replaced under the same name, or browsers keep the old one
-  const PHOTO_V = '20261017e';
+  const PHOTO_V = '20261017f';
   const photo = it => { const k = PHOTOS[(it.name || '').trim().toLowerCase()]; return k ? `assets/site/dishes/${k}.webp?v=${PHOTO_V}` : ''; };
   // sharpest source photos first, so the big bento card never gets a small one
   const PHOTO_RANK = ['buttered shrimp', 'adobong pusit with gata', 'kare-kareng lechon kawali', 'beef caldereta', 'pork sisig',
     'laing', 'ginataang sitaw at kalabasa', 'calamares', 'teriyaki wings', 'ginataang hipon', 'beef bistek', 'pancit bihon',
-    'tapsilog', 'sisig silog', 'liemposilog', 'cornedbeef silog', 'pares'];
+    'chicksilog', 'tocilog', 'bacon silog', 'tapsilog', 'sisig silog', 'liemposilog', 'cornedbeef silog', 'pares'];
   const rank = it => { const i = PHOTO_RANK.indexOf((it.name || '').trim().toLowerCase()); return i < 0 ? 99 : i; };
 
   /* ---------- line icons per category, emoji from the menu as fallback ---------- */
