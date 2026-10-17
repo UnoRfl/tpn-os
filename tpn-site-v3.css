@@ -303,6 +303,7 @@ body::after { display: none; }                               /* old mesh glow */
 .v3-facts dt { font: 600 11px var(--v3-ui); letter-spacing: .18em; text-transform: uppercase; color: var(--v3-accent); padding-top: 4px; }
 .v3-facts dd { margin: 0; font-family: var(--v3-display); font-size: 20px; font-variation-settings: "SOFT" 100; color: var(--v3-ink); line-height: 1.35; }
 .v3-facts dd a { color: inherit; text-decoration: none; }
+.v3-facts .v3-landmark { display: block; margin-top: 4px; font-family: var(--v3-ui); font-size: 14px; color: var(--v3-ink-2); }
 
 /* relocation guide: three numbered steps on a dotted gold path, map beside */
 .v3-guide { display: grid; grid-template-columns: .9fr 1.1fr; gap: clamp(20px, 3vw, 44px); align-items: stretch; }

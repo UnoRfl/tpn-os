@@ -54,7 +54,6 @@
     'v3.f.bank':        { en: 'Bank transfer (events & catering)', tl: 'Bank transfer (events at catering)' },
     'v3.f.cash':        { en: 'Cash', tl: 'Cash' },
     'v3.f.cards':       { en: 'Cards', tl: 'Card' },
-    'v3.f.parking':     { en: 'Free parking', tl: 'Libreng parking' },
     'v3.map.title':     { en: 'Find us', tl: 'Hanapin kami' },
     'v3.menu.title':    { en: 'Our <i>Menu</i>', tl: 'Ang aming <i>Menu</i>' },
     'v3.menu.sr':       { en: 'Our menu', tl: 'Ang aming menu' },
@@ -64,7 +63,6 @@
     'v3.fact.hours':    { en: 'Hours', tl: 'Oras' },
     'v3.fact.phone':    { en: 'Phone', tl: 'Telepono' },
     'v3.fact.parking':  { en: 'Parking', tl: 'Parking' },
-    'v3.fact.parkingVal': { en: 'Free, on-site', tl: 'Libre, nasa loob' },
     'v3.guide.title':   { en: 'We’ve <i>moved</i>', tl: 'Lumipat <i>kami</i>' },
     'v3.guide.s1':      { en: '<b>Just behind our old spot</b> — regulars, you’re nearly there.', tl: '<b>Sa likod lang ng dati naming puwesto</b> — mga suki, malapit na kayo.' },
     'v3.guide.s2':      { en: '<b>Facing Shell</b> on Real Street, near the Robinsons Las Piñas exit.', tl: '<b>Tapat ng Shell</b> sa Real Street, malapit sa labasan ng Robinsons Las Piñas.' },
@@ -259,7 +257,10 @@
     // Only rebuild when something it shows changed. A phone's toolbar sliding
     // back on scroll-up fires resize, and rebuilding reloaded every tile.
     const addr0 = document.querySelector('[data-site="contact.address"]')?.textContent.trim() || '';
-    const key = [w, h, z, lat, lon, href, addr0, lang()].join('|');
+    // The landmark is the portal's Website → Landmark (blank hides it).
+    const nearEl = document.querySelector('[data-site="contact.landmark"]');
+    const near = nearEl ? (nearEl.closest('[data-site-wrap]')?.hidden ? '' : nearEl.textContent.trim()) : tr('v3.map.near');
+    const key = [w, h, z, lat, lon, href, addr0, near, lang()].join('|');
     if (el.dataset.drawn === key) return;
     el.dataset.drawn = key;
     const r = lat * Math.PI / 180;
@@ -279,11 +280,13 @@
     };
     el.innerHTML = `<div class="tiles">${tiles}</div>
       <div class="pin" style="top:${Math.round(h * .45)}px" title="${esc(tr('v3.map.show'))}">${pinSvg}</div>
-      <div class="card"><button type="button" class="x" aria-label="${esc(tr('v3.map.close'))}">×</button><b>${esc(tr('v3.map.title'))}</b><span>${esc(addr)}<br>${esc(tr('v3.map.near'))}</span>
+      <div class="card"><button type="button" class="x" aria-label="${esc(tr('v3.map.close'))}">×</button><b>${esc(tr('v3.map.title'))}</b><span>${esc(addr)}${near ? '<br>' + esc(near) : ''}</span>
         <a href="${esc(href)}" target="_blank" rel="noopener">${esc(tr('v3.map.open'))}</a></div>
       <div class="attr">© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors</div>`;
   }
   const drawMaps = () => document.querySelectorAll('.v3-map').forEach(drawMap);
+  // Website details arrive from the portal after first paint (tpn-site.js).
+  document.addEventListener('tpn:site-content', () => requestAnimationFrame(drawMaps));
 
   /* ---------- paisley sway: transform on the pattern layer (compositor only);
      titles in that section get the same offset so their engraving stays aligned ---------- */

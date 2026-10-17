@@ -70,6 +70,15 @@ tpn-os/
 - **Printed receipt:** step 5 of checkout prints a receipt out of a small printer (`.rcpt-*` in `tpn-site-v3.css`). Lines come from the tray; subtotal, delivery fee and total come from `submit_order`'s return (`checkoutData.receipt`, set in `confirmOrder`). Feed time scales with the line count (`--print`). The rest of the screen fades in afterwards, and the page scrolls the printer into view first. Off under reduced motion.
 - Asset versions: shared `?v=20261017j` (tpn-i18n.js gained 4 phrases), v3 files `?v=20261017v16`.
 
+## Rev 19 — portal Parking and Landmark reach the website (Oct 17, 2026, branch `feature/site-parking-landmark`, stacked on Rev 18)
+
+No migration. The portal's Website → Contact & hours tab already saved `contact.parking` and `contact.landmark` (sql/30), but the site printed its own fixed text.
+- **Parking:** the Our place facts row and the footer line read `contact.parking` through `data-site`. Blank hides the whole row. The old `v3.fact.parkingVal` / `v3.f.parking` keys are gone from `tpn-home.js`; the Tagalog comes from `PHRASES`.
+- **Landmark:** a small line under the address in Our place (`.v3-landmark`), and the map card's second line. Blank hides both.
+- **Email:** `data-site-href="mailto"` in `tpn-site.js`, so a filled-in email in the footer is a working link (only when it looks like an address).
+- **Map card redraw:** `tpn-site.js` fires `tpn:site-content` after applying; `tpn-home.js` redraws the map so a changed address or landmark shows without waiting for a resize.
+- Asset versions: shared `?v=20261017o`, v3 files `?v=20261017v29`.
+
 ## Rev 18 — a retry can't place a second order (Oct 17, 2026, branch `feature/order-idempotency`)
 
 Closes the gap Rev 16 left open: the connection drops after the server saved the order but before the reply, and the customer taps Place Order again.
