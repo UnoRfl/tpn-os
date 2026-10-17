@@ -21,6 +21,10 @@
 (function () {
   'use strict';
   const PHRASES = {
+    "Ref": "Ref",
+    "Date": "Petsa",
+    "Subtotal": "Subtotal",
+    "Your receipt": "Ang resibo mo",
     ". Counter customers claim it from the QR on their printed bill.": ". Kinukuha ito ng mga customer sa counter mula sa QR sa naka-print nilang resibo.",
     "…up to which date?": "…hanggang anong petsa?",
     "(birthday, debut, baptism)?": "(birthday, debut, binyag)?",
