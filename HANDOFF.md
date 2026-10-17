@@ -79,6 +79,7 @@ Closes the gap Rev 16 left open: the connection drops after the server saved the
 - **Before sql/41 runs:** `TPN.createOrder` retries without the key when PostgREST can't find the new signature (`PGRST202`), so the site never stops taking orders.
 - **Not covered:** the counter POS doesn't send a key (staff see the order appear on the floor screen).
 - Tests: `tests/db/t_41_idempotency.sql` (14 checks), 123 passed.
+- **Live:** sql/40 and sql/41 were applied to production on Oct 17 (the live function bodies match the file). A rolled-back live check showed that a retry returns the same order and that the old keyless call still works.
 - Asset versions: shared `20261017n` on every page.
 
 ## Rev 17 — the portal wears the website's look (Oct 17, 2026)

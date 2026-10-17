@@ -5,7 +5,7 @@
 | Step | State |
 |---|---|
 | 0 Leaked password protection, backups | **Skipped**: needs a paid Supabase plan. Revisit if the plan is upgraded. |
-| 1 Database (29a–38) | ✅ Live. Advisors clean apart from the intended public functions. 35 (pay a whole table at Close table), 36 (per-person read receipts), 37a/37b (manual payments) and 38 (delivery) added Oct 17. |
+| 1 Database (29a–41) | ✅ Live. Advisors clean apart from the intended public functions. 35 (pay a whole table at Close table), 36 (per-person read receipts), 37a/37b (manual payments), 38 (delivery), 39–40 (menu) and 41 (order idempotency) added Oct 17. 40 and 41 were applied to `xjlqfpnzobfqxetgkkai` on Oct 17 as migrations `40_…` and `41_order_idempotency`. |
 | 2 Website + portal | ✅ Merged to `main` and live. FAQs with `[Fill in]` stay unpublished (open questions on hold). |
 | 3 Clock-in | ⏸ Waiting: needs someone at the restaurant (trust Wi-Fi, phone camera test). |
 | 4 HitPay | ⏸ Not used for now: every payment (cash, GCash/Maya, QR Ph, card, bank) is taken by hand and recorded with its reference. Update the "How do I pay?" FAQ (Website tab) to say GCash/Maya/QR Ph/card are accepted. |
