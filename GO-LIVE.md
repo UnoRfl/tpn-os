@@ -5,7 +5,7 @@
 | Step | State |
 |---|---|
 | 0 Leaked password protection, backups | **Skipped**: needs a paid Supabase plan. Revisit if the plan is upgraded. |
-| 1 Database (29a–38) | ✅ Live. Advisors clean apart from the intended public functions. 35 (pay a whole table at Close table), 36 (per-person read receipts), 37a/37b (manual payments) and 38 (delivery) added Oct 17. |
+| 1 Database (29a–41) | ✅ Live. Advisors clean apart from the intended public functions. 35 (pay a whole table at Close table), 36 (per-person read receipts), 37a/37b (manual payments), 38 (delivery), 39–40 (menu) and 41 (order idempotency) added Oct 17. 40 and 41 were applied to `xjlqfpnzobfqxetgkkai` on Oct 17 as migrations `40_…` and `41_order_idempotency`. |
 | 2 Website + portal | ✅ Merged to `main` and live. FAQs with `[Fill in]` stay unpublished (open questions on hold). |
 | 3 Clock-in | ⏸ Waiting: needs someone at the restaurant (trust Wi-Fi, phone camera test). |
 | 4 HitPay | ⏸ Not used for now: every payment (cash, GCash/Maya, QR Ph, card, bank) is taken by hand and recorded with its reference. Update the "How do I pay?" FAQ (Website tab) to say GCash/Maya/QR Ph/card are accepted. |
@@ -21,7 +21,7 @@ Do the steps in order. Each one is safe to stop after: nothing later is required
 
 - [ ] Supabase → Authentication → Settings → **Leaked password protection: ON**.
 - [ ] Take a database backup: Supabase → Database → Backups (or `pg_dump`).
-- [ ] Run the tests on your PC: `cd tests/db && npm install && node run.mjs` → `82 passed, 0 failed`.
+- [ ] Run the tests on your PC: `cd tests/db && npm install && node run.mjs` → `123 passed, 0 failed`.
 
 ## 1. Database (Supabase → SQL Editor)
 
@@ -43,6 +43,7 @@ Run each file **on its own**, in this order. All are safe to re-run.
 | `sql/38-delivery.sql` | delivery areas & fees, dispatch (our rider / Lalamove / Grab), tracking |
 | `sql/39-menu-oct-2026.sql` | the real menu from the October boards |
 | `sql/40-menu-descriptions.sql` | short descriptions for the 42 dishes that had none (fills blanks only) |
+| `sql/41-order-idempotency.sql` | a retried order (dropped connection, refresh, second tap) returns the first order instead of placing a second one. Run it before or with the site release; the old site keeps working on it |
 
 Then: Supabase → Advisors → Security. Expected warnings only: the customer functions (`submit_order`, `track_order`, `claim_stamp_card`, `my_stamp_card`, `stamp_card_code`, `my_guest_profile`, `addon_suggestions`, `signal_*`) are public on purpose.
 

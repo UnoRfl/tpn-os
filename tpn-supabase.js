@@ -243,9 +243,12 @@ const TPN = {
    *
    * @param {boolean} [opts.joinTableBill=true] false starts a separate bill
    *        for this guest even though the table already has one open.
+   * @param {string}  [opts.clientKey] one key per checkout attempt (see
+   *        orderKey). A retry with the same key gets the first order back
+   *        instead of placing a second one (sql/41).
    */
   async createOrder(opts) {
-    const { data, error } = await sb.rpc('submit_order', {
+    const args = {
       p_branch_id:        opts.branchId,
       p_order_type:       opts.orderType,
       p_items:            (opts.items || []).map(i => ({
@@ -267,8 +270,16 @@ const TPN = {
       p_device_id:        this.deviceId(),
       p_join_table_bill:  opts.joinTableBill !== false,
       p_source:           opts.source || null,
-      p_delivery_zone_id: opts.deliveryZoneId || null
-    });
+      p_delivery_zone_id: opts.deliveryZoneId || null,
+      p_client_key:       opts.clientKey || null
+    };
+    let { data, error } = await sb.rpc('submit_order', args);
+    // sql/41 not run yet: the database has no p_client_key, so PostgREST finds
+    // no matching function. Order without the key rather than not at all.
+    if (error && error.code === 'PGRST202' && args.p_client_key) {
+      delete args.p_client_key;
+      ({ data, error } = await sb.rpc('submit_order', args));
+    }
     if (error) throw new Error(this.prettyOrderError(error.message));
     // The tracking token proves this device placed the order; without it
     // track_order() shows progress only (no name, notes or prices).
@@ -276,6 +287,22 @@ const TPN = {
     // Shape kept compatible with the old return value so callers that read
     // order.order_number / order.id keep working.
     return data;
+  },
+
+  /**
+   * The idempotency key for one checkout attempt. `prev` is the {key, sig}
+   * the page saved last time; `sig` describes what is being ordered. Same
+   * order again (a retry, a refresh) → same key. A changed tray or changed
+   * answers → a new key, because that is a different order.
+   */
+  orderKey(prev, sig) {
+    if (prev && prev.key && prev.sig === sig) return prev;
+    let key;
+    try { key = crypto.randomUUID(); } catch (e) {
+      const b = crypto.getRandomValues(new Uint8Array(16));
+      key = Array.from(b, x => x.toString(16).padStart(2, '0')).join('').replace(/^(.{8})(.{4})(.{4})(.{4})/, '$1-$2-$3-$4-');
+    }
+    return { key, sig };
   },
 
   _trackKey: 'tpn.trackTokens',
@@ -312,6 +339,7 @@ const TPN = {
     if (/too_many_lines/.test(msg))        return 'That is a big order! Please split it into two, or call us for catering.';
     if (/bad_schedule_time/.test(msg))     return 'Please pick a pickup or delivery time within the next 60 days.';
     if (/branch_not_found/.test(msg))      return 'This branch is not taking online orders right now.';
+    if (/bad_client_key|client_key_in_use/.test(msg)) return 'Something went wrong with this order. Please refresh the page and try again.';
     if (/too_many_requests/.test(msg))     return 'Too many tries from this connection. Please wait a few minutes and try again.';
     if (/row-level security/i.test(msg))   return 'The kitchen could not accept that order. Please call staff.';
     if (/permission denied/i.test(msg))    return 'The kitchen could not accept that order. Please call staff.';
