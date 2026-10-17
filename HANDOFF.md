@@ -74,8 +74,8 @@ tpn-os/
 
 - **Scrolling up no longer "unloads" anything on phones.** A phone toolbar sliding back fires `resize`, and `drawMap()` rebuilt the whole map (every tile reloaded). It now redraws only when its size, place, address or language changes (`data-drawn`). Spinners and paisley layers get `will-change` only while within 300px of the screen (`onScreen` in `tpn-home.js`), so phones aren't evicting and repainting 59 GPU layers. Don't put `will-change` back in the CSS for those.
 - **Full resolution only.** The owner found the recompressed photos blurry. Place photos are the original files (`assets/site/photos/dining-garden.webp`, `dining-evening.webp`), and phones use `hero.webp` again. `hero-sm.jpg` and the food-strip JPEGs are deleted. Don't downscale or recompress photos the owner sends.
-- **Our place** is the garden dining room and the map. The food strip is gone. The Restaurant page keeps `dining-evening.webp`.
-- v3 asset version `20261017v21`.
+- **Our place** has both room photos (`dining-garden`, `dining-evening`) at their own 3:4 shape, with no crop and no hover zoom beyond 3%, and a narrower map beside them (`1fr 1fr .8fr`). On tablets the map goes below at 300px; on phones everything stacks and the map is 340px. The food strip is gone.
+- v3 asset version `20261017v22`.
 
 ## Rev 13 — touch hero pinned, more dish photos (Oct 17, 2026)
 
