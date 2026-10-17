@@ -225,10 +225,13 @@ body::after { display: none; }                               /* old mesh glow */
 .v3-hero .bg-mandala img { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 .v3-hero .bg-mandala .m-blur { opacity: 0; will-change: opacity; }
 /* phones and tablets: the hero scrolls as a plain block (tpn-home.js heroStill).
-   svh, not dvh: dvh grows as the browser bar slides away, and the cover photo
-   rescaled with it, which read as a zoom on every scroll. */
+   Its height is pinned in px at load (--hero-h, tpn-home.js lockHero) and only
+   re-read when the width changes: dvh grows as the browser bar slides away, and
+   in-app browsers (Messenger, Instagram) resize the page itself, so even svh/vh
+   moved and the cover photo rescaled with it on the first scroll. */
 @media (max-width: 900px), (hover: none) and (pointer: coarse) {
-  .v3-hero { overflow: hidden; min-height: 100vh; min-height: 100svh; }
+  .v3-hero { overflow: hidden; min-height: 100vh; min-height: 100svh; min-height: var(--hero-h, 100svh); }
+  .v3-hero .bg-mandala .rot { width: min(980px, 140vw); }          /* no vh: it moves with the toolbar */
   .v3-hero .photo { background-image: url(assets/site/hero-sm.jpg); }   /* 280 KB instead of 1.3 MB */
   .v3-hero .photo, .v3-hero .photo-blur, .v3-hero .wash, .v3-hero .vig, .v3-hero .bg-mandala { position: absolute; will-change: auto; }
   .v3-hero .photo-blur { display: none; }

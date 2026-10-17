@@ -70,6 +70,16 @@ tpn-os/
 - **Printed receipt:** step 5 of checkout prints a receipt out of a small printer (`.rcpt-*` in `tpn-site-v3.css`). Lines come from the tray; subtotal, delivery fee and total come from `submit_order`'s return (`checkoutData.receipt`, set in `confirmOrder`). Feed time scales with the line count (`--print`). The rest of the screen fades in afterwards, and the page scrolls the printer into view first. Off under reduced motion.
 - Asset versions: shared `?v=20261017j` (tpn-i18n.js gained 4 phrases), v3 files `?v=20261017v16`.
 
+## Rev 13 — touch hero pinned, more dish photos (Oct 17, 2026)
+
+- **Touch hero height is pinned in px.** `lockHero()` in `tpn-home.js` sets `--hero-h` to `innerHeight` at load and re-reads it only when the width changes (rotation). In-app browsers such as Messenger and Instagram resize the page itself when their toolbar hides, so svh/vh still moved and the photo rescaled on the first scroll. The hero mandala width no longer uses vh on touch devices.
+- **18 dishes have photos.** New: Cornedbeef Silog, Sisig Silog, Liemposilog, Tapsilog, Calamares, Beef Bistek ("Bistek" on the photo sheet), Pancit Bihon, Ginataang Hipon. Buttered Shrimp has a new photo.
+- **Long dishes** (Pork Sisig on its board, Pancit Bihon in its tray) are cropped to a circle the size of the largest circle inside the dish, so they fill the round frame like the bowls do.
+- **Dish photo URLs carry `?v=PHOTO_V`** (`tpn-home.js`). Bump it whenever a photo is replaced under the same file name.
+- **Cutout tool notes:** a dish photographed edge to edge needs a white margin before Vision will treat it as a subject. Subjects are merged per quadrant, so a dip bowl stays with its plate.
+- **Photos of the place** in `assets/site/photos/` (JPEG, letterbox bars trimmed). The home "Our place" gallery has `dining-garden`, `shrimp-table` and `sisig-table`. The Restaurant page photo is `dining-evening` (it was `spread.webp`, which is now unused). `laing-table.jpg` is a spare.
+- v3 asset version `20261017v19`.
+
 ## Rev 12 — new dish photos (Oct 17, 2026)
 
 - Nine dishes have photos now (`PHOTOS` in `tpn-home.js`, keyed by lower-case menu name). New: Beef Caldereta, Kare-Kareng Lechon Kawali, Ginataang Sitaw at Kalabasa, Pork Sisig, Adobong Pusit with Gata, Teriyaki Wings, Laing, Buttered Shrimp. Kept: Pares. `beef-chili.webp` and `sitaw-pork.webp` are replaced and removed.

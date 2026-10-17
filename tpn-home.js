@@ -113,11 +113,22 @@
     'pork sisig': 'sisig',
     'teriyaki wings': 'teriyaki-wings',
     'laing': 'laing',
+    'cornedbeef silog': 'cornedbeef-silog',
+    'sisig silog': 'sisig-silog',
+    'liemposilog': 'liempo-silog',
+    'tapsilog': 'tapsilog',
+    'calamares': 'calamares',
+    'beef bistek': 'bistek',
+    'pancit bihon': 'pancit-bihon',
+    'ginataang hipon': 'ginataang-hipon',
   };
-  const photo = it => { const k = PHOTOS[(it.name || '').trim().toLowerCase()]; return k ? `assets/site/dishes/${k}.webp` : ''; };
+  // bump when a photo is replaced under the same name, or browsers keep the old one
+  const PHOTO_V = '20261017b';
+  const photo = it => { const k = PHOTOS[(it.name || '').trim().toLowerCase()]; return k ? `assets/site/dishes/${k}.webp?v=${PHOTO_V}` : ''; };
   // sharpest source photos first, so the big bento card never gets a small one
   const PHOTO_RANK = ['buttered shrimp', 'adobong pusit with gata', 'kare-kareng lechon kawali', 'beef caldereta', 'pork sisig',
-    'laing', 'ginataang sitaw at kalabasa', 'teriyaki wings', 'pares'];
+    'laing', 'ginataang sitaw at kalabasa', 'calamares', 'teriyaki wings', 'ginataang hipon', 'beef bistek', 'pancit bihon',
+    'tapsilog', 'sisig silog', 'liemposilog', 'cornedbeef silog', 'pares'];
   const rank = it => { const i = PHOTO_RANK.indexOf((it.name || '').trim().toLowerCase()); return i < 0 ? 99 : i; };
 
   /* ---------- line icons per category, emoji from the menu as fallback ---------- */
@@ -340,6 +351,14 @@
   // Phones scroll the hero away as a normal block: the fixed, scaling photo
   // jittered there as the browser bars slid in and out.
   const heroStill = matchMedia('(max-width: 900px), (hover: none) and (pointer: coarse)');
+  // Pin the touch hero to the height it opened at; a toolbar sliding away
+  // changes only the height, so only a new width (rotation) re-reads it.
+  let heroW = 0;
+  function lockHero() {
+    if (!heroStill.matches || innerWidth === heroW) return;
+    heroW = innerWidth;
+    document.documentElement.style.setProperty('--hero-h', innerHeight + 'px');
+  }
   function heroScroll(y) {
     if (!hero || !hero.offsetHeight) return;
     if (heroStill.matches) {
@@ -421,8 +440,9 @@
     collectPats();
     relang();
     afterRender(document);
+    lockHero();
     heroScroll(scrollY);
-    let rz; addEventListener('resize', () => { alignBleeds(); clearTimeout(rz); rz = setTimeout(drawMaps, 150); }, { passive: true });
+    let rz; addEventListener('resize', () => { lockHero(); alignBleeds(); clearTimeout(rz); rz = setTimeout(drawMaps, 150); }, { passive: true });
     // the address and map link can arrive from site settings after load
     setTimeout(drawMaps, 1500);
     if (document.fonts) document.fonts.ready.then(alignBleeds);
