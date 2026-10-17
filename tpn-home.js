@@ -256,6 +256,12 @@
     const w = el.clientWidth, h = el.clientHeight;
     if (!w || !h) return;                                  // page hidden; drawn again when shown
     const { lat, lon, href } = mapPoint(), z = +el.dataset.zoom || MAP.zoom, n = 2 ** z;
+    // Only rebuild when something it shows changed. A phone's toolbar sliding
+    // back on scroll-up fires resize, and rebuilding reloaded every tile.
+    const addr0 = document.querySelector('[data-site="contact.address"]')?.textContent.trim() || '';
+    const key = [w, h, z, lat, lon, href, addr0, lang()].join('|');
+    if (el.dataset.drawn === key) return;
+    el.dataset.drawn = key;
     const r = lat * Math.PI / 180;
     const px = (lon + 180) / 360 * n * 256, py = (1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2 * n * 256;
     const left = px - w / 2, top = py - h * .45;           // pin sits a little above centre, clear of the card
@@ -331,10 +337,15 @@
   /* ---------- visibility, reveal, spinners ---------- */
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const spinners = new Map();
+  // Spinners and paisley layers hold a GPU layer only while near the screen.
+  // Phones evict layers under memory pressure and repaint them on the way
+  // back, which looked like the page unloading when scrolling up.
   const onScreen = new IntersectionObserver(es => es.forEach(e => {
-    const s = spinners.get(e.target) || bleeds.find(b => b.el === e.target) || pats.find(p => p.el === e.target);
+    const sp = spinners.get(e.target), pt = sp ? null : pats.find(p => p.el === e.target);
+    const s = sp || pt || bleeds.find(b => b.el === e.target);
     if (s) s.vis = e.isIntersecting;
-  }), { rootMargin: '120px' });
+    if (sp || pt) e.target.style.willChange = e.isIntersecting ? 'transform' : '';
+  }), { rootMargin: '300px' });
   const revealer = new IntersectionObserver(es => es.forEach(e => {
     if (e.isIntersecting) { e.target.classList.add('in'); revealer.unobserve(e.target); }
   }), { rootMargin: '0px 0px -8% 0px' });
