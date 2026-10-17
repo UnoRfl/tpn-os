@@ -21,6 +21,7 @@
 (function () {
   'use strict';
   const PHRASES = {
+    "Please pick a time at least 15 minutes from now": "Pumili ng oras na hindi bababa sa 15 minuto mula ngayon",
     "Squid stewed in vinegar and soy, finished in coconut milk": "Pusit na niluto sa suka at toyo, tinapos sa gata",
     "Sautéed shrimp paste on the side": "Ginisang bagoong bilang sawsawan",
     "Beef in soy sauce and calamansi with onion rings": "Baka sa toyo at kalamansi na may sibuyas",

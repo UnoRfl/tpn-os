@@ -70,6 +70,18 @@ tpn-os/
 - **Printed receipt:** step 5 of checkout prints a receipt out of a small printer (`.rcpt-*` in `tpn-site-v3.css`). Lines come from the tray; subtotal, delivery fee and total come from `submit_order`'s return (`checkoutData.receipt`, set in `confirmOrder`). Feed time scales with the line count (`--print`). The rest of the screen fades in afterwards, and the page scrolls the printer into view first. Off under reduced motion.
 - Asset versions: shared `?v=20261017j` (tpn-i18n.js gained 4 phrases), v3 files `?v=20261017v16`.
 
+## Rev 16 — checkout that survives customers (Oct 17, 2026)
+
+All of this lives in `index.html`, at the top of the checkout section (`renderCheckoutStep` is now a wrapper around `renderCheckoutStepView`).
+- **Refresh** keeps the step and the answers. They are stored in sessionStorage `tpn_checkout_v1` (this tab only), and typed fields are saved as they are typed. Restoring never skips past a step whose answers are missing.
+- **Refresh on the receipt** shows the same receipt again without re-printing it. The last order is kept in localStorage `tpn_last_order_v1` for 2 hours. Starting a new order clears it.
+- **Browser Back/Forward** moves between checkout steps (each step is a history entry `{ck: n}`). The on-page Back uses the same history, and once ordered, the receipt stays put.
+- **Another tab** emptying the tray (or placing the order) empties it here too, through the `storage` event. An empty tray at checkout shows "Your cart is empty!" with a menu button and can't be submitted.
+- **Scheduled orders** can't be in the past or under 15 minutes away (`min` on the date input, plus a check). Name, phone, address and notes have max lengths.
+- **Double or triple taps** on Place Order still send one order (the existing busy guard, re-tested).
+- **Not covered:** if the connection drops after the server saved the order but before the reply arrives, a retry can create a second order. `submit_order` has no idempotency key; adding one is the real fix.
+- Asset versions: shared `20261017l`, v3 `20261017v28`.
+
 ## Rev 15 — new sisig photo, Our place layout, dish descriptions (Oct 17, 2026)
 
 - **Pork Sisig** has a new cutout, shown as the whole oval sizzling plate centred on a sand disc (`#F4EAD8`) that fills the round frame, like an eye in an eyeball. It is not cropped. `PHOTO_V` is `20261017e`. The automatic (Vision) cutout had dropped most of the wooden board. For a photo on pure white, a flood fill from the border is exact: near-white pixels connected to the edge become transparent, edge pixels are un-mixed from white so there is no halo, only the largest shape is kept, and the result is centred on its bounding box.
