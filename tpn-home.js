@@ -123,7 +123,7 @@
     'ginataang hipon': 'ginataang-hipon',
   };
   // bump when a photo is replaced under the same name, or browsers keep the old one
-  const PHOTO_V = '20261017b';
+  const PHOTO_V = '20261017c';
   const photo = it => { const k = PHOTOS[(it.name || '').trim().toLowerCase()]; return k ? `assets/site/dishes/${k}.webp?v=${PHOTO_V}` : ''; };
   // sharpest source photos first, so the big bento card never gets a small one
   const PHOTO_RANK = ['buttered shrimp', 'adobong pusit with gata', 'kare-kareng lechon kawali', 'beef caldereta', 'pork sisig',

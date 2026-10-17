@@ -70,6 +70,13 @@ tpn-os/
 - **Printed receipt:** step 5 of checkout prints a receipt out of a small printer (`.rcpt-*` in `tpn-site-v3.css`). Lines come from the tray; subtotal, delivery fee and total come from `submit_order`'s return (`checkoutData.receipt`, set in `confirmOrder`). Feed time scales with the line count (`--print`). The rest of the screen fades in afterwards, and the page scrolls the printer into view first. Off under reduced motion.
 - Asset versions: shared `?v=20261017j` (tpn-i18n.js gained 4 phrases), v3 files `?v=20261017v16`.
 
+## Rev 15 — new sisig photo, Our place layout, dish descriptions (Oct 17, 2026)
+
+- **Pork Sisig** has a new cutout, round-cropped like before, with `PHOTO_V` set to `20261017c`.
+- **Our place:** the garden room is a tall portrait on the left, spanning both rows. The evening room is a landscape at top right, and the map sits under it, shorter (380px / 250px rows on desktop). The resting zoom is off for these photos. Phones stack portrait, landscape (5:4) and a 230px map.
+- **`sql/40-menu-descriptions.sql` (not yet run on production):** short English descriptions for the 42 dishes that had none, matched by name. It only fills empty descriptions, so Menu Manager edits survive. The Tagalog for each is in `PHRASES` in `tpn-i18n.js`, because `menu_items` has no Tagalog description column. The wording is generic; correct any dish in Menu Manager. Not run through tests/db, since it is data only and the PGlite package was not installed on this machine.
+- Asset versions: shared `20261017k` (tpn-i18n.js), v3 `20261017v23`.
+
 ## Rev 14 — smooth scroll-up, full-resolution photos (Oct 17, 2026)
 
 - **Scrolling up no longer "unloads" anything on phones.** A phone toolbar sliding back fires `resize`, and `drawMap()` rebuilt the whole map (every tile reloaded). It now redraws only when its size, place, address or language changes (`data-drawn`). Spinners and paisley layers get `will-change` only while within 300px of the screen (`onScreen` in `tpn-home.js`), so phones aren't evicting and repainting 59 GPU layers. Don't put `will-change` back in the CSS for those.
