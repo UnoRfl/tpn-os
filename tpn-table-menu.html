@@ -15,10 +15,10 @@
   // refused by the browser unless its hash matches.
   if (!window.supabase) document.write('<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js" integrity="sha384-Rj26LVGvoeRVR6+mwQmFfcR3QOBEwT+ZmuCWpuiqeTzJpCs0ER4ITAWGb4Hiy3Ok" crossorigin="anonymous"><' + '/script>');
 </script>
-<script src="config.js?v=20261017m"></script>
-<script src="tpn-supabase.js?v=20261017m"></script>
-<script src="tpn-kit.js?v=20261017m"></script>
-<link rel="stylesheet" href="tpn-glass.css?v=20261017m">
+<script src="config.js?v=20261017n"></script>
+<script src="tpn-supabase.js?v=20261017n"></script>
+<script src="tpn-kit.js?v=20261017n"></script>
+<link rel="stylesheet" href="tpn-glass.css?v=20261017n">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
 <meta name="theme-color" content="#1a0a00">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -570,6 +570,7 @@ const TABLE_NUM = parseInt(urlParams.get('table')) || 1;
 const BRANCH = urlParams.get('branch') || 'Las Piñas';
 const BRANCH_ID = urlParams.get('branchId') || 'laspinas';
 const SESSION_KEY = 'tpn_session_' + BRANCH_ID + '_t' + TABLE_NUM;
+const ORDER_KEY_KEY = 'tpn_order_key_' + BRANCH_ID + '_t' + TABLE_NUM;
 
 // Supabase-resolved IDs (loaded async on startup)
 let TABLE_UUID = null;
@@ -941,24 +942,34 @@ async function submitOrder(){
     // submit_order() appends to whatever bill is already open on this table,
     // so several phones at one table end up on one bill. It returns
     // { id, order_number, joined_existing, total, subtotal }.
+    // addToCart() stores the menu item id as `dishId` and the pax choice
+    // as `variant`; the per-line special request lives on `specialReq`.
+    const items = cart.map(c => ({
+      menu_item_id: c.dishId || null,
+      name: c.name,
+      unit_price: c.price,
+      quantity: c.qty,
+      pax_size: c.variant || null,
+      modifiers: c.mods && c.mods.length ? c.mods : undefined,
+      notes: (c.specialReq && c.specialReq.trim()) ? c.specialReq.trim() : null
+    }));
+    // One key per round (sql/41), kept in this tab before sending: if the
+    // reply is lost after the kitchen got the round, sending again (even
+    // after a refresh) adds nothing to the table bill.
+    let prevKey = null;
+    try { prevKey = JSON.parse(sessionStorage.getItem(ORDER_KEY_KEY) || 'null'); } catch (e) {}
+    const orderKey = TPN.orderKey(prevKey, JSON.stringify([name, specialReq, items.map(i => [i.menu_item_id, i.quantity, i.pax_size, i.modifiers || [], i.notes])]));
+    try { sessionStorage.setItem(ORDER_KEY_KEY, JSON.stringify(orderKey)); } catch (e) {}
     const res = await TPN.createOrder({
+      clientKey: orderKey.key,
       branchId: BRANCH_UUID,
       tableId: TABLE_UUID,
       orderType: 'dine_in',
       customerName: name,
       notes: specialReq || null,
-      // addToCart() stores the menu item id as `dishId` and the pax choice
-      // as `variant`; the per-line special request lives on `specialReq`.
-      items: cart.map(c => ({
-        menu_item_id: c.dishId || null,
-        name: c.name,
-        unit_price: c.price,
-        quantity: c.qty,
-        pax_size: c.variant || null,
-        modifiers: c.mods && c.mods.length ? c.mods : undefined,
-        notes: (c.specialReq && c.specialReq.trim()) ? c.specialReq.trim() : null
-      }))
+      items
     });
+    try { sessionStorage.removeItem(ORDER_KEY_KEY); } catch (e) {}   // sent: the next round gets a new key
 
     const sessionOrder = { id: res.order_number, dbId: res.id, table:TABLE_NUM, branch:BRANCH, branchId:BRANCH_ID, name, pax, specialReq, items:JSON.parse(JSON.stringify(cart)), total, timestamp:new Date().toISOString(), status:'received', type:'dine-in', tableTotal: Number(res.total)||total, joined: !!res.joined_existing };
     sessionOrders.push(sessionOrder); sessionTotal+=total; guestInfoLocked=true; saveSessionOrders();

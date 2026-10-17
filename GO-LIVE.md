@@ -21,7 +21,7 @@ Do the steps in order. Each one is safe to stop after: nothing later is required
 
 - [ ] Supabase → Authentication → Settings → **Leaked password protection: ON**.
 - [ ] Take a database backup: Supabase → Database → Backups (or `pg_dump`).
-- [ ] Run the tests on your PC: `cd tests/db && npm install && node run.mjs` → `82 passed, 0 failed`.
+- [ ] Run the tests on your PC: `cd tests/db && npm install && node run.mjs` → `123 passed, 0 failed`.
 
 ## 1. Database (Supabase → SQL Editor)
 
@@ -43,6 +43,7 @@ Run each file **on its own**, in this order. All are safe to re-run.
 | `sql/38-delivery.sql` | delivery areas & fees, dispatch (our rider / Lalamove / Grab), tracking |
 | `sql/39-menu-oct-2026.sql` | the real menu from the October boards |
 | `sql/40-menu-descriptions.sql` | short descriptions for the 42 dishes that had none (fills blanks only) |
+| `sql/41-order-idempotency.sql` | a retried order (dropped connection, refresh, second tap) returns the first order instead of placing a second one. Run it before or with the site release; the old site keeps working on it |
 
 Then: Supabase → Advisors → Security. Expected warnings only: the customer functions (`submit_order`, `track_order`, `claim_stamp_card`, `my_stamp_card`, `stamp_card_code`, `my_guest_profile`, `addon_suggestions`, `signal_*`) are public on purpose.
 

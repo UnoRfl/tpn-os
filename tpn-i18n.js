@@ -1219,6 +1219,7 @@
     "Something different in mind? Build your own menu with our team.": "May iba kang naiisip? Gumawa ng sariling menu kasama ang team namin.",
     "Something is missing — please fill in the required fields 📝": "May kulang pa — pakibuuin ang required fields 📝",
     "Something went wrong while checking. Try again.": "Nagka-error sa pag-check. Subukan ulit.",
+    "Something went wrong with this order. Please refresh the page and try again.": "May problema sa order na ito. I-refresh ang page at subukan ulit.",
     "Sound": "Tunog",
     "Sound for new orders and table calls": "Tunog para sa bagong order at tawag ng mesa",
     "Sound for new orders and table calls needs one tap after the screen turns on. Without it they arrive silently.": "Kailangan ng isang tap pagbukas ng screen para tumunog ang bagong order at tawag ng mesa. Kung wala, tahimik silang darating.",

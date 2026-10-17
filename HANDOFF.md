@@ -70,6 +70,17 @@ tpn-os/
 - **Printed receipt:** step 5 of checkout prints a receipt out of a small printer (`.rcpt-*` in `tpn-site-v3.css`). Lines come from the tray; subtotal, delivery fee and total come from `submit_order`'s return (`checkoutData.receipt`, set in `confirmOrder`). Feed time scales with the line count (`--print`). The rest of the screen fades in afterwards, and the page scrolls the printer into view first. Off under reduced motion.
 - Asset versions: shared `?v=20261017j` (tpn-i18n.js gained 4 phrases), v3 files `?v=20261017v16`.
 
+## Rev 18 — a retry can't place a second order (Oct 17, 2026, branch `feature/order-idempotency`)
+
+Closes the gap Rev 16 left open: the connection drops after the server saved the order but before the reply, and the customer taps Place Order again.
+- **`sql/41-order-idempotency.sql`:** `submit_order` takes an optional `p_client_key` (old signature dropped and recreated, same revoke/grant). The key goes on `orders.client_key` (unique index `orders_client_key_uniq`) for an order the call opened, and on `order_items.client_key` for every line it added, so a QR round appended to a table bill is covered too. A repeat key in the same branch inserts nothing and returns the original order through `private.submit_order_reply`, in the same jsonb shape. The key check runs after the rate limit and branch checks and before item validation, so a dish that sold out in between can't turn a retry into an error. Two copies racing are caught by the row lock (appends) or the unique index (new orders). Keys must be 16–64 of `A-Za-z0-9-` (`bad_client_key`); a key already used at another branch is `client_key_in_use`.
+- **Website:** `confirmOrder` builds the key with `TPN.orderKey(prev, sig)` and saves it in `tpn_checkout_v1` (`checkoutData.orderKey`) before sending, so a refresh then a retry reuses it. `sig` is the order type, payment, name, phone, address, zone, time, notes and lines: change any of them and it is a different order with a new key. The key is dropped once the order is placed.
+- **QR menu:** same, kept in sessionStorage `tpn_order_key_<branch>_t<table>` and removed once the round is sent.
+- **Before sql/41 runs:** `TPN.createOrder` retries without the key when PostgREST can't find the new signature (`PGRST202`), so the site never stops taking orders.
+- **Not covered:** the counter POS doesn't send a key (staff see the order appear on the floor screen).
+- Tests: `tests/db/t_41_idempotency.sql` (14 checks), 123 passed.
+- Asset versions: shared `20261017n` on every page.
+
 ## Rev 17 — the portal wears the website's look (Oct 17, 2026)
 
 `tpn-portal.css` is new and loaded only by `portal.html`, after `tpn-glass.css`. The floor, kitchen and QR screens don't load it.
