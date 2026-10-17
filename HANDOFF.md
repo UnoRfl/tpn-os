@@ -77,7 +77,7 @@ tpn-os/
 - **Long dishes** (Pork Sisig on its board, Pancit Bihon in its tray) are cropped to a circle the size of the largest circle inside the dish, so they fill the round frame like the bowls do.
 - **Dish photo URLs carry `?v=PHOTO_V`** (`tpn-home.js`). Bump it whenever a photo is replaced under the same file name.
 - **Cutout tool notes:** a dish photographed edge to edge needs a white margin before Vision will treat it as a subject. Subjects are merged per quadrant, so a dip bowl stays with its plate.
-- **Photos of the place** in `assets/site/photos/` (JPEG, letterbox bars trimmed). The home "Our place" gallery has `dining-garden`, `shrimp-table` and `sisig-table`. The Restaurant page photo is `dining-evening` (it was `spread.webp`, which is now unused). `laing-table.jpg` is a spare.
+- **Photos of the place** in `assets/site/photos/` (JPEG, letterbox bars trimmed). "Our place" shows only the place: `dining-garden` (tall) and `dining-evening`, then the map; the grid now has three children. The food shots (`shrimp-table`, `sisig-table`, `laing-table`) are a heading-less strip (`.v3-strip`) between Bestsellers and Our place. The Restaurant page photo is `dining-evening` (it was `spread.webp`, which is now unused).
 - v3 asset version `20261017v19`.
 
 ## Rev 12 — new dish photos (Oct 17, 2026)
