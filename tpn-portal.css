@@ -1,0 +1,109 @@
+/* ═══════════════════════════════════════════════════════════════
+   TPN portal — the website's v3 look, for the staff portal only.
+   Loaded last by portal.html (after tpn-app.css and tpn-glass.css);
+   the floor, kitchen and QR screens do not load it.
+
+   · Type: the portal's ~80 hard-coded "Playfair Display" / "DM Sans" /
+     "Lora" declarations are pointed at the website's faces (Fraunces,
+     Plus Jakarta Sans) by aliasing the family names below, so every
+     element keeps its role (display vs UI) without touching each rule.
+     portal.html no longer requests the old families.
+   · Labels: sentence case, no tracking (no tiny uppercase labels).
+   · Shapes: rounded rectangles like the site (12–14px); switches and
+     avatars stay round.
+   · Light theme moves to the site's paper tones; dark and night keep
+     their own tokens (their selectors outrank :root).
+   · No emoji standing in for icons: hub icons are drawn SVGs
+     (portal.html TPN_HUB_SVG); decorative emoji in tiles and empty
+     states are hidden.
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── Faces: old names → the website's fonts ─────────────────────── */
+@font-face { font-family: 'Playfair Display'; font-style: normal; font-weight: 100 900; font-display: swap;
+  src: url(https://fonts.gstatic.com/s/fraunces/v38/6NUV8FyLNQOQZAnv9ZwIlOkuy91B.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+@font-face { font-family: 'Playfair Display'; font-style: normal; font-weight: 100 900; font-display: swap;
+  src: url(https://fonts.gstatic.com/s/fraunces/v38/6NUV8FyLNQOQZAnv9ZwGlOkuy91BRtw.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+@font-face { font-family: 'Playfair Display'; font-style: italic; font-weight: 100 900; font-display: swap;
+  src: url(https://fonts.gstatic.com/s/fraunces/v38/6NUT8FyLNQOQZAnv9ZwNpOskzP9Ddt0.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+@font-face { font-family: 'Lora'; font-style: italic; font-weight: 100 900; font-display: swap;
+  src: url(https://fonts.gstatic.com/s/fraunces/v38/6NUT8FyLNQOQZAnv9ZwNpOskzP9Ddt0.woff2) format('woff2'); }
+@font-face { font-family: 'Lora'; font-style: normal; font-weight: 100 900; font-display: swap;
+  src: url(https://fonts.gstatic.com/s/fraunces/v38/6NUV8FyLNQOQZAnv9ZwIlOkuy91B.woff2) format('woff2'); }
+@font-face { font-family: 'DM Sans'; font-style: normal; font-weight: 200 800; font-display: swap;
+  src: url(https://fonts.gstatic.com/s/plusjakartasans/v12/LDIoaomQNQcsA88c7O9yZ4KMCoOg4Ko20yygg_vb.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+@font-face { font-family: 'DM Sans'; font-style: normal; font-weight: 200 800; font-display: swap;
+  src: url(https://fonts.gstatic.com/s/plusjakartasans/v12/LDIoaomQNQcsA88c7O9yZ4KMCoOg4Ko40yygg_vbd-E.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+@font-face { font-family: 'DM Sans'; font-style: italic; font-weight: 200 800; font-display: swap;
+  src: url(https://fonts.gstatic.com/s/plusjakartasans/v12/LDIuaomQNQcsA88c7O9yZ4KMCoOg4Koz4y6qhNnZR-A.woff2) format('woff2'); }
+
+/* Fraunces as the site sets it: soft terminals; numbers line up in tables */
+h1, h2, h3, h4, .tile-value, .panel-title, .modal-title, .tpn-dlg h2, .tpn-dlg h3 {
+  font-variation-settings: "SOFT" 100; letter-spacing: -0.01em;
+}
+.tile-value, td, .num, [class*="price"], [class*="total"] { font-variant-numeric: tabular-nums; }
+
+/* ── Light theme: the website's paper ───────────────────────────── */
+:root {
+  --bg:        #F7F0E2;   /* between the site's paper and paper-2: a full shift on screen, so not stark white */
+  --bg-2:      #F1E6D2;
+  --surface:   #FFFDF8;
+  --surface-2: #F4EAD8;
+  --surface-3: #EADCC2;
+  --line:      rgba(46, 26, 16, 0.12);
+  --line-soft: rgba(46, 26, 16, 0.07);
+  --shadow-sm: 0 1px 2px rgba(58, 29, 16, 0.08);
+  --shadow:    0 10px 24px -14px rgba(58, 29, 16, 0.22), 0 2px 6px -2px rgba(58, 29, 16, 0.06);
+  --shadow-lg: 0 24px 48px -24px rgba(58, 29, 16, 0.24), 0 2px 6px -2px rgba(58, 29, 16, 0.06);
+  --glass-tint: 255, 253, 248;
+  --glass-tint-2: 247, 240, 226;
+  --glass-edge-lo: rgba(46, 26, 16, 0.10);
+}
+::selection { background: rgba(228, 162, 60, 0.35); color: var(--ink); }
+:focus-visible { outline: 3px solid color-mix(in srgb, var(--ember) 55%, transparent); outline-offset: 2px; }
+
+/* ── Labels: sentence case, no tracking ─────────────────────────── */
+.portal-app *, .login-screen *, .tpn-dlg *, .modal *, .tpn-cmdk *, .tpn-guide * {
+  text-transform: none !important;
+  letter-spacing: normal;
+}
+.tile-label, .form-label, .data-table th, .section-eyebrow, .portal-brand-sub, .confirm-detail-label {
+  font-size: 13px !important; letter-spacing: 0 !important; font-weight: 600;
+}
+.portal-nav-section { font-size: 12.5px !important; letter-spacing: 0 !important; }
+
+/* ── Shapes: rounded rectangles, like the site ──────────────────── */
+.btn-primary, .btn-next, .btn-secondary, .btn-ghost, .btn-outline, .btn-back, .btn-danger, .table-btn,
+.tpn-dlg .btn-primary, .tpn-dlg .btn-danger, .tpn-dlg .btn-ghost, .empty-state-cta, .cart-empty-cta {
+  border-radius: 12px !important;
+}
+/* flat brick primary, as on the website (no gloss gradient) */
+.btn-primary, .btn-next { background: var(--ember) !important; box-shadow: 0 8px 18px -10px color-mix(in srgb, var(--ember) 70%, transparent) !important; }
+.btn-primary:hover, .btn-next:hover { background: color-mix(in srgb, var(--ember) 86%, black) !important; }
+.tpn-chip, .tpn-tabs, .pos-type, .faq-search, .portal-topbar .tpn-cmdk-btn { border-radius: 12px !important; }
+.tpn-tabs button, .pos-type button { border-radius: 9px !important; }
+.tpn-pill, .role-pill, .task-person { border-radius: 7px !important; }
+.branch-pill { border-radius: 12px !important; }
+.cmdk-ico, .portal-mobile-search { display: inline-grid; place-items: center; color: var(--ink-muted); }
+.portal-nav-badge { border-radius: 7px; font-size: 11px; }
+.panel, .tile, .fin-tile, .modal, .tpn-dlg, .data-table-wrap { border-radius: 18px; }
+.form-input, select, textarea, input[type="text"], input[type="email"], input[type="password"],
+input[type="number"], input[type="tel"], input[type="date"], input[type="time"], input[type="search"] { border-radius: 10px; }
+
+/* ── Icons: drawn, not emoji ────────────────────────────────────── */
+.portal-nav-icon { display: inline-grid; place-items: center; width: 22px; height: 22px; color: var(--ink-muted); }
+.portal-nav-icon svg { width: 19px; height: 19px; }
+.portal-nav-item.active .portal-nav-icon, .portal-nav-item:hover .portal-nav-icon { color: var(--ember); }
+.tile-icon, .empty-state-icon, .tpn-empty-icon, .cart-empty-icon, .portal-empty-lane-icon, .tpn-deco-emoji { display: none !important; }
+
+/* ── Toasts: the whole message, wrapped, above the help button ──── */
+.toast {
+  white-space: normal !important; text-align: center; line-height: 1.45;
+  width: max-content; max-width: min(560px, calc(100vw - 32px));
+  border-radius: 14px; padding: 12px 18px; overflow-wrap: anywhere;
+  bottom: calc(96px + env(safe-area-inset-bottom));
+}

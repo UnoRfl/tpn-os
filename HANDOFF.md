@@ -70,6 +70,17 @@ tpn-os/
 - **Printed receipt:** step 5 of checkout prints a receipt out of a small printer (`.rcpt-*` in `tpn-site-v3.css`). Lines come from the tray; subtotal, delivery fee and total come from `submit_order`'s return (`checkoutData.receipt`, set in `confirmOrder`). Feed time scales with the line count (`--print`). The rest of the screen fades in afterwards, and the page scrolls the printer into view first. Off under reduced motion.
 - Asset versions: shared `?v=20261017j` (tpn-i18n.js gained 4 phrases), v3 files `?v=20261017v16`.
 
+## Rev 17 — the portal wears the website's look (Oct 17, 2026)
+
+`tpn-portal.css` is new and loaded only by `portal.html`, after `tpn-glass.css`. The floor, kitchen and QR screens don't load it.
+- **Fonts by alias:** `@font-face` maps "Playfair Display" and "Lora" to Fraunces, and "DM Sans" to Plus Jakarta Sans (gstatic woff2, allowed by the CSP). The ~80 hard-coded font names keep their roles without editing each rule. `portal.html` no longer requests the old families. If you add the old Google Fonts link back, the aliases conflict.
+- **Light theme:** paper tones (`--bg #F7F0E2`, surfaces `#FFFDF8` / `#F4EAD8`) and warm, offset shadows. Dark and night are unchanged because their selectors outrank `:root`. Checked in dark.
+- **Labels and shapes:** sentence case and no tracking across the portal. Buttons, chips, tabs and the branch chip are 12px rounded rectangles; badges are 7px. The primary button is flat ember (no gloss). Switches and avatars stay round.
+- **Icons:** hub icons are drawn SVGs (`TPN_HUB_SVG` in `portal.html`; an unknown hub falls back to its own icon). The search buttons use an SVG magnifier (`modules/search.js`). A large lone emoji used as decoration (tiles, empty states, kanban lanes) gets `.tpn-deco-emoji` and is hidden by a small observer in `portal.html`; emoji inside text and buttons stay.
+- **Toasts** wrap to the full message (they were cut off on phones) and sit above the help button.
+- Checked with a fake signed-in session in a local preview (no data): Dashboard, Live Orders, Menu Manager and Accounts at 1280px and 375px, dark theme, sidebar active state, and a long toast. Pages that need real data (payroll, finance with numbers) were only seen in their empty or error state.
+- Asset versions: shared `20261017m` (search.js), `tpn-portal.css?v=20261017p1`.
+
 ## Rev 16 — checkout that survives customers (Oct 17, 2026)
 
 All of this lives in `index.html`, at the top of the checkout section (`renderCheckoutStep` is now a wrapper around `renderCheckoutStepView`).
