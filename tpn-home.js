@@ -334,7 +334,7 @@
   let hero, hPhoto, hBlur, hVig, hInner, hMand, hMandSharp, hMandBlur, heroGone = false, lastY = -1, prevY = 0, boost = 0, kick = 0, last = performance.now();
   // Phones scroll the hero away as a normal block: the fixed, scaling photo
   // jittered there as the browser bars slid in and out.
-  const heroStill = matchMedia('(max-width: 900px)');
+  const heroStill = matchMedia('(max-width: 900px), (hover: none) and (pointer: coarse)');
   function heroScroll(y) {
     if (!hero || !hero.offsetHeight) return;
     if (heroStill.matches) {
