@@ -212,7 +212,7 @@ body::after { display: none; }                               /* old mesh glow */
    shorter than the photo. No resting zoom on these photos. */
 .v3-gallery { display: grid; grid-template-columns: 1fr 1.6fr; grid-template-rows: 380px 250px; gap: 14px; }
 .v3-gallery > :first-child { grid-row: span 2; }
-.v3-gallery > .v3-photo { min-height: 0; }
+.v3-gallery > * { min-height: 0; }                  /* the rows set every height, so both sides end level */
 .v3-gallery > .v3-photo .img { transform: none; }
 .v3-gallery > .v3-photo:hover .img { transform: scale(1.03); }
 .v3-gallery > .v3-photo:nth-child(2) .img { background-position: center 62%; }   /* the set table, not the ceiling */
@@ -445,7 +445,7 @@ footer .footer-pay li { font-size: 14px; color: var(--v3-ink-2); }
 }
 @media (max-width: 900px) {
   #page-menu .menu-controls { grid-template-columns: 1fr; }
-  .v3-gallery { grid-template-columns: 1fr 1.15fr; grid-template-rows: 280px 200px; }
+  .v3-gallery { grid-template-columns: 1fr 1.15fr; grid-template-rows: 280px 220px; }
 }
 @media (max-width: 600px) {
   .v3-bento { grid-template-columns: 1fr; }
