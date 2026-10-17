@@ -251,7 +251,7 @@
       if (top.querySelector('.tpn-cmdk-btn')) return;
       const b = document.createElement('button');
       b.type = 'button'; b.className = 'tpn-cmdk-btn';
-      b.innerHTML = `<span aria-hidden="true">🔍</span><span class="cmdk-field-label"></span><kbd translate="no">${/Mac|iPhone|iPad/.test(navigator.platform) ? '⌘K' : 'Ctrl K'}</kbd>`;
+      b.innerHTML = `<span aria-hidden="true" class="cmdk-ico"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.2-4.2"/></svg></span><span class="cmdk-field-label"></span><kbd translate="no">${/Mac|iPhone|iPad/.test(navigator.platform) ? '⌘K' : 'Ctrl K'}</kbd>`;
       b.addEventListener('click', () => open());
       top.appendChild(b);
     });
@@ -259,7 +259,7 @@
       if (bar.querySelector('.portal-mobile-search')) return;
       const spacer = bar.lastElementChild;
       const b = document.createElement('button');
-      b.type = 'button'; b.className = 'portal-mobile-search'; b.textContent = '🔍';
+      b.type = 'button'; b.className = 'portal-mobile-search'; b.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.2-4.2"/></svg>';
       b.addEventListener('click', () => open());
       if (spacer && !spacer.children.length && spacer.tagName === 'DIV') spacer.replaceWith(b); else bar.appendChild(b);
     });
