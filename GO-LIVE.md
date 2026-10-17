@@ -41,6 +41,8 @@ Run each file **on its own**, in this order. All are safe to re-run.
 | `sql/37a-payment-enum.sql` | ⚠️ run alone first — payment method `qrph` |
 | `sql/37b-manual-payments.sql` | GCash / Maya / QR Ph / card / bank recorded by hand with a reference |
 | `sql/38-delivery.sql` | delivery areas & fees, dispatch (our rider / Lalamove / Grab), tracking |
+| `sql/39-menu-oct-2026.sql` | the real menu from the October boards |
+| `sql/40-menu-descriptions.sql` | short descriptions for the 42 dishes that had none (fills blanks only) |
 
 Then: Supabase → Advisors → Security. Expected warnings only: the customer functions (`submit_order`, `track_order`, `claim_stamp_card`, `my_stamp_card`, `stamp_card_code`, `my_guest_profile`, `addon_suggestions`, `signal_*`) are public on purpose.
 

@@ -207,12 +207,15 @@ body::after { display: none; }                               /* old mesh glow */
 .v3-photo .ph { position: absolute; inset: 0; z-index: 2; display: grid; place-content: center; justify-items: center; gap: 10px; color: var(--v3-ink-3); font-size: 13px; font-weight: 600; }
 .v3-photo .ph svg { width: 34px; height: 34px; }
 .v3-photo:not(.empty) .ph { display: none; }
-/* Our place: the two room photos at their own 3:4 shape (no crop, no zoom), the
-   map narrower beside them and as tall as they are */
-.v3-gallery { display: grid; grid-template-columns: 1fr 1fr .8fr; gap: 14px; }
-.v3-gallery > .v3-photo { aspect-ratio: 3 / 4; min-height: 0; }
+/* Our place: the garden room as a tall portrait (close to its own 3:4, so barely
+   cropped), the evening room as a landscape beside it, and the map under that,
+   shorter than the photo. No resting zoom on these photos. */
+.v3-gallery { display: grid; grid-template-columns: 1fr 1.6fr; grid-template-rows: 380px 250px; gap: 14px; }
+.v3-gallery > :first-child { grid-row: span 2; }
+.v3-gallery > .v3-photo { min-height: 0; }
 .v3-gallery > .v3-photo .img { transform: none; }
 .v3-gallery > .v3-photo:hover .img { transform: scale(1.03); }
+.v3-gallery > .v3-photo:nth-child(2) .img { background-position: center 62%; }   /* the set table, not the ceiling */
 
 .v3-thanks { text-align: center; padding-block: clamp(80px, 10vw, 140px); border-top: 1px solid var(--v3-hair); }
 .v3-thanks .v3-bleed { --stroke: clamp(2px, .2vw, 3px); }
@@ -442,14 +445,15 @@ footer .footer-pay li { font-size: 14px; color: var(--v3-ink-2); }
 }
 @media (max-width: 900px) {
   #page-menu .menu-controls { grid-template-columns: 1fr; }
-  .v3-gallery { grid-template-columns: 1fr 1fr; }
-  .v3-gallery > .v3-map { grid-column: span 2; height: 300px; }
+  .v3-gallery { grid-template-columns: 1fr 1.15fr; grid-template-rows: 280px 200px; }
 }
 @media (max-width: 600px) {
   .v3-bento { grid-template-columns: 1fr; }
   .v3-bento > :first-child { grid-column: auto; }
-  .v3-gallery { grid-template-columns: 1fr; }
-  .v3-gallery > .v3-map { grid-column: auto; height: 340px; }        /* room for the pin above the address card */
+  .v3-gallery { grid-template-columns: 1fr; grid-template-rows: none; }
+  .v3-gallery > :first-child { grid-row: auto; aspect-ratio: 3 / 4; }
+  .v3-gallery > .v3-photo:nth-child(2) { aspect-ratio: 5 / 4; }
+  .v3-gallery > .v3-map { height: 230px; }                           /* room for the pin above the address card */
   .v3-best .v3-mandala.m1, #v3Place .v3-mandala.m1, #page-menu > .v3-mandala.m1 { --mw: 380px; }
   .v3-mandala.x { width: calc(var(--mw) * .6); }
   .v3-hero .v3-bleed .t { font-size: 10.6vw; }
