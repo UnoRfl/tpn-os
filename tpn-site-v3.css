@@ -429,6 +429,8 @@ html body #cartDrawer .cart-footer { background: rgba(212,186,144,.62); }
 @keyframes rcpt-feed { 0% { transform: translateY(-101%); } 18%, 22% { transform: translateY(-78%); } 44%, 48% { transform: translateY(-52%); }
   72%, 76% { transform: translateY(-24%); } 100% { transform: translateY(0); } }
 @keyframes rcpt-after { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+/* a receipt shown again after a refresh does not print a second time */
+.confirm-card.restored .rcpt-feed, .confirm-card.restored .confirm-after, .confirm-card.restored .rcpt-led { animation: none; transform: none; opacity: 1; }
 @media (prefers-reduced-motion: reduce) { .rcpt-feed, .confirm-after, .rcpt-led { animation: none; transform: none; opacity: 1; } }
 html[data-motion="off"] .rcpt-feed, html[data-motion="off"] .confirm-after, html[data-motion="off"] .rcpt-led { animation: none; transform: none; opacity: 1; }
 

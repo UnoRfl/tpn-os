@@ -15,16 +15,16 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=Lora:ital,wght@0,400;0,600;1,400&family=DM+Sans:wght@300;400;500;700&family=Fraunces:ital,opsz,wght,SOFT,WONK@0,9..144,500..900,0..100,0..1;1,9..144,500..900,0..100,0..1&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="tpn-app.css?v=20261017k">
-<link rel="stylesheet" href="tpn-glass.css?v=20261017k">
-<link rel="stylesheet" href="tpn-site-v3.css?v=20261017v27">
+<link rel="stylesheet" href="tpn-app.css?v=20261017l">
+<link rel="stylesheet" href="tpn-glass.css?v=20261017l">
+<link rel="stylesheet" href="tpn-site-v3.css?v=20261017v28">
 <link rel="preload" href="vendor/supabase-js-2.117.2.js" as="script">
-<link rel="preload" href="config.js?v=20261017k" as="script">
-<link rel="preload" href="tpn-supabase.js?v=20261017k" as="script">
-<link rel="preload" href="tpn-kit.js?v=20261017k" as="script">
-<link rel="preload" href="tpn-site.js?v=20261017k" as="script">
-<link rel="preload" href="tpn-i18n.js?v=20261017k" as="script">
-<link rel="preload" href="tpn-home.js?v=20261017v27" as="script">
+<link rel="preload" href="config.js?v=20261017l" as="script">
+<link rel="preload" href="tpn-supabase.js?v=20261017l" as="script">
+<link rel="preload" href="tpn-kit.js?v=20261017l" as="script">
+<link rel="preload" href="tpn-site.js?v=20261017l" as="script">
+<link rel="preload" href="tpn-i18n.js?v=20261017l" as="script">
+<link rel="preload" href="tpn-home.js?v=20261017v28" as="script">
 <link rel="preload" href="assets/site/hero.webp" as="image" fetchpriority="high">
 <script src="vendor/supabase-js-2.117.2.js"></script>
 <script>
@@ -32,12 +32,12 @@
   // refused by the browser unless its hash matches.
   if (!window.supabase) document.write('<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js" integrity="sha384-Rj26LVGvoeRVR6+mwQmFfcR3QOBEwT+ZmuCWpuiqeTzJpCs0ER4ITAWGb4Hiy3Ok" crossorigin="anonymous"><' + '/script>');
 </script>
-<script src="config.js?v=20261017k"></script>
-<script src="tpn-supabase.js?v=20261017k"></script>
-<script src="tpn-kit.js?v=20261017k"></script>
-<script src="tpn-site.js?v=20261017k"></script>
-<script src="tpn-i18n.js?v=20261017k"></script>
-<script src="tpn-home.js?v=20261017v27"></script>
+<script src="config.js?v=20261017l"></script>
+<script src="tpn-supabase.js?v=20261017l"></script>
+<script src="tpn-kit.js?v=20261017l"></script>
+<script src="tpn-site.js?v=20261017l"></script>
+<script src="tpn-i18n.js?v=20261017l"></script>
+<script src="tpn-home.js?v=20261017v28"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="description" content="Tyo Paeng Nyo — Authentic Filipino cuisine in Las Piñas since 2003. Order online, book events, or inquire about catering.">
 <meta name="theme-color" content="#8B1A0E">
@@ -1167,7 +1167,7 @@ function navigate(page) {
   document.querySelectorAll('.nav-group').forEach(g => g.querySelector('button').classList.toggle('active', !!g.querySelector('[data-nav="' + page + '"]')));
   try {
     const want = page === 'home' ? '' : '#' + page;
-    if (location.hash !== want && !/[?&]view=/.test(location.search)) history.replaceState(history.state, '', location.pathname + location.search + want);
+    if (location.hash !== want && !/[?&]view=/.test(location.search)) history.replaceState(page === 'checkout' ? history.state : null, '', location.pathname + location.search + want);
   } catch (e) {}
   if (target) { const h = target.querySelector('h1'); if (h) { h.setAttribute('tabindex', '-1'); h.focus({ preventScroll: true }); } }
   window.scrollTo({ top: 0, behavior: 'instant' });
@@ -1440,6 +1440,7 @@ function toggleCart() {
 }
 function startCheckout() {
   if (!cart.length) return;
+  if (checkoutStep === 5) { checkoutStep = 1; delete checkoutData.ref; delete checkoutData.receipt; delete checkoutData._restored; forgetCheckout(); }
   toggleCart();
   navigate('checkout');
 }
@@ -1473,7 +1474,87 @@ function deliveryFeeNow() {
   const z = (deliveryZones || []).find(x => x.id === checkoutData.zoneId);
   return z ? Number(z.fee) || 0 : 0;
 }
+/* ── Checkout that survives customers ────────────────────────────────
+   A refresh, the browser's back button, a second tab, an emptied tray or
+   a refresh on the receipt must never lose an order in progress or invite
+   a second one.
+   · Progress (step + answers) is kept in sessionStorage: this tab only,
+     gone when it closes, and typed answers are saved as they are typed.
+   · The last placed order is kept in localStorage for 2 hours, so a
+     refresh on the receipt shows it again instead of an empty step 1.
+   · Each step is a browser history entry, so Back goes one step back
+     instead of leaving the site.
+   · Every tab follows the shared tray (storage event), so an order placed
+     in one tab empties the tray in the others. */
+const CK_KEY = 'tpn_checkout_v1', LAST_ORDER_KEY = 'tpn_last_order_v1', CK_TTL = 7200000;
+function saveCheckout() {
+  try { sessionStorage.setItem(CK_KEY, JSON.stringify({ step: checkoutStep, data: checkoutData, ts: Date.now() })); } catch (e) {}
+}
+function forgetCheckout() {
+  try { sessionStorage.removeItem(CK_KEY); localStorage.removeItem(LAST_ORDER_KEY); } catch (e) {}
+}
+function restoreCheckout() {
+  try {
+    const last = JSON.parse(localStorage.getItem(LAST_ORDER_KEY) || 'null');
+    const saved = JSON.parse(sessionStorage.getItem(CK_KEY) || 'null');
+    if (last && last.data && last.data.ref && Date.now() - last.ts < CK_TTL && !cart.length) {
+      checkoutData = Object.assign({}, last.data, { _restored: true }); checkoutStep = 5; return;
+    }
+    if (!saved || Date.now() - saved.ts > CK_TTL || !saved.data) return;
+    checkoutData = Object.assign(checkoutData, saved.data);
+    delete checkoutData.ref; delete checkoutData.receipt; delete checkoutData._restored;
+    // never resume past a step whose answers are missing
+    let step = Math.min(Math.max(1, saved.step | 0), 4);
+    if (step >= 3 && !(checkoutData.name && checkoutData.phone)) step = 2;
+    checkoutStep = step;
+  } catch (e) {}
+}
+function checkoutHistory(push) {
+  if (!document.getElementById('page-checkout')?.classList.contains('active')) return;
+  try { history[push ? 'pushState' : 'replaceState']({ ck: checkoutStep }, '', location.pathname + location.search + '#checkout'); } catch (e) {}
+}
+const CK_FIELDS = { 'ck-name': 'name', 'ck-phone': 'phone', 'ck-address': 'address', 'ck-notes': 'notes', 'ck-change': 'changeFor', 'ck-date': 'date', 'ck-time': 'time' };
 function renderCheckoutStep() {
+  const content = document.getElementById('checkoutContent');
+  const steps = document.getElementById('checkoutSteps');
+  if (checkoutStep === 5 && !checkoutData.ref) checkoutStep = 1;
+  if (checkoutStep < 5 && !cart.length) {
+    // An empty tray (expired, emptied in another tab, or a #checkout link) has nothing to order.
+    if (steps) steps.hidden = true;
+    if (content) content.innerHTML = `<div class="checkout-card confirm-card">
+        <div class="cart-empty-msg">Your cart is empty!</div>
+        <button class="btn-next" style="margin-top:16px" onclick="navigate('menu')">See the Menu →</button></div>`;
+    return;
+  }
+  if (steps) steps.hidden = false;
+  renderCheckoutStepView();
+  if (content && !content.dataset.saving) {
+    content.dataset.saving = '1';
+    content.addEventListener('input', e => {
+      const f = CK_FIELDS[e.target.id];
+      if (f && checkoutStep < 5) { checkoutData[f] = e.target.value; saveCheckout(); }
+    });
+  }
+  if (checkoutStep < 5) saveCheckout();
+  else checkoutData._restored = true;          // printed once; any later redraw shows it still
+  checkoutHistory(false);
+}
+window.addEventListener('popstate', e => {
+  const ck = e.state && e.state.ck;
+  if (!ck) return;
+  if (!document.getElementById('page-checkout')?.classList.contains('active')) navigate('checkout');
+  if (checkoutStep !== 5) checkoutStep = Math.min(Math.max(1, ck), 4);   // the receipt stays put once ordered
+  renderCheckoutStep();
+});
+window.addEventListener('storage', e => {
+  if (e.key !== 'tpn_cart_v1') return;
+  try { const v = JSON.parse(e.newValue || 'null'); cart = (v && v.items) || []; } catch (err) { cart = []; }
+  updateCartUI();
+  if (document.getElementById('page-checkout')?.classList.contains('active') && checkoutStep < 5) renderCheckoutStep();
+});
+restoreCheckout();
+
+function renderCheckoutStepView() {
   loadDeliveryZones();
   // step circles
   document.querySelectorAll('.step-circle').forEach(c => {
@@ -1514,8 +1595,8 @@ function renderCheckoutStep() {
         </div>
         ${checkoutData.schedule === 'scheduled' ? `
           <div class="form-row">
-            <div><label class="form-label">Date</label><input type="date" class="form-input" id="ck-date" value="${checkoutData.date || ''}" onchange="checkoutData.date = this.value"></div>
-            <div><label class="form-label">Time</label><input type="time" class="form-input" id="ck-time" value="${checkoutData.time || ''}" onchange="checkoutData.time = this.value"></div>
+            <div><label class="form-label">Date</label><input type="date" class="form-input" id="ck-date" min="${localToday()}" value="${E(checkoutData.date || '')}" onchange="checkoutData.date = this.value"></div>
+            <div><label class="form-label">Time</label><input type="time" class="form-input" id="ck-time" value="${E(checkoutData.time || '')}" onchange="checkoutData.time = this.value"></div>
           </div>
         ` : ''}
         <div class="checkout-actions">
@@ -1531,8 +1612,8 @@ function renderCheckoutStep() {
         <h2>Your Information</h2>
         <p class="checkout-sub">We just need a few details so we can serve you right.</p>
         <div class="form-row">
-          <div><label class="form-label">Full Name *</label><input type="text" class="form-input" id="ck-name" placeholder="Juan Dela Cruz" value="${E(checkoutData.name || '')}"><div class="form-error" id="err-name">Please enter your name so we know who is ordering 😊</div></div>
-          <div><label class="form-label">Phone *</label><input type="tel" class="form-input" id="ck-phone" placeholder="09171234567" value="${E(checkoutData.phone || '')}"><div class="form-error" id="err-phone">That number looks wrong — please check it (09XXXXXXXXX) 📱</div></div>
+          <div><label class="form-label">Full Name *</label><input type="text" class="form-input" id="ck-name" maxlength="80" autocomplete="name" placeholder="Juan Dela Cruz" value="${E(checkoutData.name || '')}"><div class="form-error" id="err-name">Please enter your name so we know who is ordering 😊</div></div>
+          <div><label class="form-label">Phone *</label><input type="tel" class="form-input" id="ck-phone" maxlength="16" autocomplete="tel" inputmode="tel" placeholder="09171234567" value="${E(checkoutData.phone || '')}"><div class="form-error" id="err-phone">That number looks wrong — please check it (09XXXXXXXXX) 📱</div></div>
         </div>
 <!-- dine-in removed from online flow -->
         ${isDel ? `
@@ -1546,14 +1627,14 @@ function renderCheckoutStep() {
               <div class="form-error" id="err-zone">Please choose your delivery area 📍</div></div>
           </div>` : ''}
           <div class="form-row full">
-            <div><label class="form-label">Delivery Address *</label><textarea class="form-input" id="ck-address" placeholder="Building, unit, street, barangay, landmark" rows="3">${E(checkoutData.address || '')}</textarea><div class="form-error" id="err-address">We need to know where to deliver — please enter your address 📍</div></div>
+            <div><label class="form-label">Delivery Address *</label><textarea class="form-input" id="ck-address" maxlength="300" placeholder="Building, unit, street, barangay, landmark" rows="3">${E(checkoutData.address || '')}</textarea><div class="form-error" id="err-address">We need to know where to deliver — please enter your address 📍</div></div>
           </div>
           <div class="form-row full">
             <div><label class="form-label" for="ck-change">Paying cash? Change for (optional)</label><input class="form-input" id="ck-change" type="number" inputmode="numeric" min="0" step="1" placeholder="e.g. 1000" value="${E(checkoutData.changeFor || '')}"></div>
           </div>
         ` : ''}
         <div class="form-row full">
-          <div><label class="form-label">Special Requests (Optional)</label><textarea class="form-input" id="ck-notes" placeholder="Allergies, less spicy, extra sauce, etc.">${E(checkoutData.notes || '')}</textarea></div>
+          <div><label class="form-label">Special Requests (Optional)</label><textarea class="form-input" id="ck-notes" maxlength="300" placeholder="Allergies, less spicy, extra sauce, etc.">${E(checkoutData.notes || '')}</textarea></div>
         </div>
         <div class="checkout-actions">
           <button class="btn-back" onclick="checkoutBack()">← Back</button>
@@ -1639,7 +1720,7 @@ function renderCheckoutStep() {
     const money = n => '₱' + Number(n || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const printMs = Math.min(3400, 1500 + r.items.length * 180);
     content.innerHTML = `
-      <div class="checkout-card confirm-card" style="--print:${printMs}ms">
+      <div class="checkout-card confirm-card${checkoutData._restored ? ' restored' : ''}" style="--print:${printMs}ms">
         <h2 class="confirm-title">Order <em>Placed!</em></h2>
         <div class="rcpt-printer">
           <div class="rcpt-head" aria-hidden="true"><span class="rcpt-led"></span></div>
@@ -1681,6 +1762,7 @@ function renderCheckoutStep() {
     window.scrollTo({ top: Math.max(0, card.getBoundingClientRect().top + scrollY - 96), behavior: 'instant' });
   }
 }
+function localToday() { const d = new Date(); return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10); }
 function setOrderType(t) { checkoutData.orderType = t; renderCheckoutStep(); }
 async function retryOnlinePayment(orderNumber) {
   try {
@@ -1729,6 +1811,8 @@ function checkoutNext() {
     checkoutData.date = document.getElementById('ck-date')?.value;
     checkoutData.time = document.getElementById('ck-time')?.value;
     if (!checkoutData.date || !checkoutData.time) { toast('Please pick a date and time'); return; }
+    const when = new Date(`${checkoutData.date}T${checkoutData.time}`);
+    if (isNaN(when) || when.getTime() < Date.now() + 15 * 60000) { toast('Please pick a time at least 15 minutes from now'); return; }
   }
   if (checkoutStep === 2) {
     const name = document.getElementById('ck-name').value.trim();
@@ -1766,15 +1850,19 @@ function checkoutNext() {
     checkoutData.notes = document.getElementById('ck-notes')?.value || '';
   }
   checkoutStep += 1;
+  checkoutHistory(true);
   renderCheckoutStep();
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 function checkoutBack() {
   if (checkoutStep <= 1) return;
+  // keep the on-page Back and the browser's Back on the same history
+  if (history.state && history.state.ck === checkoutStep && checkoutStep > 1) { history.back(); return; }
   checkoutStep -= 1;
   renderCheckoutStep();
 }
 async function confirmOrder() {
+  if (!cart.length) { renderCheckoutStep(); return; }
   const subtotal = cart.reduce((n, c) => n + c.price * c.qty, 0);
   // Same double-tap guard as the QR menu: on a phone the button can fire
   // twice and send two orders.
@@ -1836,6 +1924,10 @@ async function confirmOrder() {
       } catch (e) { checkoutData.payError = e.message; }
     }
     checkoutStep = 5;
+    try {
+      sessionStorage.removeItem(CK_KEY);
+      localStorage.setItem(LAST_ORDER_KEY, JSON.stringify({ data: checkoutData, ts: Date.now() }));
+    } catch (e) {}
     renderCheckoutStep();
   } catch(e) {
     console.error('Order failed:', e);
@@ -1891,6 +1983,7 @@ async function checkOrderStatus() {
   }
 }
 function resetCheckout() {
+  forgetCheckout();
   checkoutStep = 1;
   checkoutData = { orderType: 'takeout', schedule: 'asap', paymentMethod: onlinePayEnabled() ? 'hitpay' : 'cash' };
   navigate('home');
