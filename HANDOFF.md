@@ -70,6 +70,18 @@ tpn-os/
 - **Printed receipt:** step 5 of checkout prints a receipt out of a small printer (`.rcpt-*` in `tpn-site-v3.css`). Lines come from the tray; subtotal, delivery fee and total come from `submit_order`'s return (`checkoutData.receipt`, set in `confirmOrder`). Feed time scales with the line count (`--print`). The rest of the screen fades in afterwards, and the page scrolls the printer into view first. Off under reduced motion.
 - Asset versions: shared `?v=20261017j` (tpn-i18n.js gained 4 phrases), v3 files `?v=20261017v16`.
 
+## Rev 19 — portal Parking and Landmark reach the website (Oct 17, 2026, branch `feature/site-parking-landmark`, stacked on Rev 18)
+
+No migration. The portal's Website → Contact & hours tab already saved `contact.parking` and `contact.landmark` (sql/30), but the site printed its own fixed text.
+- **Parking:** the Our place facts row and the footer line read `contact.parking` through `data-site`. Blank hides the whole row. The old `v3.fact.parkingVal` / `v3.f.parking` keys are gone from `tpn-home.js`; the Tagalog comes from `PHRASES`.
+- **Landmark:** a small line under the address in Our place (`.v3-landmark`), and the map card's second line. Blank hides both.
+- **Email:** `data-site-href="mailto"` in `tpn-site.js`, so a filled-in email in the footer is a working link (only when it looks like an address).
+- **Map card redraw:** `tpn-site.js` fires `tpn:site-content` after applying; `tpn-home.js` redraws the map so a changed address or landmark shows without waiting for a resize.
+- **Our place photos swapped:** the evening room is now the tall photo on the left and the garden wall is the square on the right.
+- **Page title** is "Tyo Paeng Nyo · Las Piñas" (title and og:title).
+- **Logo as the site icon:** `assets/site/icon.png` (the official badge, `logo.webp` padded to a 200×200 square at full size; no larger original exists). It is the tab icon on every page, the home-screen icon (the old `/apple-touch-icon.png` pointed outside the Pages site and 404'd), and the share image (`og:image`, which pointed at a domain we don't serve). Give it a bigger logo file to get a sharper share preview.
+- Asset versions: shared `?v=20261017o`, v3 files `?v=20261017v29`.
+
 ## Rev 18 — a retry can't place a second order (Oct 17, 2026, branch `feature/order-idempotency`)
 
 Closes the gap Rev 16 left open: the connection drops after the server saved the order but before the reply, and the customer taps Place Order again.

@@ -563,6 +563,7 @@
     "For twenty years we've served corporate clients, building tenants, schools, and large events across Metro Manila. If you're looking for reliable Filipino food service for your office, building, or event — we'd love to talk.": "Dalawampung taon na kaming nagsisilbi sa mga corporate client, tenant ng building, paaralan at malalaking event sa buong Metro Manila. Kung naghahanap ka ng maaasahang Filipino food service para sa opisina, building o event mo — gusto ka naming makausap.",
     "For your security, accounts with admin access require a code sent to your phone on file. This protects sensitive operations like managing staff, sales, and accounts.": "Para sa seguridad mo, kailangan ng code na ipapadala sa phone mo ang mga account na may admin access. Pinoprotektahan nito ang mga sensitibong gawain gaya ng staff, benta at account.",
     "Founded": "Itinatag",
+    "Facing Shell, near the Robinsons Las Piñas exit": "Tapat ng Shell, malapit sa exit ng Robinsons Las Piñas",
     "Free on-site parking for diners": "Libreng parking para sa kakain",
     "Free Parking": "Libreng parking",
     "Fri": "Biy",

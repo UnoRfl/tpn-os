@@ -63,6 +63,7 @@
       el.closest('[data-site-wrap]')?.removeAttribute('hidden');
       if (el.dataset.siteHref === 'tel') { el.textContent = v; el.href = 'tel:' + String(v).replace(/[^0-9+]/g, '').replace(/^0/, '+63'); }
       else if (el.dataset.siteHref === 'url') { if (/^https:\/\//.test(v)) el.href = v; }
+      else if (el.dataset.siteHref === 'mailto') { el.textContent = v; if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) el.href = 'mailto:' + v; }
       else el.textContent = v;
     });
     // <x data-site-if="rewards.enabled" hidden> shows only while that switch is on.
@@ -172,6 +173,7 @@
     try { applyTestimonials(); } catch (e) { console.warn('testimonials', e); }
     try { applyPackages(); } catch (e) { console.warn('packages', e); }
     try { applyFaqs(); } catch (e) { console.warn('faqs', e); }
+    document.dispatchEvent(new Event('tpn:site-content'));
   }
 
   window.tpnSite = {
