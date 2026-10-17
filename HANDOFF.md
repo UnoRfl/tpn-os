@@ -70,6 +70,13 @@ tpn-os/
 - **Printed receipt:** step 5 of checkout prints a receipt out of a small printer (`.rcpt-*` in `tpn-site-v3.css`). Lines come from the tray; subtotal, delivery fee and total come from `submit_order`'s return (`checkoutData.receipt`, set in `confirmOrder`). Feed time scales with the line count (`--print`). The rest of the screen fades in afterwards, and the page scrolls the printer into view first. Off under reduced motion.
 - Asset versions: shared `?v=20261017j` (tpn-i18n.js gained 4 phrases), v3 files `?v=20261017v16`.
 
+## Rev 12 — new dish photos (Oct 17, 2026)
+
+- Nine dishes have photos now (`PHOTOS` in `tpn-home.js`, keyed by lower-case menu name). New: Beef Caldereta, Kare-Kareng Lechon Kawali, Ginataang Sitaw at Kalabasa, Pork Sisig, Adobong Pusit with Gata, Teriyaki Wings, Laing, Buttered Shrimp. Kept: Pares. `beef-chili.webp` and `sitaw-pork.webp` are replaced and removed.
+- **How they were made:** macOS Vision subject masks (cutouts from the owner's photo sheets), then WebP from the browser at q.82, max 600px, 45–65 KB each.
+- **Spin balance:** each file is centred on the middle of the largest circle that fits inside the dish, not on its bounding box. That way the laing/ginataang basket knot and the sisig board handle don't make it wobble. The canvas is as big as the farthest opaque pixel, so nothing clips while it turns. Use the same rule for new photos.
+- v3 asset version `20261017v18`.
+
 ## Rev 11 — phone hero and load speed (Oct 17, 2026)
 
 - **The phone "zoom" was `100dvh`.** dvh grows as the mobile browser bar slides away, so the hero grew mid-scroll and its cover photo rescaled. Touch devices (`(max-width: 900px), (hover: none) and (pointer: coarse)`, the same query in CSS and in `heroStill`) now use `100svh`, which stays still. Desktop keeps dvh and the recede effect.
