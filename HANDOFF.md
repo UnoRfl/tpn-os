@@ -77,6 +77,9 @@ No migration. The portal's Website → Contact & hours tab already saved `contac
 - **Landmark:** a small line under the address in Our place (`.v3-landmark`), and the map card's second line. Blank hides both.
 - **Email:** `data-site-href="mailto"` in `tpn-site.js`, so a filled-in email in the footer is a working link (only when it looks like an address).
 - **Map card redraw:** `tpn-site.js` fires `tpn:site-content` after applying; `tpn-home.js` redraws the map so a changed address or landmark shows without waiting for a resize.
+- **Our place photos swapped:** the evening room is now the tall photo on the left and the garden wall is the square on the right.
+- **Page title** is "Tyo Paeng Nyo · Las Piñas" (title and og:title).
+- **Logo as the site icon:** `assets/site/icon.png` (the official badge, `logo.webp` padded to a 200×200 square at full size; no larger original exists). It is the tab icon on every page, the home-screen icon (the old `/apple-touch-icon.png` pointed outside the Pages site and 404'd), and the share image (`og:image`, which pointed at a domain we don't serve). Give it a bigger logo file to get a sharper share preview.
 - Asset versions: shared `?v=20261017o`, v3 files `?v=20261017v29`.
 
 ## Rev 18 — a retry can't place a second order (Oct 17, 2026, branch `feature/order-idempotency`)
