@@ -107,12 +107,17 @@
     'buttered shrimp': 'buttered-shrimp',
     'adobong pusit with gata': 'pusit-gata',
     'pares': 'pares',
-    'beef caldereta': 'beef-chili',
-    'kare-kareng lechon kawali': 'sitaw-pork',
+    'beef caldereta': 'caldereta',
+    'kare-kareng lechon kawali': 'kare-kare-lechon',
+    'ginataang sitaw at kalabasa': 'ginataang-sitaw-kalabasa',
+    'pork sisig': 'sisig',
+    'teriyaki wings': 'teriyaki-wings',
+    'laing': 'laing',
   };
   const photo = it => { const k = PHOTOS[(it.name || '').trim().toLowerCase()]; return k ? `assets/site/dishes/${k}.webp` : ''; };
   // sharpest source photos first, so the big bento card never gets a small one
-  const PHOTO_RANK = ['buttered shrimp', 'adobong pusit with gata', 'kare-kareng lechon kawali', 'beef caldereta', 'pares'];
+  const PHOTO_RANK = ['buttered shrimp', 'adobong pusit with gata', 'kare-kareng lechon kawali', 'beef caldereta', 'pork sisig',
+    'laing', 'ginataang sitaw at kalabasa', 'teriyaki wings', 'pares'];
   const rank = it => { const i = PHOTO_RANK.indexOf((it.name || '').trim().toLowerCase()); return i < 0 ? 99 : i; };
 
   /* ---------- line icons per category, emoji from the menu as fallback ---------- */
