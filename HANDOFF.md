@@ -62,6 +62,14 @@ tpn-os/
 
 ---
 
+## Rev 10 — home page cleanup, tray, printed receipt (Oct 17, 2026, branch `feature/home-no-pills`)
+
+- **Home without labels or pills:** the eyebrows over "Our Bestsellers" and "Our place" are gone (the engraved title names the section). Buttons, nav bar, tray and language toggle use 9–18px corners instead of 999px. Dish marks are sentence case with a saffron dot; "Bestseller" is hidden inside the bestsellers bento. The footer headings are sentence case and the payment list is a plain stack.
+- **Phone hero:** at ≤900px the hero photo, wash, vignette and mandala are `position: absolute` and `heroScroll()` leaves them alone (`heroStill` in `tpn-home.js`). The fixed, scaling photo jittered as mobile browser bars slid in and out. Desktop is unchanged.
+- **Tray:** the nav button is a cloche icon + "Tray", with the count after a hairline only when there is something in it (`.cart-btn.has`). The FAB uses the same icon. The drawer is `--v3-sand` with the site paisley in a deeper brown (`.cart-decor`), and it is opaque, so it has no blur. Empty state: one line and the menu button; no emoji.
+- **Printed receipt:** step 5 of checkout prints a receipt out of a small printer (`.rcpt-*` in `tpn-site-v3.css`). Lines come from the tray; subtotal, delivery fee and total come from `submit_order`'s return (`checkoutData.receipt`, set in `confirmOrder`). Feed time scales with the line count (`--print`). The rest of the screen fades in afterwards, and the page scrolls the printer into view first. Off under reduced motion.
+- Asset versions: shared `?v=20261017j` (tpn-i18n.js gained 4 phrases), v3 files `?v=20261017v16`.
+
 ## Rev 9 — manual payments, delivery, iMin counter, glass + motion (Oct 17, 2026)
 
 - **Payments are all taken by hand (sql/37a, 37b).** No payment app talks to the system. Staff show the shop's QR (GCash/Maya/QR Ph) or run the card terminal, check it went through, then record it with the reference / approval code: `record_manual_payment`, or `settle_table_manual` for a whole table at Close table. Counts as paid at once and keeps who/when/reference. HitPay code stays but is hidden while `payments.online_enabled` is off. Customers pick what they will pay with (Cash / GCash-Maya-QR Ph / Card at pickup) so staff bring the QR or terminal; the QR menu bill request shows it on the floor.

@@ -149,8 +149,8 @@
       ? Object.entries(it.pricePax).map(([pax, price]) => [pax, `${pax} ${tr('v3.pax')}`, price])
       : [['single', tr('v3.single'), it.price]];
     const badges = [
-      it.best ? tr('v3.badge.best') : '', it.chefpick ? tr('v3.badge.chef') : '', it.isNew ? tr('v3.badge.new') : ''
-    ].filter(Boolean).map(b => `<span class="v3-tag">${esc(b)}</span>`).join('');
+      it.best ? ['best', tr('v3.badge.best')] : null, it.chefpick ? ['chef', tr('v3.badge.chef')] : null, it.isNew ? ['new', tr('v3.badge.new')] : null
+    ].filter(Boolean).map(([k, b]) => `<span class="v3-tag ${k}">${esc(b)}</span>`).join('');
     const lead = opts.feature
       ? '<span></span>'
       : img ? `<span class="v3-thumb"><img data-spin="${i % 2 ? -10 : 10}" src="${img}" alt="${esc(name)}" loading="lazy" decoding="async"></span>`
@@ -332,8 +332,18 @@
 
   /* ---------- motion loop ---------- */
   let hero, hPhoto, hBlur, hVig, hInner, hMand, hMandSharp, hMandBlur, heroGone = false, lastY = -1, prevY = 0, boost = 0, kick = 0, last = performance.now();
+  // Phones scroll the hero away as a normal block: the fixed, scaling photo
+  // jittered there as the browser bars slid in and out.
+  const heroStill = matchMedia('(max-width: 900px)');
   function heroScroll(y) {
     if (!hero || !hero.offsetHeight) return;
+    if (heroStill.matches) {
+      for (const el of [hPhoto, hBlur, hMand, hInner]) if (el) el.style.transform = '';
+      hBlur.style.opacity = hInner.style.opacity = hVig.style.opacity = '';
+      if (hMand) { hMandBlur.style.opacity = ''; hMandSharp.style.opacity = ''; }
+      heroGone = false;
+      return;
+    }
     const hp = Math.min(1, Math.max(0, y / hero.offsetHeight));
     const sc = `scale(${(1 - hp * .03).toFixed(4)})`;
     hPhoto.style.transform = sc; hBlur.style.transform = sc;
