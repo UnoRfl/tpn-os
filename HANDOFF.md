@@ -70,6 +70,14 @@ tpn-os/
 - **Printed receipt:** step 5 of checkout prints a receipt out of a small printer (`.rcpt-*` in `tpn-site-v3.css`). Lines come from the tray; subtotal, delivery fee and total come from `submit_order`'s return (`checkoutData.receipt`, set in `confirmOrder`). Feed time scales with the line count (`--print`). The rest of the screen fades in afterwards, and the page scrolls the printer into view first. Off under reduced motion.
 - Asset versions: shared `?v=20261017j` (tpn-i18n.js gained 4 phrases), v3 files `?v=20261017v16`.
 
+## Rev 11 — phone hero and load speed (Oct 17, 2026)
+
+- **The phone "zoom" was `100dvh`.** dvh grows as the mobile browser bar slides away, so the hero grew mid-scroll and its cover photo rescaled. Touch devices (`(max-width: 900px), (hover: none) and (pointer: coarse)`, the same query in CSS and in `heroStill`) now use `100svh`, which stays still. Desktop keeps dvh and the recede effect.
+- **Phones get `assets/site/hero-sm.jpg`** (1200px, 280 KB) instead of the 1.3 MB `hero.webp`. Each is preloaded only for its own media query.
+- **The head no longer waterfalls.** The stylesheets come before the scripts, and every head script has a `<link rel="preload">`, so they all download at once and still run in order. Live, on a phone, the six scripts used to take about 2.2s back to back before any CSS started. If you add a head script, add its preload with the same `?v=`, or it falls back into the queue.
+- Below-the-fold mandalas on home are `loading="lazy"`. Cards reveal in .55s with a 40ms stagger (was .9s/60ms).
+- v3 asset version `20261017v17`.
+
 ## Rev 9 — manual payments, delivery, iMin counter, glass + motion (Oct 17, 2026)
 
 - **Payments are all taken by hand (sql/37a, 37b).** No payment app talks to the system. Staff show the shop's QR (GCash/Maya/QR Ph) or run the card terminal, check it went through, then record it with the reference / approval code: `record_manual_payment`, or `settle_table_manual` for a whole table at Close table. Counts as paid at once and keeps who/when/reference. HitPay code stays but is hidden while `payments.online_enabled` is off. Customers pick what they will pay with (Cash / GCash-Maya-QR Ph / Card at pickup) so staff bring the QR or terminal; the QR menu bill request shows it on the floor.

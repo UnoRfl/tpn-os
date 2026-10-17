@@ -10,6 +10,23 @@
   // someone else's frame (clickjacking: tricking staff into clicks).
   if (window.top !== window.self) { try { window.top.location = window.self.location; } catch (e) { document.documentElement.style.display = "none"; } }
 </script>
+<!-- Speed: styles and fonts start first; every head script downloads at once
+     (they still run in order), and the hero photo is fetched before the CSS asks. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=Lora:ital,wght@0,400;0,600;1,400&family=DM+Sans:wght@300;400;500;700&family=Fraunces:ital,opsz,wght,SOFT,WONK@0,9..144,500..900,0..100,0..1;1,9..144,500..900,0..100,0..1&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="tpn-app.css?v=20261017j">
+<link rel="stylesheet" href="tpn-glass.css?v=20261017j">
+<link rel="stylesheet" href="tpn-site-v3.css?v=20261017v17">
+<link rel="preload" href="vendor/supabase-js-2.117.2.js" as="script">
+<link rel="preload" href="config.js?v=20261017j" as="script">
+<link rel="preload" href="tpn-supabase.js?v=20261017j" as="script">
+<link rel="preload" href="tpn-kit.js?v=20261017j" as="script">
+<link rel="preload" href="tpn-site.js?v=20261017j" as="script">
+<link rel="preload" href="tpn-i18n.js?v=20261017j" as="script">
+<link rel="preload" href="tpn-home.js?v=20261017v17" as="script">
+<link rel="preload" href="assets/site/hero-sm.jpg" as="image" media="(max-width: 900px), (hover: none) and (pointer: coarse)" fetchpriority="high">
+<link rel="preload" href="assets/site/hero.webp" as="image" media="(min-width: 901px) and (hover: hover)" fetchpriority="high">
 <script src="vendor/supabase-js-2.117.2.js"></script>
 <script>
   // Local copy first; if it is missing, the same pinned version from the CDN,
@@ -21,7 +38,7 @@
 <script src="tpn-kit.js?v=20261017j"></script>
 <script src="tpn-site.js?v=20261017j"></script>
 <script src="tpn-i18n.js?v=20261017j"></script>
-<script src="tpn-home.js?v=20261017v16"></script>
+<script src="tpn-home.js?v=20261017v17"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="description" content="Tyo Paeng Nyo — Authentic Filipino cuisine in Las Piñas since 2003. Order online, book events, or inquire about catering.">
 <meta name="theme-color" content="#8B1A0E">
@@ -51,12 +68,6 @@
     try { if (typeof toast === 'function') toast('Server hiccup — try again in a second.'); } catch(e){}
   });
 </script>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=Lora:ital,wght@0,400;0,600;1,400&family=DM+Sans:wght@300;400;500;700&family=Fraunces:ital,opsz,wght,SOFT,WONK@0,9..144,500..900,0..100,0..1;1,9..144,500..900,0..100,0..1&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="tpn-app.css?v=20261017j">
-<link rel="stylesheet" href="tpn-glass.css?v=20261017j">
-<link rel="stylesheet" href="tpn-site-v3.css?v=20261017v16">
 </head>
 <body>
 <a class="skip-link" href="#main-content" onclick="event.preventDefault();var t=document.querySelector('.page.active h1, .portal-page.active main');if(t){t.setAttribute('tabindex','-1');t.focus();}">Skip to content</a>
@@ -141,7 +152,7 @@
   <!-- Bestsellers: live from the menu (is_featured), dishes with a photo first -->
   <section class="v3-best v3-tex v3-section" id="v3Best">
     <div class="v3-pat"></div>
-    <div class="v3-mandala m1" aria-hidden="true"><img data-spin="-4" src="assets/site/mandala-a.webp" alt="" decoding="async"></div>
+    <div class="v3-mandala m1" aria-hidden="true"><img data-spin="-4" src="assets/site/mandala-a.webp" alt="" decoding="async" loading="lazy"></div>
     <div class="v3-mandala x" style="--mw:260px;--mo:.16;left:-70px;bottom:40px" aria-hidden="true"><img data-spin="5" src="assets/site/mandala-b.webp" alt="" decoding="async" loading="lazy"></div>
     <div class="v3-mandala x" style="--mw:120px;--mo:.14;left:46%;top:34px" aria-hidden="true"><img data-spin="-7" src="assets/site/mandala-a.webp" alt="" decoding="async" loading="lazy"></div>
     <div class="v3-wrap">
@@ -160,7 +171,7 @@
 
   <!-- Our place: photo panels. To fill one, set data-src="assets/site/photos/your-file.jpg" -->
   <section class="v3-section v3-bgwrap" id="v3Place">
-    <div class="v3-mandala m1" aria-hidden="true"><img data-spin="4" src="assets/site/mandala-b.webp" alt="" decoding="async"></div>
+    <div class="v3-mandala m1" aria-hidden="true"><img data-spin="4" src="assets/site/mandala-b.webp" alt="" decoding="async" loading="lazy"></div>
     <div class="v3-mandala x" style="--mw:320px;--mo:.12;right:-110px;top:-60px" aria-hidden="true"><img data-spin="-4" src="assets/site/mandala-a.webp" alt="" decoding="async" loading="lazy"></div>
     <div class="v3-mandala x" style="--mw:150px;--mo:.14;right:4%;bottom:-30px" aria-hidden="true"><img data-spin="6" src="assets/site/mandala-b.webp" alt="" decoding="async" loading="lazy"></div>
     <div class="v3-wrap">
@@ -178,7 +189,7 @@
 
   <section class="v3-thanks v3-tex">
     <div class="v3-pat"></div>
-    <div class="v3-mandala m1" aria-hidden="true"><img data-spin="3" src="assets/site/mandala-a.webp" alt="" decoding="async"></div>
+    <div class="v3-mandala m1" aria-hidden="true"><img data-spin="3" src="assets/site/mandala-a.webp" alt="" decoding="async" loading="lazy"></div>
     <div class="v3-mandala x" style="--mw:220px;--mo:.14;left:4%;top:12%" aria-hidden="true"><img data-spin="-5" src="assets/site/mandala-b.webp" alt="" decoding="async" loading="lazy"></div>
     <div class="v3-mandala x" style="--mw:130px;--mo:.16;right:7%;bottom:14%" aria-hidden="true"><img data-spin="6" src="assets/site/mandala-a.webp" alt="" decoding="async" loading="lazy"></div>
     <div class="v3-bleed" aria-hidden="true" data-lines="Salamat <i>po!</i>"></div>
