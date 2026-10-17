@@ -209,7 +209,11 @@ body::after { display: none; }                               /* old mesh glow */
 .v3-photo:not(.empty) .ph { display: none; }
 .v3-gallery { display: grid; grid-template-columns: 1.35fr 1fr 1fr; grid-template-rows: 280px 280px; gap: 14px; }
 .v3-gallery > :nth-child(1) { grid-row: span 2; }
-.v3-gallery > :nth-child(4) { grid-column: span 2; }
+.v3-gallery > :nth-child(n+2) { grid-column: span 2; }          /* place photo, then the map */
+/* food strip between home sections: photos only */
+.v3-strip { padding-block: clamp(40px, 6vw, 72px); background: var(--v3-paper); }
+.v3-strip-grid { display: grid; grid-template-columns: 1fr 1.6fr 1fr; gap: 14px; }
+.v3-strip .v3-photo { min-height: 0; height: clamp(240px, 26vw, 360px); }
 
 .v3-thanks { text-align: center; padding-block: clamp(80px, 10vw, 140px); border-top: 1px solid var(--v3-hair); }
 .v3-thanks .v3-bleed { --stroke: clamp(2px, .2vw, 3px); }
@@ -442,7 +446,7 @@ footer .footer-pay li { font-size: 14px; color: var(--v3-ink-2); }
   #page-menu .menu-controls { grid-template-columns: 1fr; }
   .v3-gallery { grid-template-columns: 1fr 1fr; grid-template-rows: 300px 220px 220px; }
   .v3-gallery > :nth-child(1) { grid-column: span 2; grid-row: auto; }
-  .v3-gallery > :nth-child(4) { grid-column: span 2; }
+  .v3-gallery > :nth-child(n+2) { grid-column: span 2; }
 }
 @media (max-width: 600px) {
   .v3-bento { grid-template-columns: 1fr; }
@@ -450,6 +454,9 @@ footer .footer-pay li { font-size: 14px; color: var(--v3-ink-2); }
   .v3-gallery { grid-template-columns: 1fr; grid-template-rows: none; grid-auto-rows: 240px; }
   .v3-gallery > :nth-child(n) { grid-column: auto; grid-row: auto; }
   .v3-gallery > .v3-map { grid-row: span 2; }               /* room for the pin above the address card */
+  .v3-strip-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .v3-strip .v3-photo { height: 190px; }
+  .v3-strip .v3-photo:nth-child(2) { grid-column: span 2; order: -1; height: 220px; }
   .v3-best .v3-mandala.m1, #v3Place .v3-mandala.m1, #page-menu > .v3-mandala.m1 { --mw: 380px; }
   .v3-mandala.x { width: calc(var(--mw) * .6); }
   .v3-hero .v3-bleed .t { font-size: 10.6vw; }
