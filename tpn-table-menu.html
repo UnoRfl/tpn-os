@@ -1,8 +1,8 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="tl">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https://xjlqfpnzobfqxetgkkai.supabase.co https://api.qrserver.com; connect-src 'self' https://xjlqfpnzobfqxetgkkai.supabase.co wss://xjlqfpnzobfqxetgkkai.supabase.co; media-src 'self' data: blob:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https://xjlqfpnzobfqxetgkkai.supabase.co; connect-src 'self' https://xjlqfpnzobfqxetgkkai.supabase.co wss://xjlqfpnzobfqxetgkkai.supabase.co; media-src 'self' data: blob:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'">
 <meta name="referrer" content="strict-origin-when-cross-origin">
 <script>
   // GitHub Pages cannot send X-Frame-Options, so refuse to run inside
@@ -18,12 +18,19 @@
 <script src="config.js?v=20261017o"></script>
 <script src="tpn-supabase.js?v=20261017o"></script>
 <script src="tpn-kit.js?v=20261017o"></script>
-<link rel="stylesheet" href="tpn-glass.css?v=20261017o">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
-<meta name="theme-color" content="#1a0a00">
+<meta name="theme-color" content="#FBF6EC">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <link rel="icon" type="image/png" href="assets/site/icon.png">
 <title>Tyo Paeng Nyo · Table Menu</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=Lora:ital,wght@0,400;0,600;1,400&family=DM+Sans:wght@300;400;500;700&family=Fraunces:ital,opsz,wght,SOFT,WONK@0,9..144,500..900,0..100,0..1;1,9..144,500..900,0..100,0..1&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<!-- The website's own styles, so the table menu looks and moves exactly like
+     the order page (cards, engraved title, tray, receipt printer). -->
+<link rel="stylesheet" href="tpn-app.css?v=20261017o">
+<link rel="stylesheet" href="tpn-glass.css?v=20261017o">
+<link rel="stylesheet" href="tpn-site-v3.css?v=20261017v30">
 <script>
   // UnoSys: global error boundary for the customer surface.
   window.addEventListener('error', function(ev){ console.error('[Menu uncaught]', ev.error || ev.message); });
@@ -37,11 +44,6 @@
     // JS-string escape, then HTML escape: safe inside onclick="f('${JA(v)}')".
     return window.E(String(v == null ? '' : v).replace(/[\\'"<>\n\r\u2028\u2029]/g, function(c){ return '\\u' + c.charCodeAt(0).toString(16).padStart(4, '0'); }));
   };
-
-  window.N = function(v, d){
-    const n = Number(v); d = (typeof d === 'number') ? d : 2;
-    return Number.isFinite(n) ? n.toFixed(d) : (0).toFixed(d);
-  };
   (function(){
     var p = window.location.pathname;
     if (/\.html$/.test(p)) {
@@ -49,521 +51,226 @@
     }
   })();
 </script>
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,700;1,500&family=DM+Sans:wght@300;400;500;600&family=Lora:ital@0;1&display=swap" rel="stylesheet">
 <style>
-  :root {
-    --brick:#8B1A0E; --brick-dark:#6a1208; --brick-light:#c4392a;
-    --gold:#c8922a; --gold-light:#e8b84b;
-    --cream:#fdf6ec; --cream-dark:#f5ead8;
-    --charcoal:#1a0a00; --text:#2d1a0a; --text-muted:#7a5c3a;
-    --surface:#fff8f0; --border:#e8d5b8;
-    --success:#2d7a4f; --warning:#c8922a;
-    --shadow:0 2px 16px rgba(139,26,14,0.10); --radius:16px;
+  /* ── Table menu only: what the website has no equivalent for ── */
+  #mainNav .tm-table { flex: none; display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 12px; border-radius: 999px;
+    background: var(--v3-ink); color: var(--v3-paper); font: 700 13px var(--v3-ui); white-space: nowrap; }
+  #mainNav .tm-table::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--v3-saffron); }
+  #mainNav .nav-lang { margin-left: 0; }
+  #mainNav .tm-navtray { display: inline-flex; }
+  @media (max-width: 900px) {
+    #mainNav .tm-navtray { display: none; }                      /* the floating tray button takes over */
+    #mainNav .nav-logo { font-size: 17px; }
   }
-  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-  html{font-size:16px;-webkit-tap-highlight-color:rgba(139,26,14,0.08)}
-  body{font-family:"DM Sans",sans-serif;background:var(--cream);color:var(--text);min-height:100vh;overflow-x:hidden}
-
-  .header{position:sticky;top:0;z-index:100;background:var(--charcoal);padding:0 20px;height:64px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 2px 20px rgba(0,0,0,0.3);padding-top:env(safe-area-inset-top)}
-  .header-brand{display:flex;align-items:center;gap:10px}
-  .header-logo{width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,var(--brick),var(--gold));display:flex;align-items:center;justify-content:center;font-size:18px;color:#fff;font-family:"Playfair Display",serif;font-weight:700;flex-shrink:0}
-  .header-name{font-family:"Playfair Display",serif;font-size:15px;color:#fff;font-weight:700}
-  .header-table{font-size:11px;color:var(--gold-light);font-weight:500;letter-spacing:0.05em}
-  .header-actions{display:flex;align-items:center;gap:8px}
-  .lang-btn{background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);color:#fff;font-size:11px;font-weight:600;letter-spacing:0.06em;padding:5px 10px;border-radius:20px;cursor:pointer;font-family:"DM Sans",sans-serif}
-
-  /* RUNNING TOTAL BAR */
-  .running-bar{display:none;background:var(--brick);padding:10px 20px;align-items:center;justify-content:space-between;gap:12px;position:sticky;top:64px;z-index:95}
-  .running-bar.visible{display:flex}
-  .running-bar-left{display:flex;flex-direction:column}
-  .running-bar-label{font-size:10px;color:rgba(255,255,255,0.65);letter-spacing:0.1em;text-transform:uppercase;font-weight:600}
-  .running-bar-amount{font-family:"Playfair Display",serif;font-size:22px;font-weight:700;color:#fff;line-height:1}
-  .running-bar-sub{font-size:11px;color:rgba(255,255,255,0.65);margin-top:2px}
-  .running-bar-btn{background:rgba(255,255,255,0.18);border:1px solid rgba(255,255,255,0.3);color:#fff;padding:9px 16px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:"DM Sans",sans-serif;white-space:nowrap;flex-shrink:0}
-
-  /* FAB */
-  .cart-fab{position:fixed;bottom:calc(28px + env(safe-area-inset-bottom));right:20px;z-index:150;display:none;background:var(--brick);width:60px;height:60px;border-radius:50%;box-shadow:0 4px 20px rgba(139,26,14,0.4);border:none;cursor:pointer;font-size:26px;align-items:center;justify-content:center;transition:transform 0.2s;animation:fab-pop 0.35s cubic-bezier(0.34,1.56,0.64,1)}
-  .cart-fab.visible{display:flex}
-  @keyframes fab-pop{from{transform:scale(0);opacity:0}to{transform:scale(1);opacity:1}}
-  @keyframes fab-shake{0%,100%{transform:rotate(0)}20%{transform:rotate(-12deg) scale(1.12)}40%{transform:rotate(12deg) scale(1.12)}60%{transform:rotate(-7deg)}80%{transform:rotate(7deg)}}
-  .cart-fab.shake{animation:fab-shake 0.45s ease}
-  .cart-fab-count{position:absolute;top:-2px;right:-2px;background:var(--gold-light);color:var(--charcoal);font-size:11px;font-weight:700;min-width:22px;height:22px;border-radius:11px;display:flex;align-items:center;justify-content:center;padding:0 5px;border:2px solid var(--cream)}
-
-  .hero-band{background:linear-gradient(135deg,var(--brick-dark) 0%,var(--brick) 50%,var(--charcoal) 100%);padding:28px 20px 24px;text-align:center;position:relative;overflow:hidden}
-  .hero-band::before{content:"";position:absolute;inset:0;background:url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none'%3E%3Cg fill='%23ffffff' fill-opacity='0.04'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")}
-  .hero-tagline{font-size:11px;color:var(--gold-light);letter-spacing:0.15em;text-transform:uppercase;font-weight:600;margin-bottom:6px}
-  .hero-title{font-family:"Playfair Display",serif;font-size:26px;color:#fff;font-weight:700;line-height:1.2}
-  .hero-sub{font-size:13px;color:rgba(255,255,255,0.65);margin-top:6px;font-style:italic;font-family:"Lora",serif}
-
-  .sticky-cats{position:sticky;top:64px;z-index:90;background:var(--surface);border-bottom:1px solid var(--border);padding:12px 0;transition:top 0.2s}
-  .sticky-cats.with-bar{top:104px}
-  .cats-scroll{display:flex;gap:8px;overflow-x:auto;padding:0 16px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
-  .cats-scroll::-webkit-scrollbar{display:none}
-  .cat-chip{flex-shrink:0;padding:8px 16px;border-radius:24px;font-size:13px;font-weight:600;cursor:pointer;border:1.5px solid var(--border);background:#fff;color:var(--text-muted);transition:all 0.18s;white-space:nowrap;font-family:"DM Sans",sans-serif;min-height:44px;display:inline-flex;align-items:center}
-  .cat-chip.active{background:var(--brick);color:#fff;border-color:var(--brick)}
-
-  .search-wrap{padding:14px 16px 0;position:relative}
-  .search-icon{position:absolute;left:28px;top:50%;transform:translateY(-50%);font-size:16px;pointer-events:none;padding-top:14px}
-  .search-input{width:100%;padding:12px 16px 12px 44px;border-radius:12px;border:1.5px solid var(--border);background:#fff;font-size:15px;color:var(--text);font-family:"DM Sans",sans-serif;outline:none;transition:border-color 0.2s}
-  .search-input:focus{border-color:var(--brick)}
-
-  .featured-section{padding:20px 16px 0}
-  .section-header{display:flex;align-items:center;gap:10px;margin-bottom:14px}
-  .section-title{font-family:"Playfair Display",serif;font-size:20px;font-weight:700;color:var(--text)}
-  .section-badge{background:var(--brick);color:#fff;font-size:10px;font-weight:700;padding:3px 8px;border-radius:20px;letter-spacing:0.05em}
-  .featured-scroll{display:flex;gap:12px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
-  .featured-scroll::-webkit-scrollbar{display:none}
-  .featured-card{flex-shrink:0;width:160px;background:#fff;border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden;cursor:pointer;border:1.5px solid var(--border);transition:transform 0.18s}
-  .featured-card:hover{transform:translateY(-2px)}
-  .featured-emoji{height:80px;display:flex;align-items:center;justify-content:center;font-size:44px;background:var(--cream-dark)}
-  .featured-body{padding:10px 10px 12px}
-  .featured-name{font-size:13px;font-weight:700;color:var(--text);line-height:1.3;margin-bottom:4px}
-  .featured-price{font-size:14px;font-weight:700;color:var(--brick)}
-  .featured-tag{display:inline-block;font-size:9px;font-weight:700;padding:2px 6px;border-radius:10px;background:#fff3e0;color:var(--gold);letter-spacing:0.05em;margin-bottom:4px}
-  .add-mini-btn{width:100%;margin-top:6px;padding:7px;border-radius:8px;background:var(--brick);color:#fff;font-size:12px;font-weight:700;border:none;cursor:pointer;font-family:"DM Sans",sans-serif}
-
-  .menu-body{padding:20px 16px 200px}
-  .cat-section{margin-bottom:32px}
-  .cat-section-title{font-family:"Playfair Display",serif;font-size:18px;font-weight:700;color:var(--text);padding-bottom:8px;border-bottom:2px solid var(--brick);margin-bottom:14px;display:flex;align-items:center;gap:8px}
-  .cat-count{font-size:12px;font-family:"DM Sans",sans-serif;font-weight:500;color:var(--text-muted)}
-  .dish-list{display:flex;flex-direction:column;gap:10px}
-  .dish-card{background:#fff;border-radius:var(--radius);border:1.5px solid var(--border);padding:14px;display:flex;align-items:flex-start;gap:14px;box-shadow:0 1px 6px rgba(0,0,0,0.04);cursor:pointer;transition:box-shadow 0.18s,border-color 0.18s}
-  /* Hover only where a pointer actually exists. On iOS a :hover rule makes
-     the first tap a hover and the second the click — which is why every
-     "+ Add" needed two taps. touch-action:manipulation also drops the
-     300ms double-tap-to-zoom delay. */
-  @media (hover:hover) and (pointer:fine){
-    .dish-card:hover{box-shadow:var(--shadow);border-color:var(--brick)}
+  @media (max-width: 440px) {
+    #mainNav { gap: 6px; }
+    #mainNav .nav-logo { font-size: 16px; }
+    #mainNav .tm-table { height: 30px; padding: 0 9px; font-size: 12px; gap: 5px; }
+    #mainNav .nav-lang .lang-btn { padding: 5px 8px; font-size: 11px; }
+    #mainNav .nav-badge { width: 40px; }
   }
-  .dish-card,.add-dish-btn,.add-mini-btn,.cat-chip,.pax-opt,.modal-add-btn,
-  .checkout-btn,.submit-order-btn,.featured-card{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
-  .dish-card.unavailable{opacity:0.45;cursor:not-allowed}
-  .dish-emoji{font-size:38px;flex-shrink:0;width:52px;text-align:center;padding-top:2px}
-  .dish-info{flex:1;min-width:0}
-  .dish-name{font-size:15px;font-weight:700;color:var(--text);margin-bottom:3px}
-  .dish-desc{font-size:12px;color:var(--text-muted);line-height:1.4;margin-bottom:6px;font-family:"Lora",serif;font-style:italic}
-  .dish-pax-chips{display:flex;gap:5px;flex-wrap:wrap;margin-top:5px}
-  .dish-pax-chip{font-size:10px;font-weight:700;padding:3px 8px;border-radius:8px;background:var(--cream-dark);color:var(--brick);border:1px solid var(--border)}
-  .dish-tags{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:4px}
-  .dish-tag{font-size:10px;font-weight:600;padding:2px 7px;border-radius:10px}
-  .tag-best{background:#fff3e0;color:#c8922a}
-  .dish-right{flex-shrink:0;text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:6px}
-  .dish-price{font-size:15px;font-weight:700;color:var(--brick)}
-  .dish-price-sub{font-size:10px;color:var(--text-muted);font-weight:400}
-  .add-dish-btn{background:var(--brick);color:#fff;border:none;padding:7px 14px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:"DM Sans",sans-serif;white-space:nowrap}
-  .no-results{text-align:center;padding:60px 20px;color:var(--text-muted);font-family:"Lora",serif;font-style:italic;font-size:16px}
+  @media (max-width: 350px) { #mainNav .nav-logo span { display: none; } }
 
-  /* CART */
-  .cart-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:200;opacity:0;pointer-events:none;transition:opacity 0.25s}
-  .cart-overlay.open{opacity:1;pointer-events:all;backdrop-filter:blur(2px)}
-  .cart-drawer{position:fixed;bottom:0;left:0;right:0;z-index:201;background:#fff;border-radius:20px 20px 0 0;max-height:88vh;display:flex;flex-direction:column;transform:translateY(100%);transition:transform 0.3s cubic-bezier(0.32,0.72,0,1);box-shadow:0 -8px 40px rgba(0,0,0,0.2);padding-bottom:env(safe-area-inset-bottom)}
-  .cart-drawer.open{transform:translateY(0)}
-  .cart-handle{width:36px;height:4px;background:#ddd;border-radius:2px;margin:12px auto 0;flex-shrink:0}
-  .cart-header{padding:14px 20px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
-  .cart-title{font-family:"Playfair Display",serif;font-size:18px;font-weight:700}
-  .cart-close{background:none;border:none;font-size:22px;cursor:pointer;color:var(--text-muted);padding:4px}
-  .cart-items{overflow-y:auto;flex:1;padding:14px 20px}
-  .cart-empty{text-align:center;padding:40px 0;color:var(--text-muted);font-family:"Lora",serif;font-style:italic}
-  .cart-item{display:flex;align-items:flex-start;gap:12px;padding:12px 0;border-bottom:1px solid var(--border)}
-  .cart-item-emoji{font-size:28px;flex-shrink:0}
-  .cart-item-info{flex:1;min-width:0}
-  .cart-item-name{font-size:14px;font-weight:700;margin-bottom:2px}
-  .cart-item-variant{font-size:11px;color:var(--text-muted)}
-  .cart-item-qty{display:flex;align-items:center;gap:10px;margin-top:8px}
-  .qty-btn{width:32px;height:32px;border-radius:50%;border:1.5px solid var(--border);background:#fff;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-weight:700;color:var(--brick);transition:all 0.15s;touch-action:manipulation}
-  .qty-btn:hover{border-color:var(--brick);background:var(--cream)}
-  .qty-num{font-size:15px;font-weight:700;min-width:20px;text-align:center}
-  .cart-item-price{font-size:14px;font-weight:700;color:var(--brick);flex-shrink:0}
-  .cart-footer{padding:14px 20px 16px;border-top:1px solid var(--border);background:#fff;flex-shrink:0}
-  .cart-totals{display:flex;justify-content:space-between;margin-bottom:12px}
-  .cart-total-label{font-size:16px;font-weight:700}
-  .cart-total-amt{font-size:20px;font-weight:700;color:var(--brick)}
-  .checkout-btn{width:100%;padding:16px;border-radius:14px;border:none;background:linear-gradient(135deg,var(--brick),var(--brick-dark));color:#fff;font-size:16px;font-weight:700;cursor:pointer;font-family:"DM Sans",sans-serif}
-  .checkout-btn:disabled{background:#ccc;cursor:not-allowed}
+  .page { min-height: 100vh; }
+  #page-menu .v3-pagehead { padding-bottom: 22px; }
+  .tm-lede { margin-top: 10px; font-size: 15px; color: var(--v3-ink-2); max-width: 46ch; line-height: 1.55; }
 
-  /* DISH MODAL */
-  .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:300;display:flex;align-items:flex-end;justify-content:center;opacity:0;pointer-events:none;transition:opacity 0.22s}
-  .modal-overlay.open{opacity:1;pointer-events:all;backdrop-filter:blur(2px)}
-  .modal-sheet{background:#fff;border-radius:20px 20px 0 0;width:100%;max-height:92vh;overflow-y:auto;padding-bottom:env(safe-area-inset-bottom,20px);transform:translateY(20px);transition:transform 0.28s}
-  .modal-overlay.open .modal-sheet{transform:translateY(0)}
-  .modal-handle{width:36px;height:4px;background:#ddd;border-radius:2px;margin:12px auto 0}
-  .modal-header{padding:16px 20px 14px;border-bottom:1px solid var(--border)}
-  .modal-title{font-family:"Playfair Display",serif;font-size:20px;font-weight:700}
-  .modal-body{padding:20px}
-  .modal-emoji{font-size:64px;text-align:center;margin-bottom:12px}
-  .modal-dish-name{font-family:"Playfair Display",serif;font-size:22px;font-weight:700;text-align:center;margin-bottom:6px}
-  .modal-dish-desc{font-size:13px;color:var(--text-muted);text-align:center;font-family:"Lora",serif;font-style:italic;line-height:1.5;margin-bottom:20px}
-  .modal-label{font-size:12px;font-weight:700;color:var(--text-muted);letter-spacing:0.07em;text-transform:uppercase;margin-bottom:8px;margin-top:16px}
-  .pax-options{display:flex;gap:10px}
-  .pax-opt{flex:1;padding:14px 10px;border-radius:12px;border:2px solid var(--border);text-align:center;cursor:pointer;transition:all 0.18s;background:#fff}
-  .pax-opt.selected{border-color:var(--brick);background:var(--cream)}
-  .pax-opt-size{font-size:15px;font-weight:700;color:var(--text);display:block}
-  .pax-opt-price{font-size:13px;color:var(--brick);font-weight:700;display:block;margin-top:3px}
-  .qty-row{display:flex;align-items:center;justify-content:space-between;padding:16px 0}
-  .qty-row-label{font-size:15px;font-weight:600}
-  .qty-control{display:flex;align-items:center;gap:16px}
-  .qty-control .qty-btn{width:40px;height:40px;font-size:20px}
-  .qty-control .qty-num{font-size:20px;min-width:30px}
-  .special-req-input{width:100%;padding:12px 14px;border-radius:12px;border:1.5px solid var(--border);font-size:14px;font-family:"DM Sans",sans-serif;resize:none;outline:none;color:var(--text);min-height:70px}
-  .special-req-input:focus{border-color:var(--brick)}
-  .modal-add-btn{width:100%;padding:16px;border-radius:14px;border:none;background:linear-gradient(135deg,var(--brick),var(--brick-dark));color:#fff;font-size:16px;font-weight:700;cursor:pointer;font-family:"DM Sans",sans-serif;margin-top:20px;letter-spacing:0.02em}
+  /* returning guest */
+  .tm-welcome { max-width: 1320px; margin: -14px auto 30px; padding: 0 var(--v3-gutter); }
+  .tm-welcome .v3-core { padding: 16px 18px; gap: 4px; }
+  .tm-welcome b { font: 700 18px var(--v3-display); font-variation-settings: "SOFT" 100; color: var(--v3-ink); }
+  .tm-welcome span { font-size: 13px; color: var(--v3-ink-2); }
+  .tm-welcome .usuals { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 
-  /* FULLSCREEN SCREENS */
-  .fullscreen{position:fixed;inset:0;background:var(--cream);z-index:400;overflow-y:auto;display:none;padding-bottom:calc(40px + env(safe-area-inset-bottom))}
-  .fullscreen.show{display:block}
-  .fs-header{background:var(--charcoal);padding:0 20px;height:60px;display:flex;align-items:center;gap:14px;position:sticky;top:0;z-index:10;padding-top:env(safe-area-inset-top)}
-  .back-btn{background:rgba(255,255,255,0.1);border:none;color:#fff;width:38px;height:38px;border-radius:50%;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
-  .fs-title{font-family:"Playfair Display",serif;font-size:18px;color:#fff;font-weight:700}
-  .fs-body{padding:24px 20px;max-width:480px;margin:0 auto}
-  .form-card{background:#fff;border-radius:var(--radius);padding:20px;margin-bottom:16px;border:1px solid var(--border)}
-  .form-card-title{font-size:13px;font-weight:700;color:var(--text-muted);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:16px;padding-bottom:10px;border-bottom:1px solid var(--border)}
-  .form-field{margin-bottom:14px}
-  .form-field:last-child{margin-bottom:0}
-  .form-field label{display:block;font-size:12px;font-weight:600;color:var(--text-muted);margin-bottom:5px}
-  .form-input{width:100%;padding:12px 14px;border-radius:10px;border:1.5px solid var(--border);font-size:16px;font-family:"DM Sans",sans-serif;color:var(--text);outline:none;background:#fff;transition:border-color 0.2s}
-  .form-input:focus{border-color:var(--brick)}
-  .form-select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%237a5c3a' d='M6 8L1 3h10z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center}
+  .tm-soldout { margin-left: 10px; font: 600 12px var(--v3-ui); color: var(--v3-ink-3); white-space: nowrap; }
+  .tm-skel { height: 210px; border-radius: 28px; background: linear-gradient(90deg, rgba(46,26,16,.05) 25%, rgba(46,26,16,.09) 50%, rgba(46,26,16,.05) 75%); background-size: 200% 100%; animation: shimmer 1.4s infinite; }
 
-  .info-note{background:#fff8f0;border:1px solid var(--border);border-radius:10px;padding:14px 16px;font-size:13px;color:var(--text-muted);line-height:1.55;display:flex;gap:10px;align-items:flex-start;margin-bottom:16px}
-  .info-note-icon{font-size:20px;flex-shrink:0}
-  .summary-item{display:flex;justify-content:space-between;align-items:flex-start;font-size:14px;padding:6px 0}
-  .summary-item-qty{font-weight:700;color:var(--brick);margin-right:6px}
-  .summary-item-price{font-weight:700;color:var(--text);flex-shrink:0}
-  .summary-divider{border:none;border-top:1px dashed var(--border);margin:10px 0}
-  .summary-total{display:flex;justify-content:space-between;font-size:17px;font-weight:700}
-  .summary-total-price{color:var(--brick)}
-  .submit-order-btn{width:100%;padding:18px;border-radius:14px;border:none;background:linear-gradient(135deg,var(--brick),var(--brick-dark));color:#fff;font-size:17px;font-weight:700;cursor:pointer;font-family:"DM Sans",sans-serif;box-shadow:0 4px 20px rgba(139,26,14,0.3);margin-top:8px}
+  /* bottom-left dock: call staff + the bill so far */
+  .tm-dock { position: fixed; left: 16px; bottom: calc(24px + env(safe-area-inset-bottom)); z-index: 150; display: flex; gap: 8px;
+    transition: opacity .3s var(--v3-ease), transform .4s var(--v3-ease); }
+  .tm-dock.hide { opacity: 0; transform: translateY(16px); pointer-events: none; }
+  .tm-dock button { height: 52px; border-radius: 16px; padding: 0 16px; font: 600 14px var(--v3-ui); cursor: pointer; white-space: nowrap;
+    border: 1px solid rgba(255,255,255,.7); background: rgba(251,246,236,.86); color: var(--v3-ink);
+    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); box-shadow: var(--v3-shadow); touch-action: manipulation; }
+  .tm-dock .bill { background: var(--v3-ink); color: var(--v3-paper); border-color: var(--v3-ink); display: none; }
+  .tm-dock .bill.on { display: inline-flex; align-items: center; gap: 8px; animation: fab-appear .35s var(--v3-pop); }
+  .tm-dock .bill b { font: 700 16px var(--v3-display); font-variation-settings: "SOFT" 100; color: var(--v3-saffron); }
 
-  /* CONFIRMATION */
-  #confirm-screen .fs-body{display:flex;flex-direction:column;align-items:center;text-align:center;padding-top:40px}
-  .confirm-icon{font-size:72px;margin-bottom:20px;animation:bounceIn 0.5s}
-  @keyframes bounceIn{0%{transform:scale(0.5);opacity:0}70%{transform:scale(1.1)}100%{transform:scale(1);opacity:1}}
-  .confirm-title{font-family:"Playfair Display",serif;font-size:28px;font-weight:700;color:var(--brick);margin-bottom:8px}
-  .confirm-sub{font-size:15px;color:var(--text-muted);font-family:"Lora",serif;font-style:italic;margin-bottom:24px;line-height:1.5;max-width:320px}
-  .confirm-ref{background:var(--charcoal);color:#fff;padding:14px 28px;border-radius:12px;display:inline-block;margin-bottom:20px}
-  .confirm-ref-label{font-size:10px;color:rgba(255,255,255,0.5);letter-spacing:0.12em;text-transform:uppercase}
-  .confirm-ref-num{font-size:22px;font-weight:700;font-family:"Playfair Display",serif;color:var(--gold-light);letter-spacing:0.05em}
+  /* dish options sheet (only for dishes with add-ons / choices) */
+  .tm-sheet-bg { position: fixed; inset: 0; z-index: 300; background: rgba(43,24,16,.5); opacity: 0; pointer-events: none; transition: opacity .3s; }
+  .tm-sheet-bg.open { opacity: 1; pointer-events: auto; backdrop-filter: blur(4px); }
+  .tm-sheet { position: fixed; left: 0; right: 0; bottom: 0; z-index: 301; max-height: 90vh; overflow-y: auto; margin: 0 auto; width: min(560px, 100%);
+    background: var(--v3-card); border-radius: 28px 28px 0 0; padding: 26px 22px calc(22px + env(safe-area-inset-bottom));
+    transform: translateY(105%); transition: transform .45s var(--v3-ease); box-shadow: 0 -20px 50px -20px rgba(58,29,16,.4); }
+  .tm-sheet.open { transform: none; }
+  .tm-sheet h3 { font: 700 26px var(--v3-display); font-variation-settings: "SOFT" 100; color: var(--v3-ink); margin-bottom: 4px; }
+  .tm-sheet .d { font-size: 14px; color: var(--v3-ink-2); line-height: 1.5; }
+  .tm-sheet .lbl { margin: 20px 0 8px; font: 600 11px var(--v3-ui); letter-spacing: .18em; text-transform: uppercase; color: var(--v3-accent); }
+  .tm-sheet .lbl small { letter-spacing: 0; text-transform: none; color: var(--v3-ink-3); font-weight: 500; margin-left: 6px; }
+  .tm-opts { display: flex; flex-wrap: wrap; gap: 8px; }
+  .tm-opt { border-radius: 999px; padding: 10px 16px; border: 1px solid var(--v3-hair); background: var(--v3-paper); color: var(--v3-ink-2); font: 600 14px var(--v3-ui); cursor: pointer; touch-action: manipulation; }
+  .tm-opt small { color: var(--v3-accent); margin-left: 6px; }
+  .tm-opt.on { background: var(--v3-ink); color: var(--v3-paper); border-color: var(--v3-ink); }
+  .tm-opt.on small { color: var(--v3-saffron); }
+  .tm-qty { display: flex; align-items: center; justify-content: space-between; margin-top: 22px; padding-top: 16px; border-top: 1px solid var(--v3-hair); font-weight: 600; }
+  .tm-sheet .checkout-btn { margin-top: 18px; }
 
-  /* PROGRESS */
-  .progress-card{background:#fff;border-radius:var(--radius);padding:18px 20px;border:1px solid var(--border);width:100%;max-width:380px;text-align:left;margin-bottom:16px}
-  .progress-card-title{font-size:11px;font-weight:700;color:var(--text-muted);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:14px}
-  .progress-steps{display:flex;align-items:flex-start;width:100%}
-  .progress-step{display:flex;flex-direction:column;align-items:center;flex:1}
-  .progress-dot{width:28px;height:28px;border-radius:50%;border:2px solid var(--border);background:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;z-index:1;transition:all 0.4s;flex-shrink:0}
-  .progress-dot.done{background:var(--success);border-color:var(--success);color:#fff}
-  .progress-dot.active{background:var(--brick);border-color:var(--brick);color:#fff;animation:pdot 1.5s infinite}
-  @keyframes pdot{0%,100%{box-shadow:0 0 0 0 rgba(139,26,14,0.4)}50%{box-shadow:0 0 0 6px rgba(139,26,14,0)}}
-  .progress-line-wrap{flex:1;padding-top:14px}
-  .progress-line{height:2px;background:var(--border);transition:background 0.4s}
-  .progress-line.done{background:var(--success)}
-  .progress-label{font-size:10px;color:var(--text-muted);margin-top:6px;font-weight:600;text-align:center}
-  .progress-label.active{color:var(--brick);font-weight:700}
-  .progress-label.done{color:var(--success)}
+  /* tray extras */
+  .cart-item-mods { font-size: 12px; color: var(--v3-ink-2); }
+  .tm-bill-row { display: flex; justify-content: space-between; font-size: 13px; color: var(--v3-ink-2); margin: -6px 0 14px; }
+  .tm-bill-row[hidden] { display: none; }
+  .toast { white-space: normal; text-align: center; width: max-content; line-height: 1.4; bottom: calc(96px + env(safe-area-inset-bottom)); }
+  body.tm-away .cart-fab { display: none !important; }            /* off the menu, the tray button would cover the actions */
 
-  /* SESSION CARD */
-  .session-total-card{background:#fff;border-radius:var(--radius);border:1px solid var(--border);width:100%;max-width:380px;overflow:hidden;margin-bottom:16px}
-  .session-total-header{background:var(--cream-dark);padding:12px 20px;display:flex;justify-content:space-between;align-items:center}
-  .session-total-label{font-size:11px;font-weight:700;color:var(--text-muted);letter-spacing:0.08em;text-transform:uppercase}
-  .session-total-body{padding:14px 20px}
-  .session-order-row{display:flex;justify-content:space-between;align-items:center;font-size:13px;padding:7px 0;border-bottom:1px solid var(--border)}
-  .session-order-row:last-of-type{border-bottom:none}
-  .session-grand{display:flex;justify-content:space-between;font-size:18px;font-weight:700;padding-top:10px;border-top:2px solid var(--brick);margin-top:6px}
-  .session-grand-price{color:var(--brick)}
+  /* checkout-style pages */
+  .tm-wrap { padding-top: 96px; }
+  .tm-wrap .checkout-card { border-radius: 28px; border-color: var(--v3-hair); box-shadow: 0 0 0 6px rgba(244,234,216,.7); }
+  .tm-wrap .checkout-card h2 { font-family: var(--v3-display); font-variation-settings: "SOFT" 100; }
+  .tm-who { padding: 14px 16px; border-radius: 16px; background: var(--v3-paper-2); font-size: 14px; color: var(--v3-ink-2); margin-bottom: 18px; }
+  .tm-who b { color: var(--v3-ink); }
+  .tm-field { margin-bottom: 14px; }
+  .tm-two { display: grid; grid-template-columns: 1.6fr 1fr; gap: 12px; }
+  .tm-items .review-row { align-items: baseline; gap: 12px; }
+  .tm-items small { display: block; font-size: 12px; color: var(--v3-ink-3); }
+  .tm-sum { display: flex; justify-content: space-between; align-items: baseline; padding-top: 14px; margin-top: 6px; border-top: 2px solid var(--line); }
+  .tm-sum b { font: 800 24px var(--v3-display); font-variation-settings: "SOFT" 100; color: var(--v3-accent); }
+  .tm-after { font-size: 13px; color: var(--v3-ink-2); text-align: right; margin-top: 4px; }
+  .tm-note { background: var(--v3-paper-2); border-radius: 14px; padding: 14px 16px; font-size: 13px; color: var(--v3-ink-2); line-height: 1.55; margin-top: 18px; }
+  .tm-note b { color: var(--v3-ink); }
+  .tm-link { background: none; border: 0; color: var(--v3-accent); font: 600 14px var(--v3-ui); cursor: pointer; padding: 10px; text-decoration: underline; text-underline-offset: 3px; }
+  .tm-actions-col { display: grid; gap: 10px; margin-top: 22px; }
+  .tm-actions-col .btn-next, .tm-actions-col .btn-back { margin: 0; width: 100%; padding: 15px; border-radius: 14px; font-size: 15px; }
+  .tm-wrap .btn-next { background: var(--v3-accent); border-radius: 12px; }
+  .tm-wrap .btn-next:hover { background: var(--v3-accent-2); }
+  .tm-wrap .btn-next:disabled { opacity: .6; cursor: wait; }
+  .tm-wrap .btn-back { border-radius: 12px; }
+  .tm-wrap .pay-method { border-radius: 16px; border-width: 1.5px; }
+  .tm-wrap .pay-method.active { border-color: var(--v3-accent); background: rgba(163,50,26,.06); }
 
-  /* ACTION BUTTONS */
-  .confirm-action-row{display:flex;flex-direction:column;align-items:center;gap:10px;width:100%;max-width:380px;margin-top:4px}
-  .more-order-btn{width:100%;background:var(--brick);color:#fff;border:none;padding:15px;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;font-family:"DM Sans",sans-serif}
-  .request-bill-btn{width:100%;background:var(--success);color:#fff;border:none;padding:15px;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;font-family:"DM Sans",sans-serif}
-  .call-staff-btn{width:100%;background:transparent;color:var(--brick);border:2px solid var(--brick);padding:13px;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:"DM Sans",sans-serif}
-
-  /* BILL SCREEN */
-  #bill-screen .fs-body{display:flex;flex-direction:column;align-items:center;text-align:center;padding-top:32px}
-  .pay-methods-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;width:100%;max-width:380px;margin-bottom:16px}
-  .pay-method-card{border:2px solid var(--border);border-radius:14px;padding:16px 12px;text-align:center;cursor:pointer;transition:all 0.18s;background:#fff;display:flex;flex-direction:column;align-items:center;gap:8px}
-  .pay-method-card.selected{border-color:var(--brick);background:#fff8f0}
-  .pay-method-icon{font-size:32px}
-  .pay-method-name{font-size:13px;font-weight:700;color:var(--text)}
-  .pay-method-sub{font-size:11px;color:var(--text-muted);line-height:1.3}
-  .bill-total-banner{background:linear-gradient(135deg,var(--brick),var(--brick-dark));color:#fff;padding:20px 24px;border-radius:16px;text-align:center;width:100%;max-width:380px;margin-bottom:20px}
-  .bill-total-label{font-size:11px;color:rgba(255,255,255,0.65);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:4px}
-  .bill-total-amount{font-family:"Playfair Display",serif;font-size:40px;font-weight:700;line-height:1}
-  .bill-total-sub{font-size:12px;color:rgba(255,255,255,0.65);margin-top:6px}
-  .bill-breakdown{background:#fff;border-radius:var(--radius);border:1px solid var(--border);padding:18px 20px;width:100%;max-width:380px;text-align:left;margin-bottom:20px}
-  .bill-submit-btn{width:100%;max-width:380px;padding:18px;border-radius:14px;border:none;background:var(--success);color:#fff;font-size:17px;font-weight:700;cursor:pointer;font-family:"DM Sans",sans-serif;box-shadow:0 4px 20px rgba(45,122,79,0.3)}
-  .bill-note{font-size:12px;color:var(--text-muted);max-width:340px;line-height:1.55;margin-top:12px;font-family:"Lora",serif;font-style:italic}
-
-  /* QR */
-  .qr-card{background:#fff;border-radius:20px;padding:28px 24px;text-align:center;border:1px solid var(--border);margin-bottom:16px}
-  .qr-provider-logo{font-size:48px;margin-bottom:12px}
-  .qr-provider-name{font-family:"Playfair Display",serif;font-size:24px;font-weight:700;color:var(--text);margin-bottom:4px}
-  .qr-amount-label{font-size:13px;color:var(--text-muted);margin-bottom:4px}
-  .qr-amount{font-family:"Playfair Display",serif;font-size:36px;font-weight:700;color:var(--brick);margin-bottom:20px}
-  .qr-image-wrap{background:#fff;border:3px solid var(--brick);border-radius:16px;padding:16px;display:inline-block;margin-bottom:16px}
-  .qr-image-wrap img{display:block;width:200px;height:200px}
-  .qr-instruction{font-size:13px;color:var(--text-muted);line-height:1.6;margin-bottom:20px}
-  .qr-instruction strong{color:var(--text)}
-  .qr-confirm-btn{width:100%;padding:16px;border-radius:14px;border:none;background:var(--success);color:#fff;font-size:16px;font-weight:700;cursor:pointer;font-family:"DM Sans",sans-serif}
-  .qr-back-btn{width:100%;padding:14px;border-radius:14px;border:2px solid var(--border);background:transparent;color:var(--text-muted);font-size:14px;font-weight:600;cursor:pointer;font-family:"DM Sans",sans-serif;margin-top:10px}
-
-  .toast{position:fixed;bottom:calc(90px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%) translateY(20px);background:var(--charcoal);color:#fff;padding:12px 24px;border-radius:30px;font-size:14px;font-weight:600;z-index:999;opacity:0;transition:all 0.3s;pointer-events:none;white-space:nowrap;box-shadow:0 4px 20px rgba(0,0,0,0.3)}
-  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
-
-  @media(max-width:380px){.featured-card{width:140px}.pay-methods-grid{grid-template-columns:1fr}}
-/* UnoSys: menu load skeletons */
-.skel-card { width:120px;height:96px;background:linear-gradient(90deg,rgba(0,0,0,0.05) 25%,rgba(0,0,0,0.09) 50%,rgba(0,0,0,0.05) 75%);background-size:200% 100%;animation:skel 1.4s infinite;border-radius:12px;flex-shrink:0;margin-right:10px; }
-.skel-row  { height:78px;margin-bottom:12px;background:linear-gradient(90deg,rgba(0,0,0,0.05) 25%,rgba(0,0,0,0.09) 50%,rgba(0,0,0,0.05) 75%);background-size:200% 100%;animation:skel 1.4s infinite;border-radius:14px; }
-@keyframes skel { 0% { background-position:200% 0; } 100% { background-position:-200% 0; } }
+  /* order status: four stops on a line that fills as the kitchen works */
+  .tm-track { display: grid; grid-template-columns: repeat(4, 1fr); position: relative; margin: 6px 0 22px; }
+  .tm-track::before, .tm-track::after { content: ""; position: absolute; top: 19px; left: 12.5%; height: 3px; border-radius: 2px; }
+  .tm-track::before { right: 12.5%; background: var(--v3-hair); }
+  .tm-track::after { width: calc(75% * var(--p, 0)); background: var(--v3-saffron); transition: width .8s var(--v3-ease); }
+  .tm-stop { position: relative; z-index: 1; display: grid; justify-items: center; gap: 8px; font: 600 12px var(--v3-ui); color: var(--v3-ink-3); text-align: center; }
+  .tm-stop i { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; font-style: normal; font-size: 17px;
+    background: var(--v3-card); box-shadow: 0 0 0 1px var(--v3-hair); transition: background .4s, box-shadow .4s, transform .5s var(--v3-pop); }
+  .tm-stop.done { color: var(--v3-ink-2); }
+  .tm-stop.done i { background: var(--v3-saffron); box-shadow: none; }
+  .tm-stop.now { color: var(--v3-accent); }
+  .tm-stop.now i { background: var(--v3-accent); color: #fff; box-shadow: 0 0 0 5px rgba(163,50,26,.15); transform: scale(1.08); animation: tmPulse 1.8s infinite; }
+  @keyframes tmPulse { 50% { box-shadow: 0 0 0 9px rgba(163,50,26,0); } }
+  .tm-rounds .review-row { padding: 10px 0; }
+  /* staff-on-the-way screen */
+  .tm-wait { display: inline-flex; align-items: center; gap: 10px; margin: 2px auto 22px; padding: 9px 16px; border-radius: 999px;
+    background: var(--v3-paper-2); box-shadow: 0 0 0 1px var(--v3-hair); font: 600 13px var(--v3-ui); color: var(--v3-ink); }
+  .tm-wait .dot { position: relative; width: 9px; height: 9px; border-radius: 50%; background: var(--v3-accent); flex: none; }
+  .tm-wait .dot::after { content: ""; position: absolute; inset: 0; border-radius: 50%; background: rgba(163,50,26,.35); animation: v3ping 1.8s var(--v3-ease) infinite; }
+  .tm-next-lbl { text-align: left; margin: 0 0 14px; }
+  .tm-steps { text-align: left; gap: 18px; margin-bottom: 14px; }
+  .tm-steps li { grid-template-columns: 38px 1fr; animation: tmStep .5s var(--v3-ease) both; }
+  .tm-steps li:nth-child(2) { animation-delay: .12s; } .tm-steps li:nth-child(3) { animation-delay: .24s; }
+  .tm-steps p { font-size: 15px; }
+  .tm-steps .n { width: 38px; height: 38px; font-size: 15px; box-shadow: 0 0 0 4px var(--v3-card), 0 0 0 5px rgba(228,162,60,.45); }
+  .tm-steps::before { left: 18px; }
+  .tm-billsent.restored .tm-steps li { animation: none; }
+  @keyframes tmStep { from { opacity: 0; transform: translateY(8px); } }
+  .tm-mind { font-size: 13px; color: var(--v3-ink-3); text-align: left; margin: 0 0 6px; }
+  .tm-dock .bill.asked b { color: var(--v3-paper); }
+  .tm-dock .bill.asked::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--v3-saffron); animation: tmPulse 1.8s infinite; }
+  @media (prefers-reduced-motion: reduce) { .tm-stop.now i { animation: none; } }
+  @media (max-width: 600px) {
+    .tm-wrap { padding: 84px 14px 120px; }
+    .tm-wrap .checkout-card { padding: 24px 18px; }
+    .tm-wrap .pay-grid { grid-template-columns: 1fr; }
+  }
 </style>
 </head>
 <body>
 
-<header class="header">
-  <div class="header-brand">
-    <div class="header-logo">T</div>
-    <div>
-      <div class="header-name">Tyo Paeng Nyo</div>
-      <div class="header-table" id="header-table-label">Loading...</div>
+<nav id="mainNav">
+  <div class="nav-logo" onclick="go('menu')">Tyo Paeng <span>Nyo</span></div>
+  <span class="tm-table" id="tmTable">Table</span>
+  <div class="nav-lang">
+    <button class="lang-btn" onclick="setLang('en')" title="English">EN</button>
+    <button class="lang-btn" onclick="setLang('tl')" title="Tagalog">TL</button>
+  </div>
+  <button class="cart-btn tm-navtray" onclick="toggleCart()"><svg class="tray-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M3 18.5h18"/><path d="M5 18.5a7 7 0 0 1 14 0"/><path d="M12 9.5V7"/><path d="M10.5 7h3"/></svg><span data-s="tray">Tray</span><span class="cart-count" id="navCartCount">0</span></button>
+  <img class="nav-badge" src="assets/site/logo.webp" alt="Tyo Paeng Nyo logo" width="48" height="44" onclick="go('menu')">
+</nav>
+
+<!-- MENU -->
+<div class="page v3-decor active" id="page-menu">
+  <div class="v3-mandala x" style="--mw:420px;--mo:0.11;right:-170px;top:2%" aria-hidden="true"><img data-spin="-3" src="assets/site/mandala-a.webp" alt="" decoding="async"></div>
+  <div class="v3-mandala x" style="--mw:260px;--mo:0.11;left:-110px;top:24%" aria-hidden="true"><img data-spin="4" src="assets/site/mandala-b.webp" alt="" decoding="async" loading="lazy"></div>
+  <div class="v3-mandala x" style="--mw:320px;--mo:0.11;right:-140px;top:52%" aria-hidden="true"><img data-spin="-5" src="assets/site/mandala-a.webp" alt="" decoding="async" loading="lazy"></div>
+  <div class="v3-mandala x" style="--mw:220px;--mo:0.12;left:-90px;top:80%" aria-hidden="true"><img data-spin="5" src="assets/site/mandala-b.webp" alt="" decoding="async" loading="lazy"></div>
+  <header class="v3-pagehead v3-tex">
+    <div class="v3-pat"></div>
+    <div class="v3-wrap">
+      <span class="v3-eyebrow" id="tmEyebrow">Dine-in</span>
+      <h1 class="v3-sr" data-s="menuSr">Our menu</h1>
+      <div class="v3-bleed" aria-hidden="true" data-i18n-lines="v3.menu.title"></div>
+      <p class="tm-lede" data-s="lede">Order right from your table. We bring it to you, and you pay at the end.</p>
     </div>
+  </header>
+  <div class="menu-controls">
+    <div class="search-wrap">
+      <input type="search" class="search-input" id="menuSearch" aria-label="Search the menu" oninput="renderMenu()">
+    </div>
+    <div class="category-chips" id="catChips"></div>
   </div>
-  <div class="header-actions">
-    <button class="lang-btn" onclick="toggleLang()" id="lang-btn">TL</button>
+  <div class="tm-welcome" id="tmWelcome" hidden></div>
+  <div class="menu-section" id="menuSection"></div>
+</div>
+
+<!-- REVIEW + SEND -->
+<div class="page" id="page-review">
+  <div class="checkout-wrap tm-wrap"><div class="checkout-card" id="reviewCard"></div></div>
+</div>
+
+<!-- SENT: kitchen ticket prints, then the live status -->
+<div class="page" id="page-sent">
+  <div class="checkout-wrap tm-wrap"><div class="checkout-card confirm-card" id="sentCard"></div></div>
+</div>
+
+<!-- BILL -->
+<div class="page" id="page-bill">
+  <div class="checkout-wrap tm-wrap"><div class="checkout-card" id="billCard"></div></div>
+</div>
+
+<!-- dock: call staff + bill so far -->
+<div class="tm-dock" id="tmDock">
+  <button onclick="callStaff()" data-s="callStaff">Call staff</button>
+  <button class="bill" id="tmBillBtn" onclick="go('bill')"><span data-s="bill">Bill</span> <b id="tmBillAmt">₱0</b></button>
+</div>
+
+<!-- TRAY (same drawer as the website) -->
+<div class="cart-overlay" id="cartOverlay" onclick="toggleCart()"></div>
+<div class="cart-drawer" id="cartDrawer">
+  <div class="cart-decor" aria-hidden="true"></div>
+  <div class="cart-header">
+    <div class="cart-title" data-s="trayTitle">This round</div>
+    <button class="cart-close" onclick="toggleCart()" aria-label="Close">×</button>
   </div>
-</header>
-
-<!-- RUNNING TOTAL BAR — appears after first order -->
-<div class="running-bar" id="running-bar">
-  <div class="running-bar-left">
-    <div class="running-bar-label">Session Total</div>
-    <div class="running-bar-amount" id="running-bar-amount">₱0.00</div>
-    <div class="running-bar-sub" id="running-bar-sub">0 orders sent</div>
+  <div class="cart-items" id="cartItems"></div>
+  <div class="cart-footer">
+    <div class="cart-row total"><span data-s="roundTotal">This round</span><span id="cartTotal">₱0.00</span></div>
+    <div class="tm-bill-row" id="cartBillRow" hidden><span data-s="billAfter">Your bill after this</span><span id="cartBillAfter">₱0.00</span></div>
+    <button class="checkout-btn" id="cartCheckoutBtn" onclick="startReview()" data-s="reviewBtn">Review order →</button>
   </div>
-  <button class="running-bar-btn" onclick="openBillScreen()">Request Bill →</button>
 </div>
 
-<div class="hero-band">
-  <div class="hero-tagline">Authentic Filipino Cuisine · Est. 2003</div>
-  <div class="hero-title" id="hero-title">Kumain na tayo!</div>
-  <div class="hero-sub" id="hero-sub">Order directly from your table — we'll bring it right to you.</div>
-</div>
-
-<div class="featured-section">
-  <div class="section-header">
-    <div class="section-title">⭐ Featured Dishes</div>
-    <span class="section-badge">BESTSELLERS</span>
-  </div>
-  <div class="featured-scroll" id="featured-scroll"></div>
-</div>
-
-<div class="search-wrap" style="padding-top:20px;">
-  <span class="search-icon">🔍</span>
-  <input class="search-input" type="search" id="search-input" placeholder="Search dishes..." oninput="handleSearch(this.value)">
-</div>
-
-<div class="sticky-cats" id="sticky-cats">
-  <div class="cats-scroll" id="cats-scroll"></div>
-</div>
-
-<!-- Returning guest strip. Hidden unless my_guest_profile() says this
-     browser has ordered here before. Deliberately warm and small: a regular
-     should feel recognised, not surveilled. -->
-<div id="welcome-back" style="display:none;margin:0 16px 4px;padding:12px 14px;
-     border:1px solid var(--gold,#C8952B);border-radius:12px;
-     background:linear-gradient(135deg,rgba(200,149,43,.13),rgba(200,149,43,.05));">
-  <div style="font-size:14px;font-weight:700;color:var(--text)" id="wb-title"></div>
-  <div style="font-size:12px;color:var(--text-muted);margin-top:3px;" id="wb-sub"></div>
-  <div id="wb-usuals" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;"></div>
-</div>
-<div class="menu-body" id="menu-body"></div>
-
-<button class="cart-fab" id="cart-fab" onclick="openCart()" aria-label="View cart">
-  🛒<span class="cart-fab-count" id="cart-fab-count">0</span>
+<button class="cart-fab" id="cartFab" onclick="toggleCart()" aria-label="View your tray">
+  <svg class="tray-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M3 18.5h18"/><path d="M5 18.5a7 7 0 0 1 14 0"/><path d="M12 9.5V7"/><path d="M10.5 7h3"/></svg>
+  <span class="cart-fab-count" id="cartFabCount">0</span>
 </button>
 
-<!-- CART -->
-<div class="cart-overlay" id="cart-overlay" onclick="closeCart()"></div>
-<div class="cart-drawer" id="cart-drawer">
-  <div class="cart-handle"></div>
-  <div class="cart-header">
-    <div class="cart-title">Your Order</div>
-    <button class="cart-close" onclick="closeCart()">✕</button>
-  </div>
-  <div class="cart-items" id="cart-items-list"></div>
-  <div class="cart-footer">
-    <div class="cart-totals">
-      <div class="cart-total-label">This batch</div>
-      <div class="cart-total-amt" id="cart-total-amt">₱0.00</div>
-    </div>
-    <button class="checkout-btn" id="checkout-btn" onclick="goToCheckout()" disabled>Send to Kitchen</button>
-  </div>
-</div>
+<!-- dish options -->
+<div class="tm-sheet-bg" id="sheetBg" onclick="closeSheet()"></div>
+<div class="tm-sheet" id="sheet" role="dialog" aria-modal="true"></div>
 
-<!-- DISH MODAL -->
-<div class="modal-overlay" id="dish-modal" onclick="closeDishModal(event)">
-  <div class="modal-sheet" onclick="event.stopPropagation()">
-    <div class="modal-handle"></div>
-    <div class="modal-header"><div class="modal-title">Add to Order</div></div>
-    <div class="modal-body" id="dish-modal-body"></div>
-  </div>
-</div>
-
-<!-- CONFIRM ORDER (name+notes only — no payment) -->
-<div class="fullscreen" id="checkout-screen">
-  <div class="fs-header">
-    <button class="back-btn" onclick="closeCheckout()">←</button>
-    <div class="fs-title">Send to Kitchen</div>
-  </div>
-  <div class="fs-body">
-    <div class="info-note">
-      <div class="info-note-icon">💡</div>
-      <div>You <strong>pay at the end of your meal</strong> — not now. Just confirm your order and we'll start cooking. You can order more anytime.</div>
-    </div>
-    <div class="form-card" id="guest-info-card">
-      <div class="form-card-title" id="guest-card-title">Your Info</div>
-      <div id="name-field-wrap">
-        <div class="form-field">
-          <label>Your Name *</label>
-          <input class="form-input" type="text" id="guest-name" placeholder="e.g. Maria Santos">
-        </div>
-      </div>
-      <div id="pax-field-wrap">
-        <div class="form-field">
-          <label>Number of Guests</label>
-          <select class="form-input form-select" id="guest-pax">
-            <option value="1">1 person</option><option value="2">2 persons</option>
-            <option value="3">3 persons</option><option value="4">4 persons</option>
-            <option value="5">5 persons</option><option value="6">6 persons</option>
-            <option value="7">7 persons</option><option value="8">8+ persons</option>
-          </select>
-        </div>
-      </div>
-    </div>
-    <div class="form-card">
-      <div class="form-card-title">Special Requests</div>
-      <div class="form-field">
-        <label>Anything the kitchen should know?</label>
-        <textarea class="form-input special-req-input" style="min-height:70px;resize:none;" id="special-request" placeholder="e.g. Less spicy, extra sawsawan, peanut allergy..."></textarea>
-      </div>
-    </div>
-    <div class="form-card">
-      <div class="form-card-title">Order Summary</div>
-      <div id="order-summary-list"></div>
-    </div>
-    <button class="submit-order-btn" onclick="submitOrder()">🍽️ Send to Kitchen</button>
-  </div>
-</div>
-
-<!-- CONFIRMATION SCREEN -->
-<div class="fullscreen" id="confirm-screen">
-  <div class="fs-header">
-    <div style="width:38px;"></div>
-    <div class="fs-title">Order Sent!</div>
-    <div style="width:38px;"></div>
-  </div>
-  <div class="fs-body">
-    <div class="confirm-icon">✅</div>
-    <div class="confirm-title">Kitchen Received!</div>
-    <div class="confirm-sub" id="confirm-sub">Your order is heading to the kitchen.</div>
-    <div class="confirm-ref">
-      <div class="confirm-ref-label">Order Reference</div>
-      <div class="confirm-ref-num" id="confirm-ref-num">TPN-000000</div>
-    </div>
-
-    <div class="progress-card">
-      <div class="progress-card-title">Order Status</div>
-      <div class="progress-steps" id="progress-steps">
-        <div class="progress-step">
-          <div class="progress-dot active" id="dot-received">✓</div>
-          <div class="progress-label active" id="lbl-received">Received</div>
-        </div>
-        <div class="progress-line-wrap"><div class="progress-line" id="line-1"></div></div>
-        <div class="progress-step">
-          <div class="progress-dot" id="dot-preparing">🍳</div>
-          <div class="progress-label" id="lbl-preparing">Preparing</div>
-        </div>
-        <div class="progress-line-wrap"><div class="progress-line" id="line-2"></div></div>
-        <div class="progress-step">
-          <div class="progress-dot" id="dot-ready">🔔</div>
-          <div class="progress-label" id="lbl-ready">Ready</div>
-        </div>
-        <div class="progress-line-wrap"><div class="progress-line" id="line-3"></div></div>
-        <div class="progress-step">
-          <div class="progress-dot" id="dot-served">🍽️</div>
-          <div class="progress-label" id="lbl-served">Served</div>
-        </div>
-      </div>
-    </div>
-
-    <div class="session-total-card" id="session-total-card">
-      <div class="session-total-header">
-        <div class="session-total-label">Table Session</div>
-        <div style="font-size:11px;color:var(--text-muted)" id="session-orders-count">—</div>
-      </div>
-      <div class="session-total-body" id="session-orders-list"></div>
-    </div>
-
-    <div class="confirm-action-row">
-      <button class="more-order-btn" onclick="orderMore()">+ Order More Items</button>
-      <button class="request-bill-btn" onclick="openBillScreen()">💳 Ready to Pay? Request Bill</button>
-      <button class="call-staff-btn" onclick="callStaff()">🤚 Call Staff</button>
-    </div>
-  </div>
-</div>
-
-<!-- BILL REQUEST SCREEN -->
-<div class="fullscreen" id="bill-screen">
-  <div class="fs-header">
-    <button class="back-btn" onclick="closeBillScreen()">←</button>
-    <div class="fs-title">Request Your Bill</div>
-  </div>
-  <div class="fs-body" style="display:flex;flex-direction:column;align-items:center;text-align:center;padding-top:32px;">
-    <div style="font-size:48px;margin-bottom:16px;">💳</div>
-    <div style="font-family:'Playfair Display',serif;font-size:24px;font-weight:700;color:var(--text);margin-bottom:8px;">Ready to settle up?</div>
-    <div style="font-size:14px;color:var(--text-muted);margin-bottom:24px;font-family:'Lora',serif;font-style:italic;max-width:320px;line-height:1.6;">Our staff will come to your table as soon as you confirm. You can still order more before they arrive.</div>
-
-    <div class="bill-total-banner">
-      <div class="bill-total-label">Total — Table <span id="bill-table-num"></span></div>
-      <div class="bill-total-amount" id="bill-total-amount">₱0.00</div>
-      <div class="bill-total-sub" id="bill-total-sub"></div>
-    </div>
-
-    <div class="bill-breakdown">
-      <div style="font-size:11px;font-weight:700;color:var(--text-muted);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:10px;">Order Breakdown</div>
-      <div id="bill-breakdown-list"></div>
-    </div>
-
-    <div style="font-size:12px;font-weight:700;color:var(--text-muted);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:10px;width:100%;max-width:380px;text-align:left;">How would you like to pay?</div>
-    <div class="pay-methods-grid">
-      <div class="pay-method-card selected" data-pay="cash" onclick="selectBillPayMethod('cash')"><div class="pay-method-icon">💵</div><div class="pay-method-name">Cash</div><div class="pay-method-sub">Staff will come to your table</div></div>
-      <div class="pay-method-card" data-pay="online" id="pay-online-card" hidden onclick="selectBillPayMethod('online')"><div class="pay-method-icon">🔳</div><div class="pay-method-name">Pay on my phone</div><div class="pay-method-sub">QR Ph · GCash · Maya · card</div></div>
-      <div class="pay-method-card" data-pay="gcash" onclick="selectBillPayMethod('gcash')"><div class="pay-method-icon">📱</div><div class="pay-method-name">GCash / Maya</div><div class="pay-method-sub">Staff bring our QR to scan</div></div>
-      <div class="pay-method-card" data-pay="card" onclick="selectBillPayMethod('card')"><div class="pay-method-icon">💳</div><div class="pay-method-name">Card</div><div class="pay-method-sub">Terminal brought to you</div></div>
-    </div>
-    <button class="bill-submit-btn" onclick="submitBillRequest()">Request Bill Now</button>
-    <div class="bill-note">Once you tap Request Bill, our staff will come to your table. You can still order more — just close this screen.</div>
-  </div>
-</div>
-
-<!-- QR SCREEN (bill-out only) -->
-<div class="fullscreen" id="qr-screen">
-  <div class="fs-header">
-    <button class="back-btn" onclick="closeQrScreen()">←</button>
-    <div class="fs-title" id="qr-screen-title">Pay with GCash</div>
-  </div>
-  <div class="fs-body">
-    <div class="qr-card">
-      <div class="qr-provider-logo" id="qr-provider-logo">📱</div>
-      <div class="qr-provider-name" id="qr-provider-name">GCash</div>
-      <div class="qr-amount-label">Total Bill</div>
-      <div class="qr-amount" id="qr-amount">₱0.00</div>
-      <div class="qr-image-wrap"><img id="qr-image" src="" alt="Payment QR Code" width="200" height="200"></div>
-      <div class="qr-instruction" id="qr-instruction"></div>
-    </div>
-    <button class="qr-confirm-btn" onclick="confirmQrPayment()">✓ Payment Sent — Notify Staff</button>
-    <button class="qr-back-btn" onclick="closeQrScreen()">← Go Back</button>
-  </div>
-</div>
-
-<div class="toast" id="toast"></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script>
 const urlParams = new URLSearchParams(window.location.search);
@@ -572,10 +279,153 @@ const BRANCH = urlParams.get('branch') || 'Las Piñas';
 const BRANCH_ID = urlParams.get('branchId') || 'laspinas';
 const SESSION_KEY = 'tpn_session_' + BRANCH_ID + '_t' + TABLE_NUM;
 const ORDER_KEY_KEY = 'tpn_order_key_' + BRANCH_ID + '_t' + TABLE_NUM;
+const CART_KEY = 'tpn_table_cart_' + BRANCH_ID + '_t' + TABLE_NUM;
 
-// Supabase-resolved IDs (loaded async on startup)
-let TABLE_UUID = null;
-let BRANCH_UUID = null;
+/* ── language: same switch and same saved choice as the website ── */
+let TPN_LANG = (function () { try { return localStorage.getItem('tpn.lang') || 'tl'; } catch (e) { return 'tl'; } })();
+// Every string on this page in both languages. tpn-home.js adds its own
+// (card labels, the engraved title) to this table on load.
+const TPN_STRINGS = {
+  'menu.unavailable':     { en: 'The menu can’t load right now.', tl: 'Hindi ma-load ang menu ngayon.' },
+  'menu.unavailableBody': { en: 'It’s on our side, not your phone. Wave to any of our staff and they’ll take your order. We’ll keep trying too.', tl: 'Problema ito sa amin, hindi sa phone mo. Tawagin lang po ang aming staff at sila ang kukuha ng order. Susubukan din namin ulit.' },
+  'menu.retry':           { en: 'Try again →', tl: 'Subukan ulit →' },
+  table:       { en: 'Table {n}', tl: 'Mesa {n}' },
+  eyebrow:     { en: 'Table {n} · Dine-in', tl: 'Mesa {n} · Dine-in' },
+  menuSr:      { en: 'Our menu', tl: 'Ang aming menu' },
+  lede:        { en: 'Order right from your table. We bring it to you, and you pay at the end.', tl: 'Umorder dito mismo sa mesa. Dadalhin namin sa inyo, at sa dulo na kayo magbabayad.' },
+  tray:        { en: 'Tray', tl: 'Tray' },
+  trayTitle:   { en: 'This round', tl: 'Ngayong order' },
+  roundTotal:  { en: 'This round', tl: 'Ngayong order' },
+  billAfter:   { en: 'Your bill after this', tl: 'Bill mo pagkatapos nito' },
+  reviewBtn:   { en: 'Review order →', tl: 'Tingnan ang order →' },
+  callStaff:   { en: 'Call staff', tl: 'Tawagin ang staff' },
+  bill:        { en: 'Bill', tl: 'Bill' },
+  emptyTray:   { en: 'Your tray is empty.', tl: 'Wala pang laman ang tray.' },
+  emptyCta:    { en: 'See the menu →', tl: 'Tingnan ang menu →' },
+  added:       { en: '{name} added', tl: 'Naidagdag ang {name}' },
+  removed:     { en: 'Removed', tl: 'Tinanggal' },
+  soldOut:     { en: 'Sold out', tl: 'Ubos na' },
+  search:      { en: 'Search sinigang, sisig, pancit…', tl: 'Hanapin ang sinigang, sisig, pancit…' },
+  loading:     { en: 'Loading the menu…', tl: 'Nilo-load ang menu…' },
+  welcome:     { en: 'Welcome back{name}!', tl: 'Maligayang pagbabalik{name}!' },
+  welcomeSub:  { en: 'This is your {n} order with us. Salamat!', tl: 'Ika-{n} order mo na ito sa amin. Salamat!' },
+  usual:       { en: 'Your usual:', tl: 'Usual mo:' },
+  choose:      { en: 'choose {n}', tl: 'pumili ng {n}' },
+  optional:    { en: 'optional', tl: 'opsyonal' },
+  upTo:        { en: 'Up to {n} for {g}', tl: 'Hanggang {n} lang sa {g}' },
+  pleaseChoose:{ en: 'Please choose {g}', tl: 'Pumili muna ng {g}' },
+  qty:         { en: 'How many', tl: 'Ilan' },
+  addBtn:      { en: 'Add to tray · {p}', tl: 'Idagdag · {p}' },
+  size:        { en: 'Size', tl: 'Laki' },
+  reviewTitle: { en: 'Review your <em>order</em>', tl: 'Tingnan ang <em>order</em>' },
+  reviewSub:   { en: 'We bring it to Table {n}. Nothing to pay yet: you settle the bill at the end.', tl: 'Dadalhin namin sa Mesa {n}. Wala pang babayaran: sa dulo na ang bill.' },
+  yourName:    { en: 'Your name', tl: 'Pangalan mo' },
+  namePh:      { en: 'e.g. Maria', tl: 'hal. Maria' },
+  guests:      { en: 'Guests', tl: 'Ilang tao' },
+  addingTo:    { en: 'Adding to <b>{name}</b>’s table · {pax} guest(s)', tl: 'Idadagdag sa mesa ni <b>{name}</b> · {pax} katao' },
+  notes:       { en: 'Anything the kitchen should know?', tl: 'May gusto bang malaman ng kusina?' },
+  notesPh:     { en: 'Less spicy, extra sawsawan, allergies…', tl: 'Hindi maanghang, dagdag sawsawan, allergy…' },
+  thisRound:   { en: 'This round', tl: 'Ngayong order' },
+  edit:        { en: '← Edit', tl: '← Baguhin' },
+  send:        { en: 'Send to kitchen →', tl: 'Ipadala sa kusina →' },
+  sending:     { en: 'Sending…', tl: 'Ipinapadala…' },
+  needName:    { en: 'Please type your name', tl: 'Pakilagay ang pangalan mo' },
+  noTable:     { en: 'This table isn’t set up yet. Please call our staff.', tl: 'Hindi pa naka-set up ang mesang ito. Tawagin lang po ang staff.' },
+  sendFail:    { en: 'Couldn’t send the order. Please try again or call staff.', tl: 'Hindi naipadala ang order. Subukan ulit o tawagin ang staff.' },
+  sentTitle:   { en: 'Sent to the <em>kitchen</em>', tl: 'Nasa <em>kusina</em> na' },
+  ticket:      { en: 'Kitchen ticket', tl: 'Kitchen ticket' },
+  ref:         { en: 'Ref', tl: 'Ref' },
+  time:        { en: 'Time', tl: 'Oras' },
+  name:        { en: 'Name', tl: 'Pangalan' },
+  st_received: { en: 'Received', tl: 'Natanggap' },
+  st_preparing:{ en: 'Cooking', tl: 'Niluluto' },
+  st_ready:    { en: 'Ready', tl: 'Handa na' },
+  st_served:   { en: 'Served', tl: 'Naihain' },
+  sentSub:     { en: 'Thank you, {name}. We’ll bring everything to Table {n}. This screen updates by itself.', tl: 'Salamat, {name}. Dadalhin namin lahat sa Mesa {n}. Kusang mag-a-update ang screen na ito.' },
+  joined:      { en: 'Added to the table bill: {p} so far', tl: 'Naidagdag sa bill ng mesa: {p} na ngayon' },
+  billSoFar:   { en: 'Your bill so far', tl: 'Bill mo sa ngayon' },
+  orderMore:   { en: 'Order more', tl: 'Umorder pa' },
+  seeBill:     { en: 'Ready to pay? See your bill', tl: 'Magbabayad na? Tingnan ang bill' },
+  readyToast:  { en: 'Your food is ready! It’s on its way to your table.', tl: 'Handa na ang pagkain mo! Papunta na sa mesa ninyo.' },
+  billTitle:   { en: 'Your <em>bill</em>', tl: 'Ang iyong <em>bill</em>' },
+  billSub:     { en: 'Everything ordered from this phone. Staff will bring the final bill for the whole table.', tl: 'Lahat ng inorder sa phone na ito. Dadalhin ng staff ang buong bill ng mesa.' },
+  round:       { en: 'Round {n}', tl: 'Order {n}' },
+  items:       { en: '{n} item(s)', tl: '{n} item' },
+  total:       { en: 'Total', tl: 'Kabuuan' },
+  tableTotal:  { en: 'Whole table so far (other phones too): {p}', tl: 'Buong mesa sa ngayon (pati ibang phone): {p}' },
+  howPay:      { en: 'How will you pay?', tl: 'Paano ka magbabayad?' },
+  payCash:     { en: 'Cash', tl: 'Cash' },
+  payCashSub:  { en: 'Staff come to your table with the bill', tl: 'Pupunta ang staff sa mesa dala ang bill' },
+  payQr:       { en: 'GCash · Maya · bank app', tl: 'GCash · Maya · bank app' },
+  payQrSub:    { en: 'Staff bring our QR for you to scan', tl: 'Dadalhin ng staff ang QR para i-scan mo' },
+  payQrShort:  { en: 'GCash/Maya QR', tl: 'GCash/Maya QR' },
+  payCard:     { en: 'Card', tl: 'Card' },
+  payCardSub:  { en: 'Staff bring the terminal', tl: 'Dadalhin ng staff ang terminal' },
+  payOnline:   { en: 'Pay on my phone', tl: 'Bayaran sa phone' },
+  payOnlineSub:{ en: 'QR Ph · GCash · Maya · card', tl: 'QR Ph · GCash · Maya · card' },
+  payNote:     { en: 'Nothing is charged from this page. Our staff check every payment by hand.', tl: 'Walang sinisingil mula sa page na ito. Sinusuri ng staff ang bawat bayad.' },
+  back:        { en: '← Back', tl: '← Bumalik' },
+  askBill:     { en: 'Ask for the bill →', tl: 'Hingin ang bill →' },
+  billSentTitle:{ en: 'Staff will be <em>right with you</em>', tl: 'Sandali lang po, <em>papunta na</em>' },
+  waitPill:    { en: 'Table {n} · {how} · {p}', tl: 'Mesa {n} · {how} · {p}' },
+  how_cash:    { en: 'paying cash', tl: 'cash' },
+  how_gcash:   { en: 'paying by QR', tl: 'QR' },
+  how_card:    { en: 'paying by card', tl: 'card' },
+  whatNext:    { en: 'What happens next', tl: 'Ano ang susunod' },
+  s_cash_1:    { en: '<b>Stay at your table.</b> A staff member will be right with you with your bill.', tl: '<b>Manatili lang sa mesa.</b> Papunta na ang staff dala ang bill ninyo.' },
+  s_cash_2:    { en: '<b>Check the total: {p}.</b> The bill covers the whole table.', tl: '<b>Tingnan ang total: {p}.</b> Kasama na ang buong mesa sa bill.' },
+  s_cash_3:    { en: '<b>Pay in cash.</b> Paying with a big bill? Tell them so they bring change.', tl: '<b>Magbayad ng cash.</b> Malaki ang pera? Sabihin lang para may dalang sukli.' },
+  s_gcash_1:   { en: '<b>Stay at your table.</b> A staff member will be right with you with our QR code.', tl: '<b>Manatili lang sa mesa.</b> Papunta na ang staff dala ang QR code namin.' },
+  s_gcash_2:   { en: '<b>Scan it with GCash, Maya or your bank app</b> and pay exactly {p}.', tl: '<b>I-scan gamit ang GCash, Maya o bank app</b> at bayaran ang eksaktong {p}.' },
+  s_gcash_3:   { en: '<b>Show them your success screen.</b> They check it came through on our phone, then you’re all set.', tl: '<b>Ipakita ang success screen.</b> Titingnan nila sa phone namin kung pumasok, at tapos na.' },
+  s_card_1:    { en: '<b>Stay at your table.</b> A staff member will be right with you with the card terminal.', tl: '<b>Manatili lang sa mesa.</b> Papunta na ang staff dala ang card terminal.' },
+  s_card_2:    { en: '<b>Check the total: {p}.</b>', tl: '<b>Tingnan ang total: {p}.</b>' },
+  s_card_3:    { en: '<b>Tap or insert your card</b> and keep the slip.', tl: '<b>I-tap o ipasok ang card</b> at itago ang resibo.' },
+  changeMind:  { en: 'Changed your mind about how to pay? Just tell the staff when they arrive.', tl: 'Nagbago ang isip sa pagbabayad? Sabihin lang sa staff pagdating nila.' },
+  billAsked:   { en: 'Staff coming', tl: 'Papunta na' },
+  backMenu:    { en: 'Back to the menu', tl: 'Bumalik sa menu' },
+  payment:     { en: 'Payment', tl: 'Bayad' },
+  noOrders:    { en: 'Order something first!', tl: 'Umorder muna!' },
+  called:      { en: 'Staff are on their way!', tl: 'Papunta na ang staff!' },
+  calledAgain: { en: 'Already called. Staff will be right there.', tl: 'Natawag na. Papunta na ang staff.' },
+  callFail:    { en: 'Couldn’t reach staff. Please wave to someone.', tl: 'Hindi maabot ang staff. Kawayan lang po ang kahit sino.' },
+  billAgain:   { en: 'Already asked. Hang tight!', tl: 'Nahingi na. Sandali lang po!' },
+  billFail:    { en: 'Couldn’t ask for the bill. Please wave to staff.', tl: 'Hindi nahingi ang bill. Kawayan lang po ang staff.' },
+  payConfirm:  { en: 'Confirming your payment…', tl: 'Kinukumpirma ang bayad mo…' },
+  payDone:     { en: 'Payment received. Salamat po!', tl: 'Natanggap ang bayad. Salamat po!' },
+  payWait:     { en: 'Still confirming. If you finished paying, don’t pay again: staff can check.', tl: 'Kinukumpirma pa. Kung tapos ka nang magbayad, huwag nang ulitin: masusuri ng staff.' },
+  onlineFail:  { en: 'Online payment isn’t available. Staff will bring your bill.', tl: 'Hindi available ang online payment. Dadalhin ng staff ang bill.' },
+};
+function T(key, vars) {
+  const row = TPN_STRINGS[key];
+  let s = row ? (row[TPN_LANG] || row.en) : key;
+  if (vars) for (const v in vars) s = s.split('{' + v + '}').join(vars[v]);
+  return s;
+}
+const peso = n => '₱' + Number(n || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const pesoShort = n => '₱' + Number(n || 0).toLocaleString('en-PH', { maximumFractionDigits: 0 });
+const dishName = it => (TPN_LANG === 'tl' && it.nameTl) ? it.nameTl : it.name;
+
+function setLang(l) {
+  if (l !== 'en' && l !== 'tl') l = 'en';
+  TPN_LANG = l;
+  try { localStorage.setItem('tpn.lang', l); } catch (e) {}
+  applyStatic();
+  if (window.tpnHome) tpnHome.relang();
+  renderMenu(); updateCartUI(); updateDock(); loadReturningGuest();
+  rerenderView();
+}
+function applyStatic() {
+  document.documentElement.lang = TPN_LANG;
+  document.querySelectorAll('[data-s]').forEach(el => { el.textContent = T(el.dataset.s); });
+  document.querySelectorAll('.lang-btn').forEach(b => b.classList.toggle('active', (b.getAttribute('onclick') || '').includes("'" + TPN_LANG + "'")));
+  document.getElementById('tmTable').textContent = T('table', { n: TABLE_NUM });
+  document.getElementById('tmEyebrow').textContent = T('eyebrow', { n: TABLE_NUM });
+  document.getElementById('menuSearch').placeholder = T('search');
+}
+
+/* ── table + branch ids (resolved once on load) ── */
+let TABLE_UUID = null, BRANCH_UUID = null;
 async function resolveTableIds() {
   try {
     const branch = await TPN.getBranchByCode(BRANCH_ID);
@@ -588,15 +438,21 @@ async function resolveTableIds() {
 }
 resolveTableIds();
 
-let lang = 'tl';
-let cart = [];
+/* ── state ── */
+let cart = (() => { try { const s = JSON.parse(sessionStorage.getItem(CART_KEY) || 'null'); return Array.isArray(s) ? s : []; } catch (e) { return []; } })();
+function persistCart() { try { sessionStorage.setItem(CART_KEY, JSON.stringify(cart)); } catch (e) {} }
 let sessionOrders = loadSessionOrders();
-let sessionTotal = sessionOrders.reduce((s,o)=>s+o.total,0);
-let activeDish = null, activeQty = 1, activePaxChoice = null;
-let searchQuery = '', activeCategory = 'all';
-let selectedBillPayMethod = 'cash';
-let guestName = '', guestPax = '1';
-let guestInfoLocked = sessionOrders.length > 0;
+let sessionTotal = sessionOrders.reduce((s, o) => s + o.total, 0);
+let guestName = sessionOrders.length ? sessionOrders[0].name : '';
+let guestPax = sessionOrders.length ? sessionOrders[0].pax : '2';
+let roundNotes = '';
+let shownOrder = null;          // the round shown on the "sent" page
+const BILL_KEY = 'tpn_bill_' + BRANCH_ID + '_t' + TABLE_NUM;
+let billMethod = 'cash';
+// remembered for this tab, so a refresh keeps the "staff coming" screen
+let billSent = (() => { try { const b = JSON.parse(sessionStorage.getItem(BILL_KEY) || 'null'); return b && Date.now() - b.at < 3 * 3600000 ? b : null; } catch (e) { return null; } })();
+function saveBillSent() { try { billSent ? sessionStorage.setItem(BILL_KEY, JSON.stringify(billSent)) : sessionStorage.removeItem(BILL_KEY); } catch (e) {} }
+let onlinePay = false, cardPay = false;   // both off unless turned on in site settings
 
 function loadSessionOrders() {
   try {
@@ -604,580 +460,585 @@ function loadSessionOrders() {
     return saved.filter(o => Date.now() - new Date(o.timestamp).getTime() < 8*3600000);
   } catch(e) { return []; }
 }
-function saveSessionOrders() {
-  try { localStorage.setItem(SESSION_KEY, JSON.stringify(sessionOrders)); } catch(e) {}
-}
+function saveSessionOrders() { try { localStorage.setItem(SESSION_KEY, JSON.stringify(sessionOrders)); } catch(e) {} }
 
-let menuData = [];
-let _menuLoadState = 'idle';  // 'idle' | 'loading' | 'ready' | 'error'
-
-function renderMenuLoadingState(state, err) {
-  const grid = document.getElementById('menu-body');   // NOT #menu-grid — see loadMenuFromDB
-  const chips = document.getElementById('cats-scroll');
-  const featured = document.getElementById('featured-scroll');
-  if (state === 'loading' || state === 'ready') {
-    const fsec = document.querySelector('.featured-section');
-    if (fsec) fsec.style.display = '';
-  }
-  if (state === 'loading') {
-    if (chips)    chips.innerHTML    = `<div style="padding:12px 16px;color:var(--text-muted);font-size:13px;">Loading menu…</div>`;
-    if (featured) featured.innerHTML = `
-      <div class="skel-card"></div><div class="skel-card"></div><div class="skel-card"></div>`;
-    if (grid) grid.innerHTML = `
-      <div style="padding:24px 20px;">
-        <div class="skel-row"></div><div class="skel-row"></div>
-        <div class="skel-row"></div><div class="skel-row"></div>
-      </div>`;
-  } else if (state === 'error') {
-    // Stop the shimmer and the "Loading menu…" chip row: a guest staring at
-    // placeholders that never resolve reads it as "still coming", not "broken".
-    if (chips)    chips.innerHTML    = '';
-    if (featured) featured.innerHTML = '';
-    const fsec = document.querySelector('.featured-section');
-    if (fsec) fsec.style.display = 'none';
-    // The raw error ("TypeError: Failed to fetch") means nothing at a table;
-    // tell them what to do instead. The detail stays in the console.
-    if (grid) grid.innerHTML = `
-      <div role="alert" style="padding:40px 20px;text-align:center;">
-        <div style="font-size:44px;margin-bottom:12px;">📶</div>
-        <div style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:6px;">The menu can't load right now</div>
-        <div style="font-size:13px;color:var(--text-muted);margin-bottom:16px;line-height:1.5;">
-          It's on our side, not your phone. Please wave to any of our staff — they'll take your order.<br>
-          <span style="opacity:.8">Hindi ma-load ang menu. Tawagin lang po ang aming staff.</span>
-        </div>
-        <button class="add-mini-btn" style="padding:12px 28px;" onclick="retryMenuLoad()">Try Again</button>
-        <div style="font-size:11px;color:var(--text-muted);margin-top:12px;">We'll also keep retrying on our own.</div>
-      </div>`;
-  }
-}
-
-// A request to an unreachable or paused server can hang for a long time
-// instead of failing, which kept the skeleton up indefinitely. Give each
-// attempt a deadline so the backoff and the error screen actually run.
+/* ── menu ── */
+let menuData = [], menuLoadState = 'loading', activeCategory = 'all';
 function withDeadline(promise, ms) {
   return Promise.race([promise, new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), ms))]);
 }
 let _menuBgRetry = null;
-
 async function loadMenuFromDB(attempt = 1) {
-  _menuLoadState = 'loading';
-  if (attempt === 1 && !menuData.length && !_menuBgRetry) renderMenuLoadingState('loading');
+  if (menuLoadState !== 'ok') menuLoadState = 'loading';
+  if (attempt === 1 && !menuData.length) renderMenu();
   try {
-    if (!window.TPN || typeof TPN.loadGroupedMenu !== 'function') {
-      // Supabase client hasn't finished loading yet — retry shortly.
-      throw new Error('Menu library not ready — retrying');
-    }
-    const fresh = await withDeadline(TPN.loadGroupedMenu(BRANCH_ID), 5000);
-    if (!Array.isArray(fresh) || fresh.length === 0) {
-      // Empty menu is a valid state (nothing available), but also possible
-      // symptom of the branch filter being too strict. Retry once without filter.
-      if (attempt === 1) {
-        const unfiltered = await withDeadline(TPN.loadGroupedMenu(null), 5000);
-        if (unfiltered.length) { menuData = unfiltered; }
-        else { menuData = []; }
-      } else {
-        menuData = fresh;
-      }
-    } else {
-      menuData = fresh;
-    }
-    _menuLoadState = 'ready';
+    if (!window.TPN || typeof TPN.loadGroupedMenu !== 'function') throw new Error('Menu library not ready — retrying');
+    let fresh = await withDeadline(TPN.loadGroupedMenu(BRANCH_ID), 5000);
+    // An empty menu can also mean the branch filter is too strict: try once without it.
+    if ((!Array.isArray(fresh) || !fresh.length) && attempt === 1) fresh = await withDeadline(TPN.loadGroupedMenu(null), 5000);
+    menuData = Array.isArray(fresh) ? fresh : [];
+    menuLoadState = 'ok';
     clearInterval(_menuBgRetry); _menuBgRetry = null;
-    renderMenuLoadingState('ready');   // un-hides the featured row if an error had hidden it
-    // Re-render every menu surface now that data is in.
-    // NOTE: the container is #menu-body. This used to check for #menu-grid,
-    // which does not exist, so renderMenu() was skipped on load and the menu
-    // stayed blank until a category chip called it. Do not 'tidy' this back.
-    activeCategory = 'all';                       // always land on All / Lahat
-    if (document.getElementById('cats-scroll'))     renderCategoryChips();
-    if (document.getElementById('featured-scroll')) renderFeatured();
-    if (document.getElementById('menu-body'))       renderMenu();
+    renderMenu();
     loadReturningGuest();
   } catch (e) {
     console.error('loadMenuFromDB attempt', attempt, e);
     // Three tries, ~16s worst case, before the guest is told what to do.
     if (attempt < 3) {
-      const backoff = Math.min(500 * Math.pow(2, attempt - 1), 4000);
-      setTimeout(() => loadMenuFromDB(attempt + 1), backoff);
+      setTimeout(() => loadMenuFromDB(attempt + 1), Math.min(500 * Math.pow(2, attempt - 1), 4000));
     } else {
-      _menuLoadState = 'error';
-      if (!menuData.length) renderMenuLoadingState('error', e);
-      // Keep trying in the background so the menu appears by itself once
-      // the connection is back, without the guest having to notice.
-      if (!_menuBgRetry) _menuBgRetry = setInterval(() => { if (_menuLoadState === 'error') loadMenuFromDB(3); }, 20000);
+      if (!menuData.length) { menuLoadState = 'error'; renderMenu(); }
+      // Keep trying quietly so the menu appears by itself once the connection is back.
+      if (!_menuBgRetry) _menuBgRetry = setInterval(() => { if (menuLoadState === 'error') loadMenuFromDB(3); }, 20000);
     }
   }
 }
+function retryMenuLoad() { menuLoadState = 'loading'; renderMenu(); loadMenuFromDB(1); }
+window.addEventListener('online', () => { if (menuLoadState === 'error') loadMenuFromDB(3); });
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && menuLoadState === 'error') loadMenuFromDB(3); });
 
-function retryMenuLoad() { renderMenuLoadingState('loading'); loadMenuFromDB(1); }
-window.addEventListener('online', () => { if (_menuLoadState === 'error') loadMenuFromDB(3); });
+function renderCategoryChips() {
+  const all = TPN_LANG === 'tl' ? 'Lahat' : 'All';
+  const cats = [{ cat: 'all', catName: all }].concat(menuData.filter(c => c.items.length));
+  document.getElementById('catChips').innerHTML = cats.map(c =>
+    `<button class="chip ${c.cat === activeCategory ? 'active' : ''}" onclick="setCategory('${JA(c.cat)}')">${E(TPN_LANG === 'tl' && c.catNameTl ? c.catNameTl : c.catName)}</button>`).join('');
+}
+function setCategory(c) { activeCategory = c; renderMenu(); }
+// The website's own card (tpn-home.js), so a dish looks the same here and
+// there. Sold-out dishes stay visible, dimmed, with no add button.
+function soldOutCard(html) {
+  return html.replace('v3-card v3-reveal', 'v3-card off v3-reveal')
+    .replace(/<button class="v3-add"[\s\S]*?<\/button>/g, `<span class="tm-soldout">${E(T('soldOut'))}</span>`);
+}
+function renderMenu() {
+  renderCategoryChips();
+  const sec = document.getElementById('menuSection');
+  if (!window.tpnHome) return;
+  if (!menuData.length) {
+    sec.innerHTML = menuLoadState === 'error'
+      ? `<div class="empty-state" role="alert"><div class="empty-state-icon">📶</div>
+          <div class="empty-state-title">${E(T('menu.unavailable'))}</div>
+          <div class="empty-state-body">${E(T('menu.unavailableBody'))}</div>
+          <button class="empty-state-cta" onclick="retryMenuLoad()">${E(T('menu.retry'))}</button></div>`
+      : `<div class="v3-grid" aria-busy="true" aria-label="${E(T('loading'))}">${'<div class="tm-skel"></div>'.repeat(6)}</div>`;
+    return;
+  }
+  const raw = (document.getElementById('menuSearch').value || '').trim(), q = raw.toLowerCase();
+  let html = '';
+  menuData.forEach(cat => {
+    if (activeCategory !== 'all' && activeCategory !== cat.cat) return;
+    const items = cat.items.filter(it => !q || (it.name + ' ' + (it.nameTl || '') + ' ' + (it.desc || '')).toLowerCase().includes(q));
+    if (!items.length) return;
+    // available dishes first; sold-out ones sink to the bottom of their group
+    items.sort((a, b) => (b.available ? 1 : 0) - (a.available ? 1 : 0));
+    const title = TPN_LANG === 'tl' && cat.catNameTl ? cat.catNameTl : cat.catName;
+    html += `<div class="v3-cat"><h3>${E(title)}<small>${E(T('v3.count', { n: items.length }))}</small></h3>
+      <div class="v3-grid">${items.map(it => { const c = tpnHome.card(it, cat.catName); return it.available ? c : soldOutCard(c); }).join('')}</div></div>`;
+  });
+  if (!html) { sec.innerHTML = tpnHome.emptySearch(raw); return; }
+  sec.innerHTML = html;
+  tpnHome.afterRender(sec);
+}
+function findDish(id) { for (const c of menuData) { const it = c.items.find(i => i.id === id); if (it) return it; } return null; }
 
-/* ── Returning guest ──────────────────────────────────────────
-   my_guest_profile() returns null on a first visit, so the strip simply
-   stays hidden. It deliberately carries no phone number, spend or flag —
-   that side of the profile is staff-only (sql/27). */
+/* ── returning guest (my_guest_profile returns null on a first visit) ── */
 async function loadReturningGuest() {
   try {
     if (!window.TPN || typeof TPN.getMyGuestProfile !== 'function') return;
-    const g = await TPN.getMyGuestProfile();
+    const g = loadReturningGuest._g || (loadReturningGuest._g = await TPN.getMyGuestProfile());
     if (!g || !g.is_returning) return;
-
-    const box = document.getElementById('welcome-back');
-    if (!box) return;
-    const name = g.name ? String(g.name).split(' ')[0] : null;
-    document.getElementById('wb-title').textContent = lang === 'tl'
-      ? (name ? `Maligayang pagbabalik, ${name}!` : 'Maligayang pagbabalik!')
-      : (name ? `Welcome back, ${name}!` : 'Welcome back!');
-    document.getElementById('wb-sub').textContent = lang === 'tl'
-      ? `Ito na ang ika-${g.order_count} order mo sa amin. Salamat!`
-      : `This is your ${_ordinal(g.order_count)} order with us. Thank you!`;
-
-    const usuals = (g.usuals || []).slice(0, 3);
-    document.getElementById('wb-usuals').innerHTML = usuals.length
-      ? `<span style="font-size:11px;color:var(--text-muted);align-self:center;">${lang === 'tl' ? 'Usual mo:' : 'Your usual:'}</span>` +
-        usuals.map(u => {
-          const dish = _findDishByName(u.name);
-          return `<button class="cat-chip" style="font-size:12px;"
-                    ${dish ? `onclick="openDishModal('${E(dish.id)}')"` : 'disabled'}>${E(u.name)}</button>`;
-        }).join('')
-      : '';
-
-    // Save the regular from retyping their name at checkout.
-    if (name && !guestName) {
-      guestName = g.name;
-      const f = document.getElementById('guest-name');
-      if (f && !f.value) f.value = g.name;
-    }
-    box.style.display = 'block';
+    const first = g.name ? String(g.name).split(' ')[0] : '';
+    const ord = n => { n = Number(n) || 0; if (TPN_LANG === 'tl') return n; const s = ['th','st','nd','rd'], v = n % 100; return n + (s[(v - 20) % 10] || s[v] || s[0]); };
+    const usuals = (g.usuals || []).slice(0, 3).map(u => { for (const c of menuData) { const it = c.items.find(i => i.name === u.name && i.available); if (it) return it; } return null; }).filter(Boolean);
+    const box = document.getElementById('tmWelcome');
+    box.innerHTML = `<div class="v3-shell"><div class="v3-core">
+      <b>${E(T('welcome', { name: first ? ', ' + first : '' }))}</b>
+      <span>${E(T('welcomeSub', { n: ord(g.order_count) }))}</span>
+      ${usuals.length ? `<div class="usuals"><span style="align-self:center">${E(T('usual'))}</span>${usuals.map(it =>
+        `<button class="chip" onclick="quickAdd('${JA(it.id)}')">+ ${E(dishName(it))}</button>`).join('')}</div>` : ''}
+    </div></div>`;
+    box.hidden = false;
+    if (g.name && !guestName) guestName = g.name;    // saves a regular retyping their name
   } catch (e) { /* never block the menu on a nicety */ }
 }
+function quickAdd(id) { const it = findDish(id); if (!it) return; addToCart(id, it.pricePax ? Object.keys(it.pricePax)[0] : 'single'); }
 
-function _ordinal(n) {
-  n = Number(n) || 0;
-  const s = ['th', 'st', 'nd', 'rd'], v = n % 100;
-  return n + (s[(v - 20) % 10] || s[v] || s[0]);
-}
-
-function _findDishByName(name) {
-  for (const cat of menuData) {
-    const hit = cat.items.find(i => i.name === name && i.available);
-    if (hit) return hit;
-  }
-  return null;
-}
-
-document.addEventListener('DOMContentLoaded', () => {
-  document.getElementById('header-table-label').textContent = `Table ${TABLE_NUM} · ${BRANCH}`;
-  if(guestInfoLocked && sessionOrders.length){ guestName=sessionOrders[0].name; guestPax=sessionOrders[0].pax; }
-  applyLang();
-  updateRunningBar();
-  // UnoSys: show a proper loading state first — do NOT render the menu
-  // with empty data (that used to flash "no results" for a full second
-  // on 3G phones after a QR scan). Fetch first, render second.
-  renderMenuLoadingState('loading');
-  loadMenuFromDB();
-  // Re-attach realtime listeners to any in-flight orders after refresh
-  resubscribeStoredOrders();
-});
-
-// UnoSys: retry menu load when the tab comes back to focus, in case the
-// customer put their phone away between scanning and ordering.
-document.addEventListener('visibilitychange', () => {
-  // Only after a failure: during a load this used to start a second,
-  // parallel retry sequence. One quiet attempt; the error screen stays up
-  // unless it succeeds.
-  if (document.visibilityState === 'visible' && _menuLoadState === 'error') {
-    loadMenuFromDB(3);
-  }
-});
-
-const T = {
-  en:{ heroTitle:"Let's eat!", heroSub:"Order directly from your table — we'll bring it right to you." },
-  tl:{ heroTitle:"Kumain na tayo!", heroSub:"Umorder na dito sa mesa — dadalhin namin sa inyo." }
-};
-function applyLang(){ document.getElementById('hero-title').textContent=T[lang].heroTitle; document.getElementById('hero-sub').textContent=T[lang].heroSub; document.getElementById('lang-btn').textContent=lang==='en'?'TL':'EN'; renderCategoryChips(); }
-function toggleLang(){ lang=lang==='en'?'tl':'en'; applyLang(); renderFeatured(); renderMenu(); }
-
-function renderCategoryChips(){
-  const all=lang==='tl'?'Lahat':'All';
-  const cats=[{cat:'all',catName:all,catNameTl:all}].concat(menuData);
-  document.getElementById('cats-scroll').innerHTML=cats.map(c=>`<button class="cat-chip ${activeCategory===c.cat?'active':''}" onclick="setCategory('${JA(c.cat)}')">${E(lang==='tl'?(c.catNameTl||c.catName):c.catName)}</button>`).join('');
-}
-function setCategory(cat){ activeCategory=cat; renderCategoryChips(); renderMenu(); if(cat!=='all') setTimeout(()=>{ const el=document.getElementById('cat-'+cat); if(el) el.scrollIntoView({behavior:'smooth',block:'start'}); },50); }
-
-function renderFeatured(){
-  const f=[]; menuData.forEach(cat=>cat.items.forEach(item=>{ if(item.best&&item.available) f.push(item); }));
-  document.getElementById('featured-scroll').innerHTML=f.map(item=>{
-    const price=item.price?`₱${item.price}`:`₱${Math.min(...Object.values(item.pricePax))}+`;
-    return `<div class="featured-card" onclick="openDishModal('${JA(item.id)}')"><div class="featured-emoji">${E(item.emoji)}</div><div class="featured-body"><div class="featured-tag">BESTSELLER</div><div class="featured-name">${E(item.name)}</div><div class="featured-price">${E(price)}</div><button class="add-mini-btn" onclick="event.stopPropagation();openDishModal('${JA(item.id)}')">+ Add</button></div></div>`;
-  }).join('');
-}
-
-function renderMenu(){
-  const q=searchQuery.toLowerCase(); let html=''; let anyVisible=false;
-  menuData.forEach(cat=>{
-    const catName=lang==='tl'?(cat.catNameTl||cat.catName):cat.catName;
-    const items=cat.items.filter(item=>{ if(activeCategory!=='all'&&activeCategory!==cat.cat) return false; if(q&&!item.name.toLowerCase().includes(q)&&!(item.desc||'').toLowerCase().includes(q)) return false; return true; });
-    if(!items.length) return; anyVisible=true;
-    html+=`<div class="cat-section" id="cat-${E(cat.cat)}"><div class="cat-section-title">${E(catName)} <span class="cat-count">(${items.length})</span></div><div class="dish-list">`;
-    items.forEach(item=>{
-      const hasPax=!!item.pricePax;
-      const paxChips=hasPax?`<div class="dish-pax-chips">${Object.entries(item.pricePax).map(([size,price])=>`<span class="dish-pax-chip">${size} pax · ₱${price}</span>`).join('')}</div>`:'';
-      const priceHtml=hasPax?`<div class="dish-price">₱${Math.min(...Object.values(item.pricePax))}<span class="dish-price-sub">+/pax</span></div>`:`<div class="dish-price">₱${item.price}</div>`;
-      const bestTag=item.best?`<div class="dish-tags"><span class="dish-tag tag-best">⭐ BESTSELLER</span></div>`:'';
-      html+=`<div class="dish-card ${item.available?'':'unavailable'}" onclick="${item.available?`openDishModal('${JA(item.id)}')`:''}" >
-        <div class="dish-emoji">${E(item.emoji)}</div>
-        <div class="dish-info"><div class="dish-name">${E(item.name)}</div>${item.desc?`<div class="dish-desc">${E(item.desc)}</div>`:''}${bestTag}${paxChips}</div>
-        <div class="dish-right">${priceHtml}<button class="add-dish-btn" ${item.available?`onclick="event.stopPropagation();openDishModal('${E(item.id)}')"`:' disabled'}>${item.available?'+ Add':'Sold Out'}</button></div>
-      </div>`;
-    });
-    html+=`</div></div>`;
-  });
-  document.getElementById('menu-body').innerHTML=anyVisible?html:`<div class="no-results">No dishes found.</div>`;
-}
-function handleSearch(q){ searchQuery=q; if(q) activeCategory='all'; renderCategoryChips(); renderMenu(); }
-
-function findDish(id){ for(const cat of menuData){ const item=cat.items.find(i=>i.id===id); if(item) return item; } return null; }
-let _mods = null, activeMods = [];
-async function loadMods(){ if (_mods) return _mods; try { _mods = await TPN.loadModifiers(); } catch(e) { _mods = { groups: [], byItem: {} }; } return _mods; }
+/* ── add-ons / choices ── */
+let _mods = null;
+async function loadMods() { if (_mods) return _mods; try { _mods = await TPN.loadModifiers(); } catch (e) { _mods = { groups: [], byItem: {} }; } return _mods; }
 loadMods();
-function toggleMod(gid, mid, max){
-  const g = (_mods.byItem[activeDish.id]||[]).find(x=>x.id===gid); if(!g) return;
-  const inGroup = activeMods.filter(id => g.options.some(o=>o.id===id));
-  if (activeMods.includes(mid)) activeMods = activeMods.filter(x=>x!==mid);
-  else if (max === 1) activeMods = activeMods.filter(x=>!inGroup.includes(x)).concat(mid);
-  else if (inGroup.length < max) activeMods.push(mid);
-  else showToast('Up to ' + max + ' for ' + g.name);
-  renderDishModal();
-}
-function openDishModal(id){ activeDish=findDish(id); if(!activeDish||!activeDish.available) return; activeQty=1; activeMods=[]; activePaxChoice=activeDish.pricePax?Object.keys(activeDish.pricePax)[0]:null; renderDishModal(); document.getElementById('dish-modal').classList.add('open'); document.body.style.overflow='hidden'; }
-function closeDishModal(e){ if(e&&e.target!==document.getElementById('dish-modal')) return; document.getElementById('dish-modal').classList.remove('open'); document.body.style.overflow=''; }
-function renderDishModal(){
-  const item=activeDish; const hasPax=!!item.pricePax; const _md=((_mods&&_mods.byItem[item.id])||[]).flatMap(g=>g.options).filter(o=>activeMods.includes(o.id)).reduce((a,o)=>a+Number(o.price_delta),0); const cp=(hasPax?item.pricePax[activePaxChoice]:item.price)+_md; const total=cp*activeQty;
-  let body=`<div class="modal-emoji">${E(item.emoji)}</div><div class="modal-dish-name">${E(item.name)}</div>${item.desc?`<div class="modal-dish-desc">${E(item.desc)}</div>`:''}`;
-  if(hasPax){ body+=`<div class="modal-label">Serving Size</div><div class="pax-options">`; Object.entries(item.pricePax).forEach(([size,price])=>{ body+=`<div class="pax-opt ${activePaxChoice===size?'selected':''}" onclick="selectPax('${size}')"><span class="pax-opt-size">${size} pax</span><span class="pax-opt-price">₱${price}</span></div>`; }); body+=`</div>`; }
-  const groups = (_mods && _mods.byItem[item.id]) || [];
-  groups.forEach(g => {
-    body += `<div class="modal-label">${E(g.name)}${g.min_select ? ' *' : ''} <span style="font-weight:400;text-transform:none;letter-spacing:0">${g.min_select ? 'choose ' + (g.min_select===g.max_select ? g.min_select : g.min_select+'–'+g.max_select) : 'optional'}</span></div><div class="pax-options">`;
-    g.options.filter(o=>o.is_available).forEach(o => { body += `<div class="pax-opt ${activeMods.includes(o.id)?'selected':''}" role="button" tabindex="0" aria-pressed="${activeMods.includes(o.id)}" onclick="toggleMod('${JA(g.id)}','${JA(o.id)}',${g.max_select})"><span class="pax-opt-size">${E(o.name)}</span><span class="pax-opt-price">${Number(o.price_delta)?'+₱'+Number(o.price_delta):''}</span></div>`; });
-    body += '</div>';
-  });
-  body+=`<div class="qty-row"><div class="qty-row-label">Quantity</div><div class="qty-control"><button class="qty-btn" onclick="changeQty(-1)">−</button><span class="qty-num">${activeQty}</span><button class="qty-btn" onclick="changeQty(1)">+</button></div></div><div class="modal-label">Special request (optional)</div><textarea class="special-req-input" id="modal-special-req" placeholder="e.g. Extra rice, mas maanghang..."></textarea><button class="modal-add-btn" onclick="addToCart()">+ Add to Order &nbsp;·&nbsp; ₱${total}</button>`;
-  document.getElementById('dish-modal-body').innerHTML=body;
-}
-function selectPax(size){ activePaxChoice=size; renderDishModal(); }
-function changeQty(d){ activeQty=Math.max(1,activeQty+d); renderDishModal(); }
+const groupsFor = id => (_mods && _mods.byItem[id]) || [];
 
-function addToCart(){
-  const item=activeDish; const hasPax=!!item.pricePax;
-  const groups = (_mods && _mods.byItem[item.id]) || [];
-  for (const g of groups) {
-    const n = activeMods.filter(id => g.options.some(o=>o.id===id)).length;
-    if (n < g.min_select) { showToast('Please choose ' + g.name); return; }
+/* Called by the card's + button (tpn-home.js). A dish with choices opens the
+   options sheet; everything else goes straight onto the tray in one tap. */
+function addToCart(id, sizeKey) {
+  const it = findDish(id);
+  if (!it || !it.available) { toast(T('soldOut')); return; }
+  if (groupsFor(id).length) { openSheet(it, sizeKey); return; }
+  putOnTray(it, sizeKey, [], 1);
+}
+function priceOf(it, sizeKey) { return sizeKey === 'single' || !it.pricePax ? Number(it.price) : Number(it.pricePax[sizeKey]); }
+function putOnTray(it, sizeKey, mods, qty) {
+  const opts = groupsFor(it.id).flatMap(g => g.options);
+  const chosen = mods.map(m => opts.find(o => o.id === m)).filter(Boolean);
+  const price = priceOf(it, sizeKey) + chosen.reduce((a, o) => a + Number(o.price_delta || 0), 0);
+  const cartKey = [it.id, sizeKey, mods.slice().sort().join(',')].join('|');
+  const ex = cart.find(c => c.cartKey === cartKey);
+  if (ex) ex.qty += qty;
+  else cart.push({ cartKey, id: it.id, name: it.name, nameTl: it.nameTl, emoji: it.emoji, sizeKey, price, qty, mods: mods.slice(), modNames: chosen.map(o => o.name) });
+  persistCart(); updateCartUI(true);
+  toast(T('added', { name: dishName(it) }));
+}
+
+let sheet = null;
+function openSheet(it, sizeKey) {
+  sheet = { it, sizeKey, mods: [], qty: 1 };
+  renderSheet();
+  document.getElementById('sheetBg').classList.add('open');
+  document.getElementById('sheet').classList.add('open');
+}
+function closeSheet() {
+  document.getElementById('sheetBg').classList.remove('open');
+  document.getElementById('sheet').classList.remove('open');
+}
+function renderSheet() {
+  const { it, sizeKey, mods, qty } = sheet;
+  const groups = groupsFor(it.id);
+  const opts = groups.flatMap(g => g.options);
+  const unit = priceOf(it, sizeKey) + mods.reduce((a, id) => a + Number((opts.find(o => o.id === id) || {}).price_delta || 0), 0);
+  const sizes = it.pricePax ? Object.entries(it.pricePax) : null;
+  document.getElementById('sheet').innerHTML = `
+    <h3>${E(dishName(it))}</h3>${it.desc ? `<p class="d">${E(it.desc)}</p>` : ''}
+    ${sizes ? `<div class="lbl">${E(T('size'))}</div><div class="tm-opts">${sizes.map(([k, p]) =>
+      `<button class="tm-opt ${k === sizeKey ? 'on' : ''}" onclick="sheet.sizeKey='${JA(k)}';renderSheet()">${E(k)} ${E(T('v3.pax'))}<small>₱${E(p)}</small></button>`).join('')}</div>` : ''}
+    ${groups.map(g => `<div class="lbl">${E(g.name)}<small>${g.min_select ? E(T('choose', { n: g.min_select === g.max_select ? g.min_select : g.min_select + '–' + g.max_select })) : E(T('optional'))}</small></div>
+      <div class="tm-opts">${g.options.filter(o => o.is_available).map(o =>
+        `<button class="tm-opt ${mods.includes(o.id) ? 'on' : ''}" aria-pressed="${mods.includes(o.id)}" onclick="toggleMod('${JA(g.id)}','${JA(o.id)}')">${E(o.name)}${Number(o.price_delta) ? `<small>+₱${E(Number(o.price_delta))}</small>` : ''}</button>`).join('')}</div>`).join('')}
+    <div class="tm-qty"><span>${E(T('qty'))}</span>
+      <div class="qty-control"><button class="qty-btn" onclick="sheet.qty=Math.max(1,sheet.qty-1);renderSheet()" aria-label="−">−</button><span class="qty-num">${qty}</span><button class="qty-btn" onclick="sheet.qty++;renderSheet()" aria-label="+">+</button></div></div>
+    <button class="checkout-btn" onclick="sheetAdd()">${E(T('addBtn', { p: peso(unit * qty) }))}</button>`;
+}
+function toggleMod(gid, mid) {
+  const g = groupsFor(sheet.it.id).find(x => x.id === gid); if (!g) return;
+  const inGroup = sheet.mods.filter(id => g.options.some(o => o.id === id));
+  if (sheet.mods.includes(mid)) sheet.mods = sheet.mods.filter(x => x !== mid);
+  else if (g.max_select === 1) sheet.mods = sheet.mods.filter(x => !inGroup.includes(x)).concat(mid);
+  else if (inGroup.length < g.max_select) sheet.mods.push(mid);
+  else toast(T('upTo', { n: g.max_select, g: g.name }));
+  renderSheet();
+}
+function sheetAdd() {
+  for (const g of groupsFor(sheet.it.id)) {
+    const n = sheet.mods.filter(id => g.options.some(o => o.id === id)).length;
+    if (n < (g.min_select || 0)) { toast(T('pleaseChoose', { g: g.name })); return; }
   }
-  const modDelta = activeMods.reduce((a,id)=>{ const o = groups.flatMap(g=>g.options).find(x=>x.id===id); return a + (o?Number(o.price_delta):0); }, 0);
-  const modNames = activeMods.map(id => (groups.flatMap(g=>g.options).find(x=>x.id===id)||{}).name).filter(Boolean);
-  const price=(hasPax?item.pricePax[activePaxChoice]:item.price) + modDelta;
-  const specialReq=document.getElementById('modal-special-req')?.value||'';
-  cart.push({ id:item.id+'|'+(activePaxChoice||'single')+'|'+Date.now(), dishId:item.id, name:item.name + (modNames.length ? ' (' + modNames.join(', ') + ')' : ''), emoji:item.emoji, variant:activePaxChoice?activePaxChoice+' pax':null, price, qty:activeQty, specialReq, mods: activeMods.slice() });
-  document.getElementById('dish-modal').classList.remove('open'); document.body.style.overflow=''; updateCartUI(); showToast('🛒 '+item.name+' added!');
+  putOnTray(sheet.it, sheet.sizeKey, sheet.mods, sheet.qty);
+  closeSheet();
 }
 
-function updateCartUI(){
-  const total=cart.reduce((s,i)=>s+i.price*i.qty,0); const count=cart.reduce((s,i)=>s+i.qty,0);
-  const fab=document.getElementById('cart-fab'); fab.querySelector('.cart-fab-count').textContent=count;
-  if(count>0){ fab.classList.add('visible'); fab.classList.remove('shake'); void fab.offsetWidth; fab.classList.add('shake'); } else{ fab.classList.remove('visible'); }
-  document.getElementById('cart-total-amt').textContent=`₱${total.toFixed(2)}`;
-  document.getElementById('checkout-btn').disabled=count===0;
-  const el=document.getElementById('cart-items-list');
-  if(!cart.length){ el.innerHTML=`<div class="cart-empty">🍽️ Your cart is empty.<br>Add some dishes!</div>`; return; }
-  el.innerHTML=cart.map(item=>`<div class="cart-item"><div class="cart-item-emoji">${E(item.emoji)}</div><div class="cart-item-info"><div class="cart-item-name">${E(item.name)}</div>${item.variant?`<div class="cart-item-variant">${E(item.variant)}</div>`:''}${item.specialReq?`<div class="cart-item-variant" style="color:var(--gold)">📝 ${E(item.specialReq)}</div>`:''}<div class="cart-item-qty"><button class="qty-btn" onclick="changeCartQty('${JA(item.id)}',-1)">−</button><span class="qty-num">${E(item.qty)}</span><button class="qty-btn" onclick="changeCartQty('${JA(item.id)}',1)">+</button></div></div><div class="cart-item-price">₱${N(item.price*item.qty, 2)}</div></div>`).join('');
-}
-function changeCartQty(id,d){ const idx=cart.findIndex(i=>i.id===id); if(idx===-1) return; cart[idx].qty+=d; if(cart[idx].qty<=0){ cart.splice(idx,1); showToast('Removed.'); } updateCartUI(); }
-function openCart(){ document.getElementById('cart-overlay').classList.add('open'); document.getElementById('cart-drawer').classList.add('open'); document.body.style.overflow='hidden'; }
-function closeCart(){ document.getElementById('cart-overlay').classList.remove('open'); document.getElementById('cart-drawer').classList.remove('open'); document.body.style.overflow=''; }
-
-function updateRunningBar(){
-  const bar=document.getElementById('running-bar'); const cats=document.getElementById('sticky-cats');
-  if(sessionOrders.length>0){ bar.classList.add('visible'); cats.classList.add('with-bar'); document.getElementById('running-bar-amount').textContent=`₱${sessionTotal.toFixed(2)}`; document.getElementById('running-bar-sub').textContent=`${sessionOrders.length} order${sessionOrders.length>1?'s':''} sent to kitchen`; }
-  else{ bar.classList.remove('visible'); cats.classList.remove('with-bar'); }
-}
-
-function goToCheckout(){
-  if(!cart.length) return; closeCart(); renderOrderSummary();
-  if(guestInfoLocked){
-    document.getElementById('name-field-wrap').innerHTML=`<div style="padding:4px 0;font-size:15px;font-weight:700;color:var(--text)">${E(guestName)} <span style="font-size:12px;color:var(--text-muted);font-weight:400">· Table ${TABLE_NUM} · ${guestPax} guest(s)</span></div>`;
-    document.getElementById('pax-field-wrap').style.display='none';
-    document.getElementById('guest-card-title').textContent='Adding to your session';
-  } else {
-    document.getElementById('name-field-wrap').innerHTML=`<div class="form-field"><label>Your Name *</label><input class="form-input" type="text" id="guest-name" placeholder="e.g. Maria Santos" value="${E(guestName)}"></div>`;
-    document.getElementById('pax-field-wrap').style.display='';
-    document.getElementById('guest-card-title').textContent='Your Info';
+/* ── tray ── */
+const roundTotal = () => cart.reduce((s, c) => s + c.price * c.qty, 0);
+const sizeLabel = c => c.sizeKey && c.sizeKey !== 'single' ? c.sizeKey + ' ' + T('v3.pax') : '';
+function updateCartUI(bump) {
+  const count = cart.reduce((n, c) => n + c.qty, 0);
+  document.getElementById('navCartCount').textContent = count;
+  const navBtn = document.querySelector('.cart-btn');
+  navBtn.classList.toggle('has', count > 0);
+  const fab = document.getElementById('cartFab');
+  document.getElementById('cartFabCount').textContent = count;
+  fab.classList.toggle('visible', count > 0);
+  if (bump && count > 0) {
+    fab.classList.remove('wiggle'); void fab.offsetWidth; fab.classList.add('wiggle');
+    navBtn.classList.remove('shake'); void navBtn.offsetWidth; navBtn.classList.add('shake');
   }
-  document.getElementById('checkout-screen').classList.add('show');
+  document.getElementById('cartItems').innerHTML = !cart.length
+    ? `<div class="cart-empty"><div class="cart-empty-msg">${E(T('emptyTray'))}</div><button class="cart-empty-cta" onclick="toggleCart();go('menu')">${E(T('emptyCta'))}</button></div>`
+    : cart.map(c => `<div class="cart-item">
+        <div class="cart-item-emoji">${E(c.emoji)}</div>
+        <div>
+          <div class="cart-item-name">${E(dishName(c))}</div>
+          ${sizeLabel(c) ? `<div class="cart-item-meta">${E(sizeLabel(c))}</div>` : ''}
+          ${c.modNames && c.modNames.length ? `<div class="cart-item-mods">+ ${E(c.modNames.join(', '))}</div>` : ''}
+          <div class="cart-item-price">${peso(c.price * c.qty)}</div>
+        </div>
+        <div class="qty-control">
+          <button class="qty-btn" onclick="adjustQty('${JA(c.cartKey)}', -1)" aria-label="−">−</button>
+          <span class="qty-num">${c.qty}</span>
+          <button class="qty-btn" onclick="adjustQty('${JA(c.cartKey)}', 1)" aria-label="+">+</button>
+        </div>
+      </div>`).join('');
+  document.getElementById('cartTotal').textContent = peso(roundTotal());
+  document.getElementById('cartBillRow').hidden = !sessionTotal || !cart.length;
+  document.getElementById('cartBillAfter').textContent = peso(sessionTotal + roundTotal());
+  document.getElementById('cartCheckoutBtn').disabled = !cart.length;
 }
-function closeCheckout(){ document.getElementById('checkout-screen').classList.remove('show'); }
-
-function renderOrderSummary(){
-  const total=cart.reduce((s,i)=>s+i.price*i.qty,0);
-  let html=cart.map(item=>`<div class="summary-item"><div><span class="summary-item-qty">${E(item.qty)}×</span>${E(item.name)}${item.variant?' ('+E(item.variant)+')':''}</div><span class="summary-item-price">₱${N(item.price*item.qty, 2)}</span></div>`).join('');
-  html+=`<hr class="summary-divider"><div class="summary-total"><span>This batch</span><span class="summary-total-price">₱${total.toFixed(2)}</span></div>`;
-  if(sessionTotal>0) html+=`<div style="display:flex;justify-content:space-between;font-size:13px;color:var(--text-muted);margin-top:4px;font-weight:600"><span>Running total after this</span><span>₱${(sessionTotal+total).toFixed(2)}</span></div>`;
-  document.getElementById('order-summary-list').innerHTML=html;
+function adjustQty(key, d) {
+  const c = cart.find(x => x.cartKey === key); if (!c) return;
+  c.qty += d;
+  if (c.qty <= 0) { cart = cart.filter(x => x.cartKey !== key); toast(T('removed')); }
+  persistCart(); updateCartUI();
+  if (!cart.length && document.getElementById('page-review').classList.contains('active')) go('menu');
+  else if (document.getElementById('page-review').classList.contains('active')) renderReview();
+}
+function toggleCart(force) {
+  const open = typeof force === 'boolean' ? force : !document.getElementById('cartDrawer').classList.contains('open');
+  document.getElementById('cartDrawer').classList.toggle('open', open);
+  document.getElementById('cartOverlay').classList.toggle('open', open);
+}
+function updateDock() {
+  const btn = document.getElementById('tmBillBtn');
+  btn.classList.toggle('on', sessionOrders.length > 0);
+  btn.classList.toggle('asked', !!billSent);
+  btn.querySelector('[data-s]').textContent = billSent ? T('billAsked') : T('bill');
+  document.getElementById('tmBillAmt').textContent = pesoShort(sessionTotal);
 }
 
-async function submitOrder(){
-  let name=guestName, pax=guestPax;
-  if(!guestInfoLocked){ name=(document.getElementById('guest-name')?.value||'').trim(); pax=document.getElementById('guest-pax')?.value||'1'; if(!name){ showToast('⚠️ Please enter your name.'); return; } guestName=name; guestPax=pax; }
-  if(!cart.length){ showToast('⚠️ Your cart is empty.'); return; }
-  if(!TABLE_UUID || !BRANCH_UUID){ showToast('⚠️ Table not registered — call staff.'); return; }
+/* ── views: each is a history entry, so the phone's Back button steps back ── */
+let view = 'menu';
+function go(v, replace) {
+  if (v === 'bill' && !sessionOrders.length) { toast(T('noOrders')); return; }
+  view = v;
+  document.querySelectorAll('.page').forEach(p => p.classList.toggle('active', p.id === 'page-' + v));
+  document.getElementById('tmDock').classList.toggle('hide', v !== 'menu');
+  document.body.classList.toggle('tm-away', v !== 'menu');
+  toggleCart(false); closeSheet();
+  rerenderView();
+  try { history[replace ? 'replaceState' : 'pushState']({ tm: v }, '', location.pathname + location.search + (v === 'menu' ? '' : '#' + v)); } catch (e) {}
+  window.scrollTo({ top: 0, behavior: 'instant' });
+  if (v === 'menu' && window.tpnHome) tpnHome.shown();
+}
+window.addEventListener('popstate', e => {
+  const v = (e.state && e.state.tm) || 'menu';
+  // never return to a half-finished screen: those rebuild from the state
+  const ok = v === 'menu' || (v === 'review' && cart.length) || (v === 'sent' && shownOrder) || (v === 'bill' && sessionOrders.length);
+  view = ok ? v : 'menu';
+  document.querySelectorAll('.page').forEach(p => p.classList.toggle('active', p.id === 'page-' + view));
+  document.getElementById('tmDock').classList.toggle('hide', view !== 'menu');
+  document.body.classList.toggle('tm-away', view !== 'menu');
+  toggleCart(false); closeSheet(); rerenderView();
+  if (view === 'menu' && window.tpnHome) tpnHome.shown();
+});
+let freshPrint = false;         // the next "sent" render prints the ticket; any later one shows it printed
+function rerenderView() {
+  if (view === 'review') renderReview();
+  else if (view === 'sent') { renderSent(!freshPrint); freshPrint = false; }
+  else if (view === 'bill') billSent ? renderBillSent(true) : renderBill();
+}
 
-  // Guard against a double-tap firing two orders. The button is disabled for
-  // the duration and re-enabled in finally, so a failure is retryable.
-  const btn = document.querySelector('.submit-order-btn');
-  if (btn) { if (btn.dataset.busy === '1') return; btn.dataset.busy = '1'; btn.disabled = true; btn.textContent = 'Sending…'; }
+/* ── review + send ── */
+function startReview() { if (!cart.length) return; billSent = null; go('review'); }
+function saveReviewFields() {
+  const n = document.getElementById('tmName'), p = document.getElementById('tmPax'), r = document.getElementById('tmNotes');
+  if (n) guestName = n.value; if (p) guestPax = p.value; if (r) roundNotes = r.value;
+}
+function renderReview() {
+  saveReviewFields();
+  const first = !sessionOrders.length;
+  document.getElementById('reviewCard').innerHTML = `
+    <h2>${T('reviewTitle')}</h2>
+    <p class="checkout-sub">${E(T('reviewSub', { n: TABLE_NUM }))}</p>
+    ${first ? `<div class="tm-two">
+        <div class="tm-field"><label class="form-label" for="tmName">${E(T('yourName'))}</label><input class="form-input" id="tmName" autocomplete="given-name" placeholder="${E(T('namePh'))}" value="${E(guestName)}"></div>
+        <div class="tm-field"><label class="form-label" for="tmPax">${E(T('guests'))}</label><select class="form-input" id="tmPax">${[1,2,3,4,5,6,7,8].map(n => `<option value="${n}" ${String(n) === String(guestPax) ? 'selected' : ''}>${n === 8 ? '8+' : n}</option>`).join('')}</select></div>
+      </div>`
+      : `<div class="tm-who">${T('addingTo', { name: E(guestName), pax: E(guestPax) })}</div>`}
+    <div class="tm-items">${cart.map(c => `<div class="review-row">
+      <div><span class="review-value">${c.qty}× ${E(dishName(c))}</span>${sizeLabel(c) || (c.modNames && c.modNames.length) ? `<small>${E([sizeLabel(c)].concat(c.modNames || []).filter(Boolean).join(' · '))}</small>` : ''}</div>
+      <span class="review-value">${peso(c.price * c.qty)}</span></div>`).join('')}</div>
+    <div class="tm-sum"><span class="review-label">${E(T('thisRound'))}</span><b>${peso(roundTotal())}</b></div>
+    ${sessionTotal ? `<div class="tm-after">${E(T('billAfter'))}: ${peso(sessionTotal + roundTotal())}</div>` : ''}
+    <div class="tm-field" style="margin-top:18px"><label class="form-label" for="tmNotes">${E(T('notes'))}</label>
+      <textarea class="form-input" id="tmNotes" rows="2" style="resize:none" placeholder="${E(T('notesPh'))}">${E(roundNotes)}</textarea></div>
+    <div class="checkout-actions">
+      <button class="btn-back" onclick="go('menu');toggleCart(true)">${E(T('edit'))}</button>
+      <button class="btn-next" id="tmSend" onclick="submitOrder()">${E(T('send'))}</button>
+    </div>`;
+}
 
-  const specialReq=document.getElementById('special-request').value.trim();
-  const total=cart.reduce((s,i)=>s+i.price*i.qty,0);
+async function submitOrder() {
+  saveReviewFields();
+  const name = guestName.trim(), pax = guestPax;
+  if (!name) { toast(T('needName')); document.getElementById('tmName')?.focus(); return; }
+  if (!cart.length) return;
+  if (!TABLE_UUID || !BRANCH_UUID) { toast(T('noTable')); return; }
+  // Guard against a double-tap firing two orders; re-enabled on failure.
+  const btn = document.getElementById('tmSend');
+  if (btn.dataset.busy === '1') return;
+  btn.dataset.busy = '1'; btn.disabled = true; btn.textContent = T('sending');
+  const notes = roundNotes.trim(), total = roundTotal();
   try {
-    // submit_order() appends to whatever bill is already open on this table,
-    // so several phones at one table end up on one bill. It returns
-    // { id, order_number, joined_existing, total, subtotal }.
-    // addToCart() stores the menu item id as `dishId` and the pax choice
-    // as `variant`; the per-line special request lives on `specialReq`.
+    // submit_order() appends to the bill already open on this table, so
+    // several phones at one table end up on one bill. The server prices
+    // every line itself; the prices here are only for display.
     const items = cart.map(c => ({
-      menu_item_id: c.dishId || null,
-      name: c.name,
-      unit_price: c.price,
-      quantity: c.qty,
-      pax_size: c.variant || null,
-      modifiers: c.mods && c.mods.length ? c.mods : undefined,
-      notes: (c.specialReq && c.specialReq.trim()) ? c.specialReq.trim() : null
+      menu_item_id: c.id, name: c.name + (c.modNames && c.modNames.length ? ' (' + c.modNames.join(', ') + ')' : ''),
+      unit_price: c.price, quantity: c.qty,
+      pax_size: c.sizeKey && c.sizeKey !== 'single' ? c.sizeKey : null,
+      modifiers: c.mods && c.mods.length ? c.mods : undefined, notes: null
     }));
     // One key per round (sql/41), kept in this tab before sending: if the
     // reply is lost after the kitchen got the round, sending again (even
     // after a refresh) adds nothing to the table bill.
     let prevKey = null;
     try { prevKey = JSON.parse(sessionStorage.getItem(ORDER_KEY_KEY) || 'null'); } catch (e) {}
-    const orderKey = TPN.orderKey(prevKey, JSON.stringify([name, specialReq, items.map(i => [i.menu_item_id, i.quantity, i.pax_size, i.modifiers || [], i.notes])]));
+    const orderKey = TPN.orderKey(prevKey, JSON.stringify([name, notes, items.map(i => [i.menu_item_id, i.quantity, i.pax_size, i.modifiers || []])]));
     try { sessionStorage.setItem(ORDER_KEY_KEY, JSON.stringify(orderKey)); } catch (e) {}
-    const res = await TPN.createOrder({
-      clientKey: orderKey.key,
-      branchId: BRANCH_UUID,
-      tableId: TABLE_UUID,
-      orderType: 'dine_in',
-      customerName: name,
-      notes: specialReq || null,
-      items
-    });
+    const res = await TPN.createOrder({ clientKey: orderKey.key, branchId: BRANCH_UUID, tableId: TABLE_UUID, orderType: 'dine_in', customerName: name, notes: notes || null, items });
     try { sessionStorage.removeItem(ORDER_KEY_KEY); } catch (e) {}   // sent: the next round gets a new key
 
-    const sessionOrder = { id: res.order_number, dbId: res.id, table:TABLE_NUM, branch:BRANCH, branchId:BRANCH_ID, name, pax, specialReq, items:JSON.parse(JSON.stringify(cart)), total, timestamp:new Date().toISOString(), status:'received', type:'dine-in', tableTotal: Number(res.total)||total, joined: !!res.joined_existing };
-    sessionOrders.push(sessionOrder); sessionTotal+=total; guestInfoLocked=true; saveSessionOrders();
-    cart=[]; updateCartUI(); updateRunningBar(); closeCheckout(); document.getElementById('special-request').value='';
-    showConfirmation(sessionOrder);
-    if (res.joined_existing) {
-      showToast(lang==='tl'
-        ? '✓ Naidagdag sa bill ng mesa — ₱' + Number(res.total).toFixed(2) + ' na ang kabuuan'
-        : '✓ Added to the table bill — ₱' + Number(res.total).toFixed(2) + ' total so far');
-    }
-  } catch(e) {
+    const order = { id: res.order_number, dbId: res.id, table: TABLE_NUM, branch: BRANCH, branchId: BRANCH_ID, name, pax, specialReq: notes,
+      items: JSON.parse(JSON.stringify(cart)), total, timestamp: new Date().toISOString(), status: 'received', type: 'dine-in',
+      tableTotal: Number(res.total) || total, joined: !!res.joined_existing };
+    sessionOrders.push(order); sessionTotal += total; saveSessionOrders();
+    billSent = null; saveBillSent();      // a new round changes the bill: the old request no longer applies
+    cart = []; roundNotes = ''; persistCart(); updateCartUI(); updateDock();
+    shownOrder = order; freshPrint = true;
+    go('sent', true);
+    subscribeToOrderProgress(order);
+    if (res.joined_existing) setTimeout(() => toast(T('joined', { p: peso(res.total) })), 2600);
+  } catch (e) {
     console.error('Order submission failed:', e);
-    showToast('⚠️ ' + (e.message || 'Could not send the order — please call staff.'));
-  } finally {
-    if (btn) { btn.dataset.busy = '0'; btn.disabled = false; btn.textContent = '🍽️ Send to Kitchen'; }
+    toast(e && e.message && !/fetch|network|timeout/i.test(e.message) ? e.message : T('sendFail'));
+    btn.dataset.busy = '0'; btn.disabled = false; btn.textContent = T('send');
   }
 }
 
-function showConfirmation(order){
-  document.getElementById('confirm-ref-num').textContent=order.id;
-  document.getElementById('confirm-sub').textContent=`${order.name}, your order is heading to the kitchen. We'll bring everything to Table ${TABLE_NUM}.`;
-  setOrderProgress('received'); renderSessionTotalCard();
-  document.getElementById('confirm-screen').classList.add('show');
-  window.scrollTo(0,0);
-  subscribeToOrderProgress(order);
+/* ── sent: the kitchen ticket prints out of the website's receipt printer,
+      then the live status fades in under it ── */
+const progressStates = ['received', 'preparing', 'ready', 'served'];
+function renderSent(again) {
+  const o = shownOrder; if (!o) return;
+  const lines = o.items.length;
+  const printMs = Math.min(3400, 1500 + lines * 180);
+  const idx = Math.max(0, progressStates.indexOf(o.status));
+  document.getElementById('sentCard').className = 'checkout-card confirm-card' + (again ? ' restored' : '');
+  document.getElementById('sentCard').style.setProperty('--print', printMs + 'ms');
+  document.getElementById('sentCard').innerHTML = `
+    <h2 class="confirm-title">${T('sentTitle')}</h2>
+    <div class="rcpt-printer">
+      <div class="rcpt-head" aria-hidden="true"><span class="rcpt-led"></span></div>
+      <div class="rcpt-clip"><div class="rcpt-feed"><div class="rcpt" role="group" aria-label="${E(T('ticket'))}">
+        <div class="rcpt-brand" translate="no">Tyo Paeng Nyo</div>
+        <div class="rcpt-row"><span>${E(T('ticket'))}</span><b>${E(T('table', { n: TABLE_NUM }))}</b></div>
+        <div class="rcpt-row"><span>${E(T('ref'))}</span><b>${E(o.id)}</b></div>
+        <div class="rcpt-row"><span>${E(T('name'))}</span><span>${E(o.name)}</span></div>
+        <div class="rcpt-row"><span>${E(T('time'))}</span><span>${E(new Date(o.timestamp).toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit' }))}</span></div>
+        <hr>
+        ${o.items.map(c => `<div class="rcpt-item"><span>${c.qty}×</span><span>${E(dishName(c))}${sizeLabel(c) || (c.modNames && c.modNames.length) ? `<small>${E([sizeLabel(c)].concat(c.modNames || []).filter(Boolean).join(' · '))}</small>` : ''}</span><span class="a">${peso(c.price * c.qty)}</span></div>`).join('')}
+        ${o.specialReq ? `<hr><div style="white-space:pre-wrap">📝 ${E(o.specialReq)}</div>` : ''}
+        <hr>
+        <div class="rcpt-row rcpt-total"><span>${E(T('thisRound'))}</span><span>${peso(o.total)}</span></div>
+      </div></div></div>
+    </div>
+    <div class="confirm-after">
+      <div class="tm-track" id="tmTrack" style="--p:${idx / 3}">
+        ${progressStates.map((s, i) => `<div class="tm-stop ${i < idx ? 'done' : i === idx ? 'now' : ''}"><i>${i < idx ? '✓' : ['🧾','🍳','🔔','🍽️'][i]}</i>${E(T('st_' + s))}</div>`).join('')}
+      </div>
+      <p class="confirm-sub">${E(T('sentSub', { name: o.name, n: TABLE_NUM }))}</p>
+      <div class="review-row" style="border:0;padding-top:0"><span class="review-label">${E(T('billSoFar'))}</span><span class="review-value" style="font:800 20px var(--v3-display);color:var(--v3-accent)">${peso(sessionTotal)}</span></div>
+      <div class="tm-actions-col">
+        <button class="btn-next" onclick="go('menu')">${E(T('orderMore'))}</button>
+        <button class="btn-back" onclick="go('bill')">${E(T('seeBill'))}</button>
+        <button class="tm-link" onclick="callStaff()">${E(T('callStaff'))}</button>
+      </div>
+    </div>`;
 }
-
-function renderSessionTotalCard(){
-  const count=sessionOrders.length;
-  document.getElementById('session-orders-count').textContent=`${count} order${count>1?'s':''}`;
-  let html=sessionOrders.map((o,i)=>{ const ic=o.items.reduce((s,it)=>s+it.qty,0); return `<div class="session-order-row"><div><div style="font-size:13px;font-weight:600;">Order ${i+1}</div><div style="font-size:11px;color:var(--text-muted);">${o.id} · ${ic} item${ic>1?'s':''}</div></div><div style="font-size:13px;font-weight:700;">₱${o.total.toFixed(2)}</div></div>`; }).join('');
-  html+=`<div class="session-grand"><span>Total So Far</span><span class="session-grand-price">₱${sessionTotal.toFixed(2)}</span></div>`;
-  document.getElementById('session-orders-list').innerHTML=html;
+function setOrderProgress(order, state) {
+  if (shownOrder !== order || view !== 'sent') return;
+  const el = document.getElementById('tmTrack'); if (!el) return;
+  const idx = progressStates.indexOf(state);
+  el.style.setProperty('--p', idx / 3);
+  el.querySelectorAll('.tm-stop').forEach((s, i) => {
+    s.className = 'tm-stop ' + (i < idx ? 'done' : i === idx ? 'now' : '');
+    s.querySelector('i').textContent = i < idx ? '✓' : ['🧾','🍳','🔔','🍽️'][i];
+  });
 }
-
-const progressStates=['received','preparing','ready','served'];
-function setOrderProgress(state){
-  const idx=progressStates.indexOf(state);
-  progressStates.forEach((s,i)=>{ const dot=document.getElementById('dot-'+s); const lbl=document.getElementById('lbl-'+s); if(!dot) return; dot.classList.remove('done','active'); lbl.classList.remove('done','active'); if(i<idx){ dot.classList.add('done'); dot.textContent='✓'; lbl.classList.add('done'); } else if(i===idx){ dot.classList.add('active'); lbl.classList.add('active'); } });
-  for(let i=1;i<=3;i++){ const line=document.getElementById('line-'+i); if(line) line.classList.toggle('done',i<=idx); }
-}
-
 // Map the DB order status enum → the 4 customer-facing progress states.
-function dbStatusToProgress(dbStatus){
-  return ({
-    pending: 'received', confirmed: 'received', preparing: 'preparing',
-    ready: 'ready', served: 'served', completed: 'served', cancelled: 'served'
-  })[dbStatus] || 'received';
+function dbStatusToProgress(s) {
+  return ({ pending: 'received', confirmed: 'received', preparing: 'preparing', ready: 'ready', served: 'served', completed: 'served', cancelled: 'served' })[s] || 'received';
 }
-
-// Track active order subscriptions so we don't leak channels on repeated orders.
 const _orderSubscriptions = new Map();   // dbId -> unsubscribe fn
-let _lastNotifiedReady = new Set();      // dbIds we've already fired the "ready" toast for
-
-function subscribeToOrderProgress(order){
-  if (!order || !order.dbId) return;
-  // If already subscribed, don't double up
-  if (_orderSubscriptions.has(order.dbId)) return;
-
-  // Keyed on order_number, not the uuid: the customer watcher polls
-  // track_order(), which looks up by number. A customer device has no SELECT
-  // on orders, so a realtime subscription here would silently never fire.
+const _notifiedReady = new Set();
+function subscribeToOrderProgress(order) {
+  if (!order || !order.dbId || _orderSubscriptions.has(order.dbId)) return;
+  // Keyed on order_number: the customer watcher polls track_order(). A guest
+  // has no SELECT on orders, so a realtime subscription would never fire.
   const unsub = TPN.subscribeToOrder(order.id, (payload) => {
-    const newStatus = payload?.new?.status;
-    if (!newStatus) return;
-    const uiState = dbStatusToProgress(newStatus);
-
-    // Update the local session-orders array so refresh keeps the current state
+    const st = payload && payload.new && payload.new.status;
+    if (!st) return;
+    const ui = dbStatusToProgress(st);
     const local = sessionOrders.find(o => o.dbId === order.dbId);
-    if (local) { local.status = uiState; saveSessionOrders(); }
-
-    // Only update the visible progress bar if THIS order is the one currently shown
-    const shownRef = document.getElementById('confirm-ref-num')?.textContent;
-    if (shownRef === order.id) setOrderProgress(uiState);
-
-    // Fire the "ready" toast once per order
-    if (uiState === 'ready' && !_lastNotifiedReady.has(order.dbId)) {
-      _lastNotifiedReady.add(order.dbId);
-      showToast('🔔 Your food is ready! Coming to your table now.');
-    }
-    // Once served/completed/cancelled, tear down the subscription
-    if (['served','completed','cancelled'].includes(newStatus)) {
-      const u = _orderSubscriptions.get(order.dbId);
-      if (typeof u === 'function') u();
+    if (local) { local.status = ui; saveSessionOrders(); }
+    setOrderProgress(local || order, ui);
+    if (ui === 'ready' && !_notifiedReady.has(order.dbId)) { _notifiedReady.add(order.dbId); toast('🔔 ' + T('readyToast')); }
+    if (['served', 'completed', 'cancelled'].includes(st)) {
+      const u = _orderSubscriptions.get(order.dbId); if (typeof u === 'function') u();
       _orderSubscriptions.delete(order.dbId);
     }
   });
   _orderSubscriptions.set(order.dbId, unsub);
 }
-
-// On page load, re-subscribe to any in-flight orders from prior sessions
-function resubscribeStoredOrders(){
-  sessionOrders.forEach(o => {
-    if (o.dbId && !['served','completed','cancelled'].includes(o.status)) {
-      subscribeToOrderProgress(o);
-    }
-  });
+function resubscribeStoredOrders() {
+  sessionOrders.forEach(o => { if (o.dbId && !['served', 'completed', 'cancelled'].includes(o.status)) subscribeToOrderProgress(o); });
 }
 
-function orderMore(){ document.getElementById('confirm-screen').classList.remove('show'); showToast('🛒 Keep adding dishes and hit Send again!'); }
-async function callStaff(){
-  if(!TABLE_UUID){ showToast('⚠️ Table not registered.'); return; }
-  try {
-    // signal_call_staff now returns FALSE when a 90-second cooldown is
-    // active — we surface that to the customer instead of double-pinging.
-    const { data, error } = await sb.rpc('signal_call_staff', { p_table_id: TABLE_UUID });
-    if (error) throw error;
-    if (data === false) { showToast('⏳ Already called — staff will be right there.'); return; }
-    showToast('🤚 Staff notified — on their way!');
-  } catch(e){
-    console.error('callStaff failed:', e);
-    showToast('⚠️ Could not reach staff — try flagging someone.');
-  }
+/* ── bill ── */
+function tableTotalKnown() { return sessionOrders.reduce((m, o) => Math.max(m, Number(o.tableTotal) || 0), 0); }
+function renderBill() {
+  const tt = tableTotalKnown();
+  const methods = [
+    onlinePay ? ['online', '🔳', T('payOnline'), T('payOnlineSub')] : null,
+    ['cash', '💵', T('payCash'), T('payCashSub')],
+    ['gcash', '📱', T('payQr'), T('payQrSub')],
+    cardPay ? ['card', '💳', T('payCard'), T('payCardSub')] : null,
+  ].filter(Boolean);
+  if (!methods.some(m => m[0] === billMethod)) billMethod = 'cash';
+  document.getElementById('billCard').innerHTML = `
+    <h2>${T('billTitle')}</h2>
+    <p class="checkout-sub">${E(T('billSub'))}</p>
+    <div class="tm-rounds">${sessionOrders.map((o, i) => {
+      const n = o.items.reduce((s, c) => s + c.qty, 0);
+      return `<div class="review-row"><div><span class="review-value">${E(T('round', { n: i + 1 }))}</span><small style="display:block;color:var(--v3-ink-3);font-size:12px">${E(o.id)} · ${E(T('items', { n }))}</small></div><span class="review-value">${peso(o.total)}</span></div>`;
+    }).join('')}</div>
+    <div class="tm-sum"><span class="review-label">${E(T('total'))}</span><b>${peso(sessionTotal)}</b></div>
+    ${tt > sessionTotal + 0.009 ? `<div class="tm-after">${E(T('tableTotal', { p: peso(tt) }))}</div>` : ''}
+    <div class="form-label" style="margin:26px 0 10px">${E(T('howPay'))}</div>
+    <div class="pay-grid" role="radiogroup" aria-label="${E(T('howPay'))}">${methods.map(([k, ic, nm, sub]) =>
+      `<button class="pay-method ${billMethod === k ? 'active' : ''}" role="radio" aria-checked="${billMethod === k}" onclick="billMethod='${k}';renderBill()">
+        <div class="pay-method-icon">${ic}</div><div><div class="pay-method-info">${E(nm)}</div><div class="pay-method-sub">${E(sub)}</div></div></button>`).join('')}</div>
+    <div class="tm-note">💬 ${E(T('payNote'))}</div>
+    <div class="checkout-actions">
+      <button class="btn-back" onclick="history.length > 1 ? history.back() : go('menu')">${E(T('back'))}</button>
+      <button class="btn-next" id="tmAskBill" onclick="submitBillRequest()">${E(T('askBill'))}</button>
+    </div>`;
 }
-
-function openBillScreen(){
-  if(sessionOrders.length===0){ showToast('No orders yet — order something first!'); return; }
-  document.getElementById('bill-table-num').textContent=TABLE_NUM;
-  document.getElementById('bill-total-amount').textContent=`₱${sessionTotal.toFixed(2)}`;
-  const totalItems=sessionOrders.reduce((s,o)=>s+o.items.reduce((ss,it)=>ss+it.qty,0),0);
-  document.getElementById('bill-total-sub').textContent=`${sessionOrders.length} order${sessionOrders.length>1?'s':''} · ${totalItems} items`;
-  let bhtml=sessionOrders.map((o,i)=>{ const ic=o.items.reduce((s,it)=>s+it.qty,0); return `<div class="session-order-row"><div><div style="font-size:13px;font-weight:600;">Order ${i+1}</div><div style="font-size:11px;color:var(--text-muted);">${o.id} · ${ic} items</div></div><div style="font-weight:700;">₱${o.total.toFixed(2)}</div></div>`; }).join('');
-  bhtml+=`<div class="session-grand"><span>Total</span><span class="session-grand-price">₱${sessionTotal.toFixed(2)}</span></div>`;
-  document.getElementById('bill-breakdown-list').innerHTML=bhtml;
-  selectBillPayMethod('cash');
-  document.getElementById('bill-screen').classList.add('show');
-}
-function closeBillScreen(){ document.getElementById('bill-screen').classList.remove('show'); }
-function selectBillPayMethod(method){ selectedBillPayMethod=method; document.querySelectorAll('.pay-method-card').forEach(c=>c.classList.toggle('selected',c.dataset.pay===method)); }
-
-async function submitBillRequest(){
-  const method=selectedBillPayMethod;
-  if(method==='online'){
+async function submitBillRequest() {
+  const btn = document.getElementById('tmAskBill');
+  if (btn) btn.disabled = true;
+  if (billMethod === 'online') {
     // The latest order on this phone carries the table bill's tracking
-    // token (the bill is shared, so it is the same order). The amount is
-    // whatever the server says is due; HitPay's webhook marks it paid.
-    const last = sessionOrders[sessionOrders.length-1];
+    // token (the bill is shared). HitPay's webhook marks it paid.
+    const last = sessionOrders[sessionOrders.length - 1];
     try {
       const pay = await TPN.startOnlinePayment({ orderNumber: last.id, returnPath: 'table', returnQuery: location.search.slice(1) });
       if (pay && /^https:\/\//.test(pay.checkout_url)) { location.href = pay.checkout_url; return; }
-    } catch(e) {
-      showToast('⚠️ ' + (e.message || 'Online payment is not available — staff will bring your bill.'));
-    }
-    notifyBillRequest('cash'); closeBillScreen(); showBillSentConfirmation('cash'); return;
+    } catch (e) { toast(T('onlineFail')); }
+    billMethod = 'cash';
   }
-  notifyBillRequest(method); closeBillScreen(); showBillSentConfirmation(method);
+  const ok = await notifyBillRequest(billMethod);
+  if (btn) btn.disabled = false;
+  if (ok === null) return;      // failed: stay here so they can try again
+  billSent = { method: billMethod, at: Date.now(), total: sessionTotal };
+  saveBillSent(); updateDock();
+  renderBillSent(false);
+  window.scrollTo({ top: 0, behavior: 'instant' });
 }
-// Online payment shows only once the owner has turned it on.
-(async function(){
+// true = sent, false = already asked recently (still fine), null = failed
+async function notifyBillRequest(method) {
+  if (!TABLE_UUID) { toast(T('noTable')); return null; }
   try {
-    const { data } = await sb.from('site_settings').select('value').eq('key','payments.online_enabled').maybeSingle();
-    const v = data && data.value;
-    if (v === true || v === 'true' || v === 'yes') { const c = document.getElementById('pay-online-card'); if (c) c.hidden = false; }
-  } catch(e) { /* stays cash / card terminal */ }
+    const { data, error } = await sb.rpc('signal_bill_request', { p_table_id: TABLE_UUID, p_payment_method: method, p_total: sessionTotal });
+    if (error) throw error;
+    if (data === false) toast(T('billAgain'));
+    return data !== false;
+  } catch (e) {
+    console.error('bill request failed:', e);
+    toast(T('billFail'));
+    return null;
+  }
+}
+// "Staff will be right with you": the message and the three steps show at
+// once; the bill prints under them the same way the kitchen ticket does.
+function renderBillSent(again) {
+  const card = document.getElementById('billCard');
+  const m = billSent.method in { cash: 1, gcash: 1, card: 1 } ? billSent.method : 'cash';
+  const total = peso(billSent.total != null ? billSent.total : sessionTotal);
+  const payName = { cash: T('payCash'), gcash: T('payQrShort'), card: T('payCard') }[m];
+  card.className = 'checkout-card confirm-card tm-billsent' + (again ? ' restored' : '');
+  card.style.setProperty('--print', Math.min(3400, 1500 + sessionOrders.length * 220) + 'ms');
+  card.innerHTML = `
+    <h2 class="confirm-title">${T('billSentTitle')}</h2>
+    <div class="tm-wait" role="status"><span class="dot" aria-hidden="true"></span>${E(T('waitPill', { n: TABLE_NUM, how: T('how_' + m), p: total }))}</div>
+    <div class="form-label tm-next-lbl">${E(T('whatNext'))}</div>
+    <ol class="v3-steps tm-steps">${[1, 2, 3].map(i =>
+      `<li><span class="n">${i}</span><p>${T('s_' + m + '_' + i, { p: E(total) })}</p></li>`).join('')}</ol>
+    <p class="tm-mind">${E(T('changeMind'))}</p>
+    <div class="rcpt-printer">
+      <div class="rcpt-head" aria-hidden="true"><span class="rcpt-led"></span></div>
+      <div class="rcpt-clip"><div class="rcpt-feed"><div class="rcpt" role="group" aria-label="${E(T('bill'))}">
+        <div class="rcpt-brand" translate="no">Tyo Paeng Nyo</div>
+        <div class="rcpt-row"><span>${E(T('bill'))}</span><b>${E(T('table', { n: TABLE_NUM }))}</b></div>
+        <div class="rcpt-row"><span>${E(T('name'))}</span><span>${E(guestName)}</span></div>
+        <div class="rcpt-row"><span>${E(T('payment'))}</span><span>${E(payName)}</span></div>
+        <hr>
+        ${sessionOrders.map((o, i) => `<div class="rcpt-item"><span>${i + 1}.</span><span>${E(o.id)}<small>${E(T('items', { n: o.items.reduce((s, c) => s + c.qty, 0) }))}</small></span><span class="a">${peso(o.total)}</span></div>`).join('')}
+        <hr>
+        <div class="rcpt-row rcpt-total"><span>${E(T('total'))}</span><span>${total}</span></div>
+      </div></div></div>
+    </div>
+    <div class="confirm-after">
+      <div class="tm-actions-col">
+        <button class="btn-next" onclick="go('menu')">${E(T('backMenu'))}</button>
+        <button class="tm-link" onclick="callStaff()">${E(T('callStaff'))}</button>
+      </div>
+    </div>`;
+}
+
+async function callStaff() {
+  if (!TABLE_UUID) { toast(T('noTable')); return; }
+  try {
+    // signal_call_staff returns FALSE inside its 90-second cooldown.
+    const { data, error } = await sb.rpc('signal_call_staff', { p_table_id: TABLE_UUID });
+    if (error) throw error;
+    toast(data === false ? '⏳ ' + T('calledAgain') : '🤚 ' + T('called'));
+  } catch (e) { console.error('callStaff failed:', e); toast(T('callFail')); }
+}
+
+// Online payment and card show only once the owner has turned them on.
+(async function () {
+  try {
+    const { data } = await sb.from('site_settings').select('key,value').in('key', ['payments.online_enabled', 'payments.card_enabled']);
+    const on = k => { const r = (data || []).find(x => x.key === k); const v = r && r.value; return v === true || v === 'true' || v === 'yes'; };
+    onlinePay = on('payments.online_enabled');
+    // Card needs a terminal (a bank merchant account), so it stays hidden
+    // until the owner sets payments.card_enabled.
+    cardPay = on('payments.card_enabled');
+    if ((onlinePay || cardPay) && view === 'bill' && !billSent) renderBill();
+  } catch (e) { /* stays cash / QR */ }
 })();
 // Back from HitPay: wait for the webhook, then say so honestly.
-(async function(){
-  const paid = new URLSearchParams(location.search).get('paid');
+(async function () {
+  const paid = urlParams.get('paid');
   if (!paid || !/^[A-Za-z0-9-]{4,64}$/.test(paid)) return;
-  showToast('⏳ Confirming your payment with HitPay…');
+  toast(T('payConfirm'));
   for (let i = 0; i < 40; i++) {
-    try { const o = await TPN.getOrderByNumber(paid); if (o && o.payment_status === 'paid') { showToast('✅ Payment received — salamat po!'); return; } } catch(e) {}
+    try { const o = await TPN.getOrderByNumber(paid); if (o && o.payment_status === 'paid') { toast('✅ ' + T('payDone')); return; } } catch (e) {}
     await new Promise(r => setTimeout(r, 3000));
   }
-  showToast('Still confirming. If you finished paying, no need to pay again — staff can check.');
+  toast(T('payWait'));
 })();
-async function notifyBillRequest(method){
-  if(!TABLE_UUID){ showToast('⚠️ Table not registered.'); return; }
-  try {
-    const { data, error } = await sb.rpc('signal_bill_request', {
-      p_table_id: TABLE_UUID,
-      p_payment_method: method,
-      p_total: sessionTotal
-    });
-    if (error) throw error;
-    if (data === false) { showToast('⏳ Already requested — hang tight.'); }
-  } catch(e){
-    console.error('bill request failed:', e);
-    showToast('⚠️ Bill request failed — please flag a server.');
-  }
-}
-function showBillSentConfirmation(method){
-  const payLabels={cash:'Cash',card:'Card Terminal',online:'Online',gcash:'GCash',paymaya:'Maya'};
-  document.getElementById('confirm-ref-num').textContent='BILL SENT';
-  document.getElementById('confirm-sub').textContent=`Staff is on the way with your bill. Payment: ${payLabels[method]}.`;
-  setOrderProgress('served'); renderSessionTotalCard();
-  document.getElementById('confirm-screen').classList.add('show');
-  showToast('💳 Staff notified — they\'ll be right over!');
-}
-
-function showQrPaymentScreen(method,amount){
-  const isGcash=method==='gcash'; const provider=isGcash?'GCash':'PayMaya'; const icon=isGcash?'📱':'📲';
-  const qrData=encodeURIComponent(`${provider} Payment\nAmount: PHP ${amount.toFixed(2)}\nMerchant: Tyo Paeng Nyo\nTable: ${TABLE_NUM}\nBranch: ${BRANCH}`);
-  const qrUrl=`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${qrData}&color=8B1A0E&bgcolor=FDF6EC&margin=10`;
-  document.getElementById('qr-screen-title').textContent=`Pay with ${provider}`;
-  document.getElementById('qr-provider-logo').textContent=icon;
-  document.getElementById('qr-provider-name').textContent=provider;
-  document.getElementById('qr-amount').textContent=`₱${amount.toFixed(2)}`;
-  document.getElementById('qr-image').src=qrUrl;
-  document.getElementById('qr-instruction').innerHTML=`Open <strong>${provider}</strong> → tap <strong>Scan QR</strong> → confirm <strong>₱${amount.toFixed(2)}</strong> → send payment.<br><br>Once done, tap <strong>Payment Sent</strong> and our cashier will verify.`;
-  document.getElementById('qr-screen').classList.add('show');
-}
-function closeQrScreen(){ document.getElementById('qr-screen').classList.remove('show'); }
-function confirmQrPayment(){ document.getElementById('qr-screen').classList.remove('show'); notifyBillRequest(selectedBillPayMethod); showBillSentConfirmation(selectedBillPayMethod); }
 
 let toastTimer;
-function showToast(msg){ const el=document.getElementById('toast'); el.textContent=msg; el.classList.add('show'); clearTimeout(toastTimer); toastTimer=setTimeout(()=>el.classList.remove('show'),2800); }
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 2600);
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  applyStatic();
+  updateCartUI(); updateDock();
+  try { history.replaceState({ tm: 'menu' }, '', location.pathname + location.search); } catch (e) {}
+  renderMenu();
+  loadMenuFromDB();
+  resubscribeStoredOrders();
+});
+</script>
+<script src="tpn-home.js?v=20261017v30"></script>
+<script>
+  // tpn-home.js has now added its strings and built the engraved title; the
+  // menu renders once it exists.
+  document.addEventListener('DOMContentLoaded', () => { renderMenu(); });
 </script>
 </body>
 </html>

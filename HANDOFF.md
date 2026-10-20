@@ -163,6 +163,14 @@ All of this lives in `index.html`, at the top of the checkout section (`renderCh
 - Below-the-fold mandalas on home are `loading="lazy"`. Cards reveal in .55s with a 40ms stagger (was .9s/60ms).
 - v3 asset version `20261017v17`.
 
+## Rev 10 — QR table menu matches the website (Oct 20, 2026)
+
+- **`tpn-table-menu.html` rebuilt on the website's design.** It loads the same `tpn-app.css` / `tpn-glass.css` / `tpn-site-v3.css` and draws dishes with `tpnHome.card()` from `tpn-home.js`, so cards, photos, spinning cutouts, the engraved title, chips, tray drawer and receipt printer are the website's own. Change those files and both pages follow. Bump their `?v=` here too.
+- **Flow:** + on a card adds in one tap (dishes with add-on groups open an options sheet) → tray → Review (name + guests on the first round, one notes field) → Send → the kitchen ticket prints, then a live status line (Received → Cooking → Ready → Served via `track_order`). The dock (bottom left) has Call staff and the bill so far. Bill → pick Cash / GCash·Maya·bank QR / Card → `signal_bill_request` → the bill prints. Each screen is a history entry, so the phone's Back button works.
+- **Unchanged:** `submit_order` with the sql/41 idempotency key, table-bill joining, `signal_call_staff`, guest profile, HitPay still behind `payments.online_enabled`. Session keys are the same, so open tables survive the deploy. Per-dish notes became one note per round. The unused fake-QR screen (api.qrserver.com) is gone and dropped from the CSP.
+- Language follows the website's saved choice (`tpn.lang`), defaulting to Tagalog at the table.
+- **Paying at the table (no payment app, no BIR needed):** the guest picks Cash or GCash·Maya·bank QR and taps "Ask for the bill". The screen says staff will be right with them, with three steps for that method (QR: scan, pay the exact total, show the success screen; staff confirm it on the restaurant phone, never from a screenshot), then the bill prints. The dock shows "Staff coming" until they order again. Card is hidden until `payments.card_enabled` is set in site settings (it needs a terminal, which needs a merchant account).
+
 ## Rev 9 — manual payments, delivery, iMin counter, glass + motion (Oct 17, 2026)
 
 - **Payments are all taken by hand (sql/37a, 37b).** No payment app talks to the system. Staff show the shop's QR (GCash/Maya/QR Ph) or run the card terminal, check it went through, then record it with the reference / approval code: `record_manual_payment`, or `settle_table_manual` for a whole table at Close table. Counts as paid at once and keeps who/when/reference. HitPay code stays but is hidden while `payments.online_enabled` is off. Customers pick what they will pay with (Cash / GCash-Maya-QR Ph / Card at pickup) so staff bring the QR or terminal; the QR menu bill request shows it on the floor.
