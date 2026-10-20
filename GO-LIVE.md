@@ -4,7 +4,8 @@
 
 | Step | State |
 |---|---|
-| 0 Leaked password protection, backups | **Skipped**: needs a paid Supabase plan. Revisit if the plan is upgraded. |
+| 0 Leaked password protection | **Skipped**: needs a paid Supabase plan. Revisit if the plan is upgraded. |
+| 0 Backups | ✅ Free nightly encrypted `pg_dump` on the headless PC at 03:00, 30 kept, restore-tested Oct 20. See HANDOFF.md → "Backups". |
 | 1 Database (29a–41) | ✅ Live. Advisors clean apart from the intended public functions. 35 (pay a whole table at Close table), 36 (per-person read receipts), 37a/37b (manual payments), 38 (delivery), 39–40 (menu) and 41 (order idempotency) added Oct 17. 40 and 41 were applied to `xjlqfpnzobfqxetgkkai` on Oct 17 as migrations `40_…` and `41_order_idempotency`. |
 | 2 Website + portal | ✅ Merged to `main` and live. FAQs with `[Fill in]` stay unpublished (open questions on hold). |
 | 3 Clock-in | ⏸ Waiting: needs someone at the restaurant (trust Wi-Fi, phone camera test). |
@@ -20,7 +21,7 @@ Do the steps in order. Each one is safe to stop after: nothing later is required
 ## 0. Before you start (5 minutes)
 
 - [ ] Supabase → Authentication → Settings → **Leaked password protection: ON**.
-- [ ] Take a database backup: Supabase → Database → Backups (or `pg_dump`).
+- [x] Take a database backup: runs nightly on the headless PC (HANDOFF.md → "Backups"). Before a risky migration, run one by hand there: `schtasks /Run /TN "TPN OS Backup (nightly)"`.
 - [ ] Run the tests on your PC: `cd tests/db && npm install && node run.mjs` → `123 passed, 0 failed`.
 
 ## 1. Database (Supabase → SQL Editor)

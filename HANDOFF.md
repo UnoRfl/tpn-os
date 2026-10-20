@@ -1,6 +1,6 @@
 # TPN OS — Session Handoff
 
-**Last updated:** Oct 20, 2026 (rev 21 — offline counter, see "Rev 21"). Earlier: Oct 17, 2026 (rev 8 — read receipts, Tagalog everywhere, layout, guide; see "Rev 8"). Rev 7 — portal split out of the website, hubs, Counter on the floor screen; see "Rev 7"). Rev 6 (Oct 16 — v2 overhaul, see "Rev 6" and GO-LIVE.md). Previously rev 5 — UI/UX reliability pass, no migrations; see "Rev 5" below). Rev 4 (Aug 22): split bills, daily close, variance, working add-ons, low-stock alerts; migrations 18–28
+**Last updated:** Oct 20, 2026 (nightly encrypted backups on the headless PC, see "Backups"; rev 21 — offline counter, see "Rev 21"). Earlier: Oct 17, 2026 (rev 8 — read receipts, Tagalog everywhere, layout, guide; see "Rev 8"). Rev 7 — portal split out of the website, hubs, Counter on the floor screen; see "Rev 7"). Rev 6 (Oct 16 — v2 overhaul, see "Rev 6" and GO-LIVE.md). Previously rev 5 — UI/UX reliability pass, no migrations; see "Rev 5" below). Rev 4 (Aug 22): split bills, daily close, variance, working add-ons, low-stock alerts; migrations 18–28
 **Deployed:** https://unorfl.github.io/tpn-os/
 **Repo:** https://github.com/UnoRfl/tpn-os
 **Supabase project ref:** `xjlqfpnzobfqxetgkkai` (single project, single branch)
@@ -334,6 +334,31 @@ chips), sortable/filterable long lists, one peso formatter everywhere, mixed
 English/Tagalog, Staff Board drag-and-drop on touch, tier-vs-permission
 checks inside some pages, placeholder contact details and SEC number on the
 public site, food photos.
+
+---
+
+## Backups — nightly, free, encrypted (Oct 20, 2026)
+
+The free Supabase plan keeps no backups, so the always-on headless PC makes its own. The scripts are in `ops/backup/` (rebuild: copy them plus `pgsqlin` from the EDB PostgreSQL 17 binaries zip and `age.exe` into `C:\TPNBackupin\…`, run `install.ps1` elevated, then `set-password.ps1`).
+
+- **What:** the scheduled task `TPN OS Backup (nightly)` on the headless PC runs `C:\TPNBackup\backup.ps1` at 03:00 as SYSTEM, whether or not anyone is logged in. If the PC was off at 03:00, it runs when the PC comes back. It runs `pg_dump --format=custom` of the whole database (public, private, auth logins, storage metadata) over the session pooler and pipes it straight into `age`, so no unencrypted copy touches the disk. The newest 30 are kept as `C:\TPNBackup\dumps\tpn-os-YYYYMMDD-HHMM.dump.age`.
+- **Check it:** `C:\TPNBackup\backup.log` gets one `OK` or `FAIL` line per run. `FAIL … password authentication failed` means the DB password was reset. Re-enter it with `ssh -t headless powershell -NoProfile -File C:\TPNBackup\set-password.ps1`, which shows a hidden prompt and saves the password to `secrets\pgpass.conf` (readable by admins and SYSTEM only). To take a backup by hand before a risky migration, run `schtasks /Run /TN "TPN OS Backup (nightly)"` on the headless PC.
+- **Not included:** uploaded photo *files* in Storage buckets (only their metadata), Edge Function code (it lives in this repo), and `vault` secrets (Supabase encrypts them with its own key).
+- **The key:** dumps are encrypted to an age public key. The headless PC holds only that public key, so a stolen box can't read them. The private key is `tpn-backup-identity.txt` in `C:\Users\pc\TPN-Backup-Key` on Uno's main PC. **Keep a second copy offline (USB / password manager).** Without it, every dump is unreadable.
+
+### Restore
+
+This needs the PostgreSQL 17 client tools (`pg_restore`, `psql`) and `age.exe`. The headless PC has both in `C:\TPNBackup\bin`.
+
+1. Copy the newest dump off the headless PC: `scp headless:C:/TPNBackup/dumps/<file>.dump.age .`
+2. Decrypt it: `age -d -i tpn-backup-identity.txt -o tpn.dump <file>.dump.age`. The decrypted file holds customer names and phone numbers, so delete it when you're done.
+3. **Practise first** (also the way to check any dump): use a throwaway local Postgres 17. Run `initdb` and start it. Then `create schema auth; create schema private; create schema extensions;` and create the roles `anon`, `authenticated`, `service_role`, `supabase_admin`, `supabase_auth_admin` and `authenticator`. Finally run `pg_restore --no-owner --no-acl -n auth -n private -n public -d <db> tpn.dump`. The only expected errors are about the `supabase_realtime` publication.
+4. **Same Supabase project** (lost data, bad migration): logins are still there, so restore only the app's schemas, as `postgres` over the session pooler. Keep the grants, which means no `--no-acl`:
+   `pg_restore --clean --if-exists --no-owner -n public -n private -d "host=aws-0-ap-southeast-1.pooler.supabase.com port=5432 user=postgres.xjlqfpnzobfqxetgkkai dbname=postgres sslmode=require" tpn.dump`
+   `--clean` drops each table before recreating it, so do step 3 first.
+5. **New Supabase project** (the old one is gone): restore the logins first with `--data-only -n auth -t users -t identities`, because staff rows point at them. Then run the step 4 command without `--clean`, against the new project's pooler. Expect a few errors on Supabase-managed objects, and compare row counts afterwards. Finally, point `config.js` at the new URL and anon key, bump `?v=` on all four pages, and redeploy the edge function. *(This path hasn't been rehearsed yet.)*
+
+**Restore-tested Oct 20, 2026:** the first dump (1.1 MB) was restored into a throwaway local Postgres 17.6 using step 3. Row counts matched production exactly: orders 7, menu_items 62, order_items 17, staff 4, auth.users 4, and 56 tables in public. The throwaway and the decrypted copy were deleted afterwards.
 
 ---
 
