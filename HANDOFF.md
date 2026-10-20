@@ -339,7 +339,7 @@ public site, food photos.
 
 ## Backups — nightly, free, encrypted (Oct 20, 2026)
 
-The free Supabase plan keeps no backups, so the always-on headless PC makes its own. The scripts are in `ops/backup/` (rebuild: copy them plus `pgsqlin` from the EDB PostgreSQL 17 binaries zip and `age.exe` into `C:\TPNBackupin\…`, run `install.ps1` elevated, then `set-password.ps1`).
+The free Supabase plan keeps no backups, so the always-on headless PC makes its own. The scripts are in `ops/backup/` (rebuild: copy them to `C:\TPNBackup`, put `pgsql\bin` from the EDB PostgreSQL 17 binaries zip in `C:\TPNBackup\bin\pgsql\bin` and `age.exe` in `C:\TPNBackup\bin\age`, run `install.ps1` elevated, then `set-password.ps1`).
 
 - **What:** the scheduled task `TPN OS Backup (nightly)` on the headless PC runs `C:\TPNBackup\backup.ps1` at 03:00 as SYSTEM, whether or not anyone is logged in. If the PC was off at 03:00, it runs when the PC comes back. It runs `pg_dump --format=custom` of the whole database (public, private, auth logins, storage metadata) over the session pooler and pipes it straight into `age`, so no unencrypted copy touches the disk. The newest 30 are kept as `C:\TPNBackup\dumps\tpn-os-YYYYMMDD-HHMM.dump.age`.
 - **Check it:** `C:\TPNBackup\backup.log` gets one `OK` or `FAIL` line per run. `FAIL … password authentication failed` means the DB password was reset. Re-enter it with `ssh -t headless powershell -NoProfile -File C:\TPNBackup\set-password.ps1`, which shows a hidden prompt and saves the password to `secrets\pgpass.conf` (readable by admins and SYSTEM only). To take a backup by hand before a risky migration, run `schtasks /Run /TN "TPN OS Backup (nightly)"` on the headless PC.
