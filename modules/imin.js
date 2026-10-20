@@ -111,9 +111,10 @@
     return true;
   };
 
-  T.kitchen = function (number, lines, type) {
+  T.kitchen = function (number, lines, type, where) {
     if (!T.ready) return false;
     line(number, { size: 40, bold: true });
+    if (where) line(where, { size: 34, bold: true });
     line(({ pickup: 'TAKE-OUT', dine_in: 'DINE-IN', delivery: 'DELIVERY' }[type] || type) + ' · ' +
          new Date().toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit' }), { size: 24 });
     rule();

@@ -11,6 +11,8 @@
   'use strict';
   const can = (k) => !!(window.TPN && TPN.can && TPN.can(k));
   const TICKET_KEY = 'tpn.pos.ticket';
+  // modules/offline.js, on the floor screen only (the portal has no outbox).
+  const OFF = () => window.TPN_OFFLINE || null;
   const st = {
     cats: [], items: [], mods: { groups: [], byItem: {} }, tables: [], branch: null, zones: [], zone: '',
     cat: 'all', q: '', session: null, report: null,
@@ -26,7 +28,8 @@
       sb.from('menu_items').select('*').order('display_order'),
       TPN.loadModifiers().catch(() => ({ groups: [], byItem: {} })),       // works before sql/32 too
       TPN.getTablesForBranch(st.branch.id).catch(() => []),
-      can('cash.drawer') ? TPN.myOpenCashSession().catch(() => null) : Promise.resolve(null)
+      can('cash.drawer') ? TPN.myOpenCashSession().then(id => OFF() ? OFF().lastCashSession(id) : id)
+        .catch(() => OFF() && OFF().isOffline() ? OFF().lastCashSession() : null) : Promise.resolve(null)
     ]);
     st.zones = await (TPN.deliveryZones ? TPN.deliveryZones().catch(() => []) : []);
     if (c.error) throw c.error; if (i.error) throw i.error;
@@ -198,10 +201,13 @@
   }
 
   /* ── Ticket ──────────────────────────────────────────────── */
+  function deliveryFee() {
+    const zone = st.type === 'delivery' ? st.zones.find(z => z.id === st.zone) : null;
+    return zone ? Number(zone.fee) || 0 : 0;
+  }
   function drawTicket() {
     const el = document.getElementById('posTicket'); if (!el) return;
-    const zone = st.type === 'delivery' ? st.zones.find(z => z.id === st.zone) : null;
-    const fee = zone ? Number(zone.fee) || 0 : 0;
+    const fee = deliveryFee();
     const total = st.ticket.reduce((a, l) => a + l.price * l.qty, 0) + fee;
     el.innerHTML = `
       <div class="pos-ticket-head"><h2>Order</h2>${st.ticket.length ? `<button class="link-btn" onclick="posClear()">Clear</button>` : ''}</div>
@@ -237,35 +243,68 @@
     if (st.type === 'dine_in' && !st.table) { toast('Choose the table.'); return; }
     if (st.type === 'delivery' && !st.address.trim()) { toast('Enter the delivery address.'); return; }
     if (st.type === 'delivery' && st.zones.length && !st.zone) { toast('Choose the delivery area.'); return; }
+    const order = {
+      branchId: st.branch.id, orderType: st.type, tableId: st.type === 'dine_in' ? st.table : null,
+      customerName: st.name || null, customerPhone: st.phone || null, deliveryAddress: st.type === 'delivery' ? st.address : null, deliveryZoneId: st.type === 'delivery' ? st.zone || null : null,
+      source: 'pos', joinTableBill: true,
+      items: st.ticket.map(l => ({ menu_item_id: l.id, name: l.name, quantity: l.qty, pax_size: l.size, notes: l.note || null, modifiers: l.mods }))
+    };
+    // One key per order (sql/41): a send whose answer was lost, then sent
+    // again from the offline outbox, returns the first order.
+    st.key = TPN.orderKey(st.key, JSON.stringify(order));
+    const off = OFF(), queue = () => off.queueOrder({ clientKey: st.key.key, order, lines: st.ticket, type: st.type,
+      estTotal: st.ticket.reduce((a, l) => a + l.price * l.qty, 0) + deliveryFee() });
+    let o = null, q = null;
     try {
-      const o = await TPN.createOrder({
-        branchId: st.branch.id, orderType: st.type, tableId: st.type === 'dine_in' ? st.table : null,
-        customerName: st.name || null, customerPhone: st.phone || null, deliveryAddress: st.type === 'delivery' ? st.address : null, deliveryZoneId: st.type === 'delivery' ? st.zone || null : null,
-        source: 'pos', joinTableBill: true,
-        items: st.ticket.map(l => ({ menu_item_id: l.id, name: l.name, quantity: l.qty, pax_size: l.size, notes: l.note || null, modifiers: l.mods }))
-      });
-      const printed = st.ticket.slice(), type = st.type;
-      st.ticket = []; st.name = st.phone = st.address = st.table = st.zone = ''; save(); drawTicket();
-      toast('Sent to the kitchen: ' + o.order_number);
-      printKitchenTicket(o.order_number, printed, type);
-      // Take-out and delivery pay now; a dine-in table pays when it closes.
-      if (type !== 'dine_in' && window.openPaymentPanel) openPaymentPanel(o.id);
-      else if (window.onPosSent) window.onPosSent(o, type);
-    } catch (e) { toast(e.message); }
+      if (off && off.isOffline()) q = await queue();
+      else o = await (off ? off.timed(TPN.createOrder(Object.assign({ clientKey: st.key.key }, order)), 15000) : TPN.createOrder(Object.assign({ clientKey: st.key.key }, order)));
+    } catch (e) {
+      if (!off || !off.isNetError(e)) { toast(e.message); return; }
+      off.markOffline();
+      try { q = await queue(); } catch (e2) { toast('Could not save the order on this device: ' + e2.message); return; }
+    }
+    const printed = st.ticket.slice(), type = st.type, where = ticketWhere();
+    st.ticket = []; st.key = null; st.name = st.phone = st.address = st.table = st.zone = ''; save(); drawTicket();
+    if (q) {
+      // No server: the kitchen works from paper, so the ticket always prints.
+      toast('No internet. Saved as ' + q.localNo + '; it syncs when the connection is back.');
+      printKitchenTicket(q.localNo, printed, type, true, where);
+      if (type !== 'dine_in') off.openPayment(q.id);
+      return;
+    }
+    toast('Sent to the kitchen: ' + o.order_number);
+    printKitchenTicket(o.order_number, printed, type, false, where);
+    // Take-out and delivery pay now; a dine-in table pays when it closes.
+    if (type !== 'dine_in' && window.openPaymentPanel) openPaymentPanel(o.id);
+    else if (window.onPosSent) window.onPosSent(o, type);
   };
   ['posSend'].forEach(n => window.guardAsync && guardAsync(n));
 
-  // Kitchen ticket for a printer by the pass (optional; the KDS already has it).
-  function printKitchenTicket(num, lines, type) {
-    if (!window.getPref || getPref('posPrintTicket') !== 'on') return;
+  // Table number or the guest's name, so a paper ticket finds its owner.
+  function ticketWhere() {
+    if (st.type === 'dine_in') { const t = st.tables.find(x => x.id === st.table); return t ? 'Table ' + t.table_number : ''; }
+    return st.name || '';
+  }
+  // Kitchen ticket for a printer by the pass (optional; the KDS already has
+  // it). Offline it always prints: then the paper is all the kitchen has.
+  function printKitchenTicket(num, lines, type, always, where) {
+    if (!always && (!window.getPref || getPref('posPrintTicket') !== 'on')) return;
     // iMin counter: straight to the built-in printer, no print window.
-    if (window.TPN_PRINT && TPN_PRINT.kitchen(num, lines, type)) return;
-    const w = window.open('', '_blank', 'width=360,height=520'); if (!w) return;
+    if (window.TPN_PRINT && TPN_PRINT.kitchen(num, lines, type, where)) return;
+    // A print window, or a hidden frame where pop-ups are blocked.
+    let w = window.open('', '_blank', 'width=360,height=520'), frame = null;
+    if (!w) {
+      frame = document.createElement('iframe');
+      frame.setAttribute('aria-hidden', 'true'); frame.style.cssText = 'position:fixed;width:0;height:0;border:0;right:0;bottom:0';
+      document.body.appendChild(frame); w = frame.contentWindow;
+      setTimeout(() => frame.remove(), 60000);
+    }
     w.document.write(`<!doctype html><meta charset="utf-8"><title>${E(num)}</title><style>@page{size:80mm auto;margin:3mm}body{font:15px/1.3 ui-monospace,Consolas,monospace;width:74mm}h1{font-size:20px;margin:0}li{margin:4px 0}</style>
-      <h1>${E(num)}</h1><div>${E({ pickup: 'TAKE-OUT', dine_in: 'DINE-IN', delivery: 'DELIVERY' }[type] || type)} · ${E(new Date().toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit' }))}</div><hr>
+      <h1>${E(num)}</h1>${where ? `<h1>${E(where)}</h1>` : ''}<div>${E({ pickup: 'TAKE-OUT', dine_in: 'DINE-IN', delivery: 'DELIVERY' }[type] || type)} · ${E(new Date().toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit' }))}</div><hr>
       <ul style="padding-left:16px">${lines.map(l => `<li><b>${l.qty}× ${E(l.name)}</b>${l.size ? ' (' + E(l.size) + ')' : ''}${l.modNames.length ? '<br>&nbsp;&nbsp;' + E(l.modNames.join(', ')) : ''}${l.note ? '<br>&nbsp;&nbsp;** ' + E(l.note) : ''}</li>`).join('')}</ul>
-      <script>window.onload=()=>{print();setTimeout(()=>close(),400)}<\/script>`);
+      ${frame ? '' : '<script>window.onload=()=>{print();setTimeout(()=>close(),400)}<\/script>'}`);
     w.document.close();
+    if (frame) { w.focus(); w.print(); }
   }
 
   // Keyboard: "/" jumps to search while the POS is open.

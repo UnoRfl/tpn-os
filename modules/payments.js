@@ -27,6 +27,9 @@
   const onlineOn = () => { const v = window.tpnSite && tpnSite.state.settings['payments.online_enabled']; return v === true || v === 'true' || v === 'yes'; };
   const STATUS = { completed: ['ok', 'Received'], pending: ['warn', 'Waiting'], failed: ['bad', 'Failed'], cancelled: ['bad', 'Cancelled'], expired: ['bad', 'Expired'] };
   let cur = null;           // current order payments summary
+  // modules/offline.js (floor screen only): true while the server can't be reached.
+  const offline = () => !!(window.TPN_OFFLINE && TPN_OFFLINE.isOffline());
+  const OFFLINE_WHY = 'No internet. GCash, Maya, QR Ph, card and bank need the server to check and record the reference, so they are off until the connection is back. Cash still works: it is saved on this device and syncs by itself.';
   let liveChan = null;
 
   function qrSvg(text, size = 220) {
@@ -52,7 +55,15 @@
     const box = document.getElementById('payPanel');
     if (!box) { if (liveChan) { try { sb.removeChannel(liveChan); } catch (e) {} liveChan = null; } return; }
     try { cur = await tpnRetry(() => TPN.orderPayments(orderId), { what: 'payments' }); }
-    catch (e) { box.innerHTML = loadErrorPanel('the payments', e, `openPaymentPanel('${JA(orderId)}')`); return; }
+    catch (e) {
+      if (window.TPN_OFFLINE && TPN_OFFLINE.isNetError(e)) TPN_OFFLINE.markOffline();
+      // Still drawn from before the line dropped: keep it, cash can queue.
+      if (cur && cur.order_id === orderId && offline()) { draw(box); return; }
+      box.innerHTML = offline()
+        ? `<div class="pay-work glass" role="alert"><strong>This bill can't be loaded without the internet.</strong><p class="pref-row-hint">Take the payment once the connection is back. Orders rung up at the counter while offline take cash in the 📴 Offline list at the top.</p><button class="btn-next" onclick="openPaymentPanel('${JA(orderId)}')">↻ Try again</button></div>`
+        : loadErrorPanel('the payments', e, `openPaymentPanel('${JA(orderId)}')`);
+      return;
+    }
     draw(box);
   }
 
@@ -75,9 +86,9 @@
       ${due > 0 && can('payments.take') ? `
       <div class="pay-actions" role="group" aria-label="Take payment">
         <button class="btn-next" onclick="payCash()">💵 Cash</button>
-        ${['gcash', 'maya', 'qrph', 'card', 'bank'].map(m => `<button class="btn-ghost" onclick="payManual('${m}')">${METHOD[m]}</button>`).join('')}
-        ${onlineOn() ? '<button class="btn-ghost" onclick="payOnline()">🌐 Online link</button>' : ''}
-      </div>` : ''}
+        ${['gcash', 'maya', 'qrph', 'card', 'bank'].map(m => `<button class="btn-ghost" ${offline() ? 'disabled' : ''} onclick="payManual('${m}')">${METHOD[m]}</button>`).join('')}
+        ${onlineOn() && !offline() ? '<button class="btn-ghost" onclick="payOnline()">🌐 Online link</button>' : ''}
+      </div>${offline() ? `<p class="pref-row-hint" role="note">${E(OFFLINE_WHY)}</p>` : ''}` : ''}
       <div id="payWork"></div>
       <h3 class="pay-sub">Payments on this order</h3>
       ${p.payments.length ? `<ul class="pay-list">${p.payments.map(x => {
@@ -139,7 +150,17 @@
       // iMin counter: pop the cash drawer (and print, if that is switched on).
       if (window.TPN_PRINT) { TPN_PRINT.openDrawer('cash payment'); TPN_PRINT.receipt(cur.order_id).catch(() => {}); }
       await refresh(cur.order_id);
-    } catch (e) { toast(e.message); }
+    } catch (e) {
+      if (!window.TPN_OFFLINE || !TPN_OFFLINE.isNetError(e)) { toast(e.message); return; }
+      // The answer never came. Queue it; the replay checks first whether
+      // this one already landed (offline.js tags the payment note).
+      TPN_OFFLINE.markOffline();
+      await TPN_OFFLINE.queueCash({ orderId: cur.order_id, orderNumber: cur.order_number, tendered: ten, amount: amt, tip });
+      if (window.TPN_PRINT) TPN_PRINT.openDrawer('cash payment (offline)');
+      const ch = ten - amt - tip;
+      toast((ch > 0 ? `Give change: ${peso(ch)}. ` : '') + 'No internet: the cash is saved on this device and syncs by itself.');
+      closeModal();
+    }
   };
   ['payCashSave'].forEach(n => window.guardAsync && guardAsync(n));
 
@@ -188,7 +209,10 @@
       toast('Recorded.');
       if (window.TPN_PRINT) TPN_PRINT.receipt(cur.order_id).catch(() => {});
       await refresh(cur.order_id);
-    } catch (e) { toast(e.message); }
+    } catch (e) {
+      if (window.TPN_OFFLINE && TPN_OFFLINE.isNetError(e)) { TPN_OFFLINE.markOffline(); toast('No answer from the server, so it may or may not have been recorded. Check this bill’s payments once the connection is back before recording it again.'); await refresh(cur.order_id); return; }
+      toast(e.message);
+    }
   };
   ['payManualSave'].forEach(n => window.guardAsync && guardAsync(n));
 

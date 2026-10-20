@@ -18,6 +18,7 @@
 <script src="config.js?v=20261017o"></script>
 <script src="tpn-supabase.js?v=20261017o"></script>
 <script src="tpn-kit.js?v=20261017o"></script>
+<script src="modules/offline.js?v=20261020a"></script>
 <script src="tpn-i18n.js?v=20261017o"></script>
 <link rel="stylesheet" href="tpn-glass.css?v=20261017o">
 <link rel="manifest" href="counter.webmanifest">
@@ -314,6 +315,12 @@
   .live-pill.connecting .dot { background: #f2c14e; box-shadow: 0 0 6px #f2c14e; animation: connpulse 1.2s ease-in-out infinite; }
   .live-pill.down { color: #ffd2cc; border-color: #ff8a7a; }
   .live-pill.down .dot { background: #ff5a47; box-shadow: 0 0 6px #ff5a47; }
+  /* Offline counter chip (modules/offline.js) */
+  .offline-chip[data-state="off"]  { background: #6b4a00; color: #ffe7a8; }
+  .offline-chip[data-state="sync"] { background: rgba(255,255,255,0.14); }
+  .offline-chip[data-state="bad"]  { background: #8a1c12; color: #fff; }
+  .offline-chip[hidden] { display: none; }
+  .offline-off button[disabled] { opacity: .45; cursor: not-allowed; }
   @keyframes connpulse { 50% { opacity: .35; } }
   .live-banner { background: #b3261e; color: #fff; font-weight: 700; font-size: 14px; padding: 10px 16px; display: flex; align-items: center; gap: 12px; justify-content: center; flex-wrap: wrap; text-align: center; }
   .live-banner[hidden] { display: none; }
@@ -527,9 +534,14 @@ async function tpnAuthGate() {
   const msg = document.getElementById('tpn-auth-msg');
   const btn = document.getElementById('tpn-auth-btn');
   try {
-    // Wait for supabase-js to restore session from localStorage
-    const { data: { session } } = await sb.auth.getSession();
-    if (!session) {
+    // Wait for supabase-js to restore session from localStorage. With no
+    // internet an expired token can't refresh (supabase-js keeps retrying
+    // for ~30s), so don't wait that long: the offline counter
+    // (modules/offline.js) opens on the sign-in this device last had.
+    const { data: { session } } = await Promise.race([sb.auth.getSession(),
+      new Promise(r => setTimeout(() => r({ data: { session: null } }), 6000))]);
+    const offlineOk = !session && window.TPN_OFFLINE && await TPN_OFFLINE.canRunOffline();
+    if (!session && !offlineOk) {
       msg.textContent = 'You need to be signed in as manager+ to view the floor panel.';
       btn.style.display = 'inline-block';
       return false;
@@ -2116,10 +2128,10 @@ window.onPosSent = function (o, type) {
 };
 </script>
 <script src="vendor/qrcode-generator-1.4.4.js"></script>
-<script src="modules/payments.js?v=20261017o"></script>
-<script src="modules/pos.js?v=20261017o"></script>
+<script src="modules/payments.js?v=20261020a"></script>
+<script src="modules/pos.js?v=20261020a"></script>
 <script src="vendor/imin-printer-1.4.0.min.js"></script>
-<script src="modules/imin.js?v=20261017o"></script>
+<script src="modules/imin.js?v=20261020a"></script>
 <script src="modules/guide.js?v=20261017o"></script>
 </body>
 </html>
