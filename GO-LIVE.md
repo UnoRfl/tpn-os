@@ -46,6 +46,7 @@ Run each file **on its own**, in this order. All are safe to re-run.
 | `sql/40-menu-descriptions.sql` | short descriptions for the 42 dishes that had none (fills blanks only) |
 | `sql/41-order-idempotency.sql` | a retried order (dropped connection, refresh, second tap) returns the first order instead of placing a second one. Run it before or with the site release; the old site keeps working on it |
 | `sql/42-silog-menu.sql` | Chicken Silog is renamed Chicksilog; Tocilog (₱115) is back on the menu. Data only. Applied to production Oct 17 as `42_silog_menu` |
+| `sql/43-bir-invoices.sql` | booklet invoice numbers on orders, the end-of-day invoice, and which sales need one (VAT setting in Website). Applied to production Oct 21 as `43_bir_invoices` |
 
 Then: Supabase → Advisors → Security. Expected warnings only: the customer functions (`submit_order`, `track_order`, `claim_stamp_card`, `my_stamp_card`, `stamp_card_code`, `my_guest_profile`, `addon_suggestions`, `signal_*`) are public on purpose.
 
@@ -121,3 +122,16 @@ The counter runs the floor screen in Chrome. Nothing needs to be built or sidelo
 7. Optional: Android Settings → Display → keep the screen on while charging.
 
 If the iMin is plugged into this PC by USB with **USB debugging** on (Settings → About → tap Build number 7×, then Developer options → USB debugging), Claude can open the page on it and check the setup with `adb`.
+
+## 9. Moving the website to Vercel
+
+GitHub keeps the code, Supabase keeps the data, and Vercel serves the pages. Do this **before** printing table QR codes or installing the counter app, because both remember the web address they were made on.
+
+1. vercel.com → sign in with the GitHub account that owns `UnoRfl/tpn-os` → **Add New → Project** → import `tpn-os`.
+2. Framework preset **Other**. No build command, output directory = the repo root (leave blank). Deploy. `vercel.json` already sets clean URLs and headers.
+3. Open the new address and check the menu, the portal sign-in, `/tpn-table-menu?table=1` and `/tpn-kitchen-station`.
+4. Optional: Settings → Domains → add the restaurant's own domain.
+5. Then: print the table QR codes from the portal on the new address, install the counter from the new address, and update `og:image` in `index.html` to the new domain.
+6. Leave GitHub Pages on for a week as a fallback, then turn it off (repo Settings → Pages).
+
+Supabase needs no change: staff sign in with a password, so there are no redirect URLs to update.

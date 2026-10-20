@@ -1,6 +1,6 @@
 # TPN OS — Session Handoff
 
-**Last updated:** Oct 20, 2026 (nightly encrypted backups on the headless PC, see "Backups"; rev 21 — offline counter, see "Rev 21"). Earlier: Oct 17, 2026 (rev 8 — read receipts, Tagalog everywhere, layout, guide; see "Rev 8"). Rev 7 — portal split out of the website, hubs, Counter on the floor screen; see "Rev 7"). Rev 6 (Oct 16 — v2 overhaul, see "Rev 6" and GO-LIVE.md). Previously rev 5 — UI/UX reliability pass, no migrations; see "Rev 5" below). Rev 4 (Aug 22): split bills, daily close, variance, working add-ons, low-stock alerts; migrations 18–28
+**Last updated:** Oct 21, 2026 (rev 22 — BIR booklet invoices and Vercel prep, see "Rev 22"; Oct 20: nightly encrypted backups on the headless PC, see "Backups"; rev 21 — offline counter, see "Rev 21"). Earlier: Oct 17, 2026 (rev 8 — read receipts, Tagalog everywhere, layout, guide; see "Rev 8"). Rev 7 — portal split out of the website, hubs, Counter on the floor screen; see "Rev 7"). Rev 6 (Oct 16 — v2 overhaul, see "Rev 6" and GO-LIVE.md). Previously rev 5 — UI/UX reliability pass, no migrations; see "Rev 5" below). Rev 4 (Aug 22): split bills, daily close, variance, working add-ons, low-stock alerts; migrations 18–28
 **Deployed:** https://unorfl.github.io/tpn-os/
 **Repo:** https://github.com/UnoRfl/tpn-os
 **Supabase project ref:** `xjlqfpnzobfqxetgkkai` (single project, single branch)
@@ -61,6 +61,32 @@ tpn-os/
 | **Extensionless URLs** (`/tpn-table-menu`, `/tpn-dine-in-floor`) | ✅ live |
 
 ---
+
+## Rev 22 — BIR booklet invoices, ready for Vercel (Oct 21, 2026, branch `docs/nightly-backups`)
+
+TPN OS replaces StoreHub to cut its yearly fee. TPN OS has no BIR Permit to Use, so the official invoice stays handwritten from the BIR-registered booklet. This release tells staff when one is needed and keeps the number on record. See the go-live guide for the BIR steps (stamping the old "Official Receipt" booklets "Invoice", cancelling a StoreHub PTU if there is one).
+- **Database (`sql/43-bir-invoices.sql`, applied to production Oct 21 as `43_bir_invoices`):**
+  - `orders.invoice_no` / `invoice_at` / `invoice_by` are written only by `record_order_invoice` (`payments.take`). The trigger `trg_guard_invoice_no` refuses any other UPDATE of those columns. A blank number clears a mistake. Both cases are audited (`invoice.record`).
+  - `bir_day_invoices` holds the end-of-day invoice for small sales. It is written only by `record_day_invoice` (`payments.take` or `finance.view`, audited `invoice.day`). Signed-in staff with those permissions can read it; anon can't.
+  - `invoice_day_summary(date, branch)` returns paid, non-cancelled orders placed that Manila day that still need their own invoice, the total of the small sales, and the day invoices written.
+  - The rule depends on `site_settings 'bir.vat_registered'`. With `yes`, every sale needs an invoice. Otherwise a sale needs one when it is over `private.bir_threshold()` (₱500, RR 7-2024 as amended by RR 11-2024), and the small sales go on one end-of-day invoice. If the setting is blank, the system assumes non-VAT and says so on screen.
+  - None of the new functions can be called by anon. The security advisor shows only the intended customer functions.
+- **Screens (`modules/invoices.js`, loaded on the floor screen and the portal after `payments.js`):**
+  - Once a bill is paid, the payment panel shows either "Write a booklet invoice for this sale" with a box for its number, or "only if the customer asks".
+  - The daily close gets a "BIR invoices (booklet)" panel. It lists paid sales still missing an invoice and the small-sales total, with a form for the end-of-day invoice.
+  - Website settings gain "VAT-registered? type yes or no".
+  - The helpers `TPN.recordOrderInvoice`, `TPN.invoiceDaySummary` and `TPN.recordDayInvoice` live in the module, so `tpn-supabase.js` didn't change.
+- **Asset versions:** `modules/payments.js` and `modules/invoices.js` are at `?v=20261021a` (floor and portal); `modules/website.js` is at `?v=20261021a`.
+- **Vercel:**
+  - `vercel.json` sets clean URLs (`/tpn-table-menu` serves `tpn-table-menu.html`, as GitHub Pages does) plus nosniff, referrer and same-origin framing headers. It also sends `no-cache` on the counter service worker.
+  - `.vercelignore` keeps `sql/`, `supabase/`, `tests/`, `ops/` and the docs off the site.
+  - The floor screen's two hard-coded `/tpn-os/` links now resolve against the page, so they work at a domain root. The portal's table QR codes already did.
+  - Still pointing at GitHub Pages: `og:image` in `index.html` and `SITE_URL` for the (unused) HitPay functions. Update both once the Vercel domain is final.
+- **Tested:**
+  - `tests/db/t_43_bir_invoices.sql` covers 15 checks; the full suite is 141/141.
+  - On production, inside a rolled-back transaction as the director, an ₱890 cash order showed as missing. A direct `UPDATE orders set invoice_no` was refused. After `record_order_invoice` the order was no longer missing. Nothing persisted.
+  - Both screens rendered locally with stubbed data and no console errors.
+  - Not tested: the real save buttons signed in on a device.
 
 ## Rev 21 — offline counter (Oct 20, 2026, branch `feature/offline-counter`)
 
