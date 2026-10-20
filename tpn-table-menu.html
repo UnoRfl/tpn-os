@@ -161,6 +161,23 @@
   .tm-stop.now i { background: var(--v3-accent); color: #fff; box-shadow: 0 0 0 5px rgba(163,50,26,.15); transform: scale(1.08); animation: tmPulse 1.8s infinite; }
   @keyframes tmPulse { 50% { box-shadow: 0 0 0 9px rgba(163,50,26,0); } }
   .tm-rounds .review-row { padding: 10px 0; }
+  /* staff-on-the-way screen */
+  .tm-wait { display: inline-flex; align-items: center; gap: 10px; margin: 2px auto 22px; padding: 9px 16px; border-radius: 999px;
+    background: var(--v3-paper-2); box-shadow: 0 0 0 1px var(--v3-hair); font: 600 13px var(--v3-ui); color: var(--v3-ink); }
+  .tm-wait .dot { position: relative; width: 9px; height: 9px; border-radius: 50%; background: var(--v3-accent); flex: none; }
+  .tm-wait .dot::after { content: ""; position: absolute; inset: 0; border-radius: 50%; background: rgba(163,50,26,.35); animation: v3ping 1.8s var(--v3-ease) infinite; }
+  .tm-next-lbl { text-align: left; margin: 0 0 14px; }
+  .tm-steps { text-align: left; gap: 18px; margin-bottom: 14px; }
+  .tm-steps li { grid-template-columns: 38px 1fr; animation: tmStep .5s var(--v3-ease) both; }
+  .tm-steps li:nth-child(2) { animation-delay: .12s; } .tm-steps li:nth-child(3) { animation-delay: .24s; }
+  .tm-steps p { font-size: 15px; }
+  .tm-steps .n { width: 38px; height: 38px; font-size: 15px; box-shadow: 0 0 0 4px var(--v3-card), 0 0 0 5px rgba(228,162,60,.45); }
+  .tm-steps::before { left: 18px; }
+  .tm-billsent.restored .tm-steps li { animation: none; }
+  @keyframes tmStep { from { opacity: 0; transform: translateY(8px); } }
+  .tm-mind { font-size: 13px; color: var(--v3-ink-3); text-align: left; margin: 0 0 6px; }
+  .tm-dock .bill.asked b { color: var(--v3-paper); }
+  .tm-dock .bill.asked::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--v3-saffron); animation: tmPulse 1.8s infinite; }
   @media (prefers-reduced-motion: reduce) { .tm-stop.now i { animation: none; } }
   @media (max-width: 600px) {
     .tm-wrap { padding: 84px 14px 120px; }
@@ -338,9 +355,9 @@ const TPN_STRINGS = {
   tableTotal:  { en: 'Whole table so far (other phones too): {p}', tl: 'Buong mesa sa ngayon (pati ibang phone): {p}' },
   howPay:      { en: 'How will you pay?', tl: 'Paano ka magbabayad?' },
   payCash:     { en: 'Cash', tl: 'Cash' },
-  payCashSub:  { en: 'Staff bring your bill and change', tl: 'Dadalhin ng staff ang bill at sukli' },
+  payCashSub:  { en: 'Staff come to your table with the bill', tl: 'Pupunta ang staff sa mesa dala ang bill' },
   payQr:       { en: 'GCash · Maya · bank app', tl: 'GCash · Maya · bank app' },
-  payQrSub:    { en: 'Scan our QR at your table', tl: 'I-scan ang QR namin sa mesa' },
+  payQrSub:    { en: 'Staff bring our QR for you to scan', tl: 'Dadalhin ng staff ang QR para i-scan mo' },
   payQrShort:  { en: 'GCash/Maya QR', tl: 'GCash/Maya QR' },
   payCard:     { en: 'Card', tl: 'Card' },
   payCardSub:  { en: 'Staff bring the terminal', tl: 'Dadalhin ng staff ang terminal' },
@@ -349,10 +366,23 @@ const TPN_STRINGS = {
   payNote:     { en: 'Nothing is charged from this page. Our staff check every payment by hand.', tl: 'Walang sinisingil mula sa page na ito. Sinusuri ng staff ang bawat bayad.' },
   back:        { en: '← Back', tl: '← Bumalik' },
   askBill:     { en: 'Ask for the bill →', tl: 'Hingin ang bill →' },
-  billSentTitle:{ en: 'Bill <em>on its way</em>', tl: 'Papunta na ang <em>bill</em>' },
-  next_cash:   { en: 'A staff member is bringing your bill. Paying with a big bill? Just tell them so they bring change.', tl: 'Dadalhin ng staff ang bill ninyo. Malaki ang pera? Sabihin lang para may dalang sukli.' },
-  next_gcash:  { en: 'A staff member is bringing our QR. Scan it with GCash, Maya or your bank app, pay the exact total, then show them the success screen.', tl: 'Dadalhin ng staff ang QR namin. I-scan gamit ang GCash, Maya o bank app, bayaran ang eksaktong total, tapos ipakita ang success screen.' },
-  next_card:   { en: 'A staff member is bringing the card terminal to your table.', tl: 'Dadalhin ng staff ang card terminal sa mesa ninyo.' },
+  billSentTitle:{ en: 'Staff will be <em>right with you</em>', tl: 'Sandali lang po, <em>papunta na</em>' },
+  waitPill:    { en: 'Table {n} · {how} · {p}', tl: 'Mesa {n} · {how} · {p}' },
+  how_cash:    { en: 'paying cash', tl: 'cash' },
+  how_gcash:   { en: 'paying by QR', tl: 'QR' },
+  how_card:    { en: 'paying by card', tl: 'card' },
+  whatNext:    { en: 'What happens next', tl: 'Ano ang susunod' },
+  s_cash_1:    { en: '<b>Stay at your table.</b> A staff member will be right with you with your bill.', tl: '<b>Manatili lang sa mesa.</b> Papunta na ang staff dala ang bill ninyo.' },
+  s_cash_2:    { en: '<b>Check the total: {p}.</b> The bill covers the whole table.', tl: '<b>Tingnan ang total: {p}.</b> Kasama na ang buong mesa sa bill.' },
+  s_cash_3:    { en: '<b>Pay in cash.</b> Paying with a big bill? Tell them so they bring change.', tl: '<b>Magbayad ng cash.</b> Malaki ang pera? Sabihin lang para may dalang sukli.' },
+  s_gcash_1:   { en: '<b>Stay at your table.</b> A staff member will be right with you with our QR code.', tl: '<b>Manatili lang sa mesa.</b> Papunta na ang staff dala ang QR code namin.' },
+  s_gcash_2:   { en: '<b>Scan it with GCash, Maya or your bank app</b> and pay exactly {p}.', tl: '<b>I-scan gamit ang GCash, Maya o bank app</b> at bayaran ang eksaktong {p}.' },
+  s_gcash_3:   { en: '<b>Show them your success screen.</b> They check it came through on our phone, then you’re all set.', tl: '<b>Ipakita ang success screen.</b> Titingnan nila sa phone namin kung pumasok, at tapos na.' },
+  s_card_1:    { en: '<b>Stay at your table.</b> A staff member will be right with you with the card terminal.', tl: '<b>Manatili lang sa mesa.</b> Papunta na ang staff dala ang card terminal.' },
+  s_card_2:    { en: '<b>Check the total: {p}.</b>', tl: '<b>Tingnan ang total: {p}.</b>' },
+  s_card_3:    { en: '<b>Tap or insert your card</b> and keep the slip.', tl: '<b>I-tap o ipasok ang card</b> at itago ang resibo.' },
+  changeMind:  { en: 'Changed your mind about how to pay? Just tell the staff when they arrive.', tl: 'Nagbago ang isip sa pagbabayad? Sabihin lang sa staff pagdating nila.' },
+  billAsked:   { en: 'Staff coming', tl: 'Papunta na' },
   backMenu:    { en: 'Back to the menu', tl: 'Bumalik sa menu' },
   payment:     { en: 'Payment', tl: 'Bayad' },
   noOrders:    { en: 'Order something first!', tl: 'Umorder muna!' },
@@ -417,8 +447,12 @@ let guestName = sessionOrders.length ? sessionOrders[0].name : '';
 let guestPax = sessionOrders.length ? sessionOrders[0].pax : '2';
 let roundNotes = '';
 let shownOrder = null;          // the round shown on the "sent" page
-let billMethod = 'cash', billSent = null;
-let onlinePay = false;
+const BILL_KEY = 'tpn_bill_' + BRANCH_ID + '_t' + TABLE_NUM;
+let billMethod = 'cash';
+// remembered for this tab, so a refresh keeps the "staff coming" screen
+let billSent = (() => { try { const b = JSON.parse(sessionStorage.getItem(BILL_KEY) || 'null'); return b && Date.now() - b.at < 3 * 3600000 ? b : null; } catch (e) { return null; } })();
+function saveBillSent() { try { billSent ? sessionStorage.setItem(BILL_KEY, JSON.stringify(billSent)) : sessionStorage.removeItem(BILL_KEY); } catch (e) {} }
+let onlinePay = false, cardPay = false;   // both off unless turned on in site settings
 
 function loadSessionOrders() {
   try {
@@ -654,6 +688,8 @@ function toggleCart(force) {
 function updateDock() {
   const btn = document.getElementById('tmBillBtn');
   btn.classList.toggle('on', sessionOrders.length > 0);
+  btn.classList.toggle('asked', !!billSent);
+  btn.querySelector('[data-s]').textContent = billSent ? T('billAsked') : T('bill');
   document.getElementById('tmBillAmt').textContent = pesoShort(sessionTotal);
 }
 
@@ -754,6 +790,7 @@ async function submitOrder() {
       items: JSON.parse(JSON.stringify(cart)), total, timestamp: new Date().toISOString(), status: 'received', type: 'dine-in',
       tableTotal: Number(res.total) || total, joined: !!res.joined_existing };
     sessionOrders.push(order); sessionTotal += total; saveSessionOrders();
+    billSent = null; saveBillSent();      // a new round changes the bill: the old request no longer applies
     cart = []; roundNotes = ''; persistCart(); updateCartUI(); updateDock();
     shownOrder = order; freshPrint = true;
     go('sent', true);
@@ -853,8 +890,9 @@ function renderBill() {
     onlinePay ? ['online', '🔳', T('payOnline'), T('payOnlineSub')] : null,
     ['cash', '💵', T('payCash'), T('payCashSub')],
     ['gcash', '📱', T('payQr'), T('payQrSub')],
-    ['card', '💳', T('payCard'), T('payCardSub')],
+    cardPay ? ['card', '💳', T('payCard'), T('payCardSub')] : null,
   ].filter(Boolean);
+  if (!methods.some(m => m[0] === billMethod)) billMethod = 'cash';
   document.getElementById('billCard').innerHTML = `
     <h2>${T('billTitle')}</h2>
     <p class="checkout-sub">${E(T('billSub'))}</p>
@@ -890,7 +928,8 @@ async function submitBillRequest() {
   const ok = await notifyBillRequest(billMethod);
   if (btn) btn.disabled = false;
   if (ok === null) return;      // failed: stay here so they can try again
-  billSent = { method: billMethod, at: Date.now() };
+  billSent = { method: billMethod, at: Date.now(), total: sessionTotal };
+  saveBillSent(); updateDock();
   renderBillSent(false);
   window.scrollTo({ top: 0, behavior: 'instant' });
 }
@@ -908,14 +947,22 @@ async function notifyBillRequest(method) {
     return null;
   }
 }
-// The bill prints the same way the kitchen ticket does.
+// "Staff will be right with you": the message and the three steps show at
+// once; the bill prints under them the same way the kitchen ticket does.
 function renderBillSent(again) {
   const card = document.getElementById('billCard');
-  const payName = { cash: T('payCash'), gcash: T('payQrShort'), card: T('payCard') }[billSent.method] || T('payCash');
-  card.className = 'checkout-card confirm-card' + (again ? ' restored' : '');
+  const m = billSent.method in { cash: 1, gcash: 1, card: 1 } ? billSent.method : 'cash';
+  const total = peso(billSent.total != null ? billSent.total : sessionTotal);
+  const payName = { cash: T('payCash'), gcash: T('payQrShort'), card: T('payCard') }[m];
+  card.className = 'checkout-card confirm-card tm-billsent' + (again ? ' restored' : '');
   card.style.setProperty('--print', Math.min(3400, 1500 + sessionOrders.length * 220) + 'ms');
   card.innerHTML = `
     <h2 class="confirm-title">${T('billSentTitle')}</h2>
+    <div class="tm-wait" role="status"><span class="dot" aria-hidden="true"></span>${E(T('waitPill', { n: TABLE_NUM, how: T('how_' + m), p: total }))}</div>
+    <div class="form-label tm-next-lbl">${E(T('whatNext'))}</div>
+    <ol class="v3-steps tm-steps">${[1, 2, 3].map(i =>
+      `<li><span class="n">${i}</span><p>${T('s_' + m + '_' + i, { p: E(total) })}</p></li>`).join('')}</ol>
+    <p class="tm-mind">${E(T('changeMind'))}</p>
     <div class="rcpt-printer">
       <div class="rcpt-head" aria-hidden="true"><span class="rcpt-led"></span></div>
       <div class="rcpt-clip"><div class="rcpt-feed"><div class="rcpt" role="group" aria-label="${E(T('bill'))}">
@@ -926,11 +973,10 @@ function renderBillSent(again) {
         <hr>
         ${sessionOrders.map((o, i) => `<div class="rcpt-item"><span>${i + 1}.</span><span>${E(o.id)}<small>${E(T('items', { n: o.items.reduce((s, c) => s + c.qty, 0) }))}</small></span><span class="a">${peso(o.total)}</span></div>`).join('')}
         <hr>
-        <div class="rcpt-row rcpt-total"><span>${E(T('total'))}</span><span>${peso(sessionTotal)}</span></div>
+        <div class="rcpt-row rcpt-total"><span>${E(T('total'))}</span><span>${total}</span></div>
       </div></div></div>
     </div>
     <div class="confirm-after">
-      <p class="confirm-sub">${E(T('next_' + (billSent.method in { cash: 1, gcash: 1, card: 1 } ? billSent.method : 'cash')))}</p>
       <div class="tm-actions-col">
         <button class="btn-next" onclick="go('menu')">${E(T('backMenu'))}</button>
         <button class="tm-link" onclick="callStaff()">${E(T('callStaff'))}</button>
@@ -948,14 +994,17 @@ async function callStaff() {
   } catch (e) { console.error('callStaff failed:', e); toast(T('callFail')); }
 }
 
-// Online payment shows only once the owner has turned it on.
+// Online payment and card show only once the owner has turned them on.
 (async function () {
   try {
-    const { data } = await sb.from('site_settings').select('value').eq('key', 'payments.online_enabled').maybeSingle();
-    const v = data && data.value;
-    onlinePay = v === true || v === 'true' || v === 'yes';
-    if (onlinePay && view === 'bill' && !billSent) renderBill();
-  } catch (e) { /* stays cash / QR / card */ }
+    const { data } = await sb.from('site_settings').select('key,value').in('key', ['payments.online_enabled', 'payments.card_enabled']);
+    const on = k => { const r = (data || []).find(x => x.key === k); const v = r && r.value; return v === true || v === 'true' || v === 'yes'; };
+    onlinePay = on('payments.online_enabled');
+    // Card needs a terminal (a bank merchant account), so it stays hidden
+    // until the owner sets payments.card_enabled.
+    cardPay = on('payments.card_enabled');
+    if ((onlinePay || cardPay) && view === 'bill' && !billSent) renderBill();
+  } catch (e) { /* stays cash / QR */ }
 })();
 // Back from HitPay: wait for the webhook, then say so honestly.
 (async function () {
