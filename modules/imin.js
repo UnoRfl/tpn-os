@@ -142,11 +142,30 @@
     return true;
   };
 
+  /* ── A dropped printer link never breaks a sale ──────────────
+     T.ready is set once, at connect. If the plugin's socket closes later,
+     the SDK drops sends silently or throws. These run right after money
+     is recorded, so: check the socket is open, never throw, and return
+     false so a kitchen ticket falls back to the browser print window. */
+  const live = () => T.ready && !!p && !!p.ws && p.ws.readyState === 1;
+  ['kitchen', 'openDrawer', 'test'].forEach(k => {
+    const f = T[k];
+    T[k] = function () {
+      if (!live()) return false;
+      try { return f.apply(this, arguments); } catch (e) { console.warn('iMin ' + k, e); return false; }
+    };
+  });
+  const rec = T.receipt;
+  T.receipt = async function () {
+    if (!live()) return false;
+    try { return await rec.apply(this, arguments); } catch (e) { console.warn('iMin receipt', e); return false; }
+  };
+
   /* ── Hook the existing print paths ─────────────────────────── */
   const origReceipt = window.printReceipt;
   if (typeof origReceipt === 'function') {
     window.printReceipt = async function (orderId) {
-      if (T.ready) { try { await T.receipt(orderId, { force: true }); toast && toast('Printed.'); return; } catch (e) { console.warn('iMin print', e); } }
+      if (T.ready && await T.receipt(orderId, { force: true })) { toast && toast('Printed.'); return; }
       return origReceipt.apply(this, arguments);
     };
   }

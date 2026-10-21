@@ -1,6 +1,6 @@
 # TPN OS — Session Handoff
 
-**Last updated:** Oct 21, 2026 (rev 22 — BIR booklet invoices and Vercel prep, see "Rev 22"; Oct 20: nightly encrypted backups on the headless PC, see "Backups"; rev 21 — offline counter, see "Rev 21"). Earlier: Oct 17, 2026 (rev 8 — read receipts, Tagalog everywhere, layout, guide; see "Rev 8"). Rev 7 — portal split out of the website, hubs, Counter on the floor screen; see "Rev 7"). Rev 6 (Oct 16 — v2 overhaul, see "Rev 6" and GO-LIVE.md). Previously rev 5 — UI/UX reliability pass, no migrations; see "Rev 5" below). Rev 4 (Aug 22): split bills, daily close, variance, working add-ons, low-stock alerts; migrations 18–28
+**Last updated:** Oct 21, 2026 (rev 23 — security pass and fallbacks, see "Rev 23"; rev 22 — BIR booklet invoices and Vercel prep, see "Rev 22"; Oct 20: nightly encrypted backups on the headless PC, see "Backups"; rev 21 — offline counter, see "Rev 21"). Earlier: Oct 17, 2026 (rev 8 — read receipts, Tagalog everywhere, layout, guide; see "Rev 8"). Rev 7 — portal split out of the website, hubs, Counter on the floor screen; see "Rev 7"). Rev 6 (Oct 16 — v2 overhaul, see "Rev 6" and GO-LIVE.md). Previously rev 5 — UI/UX reliability pass, no migrations; see "Rev 5" below). Rev 4 (Aug 22): split bills, daily close, variance, working add-ons, low-stock alerts; migrations 18–28
 **Deployed:** https://unorfl.github.io/tpn-os/
 **Repo:** https://github.com/UnoRfl/tpn-os
 **Supabase project ref:** `xjlqfpnzobfqxetgkkai` (single project, single branch)
@@ -61,6 +61,39 @@ tpn-os/
 | **Extensionless URLs** (`/tpn-table-menu`, `/tpn-dine-in-floor`) | ✅ live |
 
 ---
+
+## Rev 23 — security pass, nobody climbs the ladder, fallbacks (Oct 21, 2026, branch `feature/security-hardening`)
+
+A pen test of production as an outsider, a crew account and an admin, all inside rolled-back transactions (nothing persisted), plus a code audit.
+- **Found and fixed: an admin could make themselves CEO.** `staff_admin_update` checked who was calling, never what the row became, so a direct REST PATCH could set your own `role` to `ceo` or demote the CEO and the director (confirmed on production). Holders of `roles.edit` (admin and up) could also grant themselves any permission override.
+  - **`sql/44-staff-rank-guard.sql`**, applied to production Oct 21 as `44_staff_rank_guard`. It adds two triggers: `trg_guard_staff_rank` on `staff` (insert/update/delete) and `trg_guard_override_rank` on `staff_permission_overrides`. Below CEO, nobody changes their own role, custom access role, status or overrides. Nobody edits, disables or deletes someone at or above their own tier, and nobody gives a tier above their own. The CEO keeps every key (same lockout rule as `private.can`). Calls with no `auth.uid()` (SQL editor, `create-staff` with the service role, sign-up) are untouched.
+  - Test: `tests/db/t_44_staff_rank.sql` (12 checks); the full suite is 153/153. After applying, the three attacks are refused on production.
+- **Checked and fine:**
+  - Anon can't read orders, payments, staff, payroll, audit or invoices, and every anon write affects 0 rows.
+  - Crew can't change prices, totals, payment state or invoice numbers, and can't reach finance, payroll, refunds, voids, discounts or delivery fees.
+  - Public sign-up is **off**. Keep it off: `handle_new_user` turns any new login into a `dining` staff row.
+  - `create-staff` refuses requests without a staff login. The HitPay functions aren't deployed. GraphQL is off.
+  - No secrets in the repo (it's public, so GitHub Pages serving `HANDOFF.md`/`ops/` exposes nothing new).
+  - Customer text is escaped on every staff screen.
+  - The frame-buster on portal/floor/kitchen works (a hostile frame is redirected or the page hides).
+- **CSP:** `script-src` now names the exact pinned files (`supabase-js@2.117.2/dist/umd/supabase.js`, and `exceljs@4.4.0/dist/exceljs.min.js` on the portal) instead of all of `cdn.jsdelivr.net`. Tested with the local copy deleted: every page falls back to the CDN, and any other jsDelivr script is blocked. **If you bump supabase-js or exceljs, change the CSP on all six pages with it.**
+- **Small fixes:**
+  - The website deletes the expired last-order copy (name, phone, address) from localStorage after its 2 hours instead of leaving it on shared phones.
+  - Schedule load errors are escaped.
+  - `rel="noopener"` on the two "Open menu" links.
+- **Fallbacks:**
+  - **Printer (`modules/imin.js`):** every `TPN_PRINT` call now checks the plugin socket is open and never throws. Before, a dropped printer link after a successful payment showed "Payment not recorded" on Close table (the table *was* paid, its orders weren't completed), or an error toast on a saved cash payment (risk of recording it twice). A kitchen ticket now falls back to the browser print window instead of vanishing.
+  - **BIR panel (`modules/invoices.js`):** on error it shows "Couldn't check… Try again" instead of disappearing, and a failed VAT lookup is no longer cached as "not VAT-registered".
+  - **QR menu:** the table/branch lookup retries when the guest taps Send, Bill or Call staff, and on `online`. Before, one blip at load left the table on "not set up yet" until a reload.
+  - **Kitchen screen:** the login check has a 10s timeout and retries with backoff (5s → 60s) and on `online`. Before, a tablet that booted before the router stayed on "Could not verify your login".
+- **Known, not fixed yet (from the audit):**
+  - The offline outbox can lose a "Take cash" made while a sync is running, and there's no cross-tab lock (`offline.js` sync writes back entries read at its start).
+  - Payment and Close-table sends have no timeout.
+  - The portal is blank for the length of a hung session restore.
+  - The counter service worker serves `?v=` files from cache forever (bump `?v=` on every change, no exceptions).
+  - A 15s-timeout order can print an OFF ticket for an order that also lands online.
+- **Not changeable on the free plan:** leaked-password protection (advisor warning stays).
+- **Asset versions:** `modules/imin.js` and `modules/invoices.js` `?v=20261021b` (floor and portal).
 
 ## Rev 22 — BIR booklet invoices, ready for Vercel (Oct 21, 2026, branch `docs/nightly-backups`)
 
