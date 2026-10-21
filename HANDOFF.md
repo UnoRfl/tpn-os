@@ -69,7 +69,7 @@ The first install on the real iMin showed the back screen squashed into the top-
   - The site needs **Chrome 85+** to run at all: `vendor/supabase-js-2.117.2.js` is ES2021, and `tpn-supabase.js`, `payments.js` and `imin.js` are ES2020 (checked with acorn).
   - Its layouts use `inset` (Chrome 87).
   - On an older WebView, supabase-js fails to parse, so `TPN` never exists ("TPN is not defined"), and every `position: fixed; inset: 0` screen collapses to its content's size.
-- **Real fix:** update Android System WebView on the iMin (Play Store, or iMin's app store). **The device's WebView version wasn't reported yet.**
+- **The device (checked Oct 21):** iMin **D4-504** (model I20D01, 10.1" rear screen), **Android 11**, **no Google Play Store** (iMin App Store only), **WebView 83.0.4103.120**. So the WebView has to be updated by iMin's App Store, by an iMin firmware update, or by hand. StoreHub and a Chrome shortcut, "tpn-meal-tracker", are also installed.
 - **App (`MainActivity.checkWebView`):** if the WebView major version is under `MIN_WEBVIEW = 87`, it shows "Update Android System WebView" with an Update button (Play Store for that package) and "Continue anyway". Remote debugging (`chrome://inspect`) is on only while USB debugging is on.
 - **Customer screen:**
   - Rewritten to run on old engines: no `inset`, `aspect-ratio` or container units, plus an `@supports` fallback for engines without `min()`. Its own script needs ES2017; GSAP is ES5.
