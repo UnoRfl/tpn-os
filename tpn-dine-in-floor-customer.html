@@ -70,7 +70,9 @@
     line-height: 1; letter-spacing: -.01em; color: var(--saffron); margin-top: -.5em; }
   .morph .wd { display: flex; justify-content: center; }
   .morph .wd span { display: inline-block; }
-  .morph .rest { overflow: hidden; width: 0; }   /* the letters TPN grows into */
+  /* The letters TPN grows into. Clipped at the sides only (not overflow:
+     hidden), so the tails of y and g below the line still show. */
+  .morph .rest { width: 0; -webkit-clip-path: inset(-.5em 0 -.5em 0); clip-path: inset(-.5em 0 -.5em 0); }
   #wA, #wB { opacity: 0; }   /* the greetings, faded in by the loop */
   @keyframes breathe { 50% { transform: scale(1.035); } }
   @media (prefers-reduced-motion: reduce) { .morph, .mandala { animation: none; } }
