@@ -149,7 +149,7 @@ public class MainActivity extends Activity {
                 Uri u = Uri.parse(r.uri);
                 if (isSite(u)) {
                     // The portal opens Floor & Counter and the kitchen "in a new tab": here, same window.
-                    if (r.target == LoadRequest.TARGET_WINDOW_NEW) { s.loadUri(r.uri); return GeckoResult.fromValue(AllowOrDeny.DENY); }
+                    if (r.target == TARGET_WINDOW_NEW) { s.loadUri(r.uri); return GeckoResult.fromValue(AllowOrDeny.DENY); }
                     return GeckoResult.fromValue(AllowOrDeny.ALLOW);
                 }
                 if ("about".equals(u.getScheme())) return GeckoResult.fromValue(AllowOrDeny.ALLOW);
