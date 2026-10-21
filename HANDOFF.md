@@ -62,7 +62,7 @@ tpn-os/
 
 ---
 
-## Rev 24 — customer screen on the back of the iMin, TPN Counter app (Oct 21, 2026, branch `feature/customer-display`)
+## Rev 24 — customer screen on the back of the iMin, TPN Counter app (Oct 21, 2026, merged to `main`)
 
 The counter hardware is an iMin D4 with a second, customer-facing screen on the back (10.1" 1280×800 or 15.6" 1920×1080 depending on the model; **confirm the model sticker**). iMin only documents driving it from a native Android app (Android's `Presentation` class; no JS/Chrome API). So there are two routes, and the website supports both. The setup steps are in GO-LIVE section 10.
 - **`tpn-dine-in-floor-customer.html`** is the customer screen. It's display-only: no buttons, no login, no Supabase. Four states:
@@ -91,10 +91,11 @@ The counter hardware is an iMin D4 with a second, customer-facing screen on the 
   - `network_security_config` allows cleartext only to 127.0.0.1/localhost (the iMin print plugin).
   - Both WebViews share the site's storage and service worker, so offline works as in Chrome, and Android never clears app storage on its own.
   - Not bundled: a copy of the site inside the APK. It would live at a different origin, with separate storage, and lose the sign-in and outbox. The service worker already opens the counter offline.
-- **Building the APK:** no Android toolchain on the Mac (kept lean), so GitHub Actions builds it. The workflow is at **`android/ci/build-apk.yml` and must be moved to `.github/workflows/build-apk.yml`**: JaPat24's token lacks the `workflow` scope (`gh auth refresh -s workflow` fixes that), or UnoRfl can move it. It's triggered on `android/**` pushes or by hand with a site URL input. `versionCode` = the run number.
-- **Signing key:** made Oct 21 on the Mac at `~/Downloads/tpn-os-study/keys/` (`tpn-counter.p12`, alias `tpncounter`, password in `keystore-password.txt`, README inside). It's **not in the repo** (`*.p12` is in `.gitignore`). The repo owner must add the secrets `TPN_KEYSTORE_B64` and `TPN_KEYSTORE_PASSWORD` (Settings → Secrets → Actions). Without them the build is debug-signed: usable for a first try, but each build then needs an uninstall. **Keep an offline copy of the key**, like the backup key.
+- **Building the APK:** no Android toolchain on the Mac (kept lean), so GitHub Actions builds it with `.github/workflows/build-apk.yml`. On the Mac, `gh` now has **two accounts**: JaPat24 (everyday pushes, active by default) and UnoRfl (owner, has the `workflow` scope). Run `gh auth switch -u UnoRfl` before changing workflow files or secrets, then switch back. It's triggered on `android/**` pushes or by hand with a site URL input. `versionCode` = the run number.
+- **Signing key:** made Oct 21 on the Mac at `~/Downloads/tpn-os-study/keys/` (`tpn-counter.p12`, alias `tpncounter`, password in `keystore-password.txt`, README inside). It's **not in the repo** (`*.p12` is in `.gitignore`). The secrets `TPN_KEYSTORE_B64` and `TPN_KEYSTORE_PASSWORD` were added on Oct 21, so builds are release-signed, and a new build installs over the old one without losing data. **Keep an offline copy of the key**, like the backup key.
 - **Offline cache:** `tpn-counter-sw.js` `VERSION 20261021a`. It precaches the customer page and its images, and navigation now caches each page under its own key. Before, any navigation in scope was stored as the floor page, so the customer page would have overwritten the floor's offline copy.
-- **Not verified yet:** the Java has **not been compiled** (no toolchain here; the first Actions run is the compile check), Chrome's Presentation API on the iMin, the app on the real device, and the customer screen's Tagalog (English for now, with the "Mabuhay!" / "Salamat po!" brand lines).
+- **First build (Oct 21, run 39577220672):** compiled on the first try, `BUILD SUCCESSFUL`, release-signed (the certificate in the APK matches `keys/tpn-counter.p12`), `app-release.apk` 86 KB. Downloaded to `~/Downloads/tpn-os-study/apk/` on the Mac. To get a later build: GitHub → Actions → Build TPN Counter APK → the run → Artifacts.
+- **Not verified yet:** the app on the real iMin (the second display, printer, drawer, boot start), Chrome's Presentation API on the iMin, and the customer screen in Tagalog (English for now, with the "Mabuhay!" / "Salamat po!" brand lines). Actions warns that `setup-java@v4` is deprecated; move to `@v5` when convenient.
 - **Asset versions:** `pos.js`, `payments.js`, `offline.js` `?v=20261021b`; `customer-display.js` `?v=20261021a`.
 
 ## Rev 23 — security pass, nobody climbs the ladder, fallbacks (Oct 21, 2026, branch `feature/security-hardening`)
