@@ -52,11 +52,17 @@
   .odo .ct { display: inline-flex; font-size: .42em; margin: .12em 0 0 .04em; }
 
   /* ── Welcome ── */
+  /* ── Welcome: the name melts from word to word ──
+     Two stacked words cross-blur; the #goo threshold filter turns the blur
+     into liquid edges, so the letters drip into each other. */
   #idle { background: var(--cocoa); overflow: hidden; }
-  #idle .hero { position: absolute; top: 0; right: 0; bottom: 0; left: 0; background: url("assets/site/hero.webp") center / cover no-repeat; will-change: transform; }
-  #idle .hero::after { content: ""; position: absolute; top: 0; right: 0; bottom: 0; left: 0; background: rgba(38, 18, 9, .62); }
-  #idle .in { position: relative; height: 100%; display: grid; place-content: center; justify-items: center; text-align: center; gap: calc(var(--u) * 2.4); color: var(--on-cocoa); padding: 0 6vw; }
-  #idle h1 { font-family: var(--display); font-weight: 800; font-variation-settings: "SOFT" 100, "opsz" 144; font-size: calc(var(--u) * 8.4); line-height: .95; letter-spacing: -.01em; }
+  #idle .in { position: relative; height: 100%; display: grid; place-items: center; }
+  .morph { position: relative; width: 100%; height: calc(var(--u) * 22); filter: url(#goo); animation: breathe 5.5s ease-in-out infinite; }
+  .morph span { position: absolute; left: 0; right: 0; top: 50%; transform: translateY(-50%); text-align: center; white-space: nowrap;
+    font-family: var(--display); font-weight: 900; font-variation-settings: "SOFT" 100, "opsz" 144; font-size: calc(var(--u) * 15);
+    line-height: 1; letter-spacing: -.01em; color: var(--saffron); }
+  @keyframes breathe { 50% { transform: scale(1.035); } }
+  @media (prefers-reduced-motion: reduce) { .morph { animation: none; } }
 
   /* ── Order and payment ── */
   #order { display: grid; grid-template-columns: 1.45fr 1fr; }
@@ -127,10 +133,12 @@
 </head>
 <body>
 <section class="view on" id="idle" aria-live="polite">
-  <div class="hero"></div>
   <div class="in">
-    <h1>Mabuhay!</h1>
+    <div class="morph" role="img" aria-label="Tyo Paeng Nyo"><span id="mA" aria-hidden="true">TPN</span><span id="mB" aria-hidden="true"></span></div>
   </div>
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><filter id="goo">
+    <feColorMatrix in="SourceGraphic" type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 255 -140"/>
+  </filter></defs></svg>
 </section>
 
 <section class="view" id="order" aria-live="polite">
@@ -366,14 +374,42 @@
     $('thOrder').innerHTML = s.number ? `Your order number is <strong>${E(s.number)}</strong>` : '';
   }
 
-  /* ── Entrances, once each screen is in place ───────────────── */
-  let heroTween = null;
-  function enter(id) {
-    if (!G) return;
-    if (id === 'idle') {
-      G.from('#idle .in > *', { y: 26, autoAlpha: 0, duration: .9, ease: 'power3.out', stagger: .12, delay: .35 });
-      if (!heroTween) heroTween = G.to('#idle .hero', { scale: 1.08, xPercent: -1.5, duration: 22, ease: 'sine.inOut', yoyo: true, repeat: -1 });
+  /* ── Welcome loop: TPN → Mabuhay! → Kain na! → TPN … ─────────
+     Runs only while the welcome screen is up (no work behind an order). */
+  const morph = (() => {
+    const WORDS = ['TPN', 'Mabuhay!', 'Kain na!'];
+    const HOLD = 2.4, MELT = 1.5;   // seconds
+    const a = $('mA'), b = $('mB');
+    let i = 0, t = 0, prev = 0, on = false, raf = 0;
+    const still = () => { a.style.filter = ''; a.style.opacity = 1; b.style.filter = ''; b.style.opacity = 0; };
+    // Capped at 20px: past that the word is invisible anyway, and big blurs are what cost frames.
+    const blur = (f) => `blur(${Math.min(8 / Math.max(f, .001) - 8, 20)}px)`;
+    function frame(now) {
+      if (!on) return;
+      t += Math.min((now - prev) / 1000, .1); prev = now;   // a long stall doesn't skip a word
+      if (t < HOLD) still();
+      else if (t < HOLD + MELT) {
+        const f = (t - HOLD) / MELT, g = 1 - f;
+        b.style.filter = blur(f); b.style.opacity = Math.pow(f, .4);
+        a.style.filter = blur(g); a.style.opacity = Math.pow(g, .4);
+      } else {
+        i = (i + 1) % WORDS.length; t = 0;
+        a.textContent = WORDS[i]; b.textContent = WORDS[(i + 1) % WORDS.length]; still();
+      }
+      raf = requestAnimationFrame(frame);
     }
+    b.textContent = WORDS[1]; still();
+    return {
+      start() { if (on || !G) return; on = true; prev = performance.now(); raf = requestAnimationFrame(frame); },
+      stop() { on = false; cancelAnimationFrame(raf); }
+    };
+  })();
+
+  /* ── Entrances, once each screen is in place ───────────────── */
+  function enter(id) {
+    if (id === 'idle') morph.start(); else morph.stop();
+    if (!G) return;
+    if (id === 'idle') G.from('#idle .morph', { autoAlpha: 0, duration: 1.1, ease: 'power2.out', delay: .3 });   // the breathing owns transform
     if (id === 'thanks') {
       // Paper feeds out in little jerks, like the counter printer.
       G.timeline({ delay: .45 })

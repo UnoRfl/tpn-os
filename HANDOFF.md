@@ -1,6 +1,6 @@
 # TPN OS — Session Handoff
 
-**Last updated:** Oct 21, 2026 (rev 26 — counter in Chrome + app drives the back screen, see "Rev 26"; rev 25 — the iMin's old WebView, see "Rev 25"; rev 24 — customer screen on the iMin + TPN Counter Android app, see "Rev 24"; rev 23 — security pass and fallbacks, see "Rev 23"; rev 22 — BIR booklet invoices and Vercel prep, see "Rev 22"; Oct 20: nightly encrypted backups on the headless PC, see "Backups"; rev 21 — offline counter, see "Rev 21"). Earlier: Oct 17, 2026 (rev 8 — read receipts, Tagalog everywhere, layout, guide; see "Rev 8"). Rev 7 — portal split out of the website, hubs, Counter on the floor screen; see "Rev 7"). Rev 6 (Oct 16 — v2 overhaul, see "Rev 6" and GO-LIVE.md). Previously rev 5 — UI/UX reliability pass, no migrations; see "Rev 5" below). Rev 4 (Aug 22): split bills, daily close, variance, working add-ons, low-stock alerts; migrations 18–28
+**Last updated:** Oct 21, 2026 (rev 27 — welcome loop; in-app engine on hold, see "Rev 27"; rev 26 — counter in Chrome + app drives the back screen, see "Rev 26"; rev 25 — the iMin's old WebView, see "Rev 25"; rev 24 — customer screen on the iMin + TPN Counter Android app, see "Rev 24"; rev 23 — security pass and fallbacks, see "Rev 23"; rev 22 — BIR booklet invoices and Vercel prep, see "Rev 22"; Oct 20: nightly encrypted backups on the headless PC, see "Backups"; rev 21 — offline counter, see "Rev 21"). Earlier: Oct 17, 2026 (rev 8 — read receipts, Tagalog everywhere, layout, guide; see "Rev 8"). Rev 7 — portal split out of the website, hubs, Counter on the floor screen; see "Rev 7"). Rev 6 (Oct 16 — v2 overhaul, see "Rev 6" and GO-LIVE.md). Previously rev 5 — UI/UX reliability pass, no migrations; see "Rev 5" below). Rev 4 (Aug 22): split bills, daily close, variance, working add-ons, low-stock alerts; migrations 18–28
 **Deployed:** https://unorfl.github.io/tpn-os/
 **Repo:** https://github.com/UnoRfl/tpn-os
 **Supabase project ref:** `xjlqfpnzobfqxetgkkai` (single project, single branch)
@@ -61,6 +61,15 @@ tpn-os/
 | **Extensionless URLs** (`/tpn-table-menu`, `/tpn-dine-in-floor`) | ✅ live |
 
 ---
+
+## Rev 27 — welcome loop on the back screen; in-app engine on hold (Oct 21, 2026)
+
+- **Welcome screen (`tpn-dine-in-floor-customer.html`), per the owner:** no website photo. It's plain cocoa, with big saffron Fraunces lettering that melts like liquid from **TPN → Mabuhay! → Kain na!** and loops (2.4s hold, 1.5s melt), with a slow breathing scale.
+  - It works by cross-blurring two stacked words through an SVG `#goo` threshold filter, with the blur capped at 20px. Uncapped (100px) it dropped to about 36 fps on the Mac; capped it holds 60 fps with no frame over 18ms across a full loop.
+  - It runs only while the welcome screen is up (`morph.start/stop` in `enter()`), and stays still under reduced motion.
+- **The owner wants the counter in the app, not in Chrome.** Options, in order:
+  1. **iMin system update** (Settings → System → System update): if it brings WebView 87+, 1.0.3 already runs the counter in the app by itself. **Waiting for the owner to check.**
+  2. **Bundle GeckoView** (Firefox's engine) so the app doesn't depend on the device WebView. It's prepared but **not committed**: it's `git stash` "geckoview prep (unpublished)" on the Mac. It contains `org.mozilla.geckoview:geckoview:157.0.20261005135250` from maven.mozilla.org, AGP 8.9.1, Gradle 8.11.1, compileSdk 36 (GeckoView's androidx core 1.19 needs it), `abiFilters arm64-v8a, armeabi-v7a`. The GeckoView screen itself isn't written yet. Plan: run the counter in a GeckoSession (NavigationDelegate for site-only, Permission/Media delegates for the camera, a PromptDelegate for `prompt()`/`confirm()`) and keep the back screen on the system WebView plus the loopback link. Expect a 60–100 MB APK.
 
 ## Rev 26 — the counter runs in Chrome, the app drives the back screen (Oct 21, 2026)
 
