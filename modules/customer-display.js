@@ -13,6 +13,10 @@
      Presentation API             Chrome putting the page on the second
                                   screen ("Customer screen" on the top bar)
      window.TPNCounter            the Android app's bridge, if present
+     http://127.0.0.1:8091/state  the app's loopback link, when the counter
+                                  runs in Chrome (the iMin's own WebView is
+                                  too old for it; the app then drives only
+                                  the back screen)
 
    State: { mode: 'idle' | 'order' | 'pay' | 'thanks', lines, fee, total,
             type, number, due, method, tendered, change, ts }
@@ -24,6 +28,10 @@
   const bc = ('BroadcastChannel' in window) ? new BroadcastChannel('tpn-cds') : null;
   const native = () => window.TPNCounter && typeof window.TPNCounter.toCustomer === 'function' ? window.TPNCounter : null;
   const PAGE = 'tpn-dine-in-floor-customer';
+  // The app's link; tried only on Android (the iMin) or when forced for testing.
+  const RELAY = 'http://127.0.0.1:8091';
+  const ANDROID = /Android/i.test(navigator.userAgent) || (() => { try { return localStorage.getItem(KEY + '.force') === 'on'; } catch (e) { return false; } })();
+  let relayOk = false;
   let last = null, conn = null, req = null;
   let payBase = null;
   const mem = {};   // order id → its lines, so the pay screen still lists what was ordered
@@ -36,6 +44,20 @@
     try { bc && bc.postMessage(msg); } catch (e) {}
     try { conn && conn.state === 'connected' && conn.send(msg); } catch (e) {}
     try { const n = native(); n && n.toCustomer(msg); } catch (e) {}
+    if (ANDROID && !native() && relayOk) relay(msg);
+  }
+  function relay(msg) {
+    fetch(RELAY + '/state', { method: 'POST', body: msg, mode: 'cors', keepalive: true, headers: { 'content-type': 'text/plain' } })
+      .then(r => { if (!r.ok) throw 0; }).catch(() => { relayOk = false; paint(); });
+  }
+  // Is the app's back screen there? Asked on open, and every 20s while it isn't.
+  function probeRelay() {
+    if (!ANDROID || native()) return;
+    fetch(RELAY + '/ping', { mode: 'cors', cache: 'no-store' }).then(r => r.json()).then(j => {
+      const was = relayOk; relayOk = !!j.ok;
+      if (relayOk && !was && last) relay(last);   // catch the screen up
+      paint();
+    }).catch(() => { relayOk = false; paint(); });
   }
 
   /* ── Counter side ─────────────────────────────────────────── */
@@ -67,7 +89,7 @@
       return 'presentation';
     },
     stop() { try { conn && conn.terminate(); } catch (e) {} conn = null; paint(); },
-    connected: () => !!native() || !!(conn && conn.state === 'connected')
+    connected: () => !!native() || relayOk || !!(conn && conn.state === 'connected')
   };
   function attach(c) {
     conn = c;
@@ -103,13 +125,13 @@
   function chip() {
     const want = native() || /Android/i.test(navigator.userAgent) || (() => { try { return localStorage.getItem(KEY + '.force') === 'on'; } catch (e) { return false; } })();
     const bar = document.querySelector('.topbar-right');
-    if (!want || !bar || !(native() || C.canPresent())) return;
+    if (!want || !bar || !(native() || relayOk || C.canPresent())) return;
     let b = document.getElementById('cdsChip');
     if (!b) {
       b = document.createElement('button');
       b.id = 'cdsChip'; b.type = 'button'; b.className = 'topbar-btn secondary';
       b.addEventListener('click', async () => {
-        if (native()) { window.toast && toast('The customer screen is run by the TPN Counter app.'); return; }
+        if (native() || relayOk) { window.toast && toast('The customer screen is run by the TPN Counter app.'); return; }
         if (C.connected()) { if (await (window.tpnConfirm ? tpnConfirm('Turn the customer screen off?', { confirmText: 'Turn off' }) : confirm('Turn the customer screen off?'))) C.stop(); return; }
         try { await C.present(); }
         catch (e) {
@@ -128,5 +150,7 @@
   if (!/customer/.test(location.pathname)) {
     reconnect();
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', chip); else chip();
+    probeRelay();
+    setInterval(() => { if (!relayOk) probeRelay(); }, 20000);
   }
 })();

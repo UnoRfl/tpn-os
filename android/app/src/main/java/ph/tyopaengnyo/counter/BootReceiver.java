@@ -13,6 +13,7 @@ public class BootReceiver extends BroadcastReceiver {
     @Override
     public void onReceive(Context c, Intent i) {
         if (!Intent.ACTION_BOOT_COMPLETED.equals(i.getAction())) return;
+        CustomerScreenService.start(c);   // the back screen, even if the counter can't open by itself
         Intent open = new Intent(c, MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         try { c.startActivity(open); } catch (Exception ignored) { }
     }

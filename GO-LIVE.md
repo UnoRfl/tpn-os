@@ -148,6 +148,13 @@ Try **A** first. If Chrome can't reach the back screen, use **B**.
 2. Tap **Customer screen** on the top bar and pick the back display.
 3. If Chrome says it can't open a second screen, Chrome on this device doesn't support it. Use B.
 
+**On the D4-504 (WebView 83, Chrome 104):** the app keeps only the back screen and opens the counter in **Chrome**. This happens by itself whenever the device's WebView is older than 87. Steps:
+1. Install TPN Counter from the link below and open it. Tap **Open setting**, turn on **Allow display over other apps** for TPN Counter, and go back.
+2. The back screen shows "Mabuhay!", and Chrome opens the floor screen. Sign in there with the counter account.
+3. The top bar shows **Customer screen: on** once Chrome has found the app (within 20 seconds).
+4. Each morning, or after a restart, tap the **TPN Counter** icon. It switches on the back screen and opens Chrome.
+5. When iMin updates the WebView to 87+, the app runs the counter itself again. Nothing to change.
+
 **B. The TPN Counter app**
 1. **Get it:** on the iMin, open Chrome to https://github.com/UnoRfl/tpn-os/releases/latest/download/tpn-counter.apk (the newest release). **To make a new build:** GitHub → Actions → **Build TPN Counter APK** → Run workflow, then attach the APK to a new release (`gh release create counter-1.0.N tpn-counter.apk`). Leave the site URL as is until the Vercel move. When the run finishes, download the `tpn-counter-N` artifact and unzip it to get the `.apk`.
 2. **Install it on the iMin:** copy the APK over (USB, Google Drive or a messenger), tap it, and allow "Install unknown apps" for the app you opened it from when Android asks. No Play Store is involved.

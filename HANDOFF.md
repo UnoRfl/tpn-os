@@ -1,6 +1,6 @@
 # TPN OS — Session Handoff
 
-**Last updated:** Oct 21, 2026 (rev 25 — the iMin's old WebView, see "Rev 25"; rev 24 — customer screen on the iMin + TPN Counter Android app, see "Rev 24"; rev 23 — security pass and fallbacks, see "Rev 23"; rev 22 — BIR booklet invoices and Vercel prep, see "Rev 22"; Oct 20: nightly encrypted backups on the headless PC, see "Backups"; rev 21 — offline counter, see "Rev 21"). Earlier: Oct 17, 2026 (rev 8 — read receipts, Tagalog everywhere, layout, guide; see "Rev 8"). Rev 7 — portal split out of the website, hubs, Counter on the floor screen; see "Rev 7"). Rev 6 (Oct 16 — v2 overhaul, see "Rev 6" and GO-LIVE.md). Previously rev 5 — UI/UX reliability pass, no migrations; see "Rev 5" below). Rev 4 (Aug 22): split bills, daily close, variance, working add-ons, low-stock alerts; migrations 18–28
+**Last updated:** Oct 21, 2026 (rev 26 — counter in Chrome + app drives the back screen, see "Rev 26"; rev 25 — the iMin's old WebView, see "Rev 25"; rev 24 — customer screen on the iMin + TPN Counter Android app, see "Rev 24"; rev 23 — security pass and fallbacks, see "Rev 23"; rev 22 — BIR booklet invoices and Vercel prep, see "Rev 22"; Oct 20: nightly encrypted backups on the headless PC, see "Backups"; rev 21 — offline counter, see "Rev 21"). Earlier: Oct 17, 2026 (rev 8 — read receipts, Tagalog everywhere, layout, guide; see "Rev 8"). Rev 7 — portal split out of the website, hubs, Counter on the floor screen; see "Rev 7"). Rev 6 (Oct 16 — v2 overhaul, see "Rev 6" and GO-LIVE.md). Previously rev 5 — UI/UX reliability pass, no migrations; see "Rev 5" below). Rev 4 (Aug 22): split bills, daily close, variance, working add-ons, low-stock alerts; migrations 18–28
 **Deployed:** https://unorfl.github.io/tpn-os/
 **Repo:** https://github.com/UnoRfl/tpn-os
 **Supabase project ref:** `xjlqfpnzobfqxetgkkai` (single project, single branch)
@@ -61,6 +61,18 @@ tpn-os/
 | **Extensionless URLs** (`/tpn-table-menu`, `/tpn-dine-in-floor`) | ✅ live |
 
 ---
+
+## Rev 26 — the counter runs in Chrome, the app drives the back screen (Oct 21, 2026)
+
+The D4-504's WebView is 83 and can't be updated from the device: there's no Play Store, the Play page for its package is "not found" (so it's iMin's own build), and only an iMin firmware update can replace it. Its **Chrome is 104**, which runs TPN OS. A scan of the site for features newer than 104 found only cosmetic ones: `color-mix` in `tpn-glass.css` (button sheen and chip tints drop back), `:has()`/`@container` in the portal's access matrix, and `dvh` on the website.
+- **`CustomerScreenService`** (new, a foreground service):
+  - It owns the customer screen: a `CustomerPresentation` with window type `TYPE_APPLICATION_OVERLAY`, so it stays up whatever app is in front. That needs "Display over other apps".
+  - It also runs a **loopback HTTP link on 127.0.0.1:8091**: `GET /ping` returns `{ok, screen}`, and `POST /state` (JSON, up to 64 KB) is passed to the screen. CORS answers only `https://unorfl.github.io` and sends `Access-Control-Allow-Private-Network`.
+  - It's started by `MainActivity` and `BootReceiver`. The notification reads "Customer screen is on".
+- **`MainActivity`:** it asks once for "Display over other apps" and starts the service. Then, if the WebView is 87+, the counter runs in the app as before (the bridge now goes to the service). If it's older, it **opens the counter in Chrome** and closes. The update dialog from Rev 25 is gone.
+- **`modules/customer-display.js` `?v=20261021b`:** a fifth transport. On Android, when there's no app bridge, it pings `127.0.0.1:8091` (on open, then every 20s until found) and POSTs each state there, catching the screen up when the link appears. The chip reads "Customer screen: on". The floor screen's CSP `connect-src` gains `http://127.0.0.1:8091` (the print plugin is already on 8081).
+- **Tested:** with a Node stand-in for the link that follows the same CORS rules, the floor page in the browser found it, and the order, pay and thanks states arrived in order. The Java builds on Actions. **Not tested on the iMin yet:** the overlay on the rear display, and Chrome 104 reaching 127.0.0.1 from the https page.
+- **Who can reach the link:** only apps on the device. The Origin check stops other websites in Chrome. A local app could still POST display text, which the page escapes. It never touches orders or money.
 
 ## Rev 25 — the iMin's old WebView, back-screen layout (Oct 21, 2026)
 

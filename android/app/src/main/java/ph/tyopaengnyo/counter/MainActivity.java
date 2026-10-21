@@ -4,14 +4,12 @@ import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.AlertDialog;
-import android.content.pm.PackageInfo;
-import android.provider.Settings;
 import android.content.Intent;
+import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
-import android.hardware.display.DisplayManager;
 import android.net.Uri;
 import android.os.Bundle;
-import android.view.Display;
+import android.provider.Settings;
 import android.view.View;
 import android.view.WindowManager;
 import android.webkit.CookieManager;
@@ -23,35 +21,33 @@ import android.webkit.WebResourceRequest;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.widget.Toast;
 
 /**
- * The counter: the website's floor screen, full screen, with the customer
- * screen on the iMin's second display when it has one.
+ * The counter.
  *
- * The website does all the work (orders, payments, the offline outbox and
- * its service worker). This app only adds what Chrome can't: the second
- * display, start on boot, keep the screen on, and storage Android never
- * clears on its own.
+ * The customer screen on the iMin's second display always comes from
+ * {@link CustomerScreenService}. The counter itself (the website's floor
+ * screen) runs in one of two places:
+ *  - here, in a full-screen WebView, when the device's Android System
+ *    WebView is new enough (MIN_WEBVIEW);
+ *  - in Chrome, when it isn't (the D4-504 ships WebView 83, Chrome 104).
+ *    Chrome sends the customer screen its updates over the service's
+ *    loopback link, so the app only has to drive the back screen.
+ * When iMin updates the WebView, the app moves back in by itself.
  */
 public class MainActivity extends Activity {
     static final String SITE = BuildConfig.SITE_URL;            // ends with '/'
     static final String COUNTER = SITE + "tpn-dine-in-floor";
     static final String CUSTOMER = SITE + "tpn-dine-in-floor-customer";
-    private static final int CAMERA_REQ = 7;
-    /** The site needs Chrome 87-era features (2021 JavaScript, CSS `inset`). Older
-     *  WebViews fail with "TPN is not defined" and squashed layouts. */
+    /** The site needs Chrome 87-era features (2021 JavaScript, CSS `inset`). */
     static final int MIN_WEBVIEW = 87;
+    private static final int CAMERA_REQ = 7;
 
     private WebView web;
-    private CustomerPresentation customer;
-    private DisplayManager displays;
     private PermissionRequest pendingCamera;
-
-    private final DisplayManager.DisplayListener displayListener = new DisplayManager.DisplayListener() {
-        @Override public void onDisplayAdded(int id) { showCustomer(); }
-        @Override public void onDisplayRemoved(int id) { showCustomer(); }
-        @Override public void onDisplayChanged(int id) { }
-    };
+    private boolean askedOverlay, started;
+    private AlertDialog overlayDialog;
 
     /** Settings both WebViews share. Same app, same origin: they share storage too. */
     @SuppressLint("SetJavaScriptEnabled")
@@ -75,10 +71,66 @@ public class MainActivity extends Activity {
                 && u.getPath() != null && u.getPath().startsWith(site.getPath());
     }
 
+    /** Major version of the device's WebView, or 0 if unknown. */
+    static int webViewMajor() {
+        PackageInfo wv = WebView.getCurrentWebViewPackage();
+        if (wv == null || wv.versionName == null) return 0;
+        try { return Integer.parseInt(wv.versionName.split("\\.")[0]); } catch (NumberFormatException e) { return 0; }
+    }
+
     @Override
     protected void onCreate(Bundle state) {
         super.onCreate(state);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        // Remote debugging (chrome://inspect) only while USB debugging is switched on.
+        WebView.setWebContentsDebuggingEnabled(Settings.Global.getInt(getContentResolver(), Settings.Global.ADB_ENABLED, 0) == 1);
+        proceed(state);
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (web != null) web.onResume();
+        proceed(null);   // back from the "Display over other apps" screen
+    }
+
+    private void proceed(Bundle state) {
+        if (overlayDialog != null && overlayDialog.isShowing()) return;   // waiting for an answer
+        // The back screen floats over whatever is in front, so it needs this once.
+        if (!Settings.canDrawOverlays(this) && !askedOverlay) {
+            askedOverlay = true;
+            overlayDialog = new AlertDialog.Builder(this)
+                    .setTitle("Allow the customer screen")
+                    .setMessage("TPN Counter shows the guest's order on the back screen. Turn on \"Allow display over other apps\" for TPN Counter on the next screen, then come back.")
+                    .setPositiveButton("Open setting", (d, w) -> {
+                        try { startActivity(new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:" + getPackageName()))); }
+                        catch (Exception e) { startActivity(new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION)); }
+                    })
+                    .setNegativeButton("Not now", (d, w) -> proceed(null))
+                    .setCancelable(false)
+                    .show();
+            return;
+        }
+        CustomerScreenService.start(this);
+        if (started) return;
+        started = true;
+        if (webViewMajor() >= MIN_WEBVIEW) openHere(state);
+        else openInChrome();
+    }
+
+    /** Old WebView: the counter runs in Chrome; this app keeps only the back screen. */
+    private void openInChrome() {
+        Intent chrome = new Intent(Intent.ACTION_VIEW, Uri.parse(COUNTER)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        try {
+            startActivity(new Intent(chrome).setPackage("com.android.chrome"));
+        } catch (Exception e) {
+            try { startActivity(chrome); } catch (Exception ignored) { }
+        }
+        Toast.makeText(this, "Counter opened in Chrome. The customer screen stays on.", Toast.LENGTH_LONG).show();
+        finish();
+    }
+
+    private void openHere(Bundle state) {
         web = new WebView(this);
         configure(web);
         web.addJavascriptInterface(new Bridge(), "TPNCounter");
@@ -118,64 +170,15 @@ public class MainActivity extends Activity {
         });
         setContentView(web);
         immersive();
-        checkWebView();
-        // Remote debugging (chrome://inspect) only while USB debugging is switched on.
-        WebView.setWebContentsDebuggingEnabled(Settings.Global.getInt(getContentResolver(), Settings.Global.ADB_ENABLED, 0) == 1);
         if (state == null || web.restoreState(state) == null) web.loadUrl(COUNTER);
-
-        displays = getSystemService(DisplayManager.class);
-        displays.registerDisplayListener(displayListener, null);
-        showCustomer();
-    }
-
-    /** Say plainly when the device's web engine is too old, instead of a broken page. */
-    private void checkWebView() {
-        PackageInfo wv = WebView.getCurrentWebViewPackage();
-        if (wv == null || wv.versionName == null) return;
-        int major;
-        try { major = Integer.parseInt(wv.versionName.split("\\.")[0]); } catch (NumberFormatException e) { return; }
-        if (major >= MIN_WEBVIEW) return;
-        final String pkg = wv.packageName;
-        new AlertDialog.Builder(this)
-                .setTitle("Update Android System WebView")
-                .setMessage("This device's web engine is version " + wv.versionName + ". TPN OS needs version "
-                        + MIN_WEBVIEW + " or newer, or sign-in and the screens won't work. Update it, then reopen TPN Counter.")
-                .setPositiveButton("Update", (d, w) -> {
-                    try { startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=" + pkg))); }
-                    catch (Exception e) {
-                        try { startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/store/apps/details?id=" + pkg))); }
-                        catch (Exception ignored) { }
-                    }
-                })
-                .setNegativeButton("Continue anyway", null)
-                .show();
-    }
-
-    /** Put the customer page on the second display, if the device has one. */
-    private void showCustomer() {
-        Display[] ds = displays.getDisplays(DisplayManager.DISPLAY_CATEGORY_PRESENTATION);
-        Display d = ds.length > 0 ? ds[0] : null;
-        if (customer != null && (d == null || customer.getDisplay().getDisplayId() != d.getDisplayId())) {
-            customer.dismiss();
-            customer = null;
-        }
-        if (d == null || customer != null) return;
-        customer = new CustomerPresentation(this, d, CUSTOMER);
-        try {
-            customer.show();
-        } catch (WindowManager.InvalidDisplayException e) {
-            customer = null;
-        }
     }
 
     /** window.TPNCounter in the page (modules/customer-display.js). */
     class Bridge {
         @JavascriptInterface
-        public void toCustomer(String json) {
-            runOnUiThread(() -> { if (customer != null) customer.deliver(json); });
-        }
+        public void toCustomer(String json) { CustomerScreenService.deliver(json); }
         @JavascriptInterface
-        public boolean hasCustomerScreen() { return customer != null; }
+        public boolean hasCustomerScreen() { return CustomerScreenService.showing(); }
     }
 
     @SuppressWarnings("deprecation")
@@ -189,7 +192,7 @@ public class MainActivity extends Activity {
     @Override
     public void onWindowFocusChanged(boolean focus) {
         super.onWindowFocusChanged(focus);
-        if (focus) immersive();
+        if (focus && web != null) immersive();
     }
 
     @Override
@@ -206,14 +209,7 @@ public class MainActivity extends Activity {
     @Override
     protected void onSaveInstanceState(Bundle out) {
         super.onSaveInstanceState(out);
-        web.saveState(out);
-    }
-
-    @Override
-    protected void onResume() {
-        super.onResume();
-        web.onResume();
-        showCustomer();
+        if (web != null) web.saveState(out);
     }
 
     @Override
@@ -227,15 +223,12 @@ public class MainActivity extends Activity {
     @Override
     public void onBackPressed() {
         // Back steps back inside the site; it never closes the counter.
-        if (web.canGoBack()) web.goBack();
+        if (web != null && web.canGoBack()) web.goBack();
     }
 
     @Override
     protected void onDestroy() {
-        if (displays != null) displays.unregisterDisplayListener(displayListener);
-        if (customer != null) customer.dismiss();
-        customer = null;
-        web.destroy();
+        if (web != null) web.destroy();
         super.onDestroy();
     }
 }
