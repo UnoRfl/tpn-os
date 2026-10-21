@@ -1,5 +1,5 @@
-// TPN Counter: the floor screen in a WebView, plus the customer screen on
-// the iMin's second display. Built by .github/workflows/build-apk.yml.
+// TPN Counter: the floor screen on a bundled GeckoView, plus the customer
+// screen on the iMin's second display (system WebView). Built by .github/workflows/build-apk.yml.
 // Env (all optional): TPN_SITE_URL, TPN_VERSION_CODE, TPN_KEYSTORE,
 // TPN_KEYSTORE_PASSWORD. Without a keystore the APK is debug-signed.
 plugins { id 'com.android.application' }
@@ -11,15 +11,17 @@ def ks = System.getenv('TPN_KEYSTORE')
 
 android {
     namespace 'ph.tyopaengnyo.counter'
-    compileSdk 34
+    compileSdk 36
 
     defaultConfig {
         applicationId 'ph.tyopaengnyo.counter'
         minSdk 26
         targetSdk 34
         versionCode env('TPN_VERSION_CODE', '1') as int
-        versionName '1.0.' + env('TPN_VERSION_CODE', '1')
+        versionName '1.1.' + env('TPN_VERSION_CODE', '1')
         buildConfigField 'String', 'SITE_URL', "\"${site}\""
+        // ARM only (the iMin and every Android POS we'd use): keeps the bundled engine's size down.
+        ndk { abiFilters 'arm64-v8a', 'armeabi-v7a' }
     }
     buildFeatures { buildConfig true }
 
@@ -40,8 +42,14 @@ android {
             signingConfig ks ? signingConfigs.release : signingConfigs.debug
         }
     }
+    packaging { jniLibs { useLegacyPackaging false } }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
     }
+}
+
+dependencies {
+    // Pinned: a release about two weeks old when chosen (Oct 21, 2026).
+    implementation 'org.mozilla.geckoview:geckoview:157.0.20261005135250'
 }

@@ -2,7 +2,11 @@ pluginManagement {
     repositories { google(); mavenCentral(); gradlePluginPortal() }
 }
 dependencyResolutionManagement {
-    repositories { google(); mavenCentral() }
+    repositories {
+        google(); mavenCentral()
+        // GeckoView: the counter's own web engine (the iMin's WebView is too old).
+        maven { url 'https://maven.mozilla.org/maven2/' }
+    }
 }
 rootProject.name = 'TPNCounter'
 include ':app'
