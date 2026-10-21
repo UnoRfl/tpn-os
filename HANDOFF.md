@@ -64,9 +64,12 @@ tpn-os/
 
 ## Rev 27 — welcome loop on the back screen; in-app engine on hold (Oct 21, 2026)
 
-- **Welcome screen (`tpn-dine-in-floor-customer.html`), per the owner:** no website photo. It's plain cocoa, with big saffron Fraunces lettering that melts like liquid from **TPN → Mabuhay! → Kain na!** and loops (2.4s hold, 1.5s melt), with a slow breathing scale.
-  - It works by cross-blurring two stacked words through an SVG `#goo` threshold filter, with the blur capped at 20px. Uncapped (100px) it dropped to about 36 fps on the Mac; capped it holds 60 fps with no frame over 18ms across a full loop.
-  - It runs only while the welcome screen is up (`morph.start/stop` in `enter()`), and stays still under reduced motion.
+- **Welcome screen (`tpn-dine-in-floor-customer.html`), per the owner, revised the same day:**
+  - **Loop:** TPN **spins in as one piece** from a dot in the middle, then **stretches both ways into TyoPaengNyo** (the hidden letters grow between the capitals and the word zooms out to fit 84% of the width). It then **melts** into Mabuhay!, then into Kain na!, and **the whole word spins down into the middle**. Then it repeats, about 14s per loop.
+  - **How it's built:** one GSAP timeline, built after `document.fonts.ready` because it measures the letters, and played only while the welcome screen is up. The melts cross-blur the words through the SVG `#goo` threshold filter, with the blur capped at 20px. The owner asked for whole-word spins, not per-letter ones.
+  - **Background:** cocoa with the website's `paisley-light.webp` at 7%, and six `mandala-a`/`mandala-b` of mixed sizes (78vh down to 10vh) turning at different speeds and directions, as CSS transforms.
+  - **Speed:** 60 fps, no frame over 18ms across a whole loop on the Mac.
+  - With reduced motion it's a still TPN on the pattern.
 - **The owner wants the counter in the app, not in Chrome.** Options, in order:
   1. **iMin system update** (Settings → System → System update): if it brings WebView 87+, 1.0.3 already runs the counter in the app by itself. **Waiting for the owner to check.**
   2. **Bundle GeckoView** (Firefox's engine) so the app doesn't depend on the device WebView. It's prepared but **not committed**: it's `git stash` "geckoview prep (unpublished)" on the Mac. It contains `org.mozilla.geckoview:geckoview:157.0.20261005135250` from maven.mozilla.org, AGP 8.9.1, Gradle 8.11.1, compileSdk 36 (GeckoView's androidx core 1.19 needs it), `abiFilters arm64-v8a, armeabi-v7a`. The GeckoView screen itself isn't written yet. Plan: run the counter in a GeckoSession (NavigationDelegate for site-only, Permission/Media delegates for the camera, a PromptDelegate for `prompt()`/`confirm()`) and keep the back screen on the system WebView plus the loopback link. Expect a 60–100 MB APK.
