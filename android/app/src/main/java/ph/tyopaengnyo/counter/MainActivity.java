@@ -22,11 +22,14 @@ import org.mozilla.geckoview.GeckoRuntimeSettings;
 import org.mozilla.geckoview.GeckoSession;
 import org.mozilla.geckoview.GeckoSessionSettings;
 import org.mozilla.geckoview.GeckoView;
+import org.mozilla.geckoview.WebRequestError;
 
 /**
- * The counter, all in one app.
+ * TPN OS, all in one app.
  *
- * The front screen runs the website's floor screen on GeckoView, a modern
+ * It opens on the staff portal (sign-in required); Floor & Counter and the
+ * kitchen station open in the same window, as parts of the same system.
+ * The front screen runs on GeckoView, a modern
  * web engine bundled in the APK, so it no longer depends on the device's
  * Android System WebView (the D4-504 ships 83; TPN OS needs 87+).
  *
@@ -39,6 +42,7 @@ public class MainActivity extends Activity {
     static final String SITE = BuildConfig.SITE_URL;            // ends with '/'
     static final String COUNTER = SITE + "tpn-dine-in-floor";
     static final String CUSTOMER = SITE + "tpn-dine-in-floor-customer";
+    static final String PORTAL = SITE + "portal";
     private static final int PERM_REQ = 7;
 
     private static GeckoRuntime runtime;
@@ -132,10 +136,23 @@ public class MainActivity extends Activity {
             @Override
             public void onCanGoBack(GeckoSession s, boolean can) { canGoBack = can; }
 
+            // No internet when the app opens: the portal can't load, but the counter
+            // works offline (its service worker), so go there instead.
+            @Override
+            public GeckoResult<String> onLoadError(GeckoSession s, String uri, WebRequestError error) {
+                if (uri != null && uri.startsWith(PORTAL)) runOnUiThread(() -> s.loadUri(COUNTER));
+                return null;
+            }
+
             @Override
             public GeckoResult<AllowOrDeny> onLoadRequest(GeckoSession s, LoadRequest r) {
                 Uri u = Uri.parse(r.uri);
-                if (isSite(u) || "about".equals(u.getScheme())) return GeckoResult.fromValue(AllowOrDeny.ALLOW);
+                if (isSite(u)) {
+                    // The portal opens Floor & Counter and the kitchen "in a new tab": here, same window.
+                    if (r.target == LoadRequest.TARGET_WINDOW_NEW) { s.loadUri(r.uri); return GeckoResult.fromValue(AllowOrDeny.DENY); }
+                    return GeckoResult.fromValue(AllowOrDeny.ALLOW);
+                }
+                if ("about".equals(u.getScheme())) return GeckoResult.fromValue(AllowOrDeny.ALLOW);
                 try { startActivity(new Intent(Intent.ACTION_VIEW, u)); } catch (Exception ignored) { }
                 return GeckoResult.fromValue(AllowOrDeny.DENY);
             }
@@ -212,7 +229,7 @@ public class MainActivity extends Activity {
 
         session.open(runtime());
         view.setSession(session);
-        session.loadUri(COUNTER);
+        session.loadUri(PORTAL);
     }
 
     @SuppressWarnings("deprecation")

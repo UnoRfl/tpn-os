@@ -148,12 +148,19 @@ Try **A** first. If Chrome can't reach the back screen, use **B**.
 2. Tap **Customer screen** on the top bar and pick the back display.
 3. If Chrome says it can't open a second screen, Chrome on this device doesn't support it. Use B.
 
-**On the D4-504 (WebView 83, Chrome 104):** the app keeps only the back screen and opens the counter in **Chrome**. This happens by itself whenever the device's WebView is older than 87. Steps:
-1. Install TPN Counter from the link below and open it. Tap **Open setting**, turn on **Allow display over other apps** for TPN Counter, and go back.
-2. The back screen shows "Mabuhay!", and Chrome opens the floor screen. Sign in there with the counter account.
-3. The top bar shows **Customer screen: on** once Chrome has found the app (within 20 seconds).
-4. Each morning, or after a restart, tap the **TPN Counter** icon. It switches on the back screen and opens Chrome.
-5. When iMin updates the WebView to 87+, the app runs the counter itself again. Nothing to change.
+**Since 1.1 everything runs inside TPN Counter.** The counter runs on a web engine bundled in the app (GeckoView, from Firefox), so the iMin's old built-in WebView doesn't matter, and Chrome isn't needed. The back screen comes from the same app.
+
+**Fresh install on the D4-504** (do it when the counter isn't in use):
+1. **Remove the old version:** Settings → Apps → TPN Counter → Uninstall. Nothing is lost: the counter never ran inside the old app, and orders live in the database.
+2. **Install the new one:** open https://github.com/UnoRfl/tpn-os/releases/latest/download/tpn-counter.apk in Chrome (about 60–100 MB), tap it, and allow "Install unknown apps" for Chrome if asked.
+3. **Open TPN Counter.** Tap **Open setting**, turn on **Allow display over other apps**, then go back.
+4. The back screen shows the TPN welcome loop, and the front shows the counter. **Sign in** there with the counter account.
+5. The top bar shows **Customer screen: on** within about 20 seconds. Ring up a test order and watch the back screen follow it.
+6. Printer chip → **Test print** and **Open drawer**.
+7. When a clock-in asks for the camera, allow it.
+8. **Every day:** just tap TPN Counter. After a power cut it reopens by itself.
+
+The Chrome shortcut for the counter isn't needed any more.
 
 **B. The TPN Counter app**
 1. **Get it:** on the iMin, open Chrome to https://github.com/UnoRfl/tpn-os/releases/latest/download/tpn-counter.apk (the newest release). **To make a new build:** GitHub → Actions → **Build TPN Counter APK** → Run workflow, then attach the APK to a new release (`gh release create counter-1.0.N tpn-counter.apk`). Leave the site URL as is until the Vercel move. When the run finishes, download the `tpn-counter-N` artifact and unzip it to get the `.apk`.

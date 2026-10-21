@@ -50,6 +50,6 @@ android {
 }
 
 dependencies {
-    // Pinned: a release about two weeks old when chosen (Oct 21, 2026).
-    implementation 'org.mozilla.geckoview:geckoview:157.0.20261005135250'
+    // Pinned. 154+ need compileSdk 37 (androidx core 1.19), beyond AGP 8.9; move up with the toolchain.
+    implementation 'org.mozilla.geckoview:geckoview:153.0.20260810162159'
 }
