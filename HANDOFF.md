@@ -72,6 +72,14 @@ The counter hardware is an iMin D4 with a second, customer-facing screen on the 
   - Thanks: "Salamat po!", the change and the order number. It returns to Welcome after 15s.
   - It never shows the guest's name, phone, address or kitchen notes. A state older than 2h is ignored (counter switched off mid-order).
   - Sized in one unit (`--u: min(1vw, 1.6vh)`) and container units for the total, so it fits both screen sizes. Checked at 1280×800 and 1920×1080 with 10 lines and a ₱12,345.50 total.
+- **Motion (GSAP 3.12.5, vendored at `vendor/gsap-3.12.5.min.js`; GSAP's free "standard" licence, fine commercially):**
+  - **Between screens:** three wobbly canvas blobs (saffron, brick, cocoa) pour out from one point with a splash of droplets, the screen swaps under the cocoa, then they drain back (`fluid` in the page, about 1.6s). An earlier per-pixel metaball version ran at about 24 fps and was dropped. This one holds 60 fps (worst frame 18ms) on the Mac with the tab in front.
+  - **Prices roll into place:** the total, cash received and change are odometer digits (`odo()`).
+  - **Order lines:** new dishes slide in, with the price drifting in sharp from a blur. A quantity change pops the "2×" and shifts its price.
+  - **Thank-you:** the bill prints out of the same printer as the website's checkout, in 18 jerky steps with the head shaking and its saffron light blinking, next to "Salamat po!". It reads "Not an official receipt" like the paper one, and folds extra lines into "plus N more" to fit.
+  - **Welcome:** a slow Ken Burns pan on the hero.
+  - Reduced motion turns all of it off (instant swaps, no rolls).
+  - The browser pane's 2× viewport emulation draws every page small in a corner. That's a pane glitch (the untouched kitchen page does the same), not this page. Measure with `getBoundingClientRect`, not screenshots, at emulated sizes.
 - **`modules/customer-display.js`** (`TPN_CDS`) is the link between the two pages. Everything stays on the device, so it **works offline**. The counter sends one state object four ways: `BroadcastChannel('tpn-cds')`, `localStorage 'tpn.cds'` (the last state, for a late or reloaded page), a Presentation API connection, and `window.TPNCounter.toCustomer` (the app). The customer page listens on all four (`tpnCdsReceive` is the app's entry point).
   - Wired into `pos.js` (`drawTicket` publishes the ticket; `posSend` remembers the lines for the pay screen) and `payments.js`. `cdsMethod` is set when staff pick a way to pay, so opening an old bill never shows "Salamat po". The offline cash panel in `offline.js` is wired in too.
   - Loaded only on the floor screen. The portal's `payments.js` calls are guarded and do nothing there.
