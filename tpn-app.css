@@ -1706,6 +1706,21 @@
 .portal-lang button.active {
   background: var(--bg); color: var(--brick); box-shadow: var(--shadow-sm);
 }
+/* "Clear badge": a quiet control under the language switch (full width) and in
+   page headers (.inline). Its own class, not .btn-ghost, so the touch-size and
+   glass rules for big buttons don't stretch it. */
+.badge-clear {
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  width: calc(100% - 24px); margin: 0 12px 10px; min-height: 36px; padding: 0 12px;
+  border: 1px solid var(--line); border-radius: 8px; background: transparent;
+  color: var(--ink-muted); font-family: inherit; font-size: 12.5px; font-weight: 600; line-height: 1;
+  white-space: nowrap; cursor: pointer; touch-action: manipulation;
+}
+.badge-clear svg { width: 14px; height: 14px; flex: none; color: var(--brick); }
+.badge-clear:hover { background: var(--surface-2); color: var(--ink); }
+.badge-clear:focus-visible { outline: 2px solid var(--brick); outline-offset: 2px; }
+.badge-clear.inline { display: inline-flex; width: auto; margin: 0; min-height: 32px; }
+@media (pointer: coarse) { .badge-clear { min-height: 44px; } .badge-clear.inline { min-height: 40px; } }
 
 /* ════════════════════════════════════════════════════
    ACCESS MATRIX  — the check / X grid

@@ -50,7 +50,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <!-- fonts: tpn-portal.css serves the website's faces under the old family names -->
-<link rel="stylesheet" href="tpn-app.css?v=20261017o">
+<link rel="stylesheet" href="tpn-app.css?v=20261021c">
 <link rel="stylesheet" href="tpn-glass.css?v=20261021c">
 <link rel="stylesheet" href="tpn-portal.css?v=20261017p1">
 </head>
@@ -1347,11 +1347,13 @@ function clearBadge(route, count) {
 
 // A small "Clear badge" control for a page header. Renders nothing when
 // there is no badge to clear, so it never becomes decoration.
+// Its own quiet style (not .btn-ghost): the shared touch rules made that one a
+// 44px box with 11px text.
+const BADGE_CLEAR_ICON = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3.2L13 4.8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 function badgeClearBtn(route, count) {
   if (!badgeFor(route, count)) return '';
-  return `<button class="btn-ghost" style="padding:6px 12px;font-size:11px;"
-            onclick="clearBadge('${JA(route)}', ${Number(count) || 0})"
-            title="${E(T('badge.clear'))}">✓ ${E(T('badge.clear'))}</button>`;
+  return `<button class="badge-clear inline" type="button"
+            onclick="clearBadge('${JA(route)}', ${Number(count) || 0})">${BADGE_CLEAR_ICON}${E(T('badge.clear'))}</button>`;
 }
 
 
@@ -1401,8 +1403,7 @@ function langSwitchHtml() {
     <button${en} onclick="setLang('en')">English</button>
     <button${tl} onclick="setLang('tl')">Tagalog</button>
   </div>
-  ${lit ? `<button class="btn-ghost" style="width:calc(100% - 24px);margin:0 12px 10px;padding:6px 0;font-size:11px;"
-       onclick="clearAllBadges()">✓ ${E(T('badge.clear'))}</button>` : ''}`;
+  ${lit ? `<button class="badge-clear" type="button" onclick="clearAllBadges()">${BADGE_CLEAR_ICON}${E(T('badge.clear'))}</button>` : ''}`;
 }
 
 /* ════════════════════════════════════════════════════
