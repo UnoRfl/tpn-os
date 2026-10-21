@@ -4,3 +4,5 @@ supabase/
 tests/
 ops/
 *.md
+android/
+.github/

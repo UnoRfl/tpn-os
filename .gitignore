@@ -12,3 +12,8 @@ node_modules/
 *.log
 .env
 .env.local
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+*.p12

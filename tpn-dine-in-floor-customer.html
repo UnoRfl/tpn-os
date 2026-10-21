@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Tyo Paeng Nyo · Your order</title>
+<link rel="icon" href="assets/site/icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT@9..144,500..900,0..100&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<!-- The screen on the back of the counter. It only draws what the counter
+     sends (modules/customer-display.js); it has no buttons and no login,
+     and it never shows a customer's name, phone or address. -->
+<style>
+  :root {
+    --paper: #FBF6EC; --paper-2: #F4EAD8; --card: #FFFDF8;
+    --ink: #2E1A10; --ink-2: #6E5240; --ink-3: #8C6F58;
+    --brick: #A3321A; --saffron: #E4A23C; --cocoa: #3A1D10; --cocoa-2: #4A2818;
+    --on-cocoa: #FBF1DF; --on-cocoa-2: #D9C3A6;
+    --hair: rgba(46, 26, 16, .10);
+    --display: "Fraunces", Georgia, serif;
+    --ui: "Plus Jakarta Sans", system-ui, sans-serif;
+    --ease: cubic-bezier(.22, 1, .36, 1);
+    /* One unit for the whole screen: 10.1" (1280×800) and 15.6" (1920×1080) both read from a metre away. */
+    --u: min(1vw, 1.6vh);
+  }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { height: 100%; }
+  body { background: var(--paper); color: var(--ink); font-family: var(--ui); -webkit-font-smoothing: antialiased;
+    overflow: hidden; cursor: none; user-select: none; font-variant-numeric: tabular-nums; }
+  .view { position: fixed; inset: 0; opacity: 0; visibility: hidden; transition: opacity .5s var(--ease), visibility 0s .5s; }
+  .view.on { opacity: 1; visibility: visible; transition: opacity .5s var(--ease); }
+  .num { font-family: var(--display); font-variation-settings: "SOFT" 100, "opsz" 144; font-feature-settings: "tnum" 1, "lnum" 1; }
+
+  /* ── Welcome ── */
+  #idle { background: var(--cocoa) url("assets/site/hero.webp") center / cover no-repeat; }
+  #idle::before { content: ""; position: absolute; inset: 0; background: rgba(38, 18, 9, .62); }
+  #idle .in { position: relative; height: 100%; display: grid; place-content: center; justify-items: center; text-align: center; gap: calc(var(--u) * 2.4); color: var(--on-cocoa); padding: 0 6vw; }
+  #idle img { width: calc(var(--u) * 15); height: auto; filter: drop-shadow(0 10px 24px rgba(0,0,0,.35)); }
+  #idle h1 { font-family: var(--display); font-weight: 800; font-variation-settings: "SOFT" 100, "opsz" 144; font-size: calc(var(--u) * 8.4); line-height: .95; letter-spacing: -.01em; }
+  #idle p { font-size: calc(var(--u) * 2.3); color: var(--on-cocoa-2); max-width: 30ch; line-height: 1.35; }
+
+  /* ── Order and payment ── */
+  #order { display: grid; grid-template-columns: 1.45fr 1fr; }
+  .lines-side { display: flex; flex-direction: column; min-height: 0; padding: calc(var(--u) * 4) calc(var(--u) * 4.5) calc(var(--u) * 3); }
+  .lines-head { display: flex; align-items: center; gap: calc(var(--u) * 1.6); padding-bottom: calc(var(--u) * 2); border-bottom: 1px solid var(--hair); }
+  .lines-head img { width: calc(var(--u) * 5.2); height: auto; }
+  .lines-head h2 { font-family: var(--display); font-weight: 700; font-variation-settings: "SOFT" 100; font-size: calc(var(--u) * 3.6); color: var(--brick); }
+  .lines-head .type { margin-left: auto; font-size: calc(var(--u) * 1.9); color: var(--ink-2); font-weight: 600; }
+  .lines { list-style: none; padding: 0; flex: 1; min-height: 0; overflow: hidden; }
+  .lines li { display: grid; grid-template-columns: calc(var(--u) * 5.5) 1fr auto; align-items: baseline; gap: calc(var(--u) * 1.2);
+    padding: calc(var(--u) * 1.5) 0; border-bottom: 1px solid var(--hair); }
+  .lines li.new { animation: lineIn .6s var(--ease) both; }
+  @keyframes lineIn { from { opacity: 0; transform: translateY(calc(var(--u) * 1.6)); } }
+  .lines .q { font-size: calc(var(--u) * 2.3); color: var(--ink-3); font-weight: 600; }
+  .lines .n { font-family: var(--display); font-weight: 600; font-variation-settings: "SOFT" 100; font-size: calc(var(--u) * 2.9); line-height: 1.15; }
+  .lines .m { display: block; font-family: var(--ui); font-weight: 500; font-size: calc(var(--u) * 1.8); color: var(--ink-2); margin-top: calc(var(--u) * .4); }
+  .lines .a { font-size: calc(var(--u) * 2.6); font-weight: 600; }
+  .more { font-size: calc(var(--u) * 1.8); color: var(--ink-2); padding: calc(var(--u) * 1.2) 0 calc(var(--u) * .4); border-bottom: 1px solid var(--hair); }
+
+  .total-side { background: var(--cocoa); color: var(--on-cocoa); display: flex; flex-direction: column; justify-content: center;
+    padding: calc(var(--u) * 5) calc(var(--u) * 4.5); gap: calc(var(--u) * 1.2); position: relative; overflow: hidden; container-type: inline-size; }
+  .total-side::after { content: ""; position: absolute; inset: auto -10% -18% auto; width: 70%; aspect-ratio: 1; background: url("assets/site/mandala-a.webp") center / contain no-repeat; opacity: .07; pointer-events: none; }
+  .t-label { font-size: calc(var(--u) * 2.4); color: var(--on-cocoa-2); font-weight: 500; }
+  /* Sized to its own panel: ₱99,999 still fits on the 10.1" screen. */
+  .t-amt { font-size: min(calc(var(--u) * 11), 16cqi); font-weight: 800; line-height: 1; letter-spacing: -.02em; color: var(--saffron); white-space: nowrap; }
+  .t-amt .c { font-size: .5em; vertical-align: .62em; margin-right: .06em; font-weight: 700; }
+  .t-amt .ct { font-size: .42em; font-weight: 700; margin-left: .04em; }
+  .t-sub { font-size: calc(var(--u) * 2); color: var(--on-cocoa-2); }
+  .pay { margin-top: calc(var(--u) * 3); padding-top: calc(var(--u) * 2.6); border-top: 1px solid rgba(251, 241, 223, .16); display: grid; gap: calc(var(--u) * 1.4); }
+  .pay h3 { font-family: var(--display); font-weight: 700; font-variation-settings: "SOFT" 100; font-size: calc(var(--u) * 3.4); }
+  .pay p { font-size: calc(var(--u) * 2.1); line-height: 1.4; color: var(--on-cocoa-2); max-width: 30ch; }
+  .pay .row { display: flex; justify-content: space-between; align-items: baseline; gap: calc(var(--u) * 2); font-size: calc(var(--u) * 2.3); }
+  .pay .row strong { font-size: min(calc(var(--u) * 4), 8cqi); color: var(--on-cocoa); white-space: nowrap; }
+  .pay .row.change strong { color: var(--saffron); }
+
+  /* ── Thank you ── */
+  #thanks { display: grid; place-content: center; justify-items: center; text-align: center; gap: calc(var(--u) * 2); background: var(--paper-2); }
+  #thanks h1 { font-family: var(--display); font-weight: 900; font-variation-settings: "SOFT" 100, "opsz" 144; font-size: calc(var(--u) * 12); color: var(--brick); line-height: .95; letter-spacing: -.015em; }
+  #thanks .on-in h1 { animation: thanksIn .9s var(--ease) both; }
+  @keyframes thanksIn { from { opacity: 0; transform: scale(.94); } }
+  #thanks p { font-size: calc(var(--u) * 2.6); color: var(--ink-2); }
+  #thanks .chg { font-size: calc(var(--u) * 3.4); color: var(--ink); }
+  #thanks .chg strong { font-family: var(--display); font-weight: 800; font-variation-settings: "SOFT" 100; color: var(--brick); }
+  #thanks .ord { font-size: calc(var(--u) * 2.2); color: var(--ink-2); }
+  #thanks .ord strong { color: var(--ink); }
+
+  @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+</style>
+</head>
+<body>
+<section class="view on" id="idle" aria-live="polite">
+  <div class="in">
+    <img src="assets/site/logo.webp" alt="Tyo Paeng Nyo">
+    <h1>Mabuhay!</h1>
+    <p>Welcome to Tyo Paeng Nyo. Your order will show here as we ring it up.</p>
+  </div>
+</section>
+
+<section class="view" id="order" aria-live="polite">
+  <div class="lines-side">
+    <div class="lines-head"><img src="assets/site/logo.webp" alt=""><h2>Your order</h2><span class="type" id="oType"></span></div>
+    <div class="more" id="oMore" hidden></div>
+    <ul class="lines" id="oLines"></ul>
+  </div>
+  <div class="total-side">
+    <div class="t-label" id="tLabel">Total</div>
+    <div class="t-amt num" id="tAmt"></div>
+    <div class="t-sub" id="tSub"></div>
+    <div class="pay" id="pay" hidden></div>
+  </div>
+</section>
+
+<section class="view" id="thanks" aria-live="polite">
+  <h1>Salamat po!</h1>
+  <p class="chg" id="thChange" hidden></p>
+  <p class="ord" id="thOrder" hidden></p>
+  <p>Come again soon.</p>
+</section>
+
+<script src="modules/customer-display.js?v=20261021a"></script>
+<script>
+(function () {
+  'use strict';
+  const $ = (id) => document.getElementById(id);
+  const E = (v) => String(v == null ? '' : v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const money = (v) => Number(v || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const peso = (v) => '₱' + money(v);
+  const TYPE = { pickup: 'Take-out', dine_in: 'Dine-in', delivery: 'Delivery' };
+  // What the guest does for each way of paying (staff confirm it on their side).
+  const HOW = {
+    cash:  ['Cash', ''],
+    gcash: ['GCash', 'Scan our GCash QR at the counter and pay the exact amount, then show the success screen.'],
+    maya:  ['Maya', 'Scan our Maya QR at the counter and pay the exact amount, then show the success screen.'],
+    qrph:  ['QR Ph', 'Scan our QR Ph code with any banking or e-wallet app and pay the exact amount, then show the success screen.'],
+    card:  ['Card', 'Tap or insert your card on the terminal.'],
+    bank:  ['Bank transfer', 'Transfer the exact amount, then show the confirmation.']
+  };
+  const MAX_LINES = 7;           // newest at the bottom; older ones fold into "and N more"
+  const STALE = 2 * 60 * 60e3;   // a state older than this (counter switched off mid-order) is ignored
+  let shownKeys = [], idleTimer = null, mode = 'idle';
+
+  function show(id) {
+    if (mode === id) return;
+    mode = id;
+    ['idle', 'order', 'thanks'].forEach(v => $(v).classList.toggle('on', v === id));
+    $('thanks').classList.toggle('on-in', id === 'thanks');
+  }
+  // Pesos big, centavos small: the guest reads the peso amount first.
+  function amount(v) { const [w, c] = money(v).split('.'); return `<span class="c">₱</span>${w}<span class="ct">.${c}</span>`; }
+
+  function drawOrder(s) {
+    const lines = s.lines || [];
+    const keys = lines.map(l => l.name + '|' + l.size + '|' + (l.mods || []).join(',') + '|' + l.qty);
+    const vis = lines.slice(-MAX_LINES), off = lines.length - vis.length;
+    $('oLines').innerHTML = vis.map((l, i) => {
+      const k = keys[off + i], isNew = !shownKeys.includes(k);
+      const sub = [l.size ? l.size + ' pax' : '', (l.mods || []).join(', ')].filter(Boolean).join(' · ');
+      return `<li class="${isNew ? 'new' : ''}"><span class="q">${E(l.qty)}×</span>
+        <span class="n">${E(l.name)}${sub ? `<span class="m">${E(sub)}</span>` : ''}</span><span class="a">${peso(l.amount)}</span></li>`;
+    }).join('');
+    shownKeys = keys;
+    // Fit what the screen holds: drop the oldest shown lines until nothing is cut off.
+    const ul = $('oLines'); let hidden = off;
+    $('oMore').hidden = false; $('oMore').textContent = hidden ? `plus ${hidden} more item${hidden === 1 ? "" : "s"}` : '';
+    while (ul.children.length > 1 && ul.scrollHeight > ul.clientHeight + 1) { ul.firstElementChild.remove(); hidden++; $('oMore').textContent = `plus ${hidden} more item${hidden === 1 ? "" : "s"}`; }
+    $('oMore').hidden = !hidden;
+    $('oType').textContent = TYPE[s.type] || '';
+
+    const paying = s.mode === 'pay';
+    const due = paying && s.due != null ? s.due : s.total;
+    $('tLabel').textContent = paying ? 'Amount to pay' : 'Total';
+    $('tAmt').innerHTML = amount(due);
+    $('tSub').textContent = s.fee ? `Includes delivery fee of ${peso(s.fee)}` : (paying && s.number ? `Order ${s.number}` : '');
+    const pay = $('pay');
+    if (!paying || !s.method) { pay.hidden = true; pay.innerHTML = ''; return; }
+    const [label, how] = HOW[s.method] || [s.method, ''];
+    let body = `<h3>${E(label)}</h3>`;
+    if (s.method === 'cash' && s.tendered) {
+      body += `<div class="row"><span>Received</span><strong class="num">${peso(s.tendered)}</strong></div>`;
+      if (s.change > 0) body += `<div class="row change"><span>Your change</span><strong class="num">${peso(s.change)}</strong></div>`;
+    } else if (how) body += `<p>${E(how)}</p>`;
+    pay.innerHTML = body; pay.hidden = false;
+  }
+
+  function render(s) {
+    if (!s || (s.ts && Date.now() - s.ts > STALE)) s = { mode: 'idle' };
+    clearTimeout(idleTimer);
+    if (s.mode === 'order' || s.mode === 'pay') {
+      if (!(s.lines && s.lines.length) && s.mode === 'order') { shownKeys = []; return show('idle'); }
+      drawOrder(s); return show('order');
+    }
+    if (s.mode === 'thanks') {
+      $('thChange').hidden = !(s.change > 0);
+      $('thChange').innerHTML = s.change > 0 ? `Your change: <strong>${peso(s.change)}</strong>` : '';
+      $('thOrder').hidden = !s.number;
+      $('thOrder').innerHTML = s.number ? `Your order number is <strong>${E(s.number)}</strong>` : '';
+      shownKeys = [];
+      show('thanks');
+      idleTimer = setTimeout(() => show('idle'), 15000);
+      return;
+    }
+    shownKeys = [];
+    show('idle');
+  }
+
+  TPN_CDS.listen(render);
+})();
+</script>
+</body>
+</html>

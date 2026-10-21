@@ -1,6 +1,6 @@
 # TPN OS — Session Handoff
 
-**Last updated:** Oct 21, 2026 (rev 23 — security pass and fallbacks, see "Rev 23"; rev 22 — BIR booklet invoices and Vercel prep, see "Rev 22"; Oct 20: nightly encrypted backups on the headless PC, see "Backups"; rev 21 — offline counter, see "Rev 21"). Earlier: Oct 17, 2026 (rev 8 — read receipts, Tagalog everywhere, layout, guide; see "Rev 8"). Rev 7 — portal split out of the website, hubs, Counter on the floor screen; see "Rev 7"). Rev 6 (Oct 16 — v2 overhaul, see "Rev 6" and GO-LIVE.md). Previously rev 5 — UI/UX reliability pass, no migrations; see "Rev 5" below). Rev 4 (Aug 22): split bills, daily close, variance, working add-ons, low-stock alerts; migrations 18–28
+**Last updated:** Oct 21, 2026 (rev 24 — customer screen on the iMin + TPN Counter Android app, see "Rev 24"; rev 23 — security pass and fallbacks, see "Rev 23"; rev 22 — BIR booklet invoices and Vercel prep, see "Rev 22"; Oct 20: nightly encrypted backups on the headless PC, see "Backups"; rev 21 — offline counter, see "Rev 21"). Earlier: Oct 17, 2026 (rev 8 — read receipts, Tagalog everywhere, layout, guide; see "Rev 8"). Rev 7 — portal split out of the website, hubs, Counter on the floor screen; see "Rev 7"). Rev 6 (Oct 16 — v2 overhaul, see "Rev 6" and GO-LIVE.md). Previously rev 5 — UI/UX reliability pass, no migrations; see "Rev 5" below). Rev 4 (Aug 22): split bills, daily close, variance, working add-ons, low-stock alerts; migrations 18–28
 **Deployed:** https://unorfl.github.io/tpn-os/
 **Repo:** https://github.com/UnoRfl/tpn-os
 **Supabase project ref:** `xjlqfpnzobfqxetgkkai` (single project, single branch)
@@ -61,6 +61,33 @@ tpn-os/
 | **Extensionless URLs** (`/tpn-table-menu`, `/tpn-dine-in-floor`) | ✅ live |
 
 ---
+
+## Rev 24 — customer screen on the back of the iMin, TPN Counter app (Oct 21, 2026, branch `feature/customer-display`)
+
+The counter hardware is an iMin D4 with a second, customer-facing screen on the back (10.1" 1280×800 or 15.6" 1920×1080 depending on the model; **confirm the model sticker**). iMin only documents driving it from a native Android app (Android's `Presentation` class; no JS/Chrome API). So there are two routes, and the website supports both. The setup steps are in GO-LIVE section 10.
+- **`tpn-dine-in-floor-customer.html`** is the customer screen. It's display-only: no buttons, no login, no Supabase. Four states:
+  - Welcome: hero photo, logo, "Mabuhay!"
+  - Order: live lines on the left, the total on a cocoa panel. Older lines drop off with "plus N more items" when they don't fit.
+  - Pay: "Amount to pay", the method, and for cash the amount received and the change. GCash, Maya, QR Ph, card and bank show what the guest does.
+  - Thanks: "Salamat po!", the change and the order number. It returns to Welcome after 15s.
+  - It never shows the guest's name, phone, address or kitchen notes. A state older than 2h is ignored (counter switched off mid-order).
+  - Sized in one unit (`--u: min(1vw, 1.6vh)`) and container units for the total, so it fits both screen sizes. Checked at 1280×800 and 1920×1080 with 10 lines and a ₱12,345.50 total.
+- **`modules/customer-display.js`** (`TPN_CDS`) is the link between the two pages. Everything stays on the device, so it **works offline**. The counter sends one state object four ways: `BroadcastChannel('tpn-cds')`, `localStorage 'tpn.cds'` (the last state, for a late or reloaded page), a Presentation API connection, and `window.TPNCounter.toCustomer` (the app). The customer page listens on all four (`tpnCdsReceive` is the app's entry point).
+  - Wired into `pos.js` (`drawTicket` publishes the ticket; `posSend` remembers the lines for the pay screen) and `payments.js`. `cdsMethod` is set when staff pick a way to pay, so opening an old bill never shows "Salamat po". The offline cash panel in `offline.js` is wired in too.
+  - Loaded only on the floor screen. The portal's `payments.js` calls are guarded and do nothing there.
+- **Chrome route:** a **Customer screen** chip on the floor top bar (Android or the app only; `localStorage tpn.cds.force = on` shows it elsewhere for testing). It calls `PresentationRequest(['tpn-dine-in-floor-customer']).start()` and reconnects after a reload. **Untested on the iMin:** nobody knows yet whether Chrome there offers the rear display.
+- **The TPN Counter app (`android/`):** plain Java, no libraries, minSdk 26, package `ph.tyopaengnyo.counter`.
+  - `MainActivity` runs the floor screen full screen in a WebView. It keeps the screen on, keeps navigation to the site's own path (other links open in the browser), blocks pop-ups, grants the camera to the site only, recreates itself if the page process dies, and Back never exits.
+  - `CustomerPresentation` puts the customer page on the second display found by `DisplayManager.DISPLAY_CATEGORY_PRESENTATION` and pushes each state with `evaluateJavascript`. It follows displays being added or removed.
+  - `BootReceiver` opens the app on power-on once "Display over other apps" is allowed.
+  - `network_security_config` allows cleartext only to 127.0.0.1/localhost (the iMin print plugin).
+  - Both WebViews share the site's storage and service worker, so offline works as in Chrome, and Android never clears app storage on its own.
+  - Not bundled: a copy of the site inside the APK. It would live at a different origin, with separate storage, and lose the sign-in and outbox. The service worker already opens the counter offline.
+- **Building the APK:** no Android toolchain on the Mac (kept lean), so GitHub Actions builds it. The workflow is at **`android/ci/build-apk.yml` and must be moved to `.github/workflows/build-apk.yml`**: JaPat24's token lacks the `workflow` scope (`gh auth refresh -s workflow` fixes that), or UnoRfl can move it. It's triggered on `android/**` pushes or by hand with a site URL input. `versionCode` = the run number.
+- **Signing key:** made Oct 21 on the Mac at `~/Downloads/tpn-os-study/keys/` (`tpn-counter.p12`, alias `tpncounter`, password in `keystore-password.txt`, README inside). It's **not in the repo** (`*.p12` is in `.gitignore`). The repo owner must add the secrets `TPN_KEYSTORE_B64` and `TPN_KEYSTORE_PASSWORD` (Settings → Secrets → Actions). Without them the build is debug-signed: usable for a first try, but each build then needs an uninstall. **Keep an offline copy of the key**, like the backup key.
+- **Offline cache:** `tpn-counter-sw.js` `VERSION 20261021a`. It precaches the customer page and its images, and navigation now caches each page under its own key. Before, any navigation in scope was stored as the floor page, so the customer page would have overwritten the floor's offline copy.
+- **Not verified yet:** the Java has **not been compiled** (no toolchain here; the first Actions run is the compile check), Chrome's Presentation API on the iMin, the app on the real device, and the customer screen's Tagalog (English for now, with the "Mabuhay!" / "Salamat po!" brand lines).
+- **Asset versions:** `pos.js`, `payments.js`, `offline.js` `?v=20261021b`; `customer-display.js` `?v=20261021a`.
 
 ## Rev 23 — security pass, nobody climbs the ladder, fallbacks (Oct 21, 2026, branch `feature/security-hardening`)
 

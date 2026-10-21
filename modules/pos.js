@@ -209,6 +209,8 @@
     const el = document.getElementById('posTicket'); if (!el) return;
     const fee = deliveryFee();
     const total = st.ticket.reduce((a, l) => a + l.price * l.qty, 0) + fee;
+    // The customer screen follows the ticket as it is rung up.
+    if (window.TPN_CDS) TPN_CDS.order({ lines: TPN_CDS.lines(st.ticket), fee, total, type: st.type });
     el.innerHTML = `
       <div class="pos-ticket-head"><h2>Order</h2>${st.ticket.length ? `<button class="link-btn" onclick="posClear()">Clear</button>` : ''}</div>
       <div class="sr-only" aria-live="polite" id="posLive"></div>
@@ -264,6 +266,8 @@
       try { q = await queue(); } catch (e2) { toast('Could not save the order on this device: ' + e2.message); return; }
     }
     const printed = st.ticket.slice(), type = st.type, where = ticketWhere();
+    // Keep the lines on the customer screen while the guest pays.
+    if (window.TPN_CDS && type !== 'dine_in') TPN_CDS.remember(o ? o.id : q.id, { lines: TPN_CDS.lines(printed), fee: deliveryFee(), type });
     st.ticket = []; st.key = null; st.name = st.phone = st.address = st.table = st.zone = ''; save(); drawTicket();
     if (q) {
       // No server: the kitchen works from paper, so the ticket always prints.
