@@ -1,6 +1,6 @@
 # TPN OS — Session Handoff
 
-**Last updated:** Oct 21, 2026 (rev 30 — sign-in at the counter, Switch user, see "Rev 30"; rev 29 — reopens where it left off, light drawing on the iMin, see "Rev 29"; rev 28 — one app on its own engine + brand reel, see "Rev 28"; rev 27 — welcome loop; in-app engine on hold, see "Rev 27"; rev 26 — counter in Chrome + app drives the back screen, see "Rev 26"; rev 25 — the iMin's old WebView, see "Rev 25"; rev 24 — customer screen on the iMin + TPN Counter Android app, see "Rev 24"; rev 23 — security pass and fallbacks, see "Rev 23"; rev 22 — BIR booklet invoices and Vercel prep, see "Rev 22"; Oct 20: nightly encrypted backups on the headless PC, see "Backups"; rev 21 — offline counter, see "Rev 21"). Earlier: Oct 17, 2026 (rev 8 — read receipts, Tagalog everywhere, layout, guide; see "Rev 8"). Rev 7 — portal split out of the website, hubs, Counter on the floor screen; see "Rev 7"). Rev 6 (Oct 16 — v2 overhaul, see "Rev 6" and GO-LIVE.md). Previously rev 5 — UI/UX reliability pass, no migrations; see "Rev 5" below). Rev 4 (Aug 22): split bills, daily close, variance, working add-ons, low-stock alerts; migrations 18–28
+**Last updated:** Oct 21, 2026 (rev 31 — TPN Kitchen app, shared station sign-in, sign-in = clock-in, see "Rev 31"; rev 30 — sign-in at the counter, Switch user, see "Rev 30"; rev 29 — reopens where it left off, light drawing on the iMin, see "Rev 29"; rev 28 — one app on its own engine + brand reel, see "Rev 28"; rev 27 — welcome loop; in-app engine on hold, see "Rev 27"; rev 26 — counter in Chrome + app drives the back screen, see "Rev 26"; rev 25 — the iMin's old WebView, see "Rev 25"; rev 24 — customer screen on the iMin + TPN Counter Android app, see "Rev 24"; rev 23 — security pass and fallbacks, see "Rev 23"; rev 22 — BIR booklet invoices and Vercel prep, see "Rev 22"; Oct 20: nightly encrypted backups on the headless PC, see "Backups"; rev 21 — offline counter, see "Rev 21"). Earlier: Oct 17, 2026 (rev 8 — read receipts, Tagalog everywhere, layout, guide; see "Rev 8"). Rev 7 — portal split out of the website, hubs, Counter on the floor screen; see "Rev 7"). Rev 6 (Oct 16 — v2 overhaul, see "Rev 6" and GO-LIVE.md). Previously rev 5 — UI/UX reliability pass, no migrations; see "Rev 5" below). Rev 4 (Aug 22): split bills, daily close, variance, working add-ons, low-stock alerts; migrations 18–28
 **Deployed:** https://unorfl.github.io/tpn-os/
 **Repo:** https://github.com/UnoRfl/tpn-os
 **Supabase project ref:** `xjlqfpnzobfqxetgkkai` (single project, single branch)
@@ -62,13 +62,41 @@ tpn-os/
 
 ---
 
+## Rev 31 — TPN Kitchen app; one shared station sign-in (Oct 21, 2026)
+
+The owner asked for an app for the kitchen hardware too, even before it arrives.
+- **Two apps from one Android project (product flavors, `flavorDimensions 'station'`):**
+  - `counter`: `ph.tyopaengnyo.counter`, "TPN Counter", start `tpn-dine-in-floor`, customer screen on, user agent tag `TPNCounter`.
+  - `kitchen`: `ph.tyopaengnyo.kitchen`, "TPN Kitchen", start `tpn-kitchen-station`, no customer screen, tag `TPNKitchen`.
+  - `app_name` now comes from each flavor's `resValue` (`strings.xml` removed). BuildConfig carries `START_PATH`, `CUSTOMER_SCREEN` and `UA_TAG`. Version names are 1.3.x.
+  - The kitchen app still asks for "Display over other apps", which Android 10+ requires for `BootReceiver` to reopen it after a power cut. It never starts `CustomerScreenService`.
+  - The workflow ("Build TPN apps") runs `assembleCounterRelease assembleKitchenRelease` and uploads both. **Publish both APKs in the same release** (`tpn-counter.apk`, `tpn-kitchen.apk`), so both `releases/latest/download/…` links keep working.
+- **One shared sign-in:**
+  - `modules/signin.js` (`TPN_SIGNIN.show / switchUser / whoLabel`) draws the gate into an empty `#tpn-auth-gate`; the styles are in `tpn-signin.css`. The floor and kitchen pages both use it, and the floor's inline copy is gone.
+  - **No remembered people** (owner, Oct 21): each person types their own email and password every time, because signing in is how they start their time on the station. There are no name buttons, no prefill and no autocomplete. The old `tpn.station.recent` / `tpn.counter.recent` lists are deleted on load.
+  - Narrow screens give the ← Portal button its own room.
+- **Kitchen station:**
+  - It signs people in on the station; it used to send them to the portal.
+  - **Switch user** is shown for everyone, including the kitchen display account, so the kitchen device can always hand over.
+  - The badge shows "First name · Role".
+  - It admits kitchen tier and up, or anyone whose access role has `kitchen_station.view`, after `TPN.loadPermissions`.
+- **Signing in at a station is the time-in** (owner, Oct 21). After `TPN.login`, `modules/signin.js` calls `TPN.clockIn('Signed in at the counter' | '… kitchen')`, i.e. `clock_in_verified(p_expect_photo false)`, and shows "Clocked in at h:mm" after the reload (sessionStorage `tpn.station.flash`).
+  - It skips this if the person is already clocked in (`already_clocked_in` → "You were already clocked in").
+  - **Switch user** calls `TPN.clockOut()` before signing out; if that fails, it asks before signing out anyway.
+  - The screen-only roles `kitchen_display` and `dine_in_display` never clock in.
+  - Station clock-ins are `needs_approval` with reasons `no_photo` (plus `untrusted_network` / `network_unknown` until the restaurant network is trusted), so they show in Clock-in review. Making a trusted-network station clock-in auto-verified would be a policy change for the owner, who is reworking roles and permissions.
+  - Closing the app without Switch user leaves the shift open.
+  - Tested on production in a rolled-back transaction as a new dining account: clock-in, refusal of a second clock-in, clock-out, and a no-op second clock-out; the row read `needs_approval` with the station note.
+  - `signin.js` `?v=20261021c`.
+- **`tpn-kit.js` `?v=20261021d`:** `html.tpn-lite` applies for both `TPNCounter/` and `TPNKitchen/`.
+
 ## Rev 30 — every person signs in at the counter; the app opens on the counter (Oct 21, 2026)
 
 The owner wants each staff member to sign in with their own account at the counter, so the system always knows who is on, and wants it lighter. The data side already works per person: drawer shifts, payments, voids and the audit log are keyed to `auth.uid()`. So no remodel was needed, only the path.
 - **The floor screen's gate now has its own sign-in form** (`#tpn-signin`, `counterSignIn` → `TPN.login` → reload). It no longer sends people to the portal, so the 460 KB portal never loads just to sign in.
-  - **Recent people:** the last five people who signed in on this device show as name chips (`localStorage tpn.counter.recent`, email and first name only). The most recent email is prefilled, with focus on the password.
+  - **Recent people (removed in Rev 31):** this version showed the last five people as name chips; the owner wants everyone to type their own login.
   - **Offline:** with no internet the form says signing in needs a connection. The offline counter still opens for whoever last signed in (`modules/offline.js`).
-- **Look (owner's rule, Oct 21: follow the theme, reuse existing screens, no clutter subheadings):** the counter sign-in is the portal sign-in rebuilt with v3 tokens scoped to `#tpn-auth-gate`. Brick panel: logo, "Tyo Paeng *Nyo*", "Welcome back, *kabayan*.". Paper side: "Welcome.", a recent-people segmented switch, Email, Password, Sign In. It drops the portal's eyebrow, sub line, blurb and footer. Status text appears only for real states (offline, inactive account). Fraunces and Plus Jakarta Sans were added to the floor page's font link.
+- **Look (owner's rule, Oct 21: follow the theme, reuse existing screens, no clutter subheadings):** the counter sign-in is the portal sign-in rebuilt with v3 tokens scoped to `#tpn-auth-gate`. Brick panel: logo, "Tyo Paeng *Nyo*", "Welcome back, *kabayan*.". Paper side: "Welcome.", Email, Password, Sign In. It drops the portal's eyebrow, sub line, blurb and footer. Status text appears only for real states (offline, inactive account). Fraunces and Plus Jakarta Sans were added to the floor page's font link.
 - **Who's on:** the top bar badge reads "First name · Role". **Switch user** (hidden for the shared floor-screen account) warns if this person's drawer shift is still open (`TPN.myOpenCashSession`), then signs out, clears the offline-remembered profile, and returns to the sign-in.
 - **App (1.2.0):** always opens `tpn-dine-in-floor`, the counter sign-in. Rev 29's "reopen the last page" is gone, because this flow replaces it. ← Portal still opens the portal in the same window.
 

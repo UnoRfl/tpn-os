@@ -1,0 +1,49 @@
+/* ═══════════════════════════════════════════════════════════════
+   Station sign-in (Floor & Counter, Kitchen station) — modules/signin.js
+   draws it into #tpn-auth-gate. It is the portal's sign-in (brick panel +
+   paper card, v3 colours, Fraunces + Plus Jakarta Sans) without its extra
+   lines: each person signs in with their own account, no portal load.
+   ═══════════════════════════════════════════════════════════════ */
+#tpn-auth-gate {
+  --c-paper: #F7F0E2; --c-card: #FFFDF8; --c-sand: #F4EAD8; --c-ink: #2E1A10; --c-ink-2: #6E5240;
+  --c-line: rgba(46, 26, 16, .14); --c-brick: #A3321A; --c-brick-deep: #8A2914; --c-saffron: #E4A23C; --c-cream: #FFF8E8;
+  position: fixed; inset: 0; z-index: 9999; display: grid; grid-template-columns: 1fr 1fr;
+  background: var(--c-paper); color: var(--c-ink); font-family: "Plus Jakarta Sans", system-ui, sans-serif;
+}
+#tpn-auth-gate .cs-brand { background: linear-gradient(135deg, var(--c-brick-deep), var(--c-brick)); color: var(--c-cream);
+  padding: 56px 48px; display: flex; flex-direction: column; justify-content: center; gap: 22px; position: relative; overflow: hidden; }
+#tpn-auth-gate .cs-brand::after { content: ""; position: absolute; right: -18%; bottom: -22%; width: 70%; aspect-ratio: 1; opacity: .12;
+  background: url("assets/site/mandala-a.webp") center / contain no-repeat; pointer-events: none; }
+#tpn-auth-gate .cs-brand img { width: 96px; height: auto; filter: drop-shadow(0 10px 22px rgba(0, 0, 0, .3)); }
+#tpn-auth-gate .cs-logo { font-family: Fraunces, Georgia, serif; font-variation-settings: "SOFT" 100; font-weight: 900; font-size: 34px; line-height: 1.1; }
+#tpn-auth-gate .cs-logo span, #tpn-auth-gate .cs-headline em { color: var(--c-saffron); }
+#tpn-auth-gate .cs-headline { font-family: Fraunces, Georgia, serif; font-variation-settings: "SOFT" 100, "opsz" 144; font-weight: 900;
+  font-size: clamp(36px, 4vw, 52px); line-height: 1.08; margin: 0; }
+#tpn-auth-gate .cs-headline em { font-style: italic; }
+#tpn-auth-gate .cs-side { position: relative; display: flex; align-items: center; justify-content: center; padding: 48px; }
+#tpn-auth-gate .cs-portal { position: absolute; top: 16px; left: 16px; background: transparent; border: 1px solid var(--c-line); color: var(--c-ink-2);
+  padding: 8px 14px; border-radius: 8px; font: 500 13px inherit; font-family: inherit; cursor: pointer; }
+#tpn-auth-gate .cs-portal:hover { border-color: var(--c-brick); color: var(--c-brick); }
+#tpn-auth-gate .cs-wrap { width: 100%; max-width: 400px; display: grid; justify-items: stretch; gap: 14px; }
+#tpn-auth-gate .g-spin { justify-self: center; width: 34px; height: 34px; border: 3px solid var(--c-sand); border-top-color: var(--c-brick); border-radius: 50%; animation: gspin .9s linear infinite; }
+@keyframes gspin { to { transform: rotate(360deg); } }
+#tpn-auth-gate .g-sub { text-align: center; color: var(--c-ink-2); font-size: 14px; }
+#tpn-auth-gate .g-sub:empty { display: none; }
+#tpn-auth-gate .g-form { display: grid; gap: 14px; }
+#tpn-auth-gate .g-form[hidden] { display: none; }
+#tpn-auth-gate .cs-title { font-family: Fraunces, Georgia, serif; font-variation-settings: "SOFT" 100; font-weight: 900; font-size: 38px;
+  line-height: 1.1; letter-spacing: -.01em; margin: 0 0 6px; }
+  font: 600 14px inherit; font-family: inherit; color: var(--c-ink-2); cursor: pointer; }
+#tpn-auth-gate .g-form label { font-size: 13px; font-weight: 600; color: var(--c-ink-2); margin-bottom: -8px; }
+#tpn-auth-gate .g-form input { font: 500 16px inherit; font-family: inherit; color: var(--c-ink); background: var(--c-card);
+  border: 1px solid var(--c-line); border-radius: 8px; padding: 12px 14px; min-height: 48px; }
+#tpn-auth-gate .g-form input:focus { outline: 2px solid var(--c-brick); outline-offset: 1px; border-color: transparent; }
+#tpn-auth-gate .g-btn { background: var(--c-brick); color: var(--c-cream); border: none; border-radius: 8px; padding: 14px; min-height: 50px;
+  font: 700 15px inherit; font-family: inherit; letter-spacing: .03em; cursor: pointer; box-shadow: 0 8px 18px -10px rgba(138, 41, 20, .6); }
+#tpn-auth-gate .g-btn:hover { background: var(--c-brick-deep); }
+#tpn-auth-gate .g-btn:disabled { opacity: .7; cursor: progress; }
+#tpn-auth-gate .g-err { margin: 0; font-size: 13px; color: #A3321A; background: rgba(163, 50, 26, .07); border: 1px solid rgba(163, 50, 26, .22);
+  border-radius: 8px; padding: 10px 12px; }
+#tpn-auth-gate .g-err:empty { display: none; }
+#tpn-auth-gate #tpn-auth-btn { justify-self: center; }
+@media (max-width: 900px) { #tpn-auth-gate { grid-template-columns: 1fr; } #tpn-auth-gate .cs-brand { display: none; } #tpn-auth-gate .cs-side { padding: 76px 20px 32px; align-items: flex-start; } }

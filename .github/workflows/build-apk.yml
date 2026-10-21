@@ -1,4 +1,4 @@
-# Builds the TPN Counter APK (android/). Pushing changes to this file needs a
+# Builds both station apps from android/ (flavors): TPN Counter and TPN Kitchen. Pushing changes to this file needs a
 # token with the "workflow" scope (UnoRfl's on the Mac; see HANDOFF.md Rev 24).
 #
 # Repo secrets (Settings → Secrets and variables → Actions), set by the owner:
@@ -6,7 +6,7 @@
 #   TPN_KEYSTORE_PASSWORD  its password
 # Without them the APK is debug-signed: fine to try, but every new build then
 # needs the old app uninstalled first (and uninstalling wipes its storage).
-name: Build TPN Counter APK
+name: Build TPN apps
 
 on:
   workflow_dispatch:
@@ -45,12 +45,12 @@ jobs:
           TPN_SITE_URL: ${{ inputs.site_url || 'https://unorfl.github.io/tpn-os/' }}
           TPN_VERSION_CODE: ${{ github.run_number }}
           TPN_KEYSTORE_PASSWORD: ${{ secrets.TPN_KEYSTORE_PASSWORD }}
-        run: gradle -p android assembleRelease --no-daemon
+        run: gradle -p android assembleCounterRelease assembleKitchenRelease --no-daemon
       - name: Clean up key
         if: always()
         run: rm -f "$RUNNER_TEMP/tpn-counter.p12"
       - uses: actions/upload-artifact@v4
         with:
-          name: tpn-counter-${{ github.run_number }}
-          path: android/app/build/outputs/apk/release/*.apk
+          name: tpn-apps-${{ github.run_number }}
+          path: android/app/build/outputs/apk/*/release/*.apk
           if-no-files-found: error
