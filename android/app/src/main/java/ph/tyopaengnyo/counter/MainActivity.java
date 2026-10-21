@@ -4,6 +4,7 @@ import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Bundle;
@@ -128,19 +129,39 @@ public class MainActivity extends Activity {
         newSession();
     }
 
+    /** The screen to reopen on: the last portal, floor or kitchen page this device was on. */
+    private String startUrl() {
+        String last = getSharedPreferences("counter", MODE_PRIVATE).getString("last", null);
+        return last != null && isSite(Uri.parse(last)) ? last : PORTAL;
+    }
+
+    private void remember(String url) {
+        Uri u = Uri.parse(url);
+        String path = u.getPath() == null ? "" : u.getPath();
+        boolean screen = path.endsWith("/portal") || path.endsWith("/portal.html")
+                || path.matches(".*/tpn-dine-in-floor(\\.html)?$") || path.matches(".*/tpn-kitchen-station(\\.html)?$");
+        if (isSite(u) && screen) getSharedPreferences("counter", MODE_PRIVATE).edit().putString("last", url).apply();
+    }
+
     private void newSession() {
         if (session != null) { try { session.close(); } catch (Exception ignored) { } }
-        session = new GeckoSession(new GeckoSessionSettings.Builder().usePrivateMode(false).build());
+        // "TPNCounter/x" tells the site it is on the counter (tpn-kit.js turns on its light drawing mode).
+        session = new GeckoSession(new GeckoSessionSettings.Builder().usePrivateMode(false)
+                .userAgentOverride(GeckoSession.getDefaultUserAgent() + " TPNCounter/" + BuildConfig.VERSION_NAME).build());
+
+        session.setProgressDelegate(new GeckoSession.ProgressDelegate() {
+            @Override public void onPageStart(GeckoSession s, String url) { remember(url); }
+        });
 
         session.setNavigationDelegate(new GeckoSession.NavigationDelegate() {
             @Override
             public void onCanGoBack(GeckoSession s, boolean can) { canGoBack = can; }
 
-            // No internet when the app opens: the portal can't load, but the counter
-            // works offline (its service worker), so go there instead.
+            // No internet: the portal and kitchen can't load, but the counter works
+            // offline (its service worker), so go there instead.
             @Override
             public GeckoResult<String> onLoadError(GeckoSession s, String uri, WebRequestError error) {
-                if (uri != null && uri.startsWith(PORTAL)) runOnUiThread(() -> s.loadUri(COUNTER));
+                if (uri != null && uri.startsWith(SITE) && !uri.startsWith(COUNTER)) runOnUiThread(() -> s.loadUri(COUNTER));
                 return null;
             }
 
@@ -229,7 +250,7 @@ public class MainActivity extends Activity {
 
         session.open(runtime());
         view.setSession(session);
-        session.loadUri(PORTAL);
+        session.loadUri(startUrl());   // where this device left off, still signed in
     }
 
     @SuppressWarnings("deprecation")

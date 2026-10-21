@@ -513,3 +513,16 @@ html body .ticket {
 .toast.show, #toast.show { transition: transform .35s var(--ease-spring), opacity .25s ease; }
 html[data-motion="reduced"] .tpn-enter > *, html[data-motion="reduced"] .page.active { animation: none !important; }
 @media (prefers-reduced-motion: reduce) { .tpn-enter > *, .page.active, .tpn-enter * { animation: none !important; } }
+
+/* ── Counter app (html.tpn-lite, set by tpn-kit.js) ──────────────────────
+   The iMin runs the counter and the back screen on one POS-class GPU.
+   Here only: no backdrop blur (the costliest effect), quick transitions,
+   no looping or entrance animations, lighter shadows. Phones and laptops
+   keep the full look. */
+html.tpn-lite *, html.tpn-lite *::before, html.tpn-lite *::after {
+  -webkit-backdrop-filter: none !important; backdrop-filter: none !important;
+  transition-duration: .08s !important; transition-delay: 0s !important;
+  animation-duration: .01s !important; animation-delay: 0s !important; animation-iteration-count: 1 !important;
+  scroll-behavior: auto !important;
+}
+html.tpn-lite .glass, html.tpn-lite .card, html.tpn-lite .panel, html.tpn-lite .modal { box-shadow: 0 1px 3px rgba(0, 0, 0, .12) !important; }

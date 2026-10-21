@@ -70,6 +70,9 @@
   .tmand { position: absolute; width: var(--s); height: var(--s); margin: calc(var(--s) / -2) 0 0 calc(var(--s) / -2); background: var(--c);
     -webkit-mask: url("assets/site/mandala-a.webp") center / contain no-repeat; mask: url("assets/site/mandala-a.webp") center / contain no-repeat; will-change: transform; }
   .tmand.b { -webkit-mask-image: url("assets/site/mandala-b.webp"); mask-image: url("assets/site/mandala-b.webp"); }
+  /* Lite (the iMin): blending a full-screen texture every frame is the costliest thing here. */
+  .lite #engr { mix-blend-mode: normal; filter: none; }
+  .lite .tmand { width: min(var(--s), 70vh); height: min(var(--s), 70vh); margin: calc(min(var(--s), 70vh) / -2) 0 0 calc(min(var(--s), 70vh) / -2); }
   /* the three faces the slams cycle through */
   .f-soft { font-family: var(--display); font-weight: 900; font-style: normal; font-variation-settings: "SOFT" 100, "opsz" 144; letter-spacing: -.02em; }
   .f-ital { font-family: var(--display); font-weight: 900; font-style: italic; font-variation-settings: "SOFT" 100, "opsz" 144; letter-spacing: -.02em; }
@@ -266,6 +269,14 @@
   const STALE = 2 * 60 * 60e3;   // a state older than this (counter switched off mid-order) is ignored
   // Motion is GSAP's, and only when the device allows it; otherwise every change is instant.
   const G = (window.gsap && !matchMedia('(prefers-reduced-motion: reduce)').matches) ? window.gsap : null;
+  // Lite: the iMin's own WebView (Chromium 83) on a POS-class GPU, shared with the counter
+  // on the front screen. Same scenes, fewer pixels, 30 fps, no blend or blur.
+  const LITE = (() => {
+    try { const f = localStorage.getItem('tpn.cds.lite'); if (f === 'on') return true; if (f === 'off') return false; } catch (e) {}
+    const m = navigator.userAgent.match(/Chrome\/(\d+)/);
+    return (m && +m[1] < 100) || (navigator.deviceMemory && navigator.deviceMemory <= 4);
+  })();
+  if (LITE) { document.documentElement.classList.add('lite'); if (G) G.ticker.fps(30); }
   let seen = new Map(), idleTimer = null, mode = 'idle', last = null;
 
   /* ── Fluid colour circles between screens ───────────────────
@@ -453,7 +464,7 @@
     const mix = { a: 'tiles', b: '', m: 0 };   // canvas: scene a, crossfading into b by m
     const wave = { p: 0 }, sphere = { s: 0, a: 0 }, burst = { b: 0 };
 
-    function size() { const k = Math.min(1, 1600 / innerWidth); W = cv.width = Math.round(innerWidth * k); H = cv.height = Math.round(innerHeight * k); }
+    function size() { const k = Math.min(1, (LITE ? 760 : 1600) / innerWidth); W = cv.width = Math.round(innerWidth * k); H = cv.height = Math.round(innerHeight * k); }
     size(); addEventListener('resize', size);
 
     // 1. Paisley-arc tiles; a saffron wave rolls through and flips them as it passes.
@@ -523,9 +534,11 @@
       }
     }
     const DRAW = { tiles, dots };
+    let odd = false;
     function frame() {
       if (!on) return;
       raf = requestAnimationFrame(frame);   // first, so one bad frame can't stop the reel
+      if (LITE && (odd = !odd)) return;     // 30 fps on the iMin
       if (+cv.style.opacity > 0) {
         ctx.clearRect(0, 0, W, H);
         try {
@@ -541,8 +554,9 @@
     // Whole layers fade and shrink a touch; no blur (full-screen blur is what drops frames).
     const hide = (el, d) => G.to(el, { autoAlpha: 0, scale: .96, duration: d || .5, ease: 'power2.in' });
     // A word blooms in from large and soft-focus, holds, then softens away as the next arrives.
-    const wordIn = (el) => G.fromTo(el, { autoAlpha: 0, scale: 1.7, filter: 'blur(16px)' }, { autoAlpha: 1, scale: 1, filter: 'blur(0px)', duration: .65, ease: 'expo.out' });
-    const wordOut = (el) => G.to(el, { autoAlpha: 0, scale: .82, filter: 'blur(12px)', duration: .45, ease: 'power2.in' });
+    const soft = (px) => LITE ? {} : { filter: `blur(${px}px)` };   // blur is the costly part; lite keeps the scale and fade
+    const wordIn = (el) => G.fromTo(el, Object.assign({ autoAlpha: 0, scale: 1.7 }, soft(16)), Object.assign({ autoAlpha: 1, scale: 1, duration: .65, ease: 'expo.out' }, soft(0)));
+    const wordOut = (el) => G.to(el, Object.assign({ autoAlpha: 0, scale: .82, duration: .45, ease: 'power2.in' }, soft(12)));
 
     function build() {
       // Measure the full name, so the reveal zooms out just enough to fit.
@@ -573,7 +587,7 @@
         // 4. …and from the same centre the colour floods saffron, engraved, and tinted mandalas bloom
         .add(bg(SAFF, .7), '-=.55')
         .to(cv, { opacity: 0, duration: .55, ease: 'sine.in' }, '<.15')
-        .to(engr, { autoAlpha: .55, duration: .8 }, '<')
+        .to(engr, { autoAlpha: LITE ? .12 : .55, duration: .8 }, '<')
         .set(L.mand, { autoAlpha: 1, scale: 1 }, '-=.7')
         .fromTo(mands, { scale: 0, rotation: -120 }, { scale: 1, rotation: 0, duration: 1.3, ease: 'back.out(1.3)', stagger: .08 }, '<')
         .to(mands, { rotation: (i) => (i % 2 ? -1 : 1) * 40, duration: 2.2, ease: 'none' }, '-=.3')
@@ -590,7 +604,7 @@
         .set(NYO, { color: SAFF }, '<').add(wordIn(NYO), '<.15')
         // 6. tickers cross on cream
         .add(bg(CREAM, .7), '+=.5')
-        .to(NYO, { autoAlpha: 0, scale: 2.6, filter: 'blur(14px)', duration: .6, ease: 'power2.in' }, '<')
+        .to(NYO, Object.assign({ autoAlpha: 0, scale: 2.6, duration: .6, ease: 'power2.in' }, soft(14)), '<')
         .set(L.ticks, { autoAlpha: 1 }, '<.3')
         .fromTo(ticks, { yPercent: 120, autoAlpha: 0 }, { yPercent: 0, autoAlpha: 1, duration: .6, ease: 'expo.out', stagger: .08 }, '<')
         .fromTo(ticks, { xPercent: (i) => i % 2 ? -50 : 0 }, { xPercent: (i) => i % 2 ? 0 : -50, duration: 3, ease: 'none' }, '<')

@@ -158,7 +158,7 @@ Try **A** first. If Chrome can't reach the back screen, use **B**.
 5. The top bar shows **Customer screen: on** within about 20 seconds. Ring up a test order and watch the back screen follow it.
 6. Printer chip → **Test print** and **Open drawer**.
 7. When a clock-in asks for the camera, allow it.
-8. **Every day:** just tap TPN Counter. After a power cut it reopens by itself.
+8. **Every day:** just tap TPN Counter. It reopens signed in, on the screen it was last on (the counter, usually), and after a power cut it reopens by itself.
 
 The Chrome shortcut for the counter isn't needed any more.
 

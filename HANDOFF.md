@@ -1,6 +1,6 @@
 # TPN OS — Session Handoff
 
-**Last updated:** Oct 21, 2026 (rev 28 — one app on its own engine + brand reel, see "Rev 28"; rev 27 — welcome loop; in-app engine on hold, see "Rev 27"; rev 26 — counter in Chrome + app drives the back screen, see "Rev 26"; rev 25 — the iMin's old WebView, see "Rev 25"; rev 24 — customer screen on the iMin + TPN Counter Android app, see "Rev 24"; rev 23 — security pass and fallbacks, see "Rev 23"; rev 22 — BIR booklet invoices and Vercel prep, see "Rev 22"; Oct 20: nightly encrypted backups on the headless PC, see "Backups"; rev 21 — offline counter, see "Rev 21"). Earlier: Oct 17, 2026 (rev 8 — read receipts, Tagalog everywhere, layout, guide; see "Rev 8"). Rev 7 — portal split out of the website, hubs, Counter on the floor screen; see "Rev 7"). Rev 6 (Oct 16 — v2 overhaul, see "Rev 6" and GO-LIVE.md). Previously rev 5 — UI/UX reliability pass, no migrations; see "Rev 5" below). Rev 4 (Aug 22): split bills, daily close, variance, working add-ons, low-stock alerts; migrations 18–28
+**Last updated:** Oct 21, 2026 (rev 29 — reopens where it left off, light drawing on the iMin, see "Rev 29"; rev 28 — one app on its own engine + brand reel, see "Rev 28"; rev 27 — welcome loop; in-app engine on hold, see "Rev 27"; rev 26 — counter in Chrome + app drives the back screen, see "Rev 26"; rev 25 — the iMin's old WebView, see "Rev 25"; rev 24 — customer screen on the iMin + TPN Counter Android app, see "Rev 24"; rev 23 — security pass and fallbacks, see "Rev 23"; rev 22 — BIR booklet invoices and Vercel prep, see "Rev 22"; Oct 20: nightly encrypted backups on the headless PC, see "Backups"; rev 21 — offline counter, see "Rev 21"). Earlier: Oct 17, 2026 (rev 8 — read receipts, Tagalog everywhere, layout, guide; see "Rev 8"). Rev 7 — portal split out of the website, hubs, Counter on the floor screen; see "Rev 7"). Rev 6 (Oct 16 — v2 overhaul, see "Rev 6" and GO-LIVE.md). Previously rev 5 — UI/UX reliability pass, no migrations; see "Rev 5" below). Rev 4 (Aug 22): split bills, daily close, variance, working add-ons, low-stock alerts; migrations 18–28
 **Deployed:** https://unorfl.github.io/tpn-os/
 **Repo:** https://github.com/UnoRfl/tpn-os
 **Supabase project ref:** `xjlqfpnzobfqxetgkkai` (single project, single branch)
@@ -61,6 +61,20 @@ tpn-os/
 | **Extensionless URLs** (`/tpn-table-menu`, `/tpn-dine-in-floor`) | ✅ live |
 
 ---
+
+## Rev 29 — the counter app opens where it left off; light drawing on the iMin (Oct 21, 2026)
+
+The owner tested 1.1.0 on the iMin: it works, but it always opened on the portal's front page instead of the account and screen in use, and both the front and the back reel were laggy.
+- **Reopens where it left off:** `MainActivity` saves the last portal, floor or kitchen URL (`ProgressDelegate.onPageStart` → SharedPreferences "counter"/"last") and opens there. The Supabase session was already kept (GeckoView storage, `persistSession`), so it reopens signed in, on the counter if that was the screen. The portal's "Remember this device" box still does nothing; sessions are always kept.
+- **Offline launch:** any of our pages that fails to load sends it to the offline counter (it used to be the portal only).
+- **Counter mode on the front (`html.tpn-lite`):**
+  - The app's user agent ends `TPNCounter/<version>`, and `tpn-kit.js` adds the class when it sees that.
+  - `tpn-glass.css` then removes every backdrop blur (26 rules across the shared CSS), makes transitions 0.08s, cuts animations to one quick pass, and lightens shadows. Inside the app only; phones and laptops are unchanged.
+  - `tpn-kit.js` and `tpn-glass.css` `?v=20261021c` on every page.
+- **Back reel lite mode:**
+  - It's on automatically when the page runs on Chromium under 100, which includes the iMin's WebView 83, or `deviceMemory` ≤ 4, or `localStorage tpn.cds.lite = on`; `off` forces it off.
+  - It keeps the same scenes but renders the canvas at 760px wide, draws every other frame, and caps GSAP at 30 fps. Word blooms have no blur, the engraved paisley shows at 12% without the overlay blend, and the tinted mandalas are capped at 70vh.
+  - Two things compete for the iMin's one GPU: the front screen in GeckoView, and the back screen in WebView.
 
 ## Rev 28 — one app with its own engine; brand reel on the back screen (Oct 21, 2026)
 
