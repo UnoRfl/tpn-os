@@ -152,7 +152,7 @@ Try **A** first. If Chrome can't reach the back screen, use **B**.
 
 **Fresh install on the D4-504** (do it when the counter isn't in use):
 1. **Remove the old version:** Settings → Apps → TPN Counter → Uninstall. Nothing is lost: the counter never ran inside the old app, and orders live in the database.
-2. **Install the new one:** open https://github.com/UnoRfl/tpn-os/releases/latest/download/tpn-counter.apk in Chrome (about 60–100 MB), tap it, and allow "Install unknown apps" for Chrome if asked.
+2. **Install the new one:** open https://github.com/UnoRfl/tpn-os/releases/latest/download/tpn-counter.apk in Chrome (about 165 MB, so use Wi-Fi), tap it, and allow "Install unknown apps" for Chrome if asked.
 3. **Open TPN Counter.** Tap **Open setting**, turn on **Allow display over other apps**, then go back.
 4. The back screen shows the TPN welcome loop, and the front shows the counter. **Sign in** there with the counter account.
 5. The top bar shows **Customer screen: on** within about 20 seconds. Ring up a test order and watch the back screen follow it.
