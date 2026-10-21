@@ -25,14 +25,22 @@
     /* One unit for the whole screen: 10.1" (1280×800) and 15.6" (1920×1080) both read from a metre away. */
     --u: min(1vw, 1.6vh);
   }
+  /* Engines before Chrome 79 have no min(): size by width alone there. */
+  @supports not (width: min(1px, 2px)) {
+    :root { --u: 1vw; }
+    .t-amt { font-size: calc(var(--u) * 6.4) !important; }
+    .pay .row strong { font-size: calc(var(--u) * 3.2) !important; }
+  }
   * { box-sizing: border-box; margin: 0; }
   html, body { height: 100%; }
   body { background: var(--paper); color: var(--ink); font-family: var(--ui); -webkit-font-smoothing: antialiased;
     overflow: hidden; cursor: none; user-select: none; font-variant-numeric: tabular-nums; }
   /* Views swap instantly; the fluid circles (#fluid) cover the swap. */
-  .view { position: fixed; inset: 0; visibility: hidden; }
+  .view { position: fixed; top: 0; right: 0; bottom: 0; left: 0; visibility: hidden; }
   .view.on { visibility: visible; }
-  #fluid { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 10; pointer-events: none; visibility: hidden; }
+  #fluid { position: fixed; top: 0; right: 0; bottom: 0; left: 0; width: 100%; height: 100%; z-index: 10; pointer-events: none; visibility: hidden; }
+  .brand { position: fixed; z-index: 5; top: calc(var(--u) * 3); left: calc(var(--u) * 3.5); width: calc(var(--u) * 7); height: auto;
+    filter: drop-shadow(0 6px 14px rgba(0, 0, 0, .25)); }
   .num { font-family: var(--display); font-variation-settings: "SOFT" 100, "opsz" 144; font-feature-settings: "tnum" 1, "lnum" 1; }
 
   /* Rolling digits: each digit is a 0–9 strip in a 1em window. */
@@ -45,18 +53,15 @@
 
   /* ── Welcome ── */
   #idle { background: var(--cocoa); overflow: hidden; }
-  #idle .hero { position: absolute; inset: 0; background: url("assets/site/hero.webp") center / cover no-repeat; will-change: transform; }
-  #idle .hero::after { content: ""; position: absolute; inset: 0; background: rgba(38, 18, 9, .62); }
+  #idle .hero { position: absolute; top: 0; right: 0; bottom: 0; left: 0; background: url("assets/site/hero.webp") center / cover no-repeat; will-change: transform; }
+  #idle .hero::after { content: ""; position: absolute; top: 0; right: 0; bottom: 0; left: 0; background: rgba(38, 18, 9, .62); }
   #idle .in { position: relative; height: 100%; display: grid; place-content: center; justify-items: center; text-align: center; gap: calc(var(--u) * 2.4); color: var(--on-cocoa); padding: 0 6vw; }
-  #idle img { width: calc(var(--u) * 15); height: auto; filter: drop-shadow(0 10px 24px rgba(0,0,0,.35)); }
   #idle h1 { font-family: var(--display); font-weight: 800; font-variation-settings: "SOFT" 100, "opsz" 144; font-size: calc(var(--u) * 8.4); line-height: .95; letter-spacing: -.01em; }
-  #idle p { font-size: calc(var(--u) * 2.3); color: var(--on-cocoa-2); max-width: 30ch; line-height: 1.35; }
 
   /* ── Order and payment ── */
   #order { display: grid; grid-template-columns: 1.45fr 1fr; }
-  .lines-side { display: flex; flex-direction: column; min-height: 0; padding: calc(var(--u) * 4) calc(var(--u) * 4.5) calc(var(--u) * 3); }
-  .lines-head { display: flex; align-items: center; gap: calc(var(--u) * 1.6); padding-bottom: calc(var(--u) * 2); border-bottom: 1px solid var(--hair); }
-  .lines-head img { width: calc(var(--u) * 5.2); height: auto; }
+  .lines-side { display: flex; flex-direction: column; min-height: 0; padding: calc(var(--u) * 3) calc(var(--u) * 4.5) calc(var(--u) * 3) calc(var(--u) * 3.5); }
+  .lines-head { display: flex; align-items: center; gap: calc(var(--u) * 1.6); min-height: calc(var(--u) * 7); padding: 0 0 calc(var(--u) * 2) calc(var(--u) * 8); border-bottom: 1px solid var(--hair); }
   .lines-head h2 { font-family: var(--display); font-weight: 700; font-variation-settings: "SOFT" 100; font-size: calc(var(--u) * 3.6); color: var(--brick); }
   .lines-head .type { margin-left: auto; font-size: calc(var(--u) * 1.9); color: var(--ink-2); font-weight: 600; }
   .lines { list-style: none; padding: 0; flex: 1; min-height: 0; overflow: hidden; }
@@ -69,17 +74,17 @@
   .more { font-size: calc(var(--u) * 1.8); color: var(--ink-2); padding: calc(var(--u) * 1.2) 0 calc(var(--u) * .4); border-bottom: 1px solid var(--hair); }
 
   .total-side { background: var(--cocoa); color: var(--on-cocoa); display: flex; flex-direction: column; justify-content: center;
-    padding: calc(var(--u) * 5) calc(var(--u) * 4.5); gap: calc(var(--u) * 1.2); position: relative; overflow: hidden; container-type: inline-size; }
-  .total-side::after { content: ""; position: absolute; inset: auto -10% -18% auto; width: 70%; aspect-ratio: 1; background: url("assets/site/mandala-a.webp") center / contain no-repeat; opacity: .07; pointer-events: none; }
+    padding: calc(var(--u) * 5) calc(var(--u) * 4.5); gap: calc(var(--u) * 1.2); position: relative; overflow: hidden; }
+  .total-side::after { content: ""; position: absolute; right: -10%; bottom: -18%; width: 70%; height: 0; padding-bottom: 70%; background: url("assets/site/mandala-a.webp") center / contain no-repeat; opacity: .07; pointer-events: none; }
   .t-label { font-size: calc(var(--u) * 2.4); color: var(--on-cocoa-2); font-weight: 500; }
-  /* Sized to its own panel: ₱99,999 still fits on the 10.1" screen. */
-  .t-amt { font-size: min(calc(var(--u) * 11), 16cqi); font-weight: 800; letter-spacing: -.02em; color: var(--saffron); }
+  /* Sized to the panel (about 41vw wide): ₱99,999 still fits on the 10.1" screen. */
+  .t-amt { font-size: min(calc(var(--u) * 11), 6.4vw); font-weight: 800; letter-spacing: -.02em; color: var(--saffron); }
   .t-sub { font-size: calc(var(--u) * 2); color: var(--on-cocoa-2); }
   .pay { margin-top: calc(var(--u) * 3); padding-top: calc(var(--u) * 2.6); border-top: 1px solid rgba(251, 241, 223, .16); display: grid; gap: calc(var(--u) * 1.4); }
   .pay h3 { font-family: var(--display); font-weight: 700; font-variation-settings: "SOFT" 100; font-size: calc(var(--u) * 3.4); }
   .pay p { font-size: calc(var(--u) * 2.1); line-height: 1.4; color: var(--on-cocoa-2); max-width: 30ch; }
   .pay .row { display: flex; justify-content: space-between; align-items: center; gap: calc(var(--u) * 2); font-size: calc(var(--u) * 2.3); }
-  .pay .row strong { font-size: min(calc(var(--u) * 4), 8cqi); color: var(--on-cocoa); font-weight: 800; }
+  .pay .row strong { font-size: min(calc(var(--u) * 4), 3.2vw); color: var(--on-cocoa); font-weight: 800; }
   .pay .row.change strong { color: var(--saffron); }
 
   /* ── Thank you: the bill prints out ── */
@@ -95,7 +100,7 @@
   /* The same printer as the website's checkout (tpn-site-v3.css .rcpt-*). */
   .slot { position: relative; z-index: 2; height: calc(var(--u) * 4.4); border-radius: calc(var(--u) * 1.6) calc(var(--u) * 1.6) calc(var(--u) * .9) calc(var(--u) * .9);
     background: var(--cocoa) url("assets/site/paisley-light.webp") center / calc(var(--u) * 24) auto; box-shadow: 0 10px 18px -10px rgba(58, 29, 16, .55); }
-  .slot::before { content: ""; position: absolute; inset: 0; border-radius: inherit; background: rgba(58, 29, 16, .9); }
+  .slot::before { content: ""; position: absolute; top: 0; right: 0; bottom: 0; left: 0; border-radius: inherit; background: rgba(58, 29, 16, .9); }
   .slot::after { content: ""; position: absolute; left: 6%; right: 6%; bottom: calc(var(--u) * .5); height: calc(var(--u) * .5); border-radius: 99px; background: #120703; }
   .led { position: absolute; z-index: 1; top: calc(var(--u) * 1.2); right: calc(var(--u) * 1.8); width: calc(var(--u) * .7); height: calc(var(--u) * .7); border-radius: 50%; background: var(--saffron); opacity: .35; }
   .feed { overflow: hidden; margin: calc(var(--u) * -.6) calc(var(--u) * 2.2) 0; max-height: 84vh; }
@@ -124,15 +129,13 @@
 <section class="view on" id="idle" aria-live="polite">
   <div class="hero"></div>
   <div class="in">
-    <img src="assets/site/logo.webp" alt="Tyo Paeng Nyo">
     <h1>Mabuhay!</h1>
-    <p>Welcome to Tyo Paeng Nyo. Your order will show here as we ring it up.</p>
   </div>
 </section>
 
 <section class="view" id="order" aria-live="polite">
   <div class="lines-side">
-    <div class="lines-head"><img src="assets/site/logo.webp" alt=""><h2>Your order</h2><span class="type" id="oType"></span></div>
+    <div class="lines-head"><h2>Your order</h2><span class="type" id="oType"></span></div>
     <div class="more" id="oMore" hidden></div>
     <ul class="lines" id="oLines"></ul>
   </div>
@@ -149,7 +152,6 @@
     <h1>Salamat po!</h1>
     <p class="chg" id="thChange" hidden></p>
     <p class="ord" id="thOrder" hidden></p>
-    <p>Come again soon.</p>
   </div>
   <div class="printer" aria-hidden="true">
     <div class="slot"><span class="led"></span></div>
@@ -168,6 +170,7 @@
   </div>
 </section>
 
+<img class="brand" src="assets/site/logo.webp" alt="Tyo Paeng Nyo">
 <canvas id="fluid" aria-hidden="true"></canvas>
 
 <script src="vendor/gsap-3.12.5.min.js"></script>

@@ -1,6 +1,6 @@
 # TPN OS — Session Handoff
 
-**Last updated:** Oct 21, 2026 (rev 24 — customer screen on the iMin + TPN Counter Android app, see "Rev 24"; rev 23 — security pass and fallbacks, see "Rev 23"; rev 22 — BIR booklet invoices and Vercel prep, see "Rev 22"; Oct 20: nightly encrypted backups on the headless PC, see "Backups"; rev 21 — offline counter, see "Rev 21"). Earlier: Oct 17, 2026 (rev 8 — read receipts, Tagalog everywhere, layout, guide; see "Rev 8"). Rev 7 — portal split out of the website, hubs, Counter on the floor screen; see "Rev 7"). Rev 6 (Oct 16 — v2 overhaul, see "Rev 6" and GO-LIVE.md). Previously rev 5 — UI/UX reliability pass, no migrations; see "Rev 5" below). Rev 4 (Aug 22): split bills, daily close, variance, working add-ons, low-stock alerts; migrations 18–28
+**Last updated:** Oct 21, 2026 (rev 25 — the iMin's old WebView, see "Rev 25"; rev 24 — customer screen on the iMin + TPN Counter Android app, see "Rev 24"; rev 23 — security pass and fallbacks, see "Rev 23"; rev 22 — BIR booklet invoices and Vercel prep, see "Rev 22"; Oct 20: nightly encrypted backups on the headless PC, see "Backups"; rev 21 — offline counter, see "Rev 21"). Earlier: Oct 17, 2026 (rev 8 — read receipts, Tagalog everywhere, layout, guide; see "Rev 8"). Rev 7 — portal split out of the website, hubs, Counter on the floor screen; see "Rev 7"). Rev 6 (Oct 16 — v2 overhaul, see "Rev 6" and GO-LIVE.md). Previously rev 5 — UI/UX reliability pass, no migrations; see "Rev 5" below). Rev 4 (Aug 22): split bills, daily close, variance, working add-ons, low-stock alerts; migrations 18–28
 **Deployed:** https://unorfl.github.io/tpn-os/
 **Repo:** https://github.com/UnoRfl/tpn-os
 **Supabase project ref:** `xjlqfpnzobfqxetgkkai` (single project, single branch)
@@ -61,6 +61,20 @@ tpn-os/
 | **Extensionless URLs** (`/tpn-table-menu`, `/tpn-dine-in-floor`) | ✅ live |
 
 ---
+
+## Rev 25 — the iMin's old WebView, back-screen layout (Oct 21, 2026)
+
+The first install on the real iMin showed the back screen squashed into the top-left corner, the front's sign-in page broken, and "TPN is not defined" on sign-in.
+- **Cause (from the code):** the TPN Counter app runs the site in the device's **Android System WebView**, not Chrome, and the iMin's is old.
+  - The site needs **Chrome 85+** to run at all: `vendor/supabase-js-2.117.2.js` is ES2021, and `tpn-supabase.js`, `payments.js` and `imin.js` are ES2020 (checked with acorn).
+  - Its layouts use `inset` (Chrome 87).
+  - On an older WebView, supabase-js fails to parse, so `TPN` never exists ("TPN is not defined"), and every `position: fixed; inset: 0` screen collapses to its content's size.
+- **Real fix:** update Android System WebView on the iMin (Play Store, or iMin's app store). **The device's WebView version wasn't reported yet.**
+- **App (`MainActivity.checkWebView`):** if the WebView major version is under `MIN_WEBVIEW = 87`, it shows "Update Android System WebView" with an Update button (Play Store for that package) and "Continue anyway". Remote debugging (`chrome://inspect`) is on only while USB debugging is on.
+- **Customer screen:**
+  - Rewritten to run on old engines: no `inset`, `aspect-ratio` or container units, plus an `@supports` fallback for engines without `min()`. Its own script needs ES2017; GSAP is ES5.
+  - Per the owner, the logo is fixed in the **top-left corner on every screen** (`.brand`), and the subheading lines ("Welcome to… / Come again soon") are gone.
+- **Counter service worker** `VERSION 20261021b`.
 
 ## Rev 24 — customer screen on the back of the iMin, TPN Counter app (Oct 21, 2026, merged to `main`)
 

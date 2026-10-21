@@ -3,6 +3,9 @@ package ph.tyopaengnyo.counter;
 import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.Activity;
+import android.app.AlertDialog;
+import android.content.pm.PackageInfo;
+import android.provider.Settings;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.hardware.display.DisplayManager;
@@ -35,6 +38,9 @@ public class MainActivity extends Activity {
     static final String COUNTER = SITE + "tpn-dine-in-floor";
     static final String CUSTOMER = SITE + "tpn-dine-in-floor-customer";
     private static final int CAMERA_REQ = 7;
+    /** The site needs Chrome 87-era features (2021 JavaScript, CSS `inset`). Older
+     *  WebViews fail with "TPN is not defined" and squashed layouts. */
+    static final int MIN_WEBVIEW = 87;
 
     private WebView web;
     private CustomerPresentation customer;
@@ -112,11 +118,37 @@ public class MainActivity extends Activity {
         });
         setContentView(web);
         immersive();
+        checkWebView();
+        // Remote debugging (chrome://inspect) only while USB debugging is switched on.
+        WebView.setWebContentsDebuggingEnabled(Settings.Global.getInt(getContentResolver(), Settings.Global.ADB_ENABLED, 0) == 1);
         if (state == null || web.restoreState(state) == null) web.loadUrl(COUNTER);
 
         displays = getSystemService(DisplayManager.class);
         displays.registerDisplayListener(displayListener, null);
         showCustomer();
+    }
+
+    /** Say plainly when the device's web engine is too old, instead of a broken page. */
+    private void checkWebView() {
+        PackageInfo wv = WebView.getCurrentWebViewPackage();
+        if (wv == null || wv.versionName == null) return;
+        int major;
+        try { major = Integer.parseInt(wv.versionName.split("\\.")[0]); } catch (NumberFormatException e) { return; }
+        if (major >= MIN_WEBVIEW) return;
+        final String pkg = wv.packageName;
+        new AlertDialog.Builder(this)
+                .setTitle("Update Android System WebView")
+                .setMessage("This device's web engine is version " + wv.versionName + ". TPN OS needs version "
+                        + MIN_WEBVIEW + " or newer, or sign-in and the screens won't work. Update it, then reopen TPN Counter.")
+                .setPositiveButton("Update", (d, w) -> {
+                    try { startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=" + pkg))); }
+                    catch (Exception e) {
+                        try { startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/store/apps/details?id=" + pkg))); }
+                        catch (Exception ignored) { }
+                    }
+                })
+                .setNegativeButton("Continue anyway", null)
+                .show();
     }
 
     /** Put the customer page on the second display, if the device has one. */
