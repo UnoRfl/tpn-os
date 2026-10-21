@@ -4,7 +4,6 @@ import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Bundle;
@@ -28,8 +27,9 @@ import org.mozilla.geckoview.WebRequestError;
 /**
  * TPN OS, all in one app.
  *
- * It opens on the staff portal (sign-in required); Floor & Counter and the
- * kitchen station open in the same window, as parts of the same system.
+ * It opens on Floor & Counter, whose own light sign-in asks each person for
+ * their account (so the counter always knows who is on). The portal and the
+ * kitchen station open in the same window from there.
  * The front screen runs on GeckoView, a modern
  * web engine bundled in the APK, so it no longer depends on the device's
  * Android System WebView (the D4-504 ships 83; TPN OS needs 87+).
@@ -129,29 +129,12 @@ public class MainActivity extends Activity {
         newSession();
     }
 
-    /** The screen to reopen on: the last portal, floor or kitchen page this device was on. */
-    private String startUrl() {
-        String last = getSharedPreferences("counter", MODE_PRIVATE).getString("last", null);
-        return last != null && isSite(Uri.parse(last)) ? last : PORTAL;
-    }
-
-    private void remember(String url) {
-        Uri u = Uri.parse(url);
-        String path = u.getPath() == null ? "" : u.getPath();
-        boolean screen = path.endsWith("/portal") || path.endsWith("/portal.html")
-                || path.matches(".*/tpn-dine-in-floor(\\.html)?$") || path.matches(".*/tpn-kitchen-station(\\.html)?$");
-        if (isSite(u) && screen) getSharedPreferences("counter", MODE_PRIVATE).edit().putString("last", url).apply();
-    }
-
     private void newSession() {
         if (session != null) { try { session.close(); } catch (Exception ignored) { } }
         // "TPNCounter/x" tells the site it is on the counter (tpn-kit.js turns on its light drawing mode).
         session = new GeckoSession(new GeckoSessionSettings.Builder().usePrivateMode(false)
                 .userAgentOverride(GeckoSession.getDefaultUserAgent() + " TPNCounter/" + BuildConfig.VERSION_NAME).build());
 
-        session.setProgressDelegate(new GeckoSession.ProgressDelegate() {
-            @Override public void onPageStart(GeckoSession s, String url) { remember(url); }
-        });
 
         session.setNavigationDelegate(new GeckoSession.NavigationDelegate() {
             @Override
@@ -250,7 +233,9 @@ public class MainActivity extends Activity {
 
         session.open(runtime());
         view.setSession(session);
-        session.loadUri(startUrl());   // where this device left off, still signed in
+        // The counter, with its own light sign-in: each person signs in with their account
+        // ("Switch user" hands over); the full portal loads only from ← Portal.
+        session.loadUri(COUNTER);
     }
 
     @SuppressWarnings("deprecation")

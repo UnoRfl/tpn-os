@@ -1,6 +1,6 @@
 # TPN OS — Session Handoff
 
-**Last updated:** Oct 21, 2026 (rev 29 — reopens where it left off, light drawing on the iMin, see "Rev 29"; rev 28 — one app on its own engine + brand reel, see "Rev 28"; rev 27 — welcome loop; in-app engine on hold, see "Rev 27"; rev 26 — counter in Chrome + app drives the back screen, see "Rev 26"; rev 25 — the iMin's old WebView, see "Rev 25"; rev 24 — customer screen on the iMin + TPN Counter Android app, see "Rev 24"; rev 23 — security pass and fallbacks, see "Rev 23"; rev 22 — BIR booklet invoices and Vercel prep, see "Rev 22"; Oct 20: nightly encrypted backups on the headless PC, see "Backups"; rev 21 — offline counter, see "Rev 21"). Earlier: Oct 17, 2026 (rev 8 — read receipts, Tagalog everywhere, layout, guide; see "Rev 8"). Rev 7 — portal split out of the website, hubs, Counter on the floor screen; see "Rev 7"). Rev 6 (Oct 16 — v2 overhaul, see "Rev 6" and GO-LIVE.md). Previously rev 5 — UI/UX reliability pass, no migrations; see "Rev 5" below). Rev 4 (Aug 22): split bills, daily close, variance, working add-ons, low-stock alerts; migrations 18–28
+**Last updated:** Oct 21, 2026 (rev 30 — sign-in at the counter, Switch user, see "Rev 30"; rev 29 — reopens where it left off, light drawing on the iMin, see "Rev 29"; rev 28 — one app on its own engine + brand reel, see "Rev 28"; rev 27 — welcome loop; in-app engine on hold, see "Rev 27"; rev 26 — counter in Chrome + app drives the back screen, see "Rev 26"; rev 25 — the iMin's old WebView, see "Rev 25"; rev 24 — customer screen on the iMin + TPN Counter Android app, see "Rev 24"; rev 23 — security pass and fallbacks, see "Rev 23"; rev 22 — BIR booklet invoices and Vercel prep, see "Rev 22"; Oct 20: nightly encrypted backups on the headless PC, see "Backups"; rev 21 — offline counter, see "Rev 21"). Earlier: Oct 17, 2026 (rev 8 — read receipts, Tagalog everywhere, layout, guide; see "Rev 8"). Rev 7 — portal split out of the website, hubs, Counter on the floor screen; see "Rev 7"). Rev 6 (Oct 16 — v2 overhaul, see "Rev 6" and GO-LIVE.md). Previously rev 5 — UI/UX reliability pass, no migrations; see "Rev 5" below). Rev 4 (Aug 22): split bills, daily close, variance, working add-ons, low-stock alerts; migrations 18–28
 **Deployed:** https://unorfl.github.io/tpn-os/
 **Repo:** https://github.com/UnoRfl/tpn-os
 **Supabase project ref:** `xjlqfpnzobfqxetgkkai` (single project, single branch)
@@ -61,6 +61,15 @@ tpn-os/
 | **Extensionless URLs** (`/tpn-table-menu`, `/tpn-dine-in-floor`) | ✅ live |
 
 ---
+
+## Rev 30 — every person signs in at the counter; the app opens on the counter (Oct 21, 2026)
+
+The owner wants each staff member to sign in with their own account at the counter, so the system always knows who is on, and wants it lighter. The data side already works per person: drawer shifts, payments, voids and the audit log are keyed to `auth.uid()`. So no remodel was needed, only the path.
+- **The floor screen's gate now has its own sign-in form** (`#tpn-signin`, `counterSignIn` → `TPN.login` → reload). It no longer sends people to the portal, so the 460 KB portal never loads just to sign in.
+  - **Recent people:** the last five people who signed in on this device show as name chips (`localStorage tpn.counter.recent`, email and first name only). The most recent email is prefilled, with focus on the password.
+  - **Offline:** with no internet the form says signing in needs a connection. The offline counter still opens for whoever last signed in (`modules/offline.js`).
+- **Who's on:** the top bar badge reads "First name · Role". **Switch user** (hidden for the shared floor-screen account) warns if this person's drawer shift is still open (`TPN.myOpenCashSession`), then signs out, clears the offline-remembered profile, and returns to the sign-in.
+- **App (1.2.0):** always opens `tpn-dine-in-floor`, the counter sign-in. Rev 29's "reopen the last page" is gone, because this flow replaces it. ← Portal still opens the portal in the same window.
 
 ## Rev 29 — the counter app opens where it left off; light drawing on the iMin (Oct 21, 2026)
 

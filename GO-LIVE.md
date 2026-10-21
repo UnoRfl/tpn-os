@@ -154,11 +154,13 @@ Try **A** first. If Chrome can't reach the back screen, use **B**.
 1. **Remove the old version:** Settings → Apps → TPN Counter → Uninstall. Nothing is lost: the counter never ran inside the old app, and orders live in the database.
 2. **Install the new one:** open https://github.com/UnoRfl/tpn-os/releases/latest/download/tpn-counter.apk in Chrome (about 165 MB, so use Wi-Fi), tap it, and allow "Install unknown apps" for Chrome if asked.
 3. **Open TPN Counter.** Tap **Open setting**, turn on **Allow display over other apps**, then go back.
-4. The back screen shows the TPN welcome loop, and the front shows the counter. **Sign in** there with the counter account.
-5. The top bar shows **Customer screen: on** within about 20 seconds. Ring up a test order and watch the back screen follow it.
-6. Printer chip → **Test print** and **Open drawer**.
-7. When a clock-in asks for the camera, allow it.
-8. **Every day:** just tap TPN Counter. It reopens signed in, on the screen it was last on (the counter, usually), and after a power cut it reopens by itself.
+4. The back screen plays the TPN welcome reel. The front opens on the **counter's sign-in**.
+5. **Each person signs in with their own account.** People who signed in before on this iMin appear as name buttons: tap yours, then type your password. Everything you ring up, take payment for or void is recorded under your name, and the top bar shows who's on (for example "Maria · Dining").
+6. **Shift change:** tap **Switch user** on the top bar. If your drawer shift is still open, it asks you to close it first (Counter → Close shift) so your cash is counted. Then the next person signs in.
+7. **Managers:** **← Portal** opens the full portal (reports, staff, menu…) inside the app. Coming back to the counter is one tap.
+8. **Customer screen:** the top bar shows **Customer screen: on** within about 20 seconds. Ring up a test order and watch the back screen follow it.
+9. Printer chip → **Test print** and **Open drawer**. Allow the camera when a clock-in asks for it.
+10. **Every day:** tap TPN Counter. It opens on the counter sign-in. After a power cut it reopens by itself, and with no internet it opens the offline counter for whoever was last signed in.
 
 The Chrome shortcut for the counter isn't needed any more.
 

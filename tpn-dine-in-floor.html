@@ -356,6 +356,21 @@
   #tpn-auth-gate .g-spin  { width: 34px; height: 34px; border: 3px solid rgba(255,255,255,0.15); border-top-color: var(--gold); border-radius: 50%; animation: gspin 0.9s linear infinite; }
   @keyframes gspin { to { transform: rotate(360deg); } }
   #tpn-auth-gate .g-btn { margin-top: 12px; background: var(--brick); color: #fff; border: none; padding: 10px 22px; border-radius: 10px; font-weight: 700; font-family: 'DM Sans', sans-serif; cursor: pointer; }
+  /* Sign-in right on the counter: each person signs in with their own account,
+     so every order, payment, void and drawer shift is theirs. No portal load. */
+  #tpn-auth-gate .g-form { display: grid; gap: 10px; width: min(360px, 86vw); margin-top: 6px; }
+  #tpn-auth-gate .g-form[hidden] { display: none; }
+  #tpn-auth-gate .g-form label { font-size: 13px; color: rgba(255,255,255,0.75); margin-bottom: -4px; }
+  #tpn-auth-gate .g-form input { font: 500 16px 'DM Sans', sans-serif; padding: 12px 14px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.25);
+    background: rgba(255,255,255,0.08); color: #fff; min-height: 48px; }
+  #tpn-auth-gate .g-form input:focus { outline: 2px solid var(--gold); outline-offset: 1px; }
+  #tpn-auth-gate .g-form .g-btn { margin-top: 6px; min-height: 48px; font-size: 15px; }
+  #tpn-auth-gate .g-err { min-height: 18px; margin: 0; font-size: 13px; color: #ffc4b8; }
+  #tpn-auth-gate .g-recent { display: flex; flex-wrap: wrap; gap: 8px; }
+  #tpn-auth-gate .g-recent button { font: 600 13px 'DM Sans', sans-serif; padding: 8px 12px; border-radius: 99px; border: 1px solid rgba(255,255,255,0.25);
+    background: transparent; color: #fff; cursor: pointer; min-height: 40px; }
+  #tpn-auth-gate .g-link { background: none; border: none; color: rgba(255,255,255,0.65); font: 500 13px 'DM Sans', sans-serif; text-decoration: underline; cursor: pointer; margin-top: 4px; }
+  body.tpn-display-mode #switch-user { display: none; }
   body.tpn-authed #tpn-auth-gate { display: none; }
   body:not(.tpn-authed) > *:not(#tpn-auth-gate):not(script) { visibility: hidden; }
 
@@ -378,7 +393,16 @@
   <div class="g-title">Tyo Paeng Nyo</div>
   <div class="g-spin"></div>
   <div class="g-sub" id="tpn-auth-msg">Checking your login…</div>
-  <button class="g-btn" id="tpn-auth-btn" style="display:none;" onclick="window.location.href='portal.html'">Go to Staff Login</button>
+  <form class="g-form" id="tpn-signin" hidden onsubmit="return counterSignIn(event)">
+    <div class="g-recent" id="cs-recent"></div>
+    <label for="cs-email">Your email</label>
+    <input id="cs-email" type="email" autocomplete="username" inputmode="email" required>
+    <label for="cs-pass">Password</label>
+    <input id="cs-pass" type="password" autocomplete="current-password" required>
+    <button class="g-btn" type="submit" id="cs-go">Sign in</button>
+    <p class="g-err" id="cs-err" role="alert"></p>
+  </form>
+  <button class="g-btn" id="tpn-auth-btn" style="display:none;" onclick="window.location.href='portal'">Open the portal</button>
 </div>
 
 <!-- TOPBAR -->
@@ -393,6 +417,7 @@
   <div class="topbar-right">
     <div class="live-pill connecting" id="live-pill" role="status" aria-live="polite"><span class="dot"></span><span>Connecting…</span></div>
     <div class="topbar-badge" id="role-badge">Manager</div>
+    <button class="topbar-btn secondary" id="switch-user" onclick="switchUser()">Switch user</button>
     <button class="topbar-btn secondary" data-lang-toggle onclick="TPN_I18N.toggle()">🌐 Tagalog</button>
     <button class="topbar-btn secondary" onclick="window.location.reload()">↺ Refresh</button>
     <button class="topbar-btn" data-manager-only onclick="openAddTableModal()">+ Table</button>
@@ -532,6 +557,54 @@ async function refreshPendingVoids() {
 }
 
 // ─── AUTH GATE ───
+/* ── Counter sign-in and shift handover ───────────────────────────
+   Each person signs in here with their own account (no portal load), and
+   "Switch user" hands the counter to the next person. The last few people
+   who signed in on this device are one tap away (their email only). */
+const CS_RECENT = 'tpn.counter.recent';
+function csRecent() { try { return JSON.parse(localStorage.getItem(CS_RECENT) || '[]'); } catch (e) { return []; } }
+function showCounterSignIn(msg) {
+  document.querySelector('#tpn-auth-gate .g-spin').style.display = 'none';
+  msg.textContent = navigator.onLine === false ? 'No internet: signing in needs a connection.' : 'Sign in with your own account to take the counter.';
+  const form = document.getElementById('tpn-signin');
+  form.hidden = false;
+  const recent = csRecent();
+  document.getElementById('cs-recent').innerHTML = recent.map(r =>
+    `<button type="button" onclick="csPick('${JA(r.email)}')">${E(r.name || r.email)}</button>`).join('');
+  document.getElementById(recent.length ? 'cs-pass' : 'cs-email').focus();
+  if (recent.length) document.getElementById('cs-email').value = recent[0].email;
+}
+function csPick(email) { document.getElementById('cs-email').value = email; const p = document.getElementById('cs-pass'); p.value = ''; p.focus(); }
+async function counterSignIn(ev) {
+  ev.preventDefault();
+  const email = document.getElementById('cs-email').value.trim(), pass = document.getElementById('cs-pass').value;
+  const go = document.getElementById('cs-go'), err = document.getElementById('cs-err');
+  err.textContent = ''; go.disabled = true; go.textContent = 'Signing in…';
+  try {
+    const me = await TPN.login(email, pass);
+    const first = String((me && me.full_name) || '').trim().split(/\s+/)[0];
+    const list = [{ email, name: first || email }].concat(csRecent().filter(r => r.email !== email)).slice(0, 5);
+    try { localStorage.setItem(CS_RECENT, JSON.stringify(list)); } catch (e) {}
+    location.reload();
+  } catch (e) {
+    err.textContent = /invalid/i.test(e.message || '') ? 'That email and password don\'t match.' : (e.message || 'Could not sign in.');
+    go.disabled = false; go.textContent = 'Sign in';
+  }
+  return false;
+}
+async function switchUser() {
+  // A drawer shift belongs to the person who opened it: close it first so their cash is counted.
+  let open = null;
+  try { open = await TPN.myOpenCashSession(); } catch (e) {}
+  const q = open ? 'Your drawer shift is still open. Close it first (Counter → Close shift) so your cash is counted. Switch anyway?'
+                 : 'Sign out so the next person can sign in?';
+  const ok = window.tpnConfirm ? await tpnConfirm(q, { confirmText: 'Switch user' }) : confirm(q);
+  if (!ok) return;
+  try { await TPN.logout(); } catch (e) {}
+  try { localStorage.removeItem('tpn.offline.me'); } catch (e) {}
+  location.reload();
+}
+
 async function tpnAuthGate() {
   const msg = document.getElementById('tpn-auth-msg');
   const btn = document.getElementById('tpn-auth-btn');
@@ -544,8 +617,7 @@ async function tpnAuthGate() {
       new Promise(r => setTimeout(() => r({ data: { session: null } }), 6000))]);
     const offlineOk = !session && window.TPN_OFFLINE && await TPN_OFFLINE.canRunOffline();
     if (!session && !offlineOk) {
-      msg.textContent = 'You need to be signed in as manager+ to view the floor panel.';
-      btn.style.display = 'inline-block';
+      showCounterSignIn(msg);
       return false;
     }
     const profile = await TPN.loadProfile();
@@ -585,12 +657,12 @@ async function tpnAuthGate() {
       document.body.classList.add('tpn-display-mode');
       applyDisplayMode();
     }
-    // Reflect the role in the badge
+    // Who is on the counter: their first name and role, on the top bar.
     const badge = document.getElementById('role-badge');
     if (badge) {
-      badge.textContent = IS_DISPLAY_ACCOUNT
-        ? 'Dine-In Display'
-        : (profile.role || 'staff').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+      const role = (profile.role || 'staff').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+      const first = String(profile.full_name || '').trim().split(/\s+/)[0];
+      badge.textContent = IS_DISPLAY_ACCOUNT ? 'Dine-In Display' : (first ? first + ' · ' + role : role);
     }
     return true;
   } catch (e) {
