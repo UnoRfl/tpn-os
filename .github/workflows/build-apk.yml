@@ -1,6 +1,5 @@
-# Builds the TPN Counter APK (android/). Lives at .github/workflows/build-apk.yml;
-# a copy sits in android/ci/ because pushing workflow files needs the
-# "workflow" token scope (see HANDOFF.md Rev 24).
+# Builds the TPN Counter APK (android/). Pushing changes to this file needs a
+# token with the "workflow" scope (UnoRfl's on the Mac; see HANDOFF.md Rev 24).
 #
 # Repo secrets (Settings → Secrets and variables → Actions), set by the owner:
 #   TPN_KEYSTORE_B64       base64 of tpn-counter.p12 (the signing key)
