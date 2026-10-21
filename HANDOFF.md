@@ -1,6 +1,6 @@
 # TPN OS — Session Handoff
 
-**Last updated:** Oct 20, 2026 (rev 21 — offline counter, see "Rev 21"). Earlier: Oct 17, 2026 (rev 8 — read receipts, Tagalog everywhere, layout, guide; see "Rev 8"). Rev 7 — portal split out of the website, hubs, Counter on the floor screen; see "Rev 7"). Rev 6 (Oct 16 — v2 overhaul, see "Rev 6" and GO-LIVE.md). Previously rev 5 — UI/UX reliability pass, no migrations; see "Rev 5" below). Rev 4 (Aug 22): split bills, daily close, variance, working add-ons, low-stock alerts; migrations 18–28
+**Last updated:** Oct 21, 2026 (rev 22 — BIR booklet invoices and Vercel prep, see "Rev 22"; Oct 20: nightly encrypted backups on the headless PC, see "Backups"; rev 21 — offline counter, see "Rev 21"). Earlier: Oct 17, 2026 (rev 8 — read receipts, Tagalog everywhere, layout, guide; see "Rev 8"). Rev 7 — portal split out of the website, hubs, Counter on the floor screen; see "Rev 7"). Rev 6 (Oct 16 — v2 overhaul, see "Rev 6" and GO-LIVE.md). Previously rev 5 — UI/UX reliability pass, no migrations; see "Rev 5" below). Rev 4 (Aug 22): split bills, daily close, variance, working add-ons, low-stock alerts; migrations 18–28
 **Deployed:** https://unorfl.github.io/tpn-os/
 **Repo:** https://github.com/UnoRfl/tpn-os
 **Supabase project ref:** `xjlqfpnzobfqxetgkkai` (single project, single branch)
@@ -61,6 +61,32 @@ tpn-os/
 | **Extensionless URLs** (`/tpn-table-menu`, `/tpn-dine-in-floor`) | ✅ live |
 
 ---
+
+## Rev 22 — BIR booklet invoices, ready for Vercel (Oct 21, 2026, branch `docs/nightly-backups`)
+
+TPN OS replaces StoreHub to cut its yearly fee. TPN OS has no BIR Permit to Use, so the official invoice stays handwritten from the BIR-registered booklet. This release tells staff when one is needed and keeps the number on record. See the go-live guide for the BIR steps (stamping the old "Official Receipt" booklets "Invoice", cancelling a StoreHub PTU if there is one).
+- **Database (`sql/43-bir-invoices.sql`, applied to production Oct 21 as `43_bir_invoices`):**
+  - `orders.invoice_no` / `invoice_at` / `invoice_by` are written only by `record_order_invoice` (`payments.take`). The trigger `trg_guard_invoice_no` refuses any other UPDATE of those columns. A blank number clears a mistake. Both cases are audited (`invoice.record`).
+  - `bir_day_invoices` holds the end-of-day invoice for small sales. It is written only by `record_day_invoice` (`payments.take` or `finance.view`, audited `invoice.day`). Signed-in staff with those permissions can read it; anon can't.
+  - `invoice_day_summary(date, branch)` returns paid, non-cancelled orders placed that Manila day that still need their own invoice, the total of the small sales, and the day invoices written.
+  - The rule depends on `site_settings 'bir.vat_registered'`. With `yes`, every sale needs an invoice. Otherwise a sale needs one when it is over `private.bir_threshold()` (₱500, RR 7-2024 as amended by RR 11-2024), and the small sales go on one end-of-day invoice. If the setting is blank, the system assumes non-VAT and says so on screen.
+  - None of the new functions can be called by anon. The security advisor shows only the intended customer functions.
+- **Screens (`modules/invoices.js`, loaded on the floor screen and the portal after `payments.js`):**
+  - Once a bill is paid, the payment panel shows either "Write a booklet invoice for this sale" with a box for its number, or "only if the customer asks".
+  - The daily close gets a "BIR invoices (booklet)" panel. It lists paid sales still missing an invoice and the small-sales total, with a form for the end-of-day invoice.
+  - Website settings gain "VAT-registered? type yes or no".
+  - The helpers `TPN.recordOrderInvoice`, `TPN.invoiceDaySummary` and `TPN.recordDayInvoice` live in the module, so `tpn-supabase.js` didn't change.
+- **Asset versions:** `modules/payments.js` and `modules/invoices.js` are at `?v=20261021a` (floor and portal); `modules/website.js` is at `?v=20261021a`.
+- **Vercel:**
+  - `vercel.json` sets clean URLs (`/tpn-table-menu` serves `tpn-table-menu.html`, as GitHub Pages does) plus nosniff, referrer and same-origin framing headers. It also sends `no-cache` on the counter service worker.
+  - `.vercelignore` keeps `sql/`, `supabase/`, `tests/`, `ops/` and the docs off the site.
+  - The floor screen's two hard-coded `/tpn-os/` links now resolve against the page, so they work at a domain root. The portal's table QR codes already did.
+  - Still pointing at GitHub Pages: `og:image` in `index.html` and `SITE_URL` for the (unused) HitPay functions. Update both once the Vercel domain is final.
+- **Tested:**
+  - `tests/db/t_43_bir_invoices.sql` covers 15 checks; the full suite is 141/141.
+  - On production, inside a rolled-back transaction as the director, an ₱890 cash order showed as missing. A direct `UPDATE orders set invoice_no` was refused. After `record_order_invoice` the order was no longer missing. Nothing persisted.
+  - Both screens rendered locally with stubbed data and no console errors.
+  - Not tested: the real save buttons signed in on a device.
 
 ## Rev 21 — offline counter (Oct 20, 2026, branch `feature/offline-counter`)
 
@@ -334,6 +360,31 @@ chips), sortable/filterable long lists, one peso formatter everywhere, mixed
 English/Tagalog, Staff Board drag-and-drop on touch, tier-vs-permission
 checks inside some pages, placeholder contact details and SEC number on the
 public site, food photos.
+
+---
+
+## Backups — nightly, free, encrypted (Oct 20, 2026)
+
+The free Supabase plan keeps no backups, so the always-on headless PC makes its own. The scripts are in `ops/backup/` (rebuild: copy them to `C:\TPNBackup`, put `pgsql\bin` from the EDB PostgreSQL 17 binaries zip in `C:\TPNBackup\bin\pgsql\bin` and `age.exe` in `C:\TPNBackup\bin\age`, run `install.ps1` elevated, then `set-password.ps1`).
+
+- **What:** the scheduled task `TPN OS Backup (nightly)` on the headless PC runs `C:\TPNBackup\backup.ps1` at 03:00 as SYSTEM, whether or not anyone is logged in. If the PC was off at 03:00, it runs when the PC comes back. It runs `pg_dump --format=custom` of the whole database (public, private, auth logins, storage metadata) over the session pooler and pipes it straight into `age`, so no unencrypted copy touches the disk. The newest 30 are kept as `C:\TPNBackup\dumps\tpn-os-YYYYMMDD-HHMM.dump.age`.
+- **Check it:** `C:\TPNBackup\backup.log` gets one `OK` or `FAIL` line per run. `FAIL … password authentication failed` means the DB password was reset. Re-enter it with `ssh -t headless powershell -NoProfile -File C:\TPNBackup\set-password.ps1`, which shows a hidden prompt and saves the password to `secrets\pgpass.conf` (readable by admins and SYSTEM only). To take a backup by hand before a risky migration, run `schtasks /Run /TN "TPN OS Backup (nightly)"` on the headless PC.
+- **Not included:** uploaded photo *files* in Storage buckets (only their metadata), Edge Function code (it lives in this repo), and `vault` secrets (Supabase encrypts them with its own key).
+- **The key:** dumps are encrypted to an age public key. The headless PC holds only that public key, so a stolen box can't read them. The private key is `tpn-backup-identity.txt` in `C:\Users\pc\TPN-Backup-Key` on Uno's main PC. **Keep a second copy offline (USB / password manager).** Without it, every dump is unreadable.
+
+### Restore
+
+This needs the PostgreSQL 17 client tools (`pg_restore`, `psql`) and `age.exe`. The headless PC has both in `C:\TPNBackup\bin`.
+
+1. Copy the newest dump off the headless PC: `scp headless:C:/TPNBackup/dumps/<file>.dump.age .`
+2. Decrypt it: `age -d -i tpn-backup-identity.txt -o tpn.dump <file>.dump.age`. The decrypted file holds customer names and phone numbers, so delete it when you're done.
+3. **Practise first** (also the way to check any dump): use a throwaway local Postgres 17. Run `initdb` and start it. Then `create schema auth; create schema private; create schema extensions;` and create the roles `anon`, `authenticated`, `service_role`, `supabase_admin`, `supabase_auth_admin` and `authenticator`. Finally run `pg_restore --no-owner --no-acl -n auth -n private -n public -d <db> tpn.dump`. The only expected errors are about the `supabase_realtime` publication.
+4. **Same Supabase project** (lost data, bad migration): logins are still there, so restore only the app's schemas, as `postgres` over the session pooler. Keep the grants, which means no `--no-acl`:
+   `pg_restore --clean --if-exists --no-owner -n public -n private -d "host=aws-0-ap-southeast-1.pooler.supabase.com port=5432 user=postgres.xjlqfpnzobfqxetgkkai dbname=postgres sslmode=require" tpn.dump`
+   `--clean` drops each table before recreating it, so do step 3 first.
+5. **New Supabase project** (the old one is gone): restore the logins first with `--data-only -n auth -t users -t identities`, because staff rows point at them. Then run the step 4 command without `--clean`, against the new project's pooler. Expect a few errors on Supabase-managed objects, and compare row counts afterwards. Finally, point `config.js` at the new URL and anon key, bump `?v=` on all four pages, and redeploy the edge function. *(This path hasn't been rehearsed yet.)*
+
+**Restore-tested Oct 20, 2026:** the first dump (1.1 MB) was restored into a throwaway local Postgres 17.6 using step 3. Row counts matched production exactly: orders 7, menu_items 62, order_items 17, staff 4, auth.users 4, and 56 tables in public. The throwaway and the decrypted copy were deleted afterwards.
 
 ---
 

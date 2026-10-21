@@ -7791,7 +7791,9 @@ function _renderClose() {
       `}
     </div>
 
+    <div id="birInvoiceBox"></div>
     ${_closeHistory()}`;
+  if (window.TPN_INVOICES) TPN_INVOICES.dayBox(_closeState.date, document.getElementById('birInvoiceBox'));
 }
 
 function _closeHistory() {
@@ -8836,9 +8838,10 @@ function guardAsync(name) {
   if (document.readyState === 'loading') addEventListener('DOMContentLoaded', start); else start();
 })();
 </script>
-<script src="modules/website.js?v=20261017o"></script>
+<script src="modules/website.js?v=20261021a"></script>
 <script src="vendor/qrcode-generator-1.4.4.js"></script>
-<script src="modules/payments.js?v=20261020a"></script>
+<script src="modules/payments.js?v=20261021a"></script>
+<script src="modules/invoices.js?v=20261021a"></script>
 <script src="modules/pos.js?v=20261020a"></script>
 <script src="vendor/imin-printer-1.4.0.min.js"></script>
 <script src="modules/imin.js?v=20261020a"></script>

@@ -83,6 +83,7 @@
         ${(() => { const fee = Number(p.total) - (Number(p.subtotal) - Number(p.discount || 0) + Number(p.service_charge || 0)); return fee > 0.004 ? `<div><dt>Delivery fee</dt><dd>${peso(fee)}</dd></div>` : ''; })()}
         <div class="pay-total"><dt>Total</dt><dd>${peso(p.total)}</dd></div>
       </dl>
+      <div id="payInvoice"></div>
       ${due > 0 && can('payments.take') ? `
       <div class="pay-actions" role="group" aria-label="Take payment">
         <button class="btn-next" onclick="payCash()">💵 Cash</button>
@@ -111,6 +112,8 @@
       <div class="modal-actions">
         <button class="btn-ghost" onclick="printReceipt('${JA(p.order_id)}')">🖨 Print bill</button>
         <button class="btn-back" onclick="closeModal()">Close</button></div>`;
+    // Paid: does this sale need a booklet invoice (modules/invoices.js)?
+    if (window.TPN_INVOICES && !offline()) TPN_INVOICES.orderBox(p.order_id, document.getElementById('payInvoice'), p);
   }
 
   /* Cash: tendered keypad with quick amounts; change shown big. */

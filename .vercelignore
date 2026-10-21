@@ -1,0 +1,6 @@
+# Not part of the website. GitHub keeps them; Vercel doesn't need to serve them.
+sql/
+supabase/
+tests/
+ops/
+*.md

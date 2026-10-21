@@ -22,7 +22,8 @@
     { key: 'payments.online_enabled', label: 'Online payments (HitPay): type yes to turn on', hint: 'Only after the HitPay keys are set up and a sandbox test payment worked. Leave blank for cash only.' },
     { key: 'legal.company',     label: 'Registered business name' },
     { key: 'legal.sec_no',      label: 'SEC registration no. (optional)', hint: 'The "SEC" badge only appears once this is filled in.' },
-    { key: 'legal.tin',         label: 'TIN (optional)',        hint: 'The "VAT" badge only appears once this is filled in.' }
+    { key: 'legal.tin',         label: 'TIN (optional)',        hint: 'The "VAT" badge only appears once this is filled in.' },
+    { key: 'bir.vat_registered', label: 'VAT-registered? type yes or no', hint: 'From the BIR Certificate of Registration (Form 2303) or the booklet ("VAT REG TIN" vs "NON-VAT REG TIN"). Decides which sales need a booklet invoice: yes = every sale; no = sales over ₱500, plus one end-of-day invoice for the rest.' }
   ];
 
   async function load() {
