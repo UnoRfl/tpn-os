@@ -27,6 +27,12 @@
   const onlineOn = () => { const v = window.tpnSite && tpnSite.state.settings['payments.online_enabled']; return v === true || v === 'true' || v === 'yes'; };
   const STATUS = { completed: ['ok', 'Received'], pending: ['warn', 'Waiting'], failed: ['bad', 'Failed'], cancelled: ['bad', 'Cancelled'], expired: ['bad', 'Expired'] };
   let cur = null;           // current order payments summary
+  // Customer screen (modules/customer-display.js, floor screen only): what
+  // the guest sees while they pay. cdsMethod is set once staff pick a way
+  // to pay here, so just opening an old bill never shows "Salamat po".
+  const CDS = () => window.TPN_CDS || null;
+  let cdsMethod = null, cdsChange = 0;
+  const cdsPay = (extra) => { if (CDS() && cur && cur.payment_status !== 'paid') CDS().pay(Object.assign({ orderId: cur.order_id, number: cur.order_number, due: Number(cur.amount_due), total: Number(cur.total), method: cdsMethod }, extra)); };
   // modules/offline.js (floor screen only): true while the server can't be reached.
   const offline = () => !!(window.TPN_OFFLINE && TPN_OFFLINE.isOffline());
   const OFFLINE_WHY = 'No internet. GCash, Maya, QR Ph, card and bank need the server to check and record the reference, so they are off until the connection is back. Cash still works: it is saved on this device and syncs by itself.';
@@ -114,10 +120,15 @@
         <button class="btn-back" onclick="closeModal()">Close</button></div>`;
     // Paid: does this sale need a booklet invoice (modules/invoices.js)?
     if (window.TPN_INVOICES && !offline()) TPN_INVOICES.orderBox(p.order_id, document.getElementById('payInvoice'), p);
+    if (CDS()) {
+      if (paid && cdsMethod) { CDS().thanks({ number: p.order_number, change: cdsChange }); cdsMethod = null; cdsChange = 0; }
+      else if (!paid) cdsPay();
+    }
   }
 
   /* Cash: tendered keypad with quick amounts; change shown big. */
   window.payCash = function () {
+    cdsMethod = 'cash'; cdsPay();
     const due = Number(cur.amount_due);
     const quick = [...new Set([due, Math.ceil(due / 100) * 100, Math.ceil(due / 500) * 500, Math.ceil(due / 1000) * 1000])].filter(v => v >= due).slice(0, 4);
     document.getElementById('payWork').innerHTML = `
@@ -142,6 +153,7 @@
     const amt = +document.getElementById('pc-amt').value || 0, tip = +document.getElementById('pc-tip').value || 0;
     const ten = +document.getElementById('pc-ten').value || 0, ch = ten - amt - tip;
     const el = document.getElementById('pc-change');
+    cdsPay(ten && ch >= 0 ? { tendered: ten, change: ch } : {});
     el.innerHTML = ten ? (ch >= 0 ? `Change: <strong>${peso(ch)}</strong>` : `<span style="color:var(--danger)">Short by ${peso(-ch)}</span>`) : '';
   };
   window.payCashSave = async function () {
@@ -150,6 +162,7 @@
     try {
       const r = await TPN.recordCash(cur.order_id, ten, { amount: amt, tip, cashSession: window.tpnCashSessionId || null });
       toast(r.change_due > 0 ? `Recorded. Give change: ${peso(r.change_due)}` : 'Recorded.');
+      cdsChange = Number(r.change_due) || 0;
       // iMin counter: pop the cash drawer (and print, if that is switched on).
       if (window.TPN_PRINT) { TPN_PRINT.openDrawer('cash payment'); TPN_PRINT.receipt(cur.order_id).catch(() => {}); }
       await refresh(cur.order_id);
@@ -162,6 +175,7 @@
       if (window.TPN_PRINT) TPN_PRINT.openDrawer('cash payment (offline)');
       const ch = ten - amt - tip;
       toast((ch > 0 ? `Give change: ${peso(ch)}. ` : '') + 'No internet: the cash is saved on this device and syncs by itself.');
+      if (CDS()) { CDS().thanks({ number: cur.order_number, change: ch > 0 ? ch : 0 }); cdsMethod = null; }
       closeModal();
     }
   };
@@ -187,6 +201,7 @@
 
   // GCash / Maya / QR Ph / card / bank: recorded as received straight away.
   window.payManual = function (method) {
+    cdsMethod = method; cdsPay();
     const due = Number(cur.amount_due), m = MANUAL[method];
     document.getElementById('payWork').innerHTML = `
       <div class="pay-work glass">
@@ -220,6 +235,7 @@
   ['payManualSave'].forEach(n => window.guardAsync && guardAsync(n));
 
   window.payBank = function () {
+    cdsMethod = 'bank'; cdsPay();
     const due = Number(cur.amount_due);
     document.getElementById('payWork').innerHTML = `
       <div class="pay-work glass">

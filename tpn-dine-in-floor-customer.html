@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Tyo Paeng Nyo · Your order</title>
+<link rel="icon" href="assets/site/icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT@9..144,500..900,0..100&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<!-- The screen on the back of the counter. It only draws what the counter
+     sends (modules/customer-display.js); it has no buttons and no login,
+     and it never shows a customer's name, phone or address. -->
+<style>
+  :root {
+    --paper: #FBF6EC; --paper-2: #F4EAD8; --card: #FFFDF8;
+    --ink: #2E1A10; --ink-2: #6E5240; --ink-3: #8C6F58;
+    --brick: #A3321A; --saffron: #E4A23C; --cocoa: #3A1D10; --cocoa-2: #4A2818;
+    --on-cocoa: #FBF1DF; --on-cocoa-2: #D9C3A6;
+    --hair: rgba(46, 26, 16, .10);
+    --display: "Fraunces", Georgia, serif;
+    --ui: "Plus Jakarta Sans", system-ui, sans-serif;
+    /* One unit for the whole screen: 10.1" (1280×800) and 15.6" (1920×1080) both read from a metre away. */
+    --u: min(1vw, 1.6vh);
+  }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { height: 100%; }
+  body { background: var(--paper); color: var(--ink); font-family: var(--ui); -webkit-font-smoothing: antialiased;
+    overflow: hidden; cursor: none; user-select: none; font-variant-numeric: tabular-nums; }
+  /* Views swap instantly; the fluid circles (#fluid) cover the swap. */
+  .view { position: fixed; inset: 0; visibility: hidden; }
+  .view.on { visibility: visible; }
+  #fluid { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 10; pointer-events: none; visibility: hidden; }
+  .num { font-family: var(--display); font-variation-settings: "SOFT" 100, "opsz" 144; font-feature-settings: "tnum" 1, "lnum" 1; }
+
+  /* Rolling digits: each digit is a 0–9 strip in a 1em window. */
+  .odo { display: inline-flex; align-items: flex-start; line-height: 1; white-space: nowrap; }
+  .odo .dg { display: inline-block; height: 1em; overflow: hidden; }
+  .odo .st { display: block; }
+  .odo .st i { display: block; height: 1em; font-style: normal; }
+  .odo .c { font-size: .5em; margin: .1em .06em 0 0; }
+  .odo .ct { display: inline-flex; font-size: .42em; margin: .12em 0 0 .04em; }
+
+  /* ── Welcome ── */
+  #idle { background: var(--cocoa); overflow: hidden; }
+  #idle .hero { position: absolute; inset: 0; background: url("assets/site/hero.webp") center / cover no-repeat; will-change: transform; }
+  #idle .hero::after { content: ""; position: absolute; inset: 0; background: rgba(38, 18, 9, .62); }
+  #idle .in { position: relative; height: 100%; display: grid; place-content: center; justify-items: center; text-align: center; gap: calc(var(--u) * 2.4); color: var(--on-cocoa); padding: 0 6vw; }
+  #idle img { width: calc(var(--u) * 15); height: auto; filter: drop-shadow(0 10px 24px rgba(0,0,0,.35)); }
+  #idle h1 { font-family: var(--display); font-weight: 800; font-variation-settings: "SOFT" 100, "opsz" 144; font-size: calc(var(--u) * 8.4); line-height: .95; letter-spacing: -.01em; }
+  #idle p { font-size: calc(var(--u) * 2.3); color: var(--on-cocoa-2); max-width: 30ch; line-height: 1.35; }
+
+  /* ── Order and payment ── */
+  #order { display: grid; grid-template-columns: 1.45fr 1fr; }
+  .lines-side { display: flex; flex-direction: column; min-height: 0; padding: calc(var(--u) * 4) calc(var(--u) * 4.5) calc(var(--u) * 3); }
+  .lines-head { display: flex; align-items: center; gap: calc(var(--u) * 1.6); padding-bottom: calc(var(--u) * 2); border-bottom: 1px solid var(--hair); }
+  .lines-head img { width: calc(var(--u) * 5.2); height: auto; }
+  .lines-head h2 { font-family: var(--display); font-weight: 700; font-variation-settings: "SOFT" 100; font-size: calc(var(--u) * 3.6); color: var(--brick); }
+  .lines-head .type { margin-left: auto; font-size: calc(var(--u) * 1.9); color: var(--ink-2); font-weight: 600; }
+  .lines { list-style: none; padding: 0; flex: 1; min-height: 0; overflow: hidden; }
+  .lines li { display: grid; grid-template-columns: calc(var(--u) * 5.5) 1fr auto; align-items: baseline; gap: calc(var(--u) * 1.2);
+    padding: calc(var(--u) * 1.5) 0; border-bottom: 1px solid var(--hair); }
+  .lines .q { font-size: calc(var(--u) * 2.3); color: var(--ink-3); font-weight: 600; display: inline-block; }
+  .lines .n { font-family: var(--display); font-weight: 600; font-variation-settings: "SOFT" 100; font-size: calc(var(--u) * 2.9); line-height: 1.15; }
+  .lines .m { display: block; font-family: var(--ui); font-weight: 500; font-size: calc(var(--u) * 1.8); color: var(--ink-2); margin-top: calc(var(--u) * .4); }
+  .lines .a { font-size: calc(var(--u) * 2.6); font-weight: 600; display: inline-block; }
+  .more { font-size: calc(var(--u) * 1.8); color: var(--ink-2); padding: calc(var(--u) * 1.2) 0 calc(var(--u) * .4); border-bottom: 1px solid var(--hair); }
+
+  .total-side { background: var(--cocoa); color: var(--on-cocoa); display: flex; flex-direction: column; justify-content: center;
+    padding: calc(var(--u) * 5) calc(var(--u) * 4.5); gap: calc(var(--u) * 1.2); position: relative; overflow: hidden; container-type: inline-size; }
+  .total-side::after { content: ""; position: absolute; inset: auto -10% -18% auto; width: 70%; aspect-ratio: 1; background: url("assets/site/mandala-a.webp") center / contain no-repeat; opacity: .07; pointer-events: none; }
+  .t-label { font-size: calc(var(--u) * 2.4); color: var(--on-cocoa-2); font-weight: 500; }
+  /* Sized to its own panel: ₱99,999 still fits on the 10.1" screen. */
+  .t-amt { font-size: min(calc(var(--u) * 11), 16cqi); font-weight: 800; letter-spacing: -.02em; color: var(--saffron); }
+  .t-sub { font-size: calc(var(--u) * 2); color: var(--on-cocoa-2); }
+  .pay { margin-top: calc(var(--u) * 3); padding-top: calc(var(--u) * 2.6); border-top: 1px solid rgba(251, 241, 223, .16); display: grid; gap: calc(var(--u) * 1.4); }
+  .pay h3 { font-family: var(--display); font-weight: 700; font-variation-settings: "SOFT" 100; font-size: calc(var(--u) * 3.4); }
+  .pay p { font-size: calc(var(--u) * 2.1); line-height: 1.4; color: var(--on-cocoa-2); max-width: 30ch; }
+  .pay .row { display: flex; justify-content: space-between; align-items: center; gap: calc(var(--u) * 2); font-size: calc(var(--u) * 2.3); }
+  .pay .row strong { font-size: min(calc(var(--u) * 4), 8cqi); color: var(--on-cocoa); font-weight: 800; }
+  .pay .row.change strong { color: var(--saffron); }
+
+  /* ── Thank you: the bill prints out ── */
+  #thanks { display: grid; grid-template-columns: 1.05fr 1fr; align-items: center; gap: calc(var(--u) * 5); padding: 0 calc(var(--u) * 7); background: var(--paper-2); }
+  .th-copy { display: grid; gap: calc(var(--u) * 2); }
+  #thanks h1 { font-family: var(--display); font-weight: 900; font-variation-settings: "SOFT" 100, "opsz" 144; font-size: calc(var(--u) * 10.5); color: var(--brick); line-height: .95; letter-spacing: -.015em; }
+  #thanks p { font-size: calc(var(--u) * 2.6); color: var(--ink-2); }
+  #thanks .chg { font-size: calc(var(--u) * 3.4); color: var(--ink); display: flex; align-items: center; gap: .35em; flex-wrap: wrap; }
+  #thanks .chg strong { font-family: var(--display); font-weight: 800; font-variation-settings: "SOFT" 100; color: var(--brick); font-size: 1.2em; }
+  #thanks .ord { font-size: calc(var(--u) * 2.2); }
+  #thanks .ord strong { color: var(--ink); }
+  .printer { justify-self: center; width: min(calc(var(--u) * 38), 40vw); }
+  /* The same printer as the website's checkout (tpn-site-v3.css .rcpt-*). */
+  .slot { position: relative; z-index: 2; height: calc(var(--u) * 4.4); border-radius: calc(var(--u) * 1.6) calc(var(--u) * 1.6) calc(var(--u) * .9) calc(var(--u) * .9);
+    background: var(--cocoa) url("assets/site/paisley-light.webp") center / calc(var(--u) * 24) auto; box-shadow: 0 10px 18px -10px rgba(58, 29, 16, .55); }
+  .slot::before { content: ""; position: absolute; inset: 0; border-radius: inherit; background: rgba(58, 29, 16, .9); }
+  .slot::after { content: ""; position: absolute; left: 6%; right: 6%; bottom: calc(var(--u) * .5); height: calc(var(--u) * .5); border-radius: 99px; background: #120703; }
+  .led { position: absolute; z-index: 1; top: calc(var(--u) * 1.2); right: calc(var(--u) * 1.8); width: calc(var(--u) * .7); height: calc(var(--u) * .7); border-radius: 50%; background: var(--saffron); opacity: .35; }
+  .feed { overflow: hidden; margin: calc(var(--u) * -.6) calc(var(--u) * 2.2) 0; max-height: 84vh; }
+  .paper { --zz: calc(var(--u) * 1); background: var(--card); color: var(--ink); padding: calc(var(--u) * 1.8) calc(var(--u) * 2.2) calc(var(--u) * 2.6);
+    font-size: calc(var(--u) * 1.6); line-height: 1.3; filter: drop-shadow(0 14px 14px rgba(58, 29, 16, .14));
+    /* torn zigzag bottom edge */
+    -webkit-mask: conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg) bottom / calc(var(--zz) * 2) var(--zz) repeat-x,
+                  linear-gradient(#000 0 0) top / 100% calc(100% - var(--zz) + 1px) no-repeat;
+            mask: conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg) bottom / calc(var(--zz) * 2) var(--zz) repeat-x,
+                  linear-gradient(#000 0 0) top / 100% calc(100% - var(--zz) + 1px) no-repeat; }
+  .r-head { display: grid; justify-items: center; gap: calc(var(--u) * .2); text-align: center; }
+  .r-head img { width: calc(var(--u) * 4.2); height: auto; }
+  .r-head strong { font-family: var(--display); font-weight: 700; font-variation-settings: "SOFT" 100; font-size: 1.3em; color: var(--brick); }
+  .r-head span { color: var(--ink-2); font-size: .9em; }
+  .r-rule { border-top: 2px dashed rgba(46, 26, 16, .22); margin: calc(var(--u) * 1) 0; }
+  .r-line { display: flex; justify-content: space-between; gap: 1em; }
+  .r-line + .r-line { margin-top: calc(var(--u) * .35); }
+  .r-line span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .r-more { color: var(--ink-2); }
+  .r-tot { font-weight: 700; font-size: 1.25em; }
+  .r-end { text-align: center; color: var(--ink-2); font-size: .9em; }
+  .r-thanks { text-align: center; font-family: var(--display); font-weight: 800; font-variation-settings: "SOFT" 100; font-size: 1.6em; color: var(--brick); margin-top: calc(var(--u) * 1); }
+</style>
+</head>
+<body>
+<section class="view on" id="idle" aria-live="polite">
+  <div class="hero"></div>
+  <div class="in">
+    <img src="assets/site/logo.webp" alt="Tyo Paeng Nyo">
+    <h1>Mabuhay!</h1>
+    <p>Welcome to Tyo Paeng Nyo. Your order will show here as we ring it up.</p>
+  </div>
+</section>
+
+<section class="view" id="order" aria-live="polite">
+  <div class="lines-side">
+    <div class="lines-head"><img src="assets/site/logo.webp" alt=""><h2>Your order</h2><span class="type" id="oType"></span></div>
+    <div class="more" id="oMore" hidden></div>
+    <ul class="lines" id="oLines"></ul>
+  </div>
+  <div class="total-side">
+    <div class="t-label" id="tLabel">Total</div>
+    <div class="t-amt num odo" id="tAmt"></div>
+    <div class="t-sub" id="tSub"></div>
+    <div class="pay" id="pay" hidden></div>
+  </div>
+</section>
+
+<section class="view" id="thanks" aria-live="polite">
+  <div class="th-copy">
+    <h1>Salamat po!</h1>
+    <p class="chg" id="thChange" hidden></p>
+    <p class="ord" id="thOrder" hidden></p>
+    <p>Come again soon.</p>
+  </div>
+  <div class="printer" aria-hidden="true">
+    <div class="slot"><span class="led"></span></div>
+    <div class="feed" id="feed"><div class="paper" id="paper">
+      <div class="r-head"><img src="assets/site/logo.webp" alt=""><strong>Tyo Paeng Nyo</strong><span>Las Piñas</span></div>
+      <div class="r-rule"></div>
+      <div id="rLines"></div>
+      <div class="r-rule"></div>
+      <div class="r-line r-tot"><span>Total</span><span id="rTotal"></span></div>
+      <div id="rPay"></div>
+      <div class="r-rule"></div>
+      <div class="r-end" id="rNo"></div>
+      <div class="r-end">Not an official receipt</div>
+      <div class="r-thanks">Salamat po!</div>
+    </div></div>
+  </div>
+</section>
+
+<canvas id="fluid" aria-hidden="true"></canvas>
+
+<script src="vendor/gsap-3.12.5.min.js"></script>
+<script src="modules/customer-display.js?v=20261021a"></script>
+<script>
+(function () {
+  'use strict';
+  const $ = (id) => document.getElementById(id);
+  const E = (v) => String(v == null ? '' : v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const money = (v) => Number(v || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const peso = (v) => '₱' + money(v);
+  const TYPE = { pickup: 'Take-out', dine_in: 'Dine-in', delivery: 'Delivery' };
+  // What the guest does for each way of paying (staff confirm it on their side).
+  const HOW = {
+    cash:  ['Cash', ''],
+    gcash: ['GCash', 'Scan our GCash QR at the counter and pay the exact amount, then show the success screen.'],
+    maya:  ['Maya', 'Scan our Maya QR at the counter and pay the exact amount, then show the success screen.'],
+    qrph:  ['QR Ph', 'Scan our QR Ph code with any banking or e-wallet app and pay the exact amount, then show the success screen.'],
+    card:  ['Card', 'Tap or insert your card on the terminal.'],
+    bank:  ['Bank transfer', 'Transfer the exact amount, then show the confirmation.']
+  };
+  const MAX_LINES = 7;           // newest at the bottom; older ones fold into "plus N more"
+  const STALE = 2 * 60 * 60e3;   // a state older than this (counter switched off mid-order) is ignored
+  // Motion is GSAP's, and only when the device allows it; otherwise every change is instant.
+  const G = (window.gsap && !matchMedia('(prefers-reduced-motion: reduce)').matches) ? window.gsap : null;
+  let seen = new Map(), idleTimer = null, mode = 'idle', last = null;
+
+  /* ── Fluid colour circles between screens ───────────────────
+     Three wobbly blobs (saffron, brick, cocoa) pour out over each other
+     from one point with a splash of droplets; the screen swaps under the
+     cocoa; then they drain back the way they came. Each frame fills ~10
+     shapes on a canvas, so it stays smooth on the counter's GPU. */
+  const fluid = (() => {
+    const cv = $('fluid'), ctx = cv.getContext('2d');
+    const LAYERS = ['#E4A23C', '#A3321A', '#3A1D10'];
+    const DROPS = ['#E4A23C', '#A3321A', '#CD782C', '#E4A23C', '#8A2914', '#CD782C'];
+    let W = 0, H = 0, shapes = [], running = false, t0 = 0;
+    function size() { W = cv.width = Math.round(innerWidth * .75); H = cv.height = Math.round(innerHeight * .75); }
+    size(); addEventListener('resize', size);
+    // A soft-edged closed curve whose radius ripples with time: liquid, not a disc.
+    function blob(o, t) {
+      const n = 12, pts = [];
+      for (let k = 0; k < n; k++) {
+        const a = k / n * Math.PI * 2;
+        const rr = o.r * (1 + .06 * Math.sin(a * 3 + o.seed + t * 2.4) + .04 * Math.sin(a * 5 - o.seed * 1.7 + t * 3.3));
+        pts.push([o.x + Math.cos(a) * rr, o.y + Math.sin(a) * rr]);
+      }
+      ctx.beginPath();
+      for (let k = 0; k <= n; k++) {
+        const p = pts[k % n], q = pts[(k + 1) % n], mx = (p[0] + q[0]) / 2, my = (p[1] + q[1]) / 2;
+        if (k === 0) ctx.moveTo(mx, my); else ctx.quadraticCurveTo(p[0], p[1], mx, my);
+      }
+      ctx.fillStyle = o.color; ctx.fill();
+    }
+    function loop(now) {
+      if (!running) return;
+      const t = (now - t0) / 1000;
+      ctx.clearRect(0, 0, W, H);
+      for (const o of shapes) if (o.r > .5) blob(o, t);
+      requestAnimationFrame(loop);
+    }
+    function play(swap, ox, oy, done) {
+      const cx = ox * W, cy = oy * H;
+      // Far enough to reach every corner, plus room for the ripple.
+      const R = Math.max(Math.hypot(cx, cy), Math.hypot(W - cx, cy), Math.hypot(cx, H - cy), Math.hypot(W - cx, H - cy)) * 1.14;
+      const big = LAYERS.map((color, i) => ({ color, r: 0, x: cx, y: cy, seed: i * 2.1 + Math.random() }));
+      const m = Math.min(W, H);
+      const drops = DROPS.map((color, i) => {
+        const a = i / DROPS.length * Math.PI * 2 + Math.random() * .7, d = m * (.32 + Math.random() * .2);
+        return { color, r: 0, x: cx, y: cy, seed: i, tx: cx + Math.cos(a) * d, ty: cy + Math.sin(a) * d * .8, a, size: m * (.03 + Math.random() * .035) };
+      });
+      shapes = [...drops.slice(0, 3), ...big, ...drops.slice(3)];
+      running = true; cv.style.visibility = 'visible'; t0 = performance.now(); requestAnimationFrame(loop);
+      G.timeline({ onComplete() { running = false; ctx.clearRect(0, 0, W, H); cv.style.visibility = 'hidden'; done(); } })
+        .to(drops, { r: (i, o) => o.size, x: (i, o) => o.tx, y: (i, o) => o.ty, duration: .5, ease: 'back.out(2)', stagger: { each: .04, from: 'random' } }, 0)
+        .to(big, { r: R, duration: .6, ease: 'power2.inOut', stagger: .12 }, .05)
+        .add(swap)
+        .to(big, { r: 0, duration: .55, ease: 'power3.in', stagger: { each: .1, from: 'end' } }, '+=.06')
+        .to(drops, { r: 0, x: (i, o) => o.tx + Math.cos(o.a) * m * .2, y: (i, o) => o.ty + Math.sin(o.a) * m * .2,
+                     duration: .5, ease: 'power2.in', stagger: { each: .04, from: 'random' } }, '<.1');
+    }
+    return { play };
+  })();
+
+  /* ── Prices that roll into place ─────────────────────────────
+     Same shape (₱1,234.50 → ₱1,299.00): each digit rolls to its new place.
+     A new shape (another digit): rebuilt, and every digit spins in. */
+  function odo(el, value) {
+    const [w, c] = money(value).split('.');
+    const shape = (w + '.' + c).replace(/\d/g, '0');
+    const part = (s) => s.split('').map(ch => /\d/.test(ch)
+      ? '<span class="dg"><span class="st">' + '0123456789'.split('').map(n => '<i>' + n + '</i>').join('') + '</span></span>'
+      : '<span class="sep">' + ch + '</span>').join('');
+    if (el.dataset.shape !== shape) {
+      el.dataset.shape = shape;
+      el.innerHTML = '<span class="c">₱</span><span aria-hidden="true" style="display:contents">' + part(w) + '<span class="ct"><span class="sep">.</span>' + part(c) + '</span></span>';
+      if (G) el.querySelectorAll('.st').forEach(s => G.set(s, { yPercent: -10 * Math.floor(Math.random() * 10) }));
+    }
+    const digits = (w + c).replace(/\D/g, '').split('').map(Number);
+    const strips = el.querySelectorAll('.st');
+    strips.forEach((s, i) => {
+      const y = -10 * digits[i];
+      if (G) G.to(s, { yPercent: y, duration: .7 + (strips.length - i) * .07, ease: 'back.out(1.4)', overwrite: true });
+      else s.style.transform = `translateY(${y}%)`;
+    });
+    el.setAttribute('aria-label', peso(value));
+  }
+
+  /* ── Order ─────────────────────────────────────────────────── */
+  function drawOrder(s) {
+    const lines = s.lines || [];
+    const key = (l) => l.name + '|' + l.size + '|' + (l.mods || []).join(',');
+    const vis = lines.slice(-MAX_LINES);
+    let hidden = lines.length - vis.length;
+    const ul = $('oLines');
+    ul.innerHTML = vis.map(l => {
+      const sub = [l.size ? l.size + ' pax' : '', (l.mods || []).join(', ')].filter(Boolean).join(' · ');
+      return `<li><span class="q">${E(l.qty)}×</span>
+        <span class="n">${E(l.name)}${sub ? `<span class="m">${E(sub)}</span>` : ''}</span><span class="a">${peso(l.amount)}</span></li>`;
+    }).join('');
+    // Fit what the screen holds: drop the oldest shown lines until nothing is cut off.
+    const note = () => { $('oMore').hidden = !hidden; $('oMore').textContent = hidden ? `plus ${hidden} more item${hidden === 1 ? '' : 's'}` : ''; };
+    note();
+    while (ul.children.length > 1 && ul.scrollHeight > ul.clientHeight + 1) { ul.firstElementChild.remove(); hidden++; note(); }
+    // New dishes slide in; a changed quantity pops and its price shifts into place.
+    const now = new Map();
+    const shown = lines.slice(lines.length - ul.children.length);
+    [...ul.children].forEach((li, i) => {
+      const l = shown[i], k = key(l), was = seen.get(k);
+      now.set(k, l.qty);
+      if (!G) return;
+      if (was === undefined) {
+        G.from(li, { y: 22, autoAlpha: 0, duration: .55, ease: 'power3.out' });
+        G.from(li.querySelector('.a'), { x: 34, autoAlpha: 0, filter: 'blur(6px)', duration: .7, delay: .12, ease: 'power3.out' });
+      } else if (was !== l.qty) {
+        G.fromTo(li.querySelector('.q'), { scale: 1.5, color: '#A3321A' }, { scale: 1, color: '#8C6F58', duration: .6, ease: 'back.out(2)' });
+        G.from(li.querySelector('.a'), { y: -18, autoAlpha: 0, filter: 'blur(4px)', duration: .5, ease: 'power3.out' });
+      }
+    });
+    seen = now;
+    $('oType').textContent = TYPE[s.type] || '';
+
+    const paying = s.mode === 'pay';
+    $('tLabel').textContent = paying ? 'Amount to pay' : 'Total';
+    odo($('tAmt'), paying && s.due != null ? s.due : s.total);
+    $('tSub').textContent = s.fee ? `Includes delivery fee of ${peso(s.fee)}` : (paying && s.number ? `Order ${s.number}` : '');
+    drawPay(paying ? s : null);
+  }
+
+  function drawPay(s) {
+    const pay = $('pay');
+    if (!s || !s.method) { pay.hidden = true; pay.innerHTML = ''; pay.dataset.k = ''; return; }
+    const [label, how] = HOW[s.method] || [s.method, ''];
+    const cash = s.method === 'cash' && s.tendered > 0;
+    const k = s.method + (cash ? '+' : '') + (s.change > 0 ? 'c' : '');
+    if (pay.dataset.k !== k) {
+      const first = pay.hidden;
+      pay.dataset.k = k;
+      pay.innerHTML = `<h3>${E(label)}</h3>` + (cash
+        ? `<div class="row"><span>Received</span><strong class="num odo" id="pRec"></strong></div>` +
+          (s.change > 0 ? `<div class="row change"><span>Your change</span><strong class="num odo" id="pChg"></strong></div>` : '')
+        : (how ? `<p>${E(how)}</p>` : ''));
+      pay.hidden = false;
+      if (G) G.from(first ? pay : pay.children, { y: 18, autoAlpha: 0, duration: .5, ease: 'power3.out', stagger: .08 });
+    }
+    if (cash) { odo($('pRec'), s.tendered); if (s.change > 0) odo($('pChg'), s.change); }
+  }
+
+  /* ── Thank you: the bill prints ────────────────────────────── */
+  function drawReceipt(s) {
+    const src = last || {}, lines = src.lines || [];
+    const rl = $('rLines');
+    rl.innerHTML = lines.map(l => `<div class="r-line"><span>${E(l.qty)}× ${E(l.name)}</span><span>${peso(l.amount)}</span></div>`).join('')
+      || '<div class="r-line r-more"><span>Thank you for your order</span></div>';
+    $('rTotal').textContent = peso(src.total || src.due || 0);
+    const change = s.change > 0 ? s.change : (src.change || 0);
+    $('rPay').innerHTML = src.method === 'cash' && src.tendered
+      ? `<div class="r-line"><span>Cash</span><span>${peso(src.tendered)}</span></div>` + (change > 0 ? `<div class="r-line"><span>Change</span><span>${peso(change)}</span></div>` : '')
+      : (src.method && HOW[src.method] ? `<div class="r-line"><span>Paid by</span><span>${E(HOW[src.method][0])}</span></div>` : '');
+    $('rNo').textContent = s.number ? 'Order ' + s.number : '';
+    // Keep the bill inside the printer's reach: fold the extra lines.
+    let n = lines.length;
+    const feed = $('feed'), paper = $('paper');
+    while (n > 1 && paper.scrollHeight > feed.clientHeight) {
+      n--;
+      rl.innerHTML = lines.slice(0, n).map(l => `<div class="r-line"><span>${E(l.qty)}× ${E(l.name)}</span><span>${peso(l.amount)}</span></div>`).join('') +
+        `<div class="r-line r-more"><span>plus ${lines.length - n} more</span></div>`;
+    }
+    $('thChange').hidden = !(change > 0);
+    $('thChange').innerHTML = change > 0 ? `Your change <strong class="num odo" id="thChg"></strong>` : '';
+    if (change > 0) odo($('thChg'), change);
+    $('thOrder').hidden = !s.number;
+    $('thOrder').innerHTML = s.number ? `Your order number is <strong>${E(s.number)}</strong>` : '';
+  }
+
+  /* ── Entrances, once each screen is in place ───────────────── */
+  let heroTween = null;
+  function enter(id) {
+    if (!G) return;
+    if (id === 'idle') {
+      G.from('#idle .in > *', { y: 26, autoAlpha: 0, duration: .9, ease: 'power3.out', stagger: .12, delay: .35 });
+      if (!heroTween) heroTween = G.to('#idle .hero', { scale: 1.08, xPercent: -1.5, duration: 22, ease: 'sine.inOut', yoyo: true, repeat: -1 });
+    }
+    if (id === 'thanks') {
+      // Paper feeds out in little jerks, like the counter printer.
+      G.timeline({ delay: .45 })
+        .fromTo('#paper', { yPercent: -100 }, { yPercent: 0, duration: 2.6, ease: 'steps(18)' })
+        .fromTo('.slot', { x: -1 }, { x: 1, duration: .05, repeat: 50, yoyo: true, ease: 'none', clearProps: 'x' }, 0)
+        .fromTo('.led', { opacity: .35 }, { opacity: 1, duration: .16, repeat: 15, yoyo: true, ease: 'none' }, 0);
+      G.from('.th-copy > *:not([hidden])', { y: 30, autoAlpha: 0, duration: .8, ease: 'back.out(1.6)', stagger: .14, delay: .3 });
+    }
+  }
+
+  /* ── Switching screens ─────────────────────────────────────── */
+  const ORIGIN = { order: [.78, .5], thanks: [.5, .55], idle: [.5, .92] };
+  let busy = false, want = 'idle';
+  function apply(id) {
+    mode = id;
+    ['idle', 'order', 'thanks'].forEach(v => $(v).classList.toggle('on', v === id));
+    enter(id);
+  }
+  function go(id) {
+    want = id;
+    if (busy) return;
+    if (id === mode) { if (id === 'thanks') enter(id); return; }
+    if (!G) return apply(id);
+    busy = true;
+    fluid.play(() => apply(want), ORIGIN[id][0], ORIGIN[id][1], () => { busy = false; if (want !== mode) go(want); });
+  }
+
+  function render(s) {
+    if (!s || (s.ts && Date.now() - s.ts > STALE)) s = { mode: 'idle' };
+    clearTimeout(idleTimer);
+    if (s.mode === 'order' || s.mode === 'pay') {
+      if (s.mode === 'order' && !(s.lines && s.lines.length)) { seen = new Map(); return go('idle'); }
+      last = s; drawOrder(s); return go('order');
+    }
+    if (s.mode === 'thanks') {
+      drawReceipt(s); seen = new Map(); go('thanks');
+      idleTimer = setTimeout(() => go('idle'), 15000);
+      return;
+    }
+    seen = new Map(); go('idle');
+  }
+
+  enter('idle');
+  TPN_CDS.listen(render);
+})();
+</script>
+</body>
+</html>

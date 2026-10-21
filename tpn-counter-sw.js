@@ -20,10 +20,12 @@
    outbox with their idempotency key and replays them (sql/41).
    ═══════════════════════════════════════════════════════════════ */
 'use strict';
-const VERSION = 'tpn-counter-20261020a';
+const VERSION = 'tpn-counter-20261021a';
 const SHELL = VERSION + '-shell';
 const DATA = VERSION + '-data';
 const PAGE = 'tpn-dine-in-floor.html';
+// The customer screen on the back of the counter (same scope prefix, so it opens offline too).
+const CUSTOMER = 'tpn-dine-in-floor-customer.html';
 const SUPA = 'https://xjlqfpnzobfqxetgkkai.supabase.co';
 // Read-only tables the Counter and floor need to draw. Nothing with a
 // customer's name, phone or money in it is cached.
@@ -36,9 +38,14 @@ self.addEventListener('install', (e) => {
     const c = await caches.open(SHELL);
     const page = await fetch(PAGE, { cache: 'no-cache' });
     if (!page.ok) throw new Error('page ' + page.status);
-    const html = await page.clone().text();
+    let html = await page.clone().text();
     await c.put(PAGE, page);
-    const urls = new Set(EXTRA);
+    // The customer screen is a nicety: a failure here must not stop the counter installing.
+    try {
+      const cp = await fetch(CUSTOMER, { cache: 'no-cache' });
+      if (cp.ok) { html += await cp.clone().text(); await c.put(CUSTOMER, cp); }
+    } catch (err) {}
+    const urls = new Set(EXTRA.concat(['assets/site/logo.webp', 'assets/site/hero.webp', 'assets/site/mandala-a.webp']));
     for (const m of html.matchAll(/<(?:script|link)\b[^>]*?\s(?:src|href)="([^"]+)"/g)) {
       const u = new URL(m[1], self.registration.scope);
       if (u.origin === location.origin || u.origin === 'https://fonts.googleapis.com') urls.add(u.href);
@@ -108,8 +115,9 @@ self.addEventListener('fetch', (e) => {
   const u = new URL(req.url);
 
   if (req.mode === 'navigate') {
-    // Both /tpn-dine-in-floor and /tpn-dine-in-floor.html, any query.
-    e.respondWith(networkFirst(req, SHELL, 4000, PAGE));
+    // Both /tpn-dine-in-floor and /tpn-dine-in-floor.html, any query; the
+    // customer screen keeps its own copy so neither overwrites the other.
+    e.respondWith(networkFirst(req, SHELL, 4000, /-customer(\.html)?$/.test(u.pathname) ? CUSTOMER : PAGE));
     return;
   }
   if (u.origin === location.origin) {

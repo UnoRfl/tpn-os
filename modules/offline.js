@@ -375,9 +375,12 @@
       <div class="modal-actions"><button class="btn-back" onclick="closeModal()">Pay later</button></div>`);
     const ten = document.getElementById('oc-ten');
     ten.addEventListener('input', () => T.calc(due)); ten.focus();
+    // The customer screen works with no internet too: it's on this device.
+    if (window.TPN_CDS) TPN_CDS.pay({ orderId: e.id, number: e.localNo, due, total: due, method: 'cash' });
   };
   T.calc = function (due) {
     const ten = +document.getElementById('oc-ten').value || 0, ch = ten - due, el = document.getElementById('oc-change');
+    if (window.TPN_CDS) TPN_CDS.pay(Object.assign({ due, total: due, method: 'cash' }, ten && ch >= 0 ? { tendered: ten, change: ch } : {}));
     if (el) el.innerHTML = ten ? (ch >= 0 ? `Change: <strong>${P(ch)}</strong>` : `<span style="color:var(--danger)">Short by ${P(-ch)}</span>`) : '';
   };
   T.saveCash = async function (id) {
@@ -390,6 +393,7 @@
     if (window.TPN_PRINT) TPN_PRINT.openDrawer('cash payment (offline ' + e.localNo + ')');
     closeModal();
     window.toast && toast((ten > e.estTotal ? 'Give change: ' + P(ten - e.estTotal) + '. ' : '') + 'Cash noted; it syncs with the order.');
+    if (window.TPN_CDS) TPN_CDS.thanks({ number: e.localNo, change: Math.max(0, ten - e.estTotal) });
     if (T.online) T.sync();
   };
 

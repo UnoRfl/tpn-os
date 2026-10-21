@@ -136,3 +136,26 @@ GitHub keeps the code, Supabase keeps the data, and Vercel serves the pages. Do 
 6. Leave GitHub Pages on for a week as a fallback, then turn it off (repo Settings → Pages).
 
 Supabase needs no change: staff sign in with a password, so there are no redirect URLs to update.
+
+## 10. Customer screen on the back of the iMin
+
+The D4's rear screen shows the guest their order as it's rung up, the amount to pay (with cash received and change), and "Salamat po!" after paying. It works with no internet: the counter and the customer screen talk on the device itself. It never shows the guest's name, phone, address or kitchen notes.
+
+Try **A** first. If Chrome can't reach the back screen, use **B**.
+
+**A. Chrome (nothing to install)**
+1. On the iMin, open the floor screen in Chrome as in section 8.
+2. Tap **Customer screen** on the top bar and pick the back display.
+3. If Chrome says it can't open a second screen, Chrome on this device doesn't support it. Use B.
+
+**B. The TPN Counter app**
+1. **Build it:** GitHub → Actions → **Build TPN Counter APK** → Run workflow. Leave the site URL as is until the Vercel move. When the run finishes, download the `tpn-counter-N` artifact and unzip it to get the `.apk`.
+2. **Install it on the iMin:** copy the APK over (USB, Google Drive or a messenger), tap it, and allow "Install unknown apps" for the app you opened it from when Android asks. No Play Store is involved.
+3. **Open TPN Counter** and sign in with the counter account (dining staff or above). Open it once online, then once more, so the offline copy is complete (same rule as Chrome).
+4. The customer screen appears on the back display by itself.
+5. **Open on power-on:** Settings → Apps → TPN Counter → **Display over other apps** → Allow.
+6. **Clock-in camera:** allow it when the app asks.
+7. **Updates:** build again and install over the top. It keeps the sign-in and the offline queue, *as long as the build was signed with the same key*. Don't uninstall the app while the offline chip shows orders waiting: uninstalling wipes them.
+8. **After the Vercel move (section 9):** run the workflow with the new site URL and install over the top.
+
+The printer, the drawer, the offline counter and everything else work exactly as in Chrome. Pop-up receipts and Excel downloads aren't supported in the app. The counter doesn't need them, because receipts go to the built-in printer.
