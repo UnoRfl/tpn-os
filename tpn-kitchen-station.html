@@ -17,9 +17,10 @@
 </script>
 <script src="config.js?v=20261017o"></script>
 <script src="tpn-supabase.js?v=20261017o"></script>
-<script src="tpn-kit.js?v=20261021c"></script>
+<script src="tpn-kit.js?v=20261021d"></script>
 <script src="tpn-i18n.js?v=20261017o"></script>
 <link rel="stylesheet" href="tpn-glass.css?v=20261021c">
+<link rel="stylesheet" href="tpn-signin.css?v=20261021a">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
 <meta name="theme-color" content="#1a0a00">
 <link rel="icon" type="image/png" href="assets/site/icon.png">
@@ -48,7 +49,7 @@
     return Number.isFinite(n) ? n.toFixed(d) : (0).toFixed(d);
   };
 </script>
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@400;500;600;700&family=Fraunces:ital,opsz,wght,SOFT@0,9..144,500..900,0..100;1,9..144,500..900,0..100&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root {
     --brick: #8B1A0E; --brick-dark: #6a1208; --brick-light: #c4392a;
@@ -235,18 +236,7 @@
 
 <!-- AUTH GATE -->
 <style>
-  #tpn-auth-gate {
-    position: fixed; inset: 0; z-index: 9999;
-    background: var(--charcoal); color: #fff;
-    display: flex; align-items: center; justify-content: center;
-    flex-direction: column; gap: 16px;
-    font-family: 'DM Sans', sans-serif;
-  }
-  #tpn-auth-gate .g-title { font-family: 'Playfair Display', serif; font-size: 22px; color: var(--gold-light); }
-  #tpn-auth-gate .g-sub   { font-size: 14px; color: rgba(255,255,255,0.7); text-align: center; max-width: 320px; }
-  #tpn-auth-gate .g-spin  { width: 34px; height: 34px; border: 3px solid rgba(255,255,255,0.15); border-top-color: var(--gold); border-radius: 50%; animation: gspin 0.9s linear infinite; }
-  @keyframes gspin { to { transform: rotate(360deg); } }
-  #tpn-auth-gate .g-btn { margin-top: 12px; background: var(--brick); color: #fff; border: none; padding: 10px 22px; border-radius: 10px; font-weight: 700; cursor: pointer; }
+  /* The gate itself: tpn-signin.css (drawn by modules/signin.js). */
   body.tpn-authed #tpn-auth-gate { display: none; }
   body:not(.tpn-authed) > *:not(#tpn-auth-gate):not(script) { visibility: hidden; }
 
@@ -269,12 +259,8 @@
      a login page mid-service. */
   body.tpn-display-mode .topbar-btn.back-to-portal { display: none; }
 </style>
-<div id="tpn-auth-gate">
-  <div class="g-title">Tyo Paeng Nyo · Kitchen Station</div>
-  <div class="g-spin"></div>
-  <div class="g-sub" id="tpn-auth-msg">Checking your login…</div>
-  <button class="g-btn" id="tpn-auth-btn" style="display:none;" onclick="window.location.href='portal.html'">Go to Staff Login</button>
-</div>
+<div id="tpn-auth-gate"></div>
+<script src="modules/signin.js?v=20261021a"></script>
 
 <!-- TOPBAR -->
 <header class="topbar">
@@ -288,7 +274,8 @@
     <div class="topbar-badge role" id="role-badge">Kitchen</div>
     <button class="topbar-btn secondary" data-lang-toggle onclick="TPN_I18N.toggle()">🌐 Tagalog</button>
     <button class="topbar-btn secondary" onclick="window.location.reload()">↺ Refresh</button>
-    <button class="topbar-btn secondary back-to-portal" onclick="window.location.href='portal.html'">← Portal</button>
+    <button class="topbar-btn secondary" onclick="TPN_SIGNIN.switchUser()">Switch user</button>
+    <button class="topbar-btn secondary back-to-portal" onclick="window.location.href='portal'">← Portal</button>
   </div>
 </header>
 
@@ -358,8 +345,7 @@ async function tpnAuthGate() {
     const { data: { session }, error } = await timed(sb.auth.getSession());
     if (error && !session) throw error;
     if (!session) {
-      msg.textContent = 'You need to be signed in to view the kitchen station.';
-      btn.style.display = 'inline-block';
+      TPN_SIGNIN.show(msg);   // each cook signs in here as themselves
       return false;
     }
     const profile = await timed(TPN.loadProfile());
@@ -381,8 +367,9 @@ async function tpnAuthGate() {
     // dining in the enum, so hasRole() correctly refuses it everywhere
     // else — this is the one surface it is explicitly allowed on.
     IS_DISPLAY_ACCOUNT = (profile.role === 'kitchen_display');
-    if (!IS_DISPLAY_ACCOUNT && !TPN.hasRole('kitchen')) {
-      msg.textContent = 'The kitchen station is for kitchen staff and above. Your role: ' + (profile.role || 'unknown') + '.';
+    try { if (TPN.loadPermissions) await TPN.loadPermissions(); } catch (e) {}
+    if (!IS_DISPLAY_ACCOUNT && !TPN.hasRole('kitchen') && !(TPN.can && TPN.can('kitchen_station.view'))) {
+      msg.textContent = 'This account can\'t open the kitchen station. Ask a manager to give it Kitchen station access. Your account: ' + (profile.role || 'unknown') + '.';
       btn.style.display = 'inline-block';
       return false;
     }
@@ -395,9 +382,7 @@ async function tpnAuthGate() {
     if (IS_DISPLAY_ACCOUNT) document.body.classList.add('tpn-display-mode');
     const badge = document.getElementById('role-badge');
     if (badge) {
-      badge.textContent = IS_DISPLAY_ACCOUNT
-        ? 'Kitchen Display'
-        : (profile.role || 'staff').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+      badge.textContent = IS_DISPLAY_ACCOUNT ? 'Kitchen Display' : TPN_SIGNIN.whoLabel(profile);   // who is on the station
     }
     return true;
   } catch (e) {

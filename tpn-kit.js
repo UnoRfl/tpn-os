@@ -18,9 +18,9 @@
      withTimeout reads as "retrying" rather than a frozen screen.
    - tpnDraft    autosaves long forms so a dropped session loses nothing.
    ═══════════════════════════════════════════════════════════════ */
-// Inside the TPN Counter app (its user agent ends "TPNCounter/x"), the iMin's
-// GPU also drives the back screen: draw without glass and long motion there.
-try { if (/TPNCounter\//.test(navigator.userAgent)) document.documentElement.classList.add('tpn-lite'); } catch (e) {}
+// Inside the TPN Counter / TPN Kitchen apps (user agent ends "TPNCounter/x" or
+// "TPNKitchen/x"), on POS-class GPUs: draw without glass and long motion there.
+try { if (/TPN(Counter|Kitchen)\//.test(navigator.userAgent)) document.documentElement.classList.add('tpn-lite'); } catch (e) {}
 
 (function () {
   'use strict';

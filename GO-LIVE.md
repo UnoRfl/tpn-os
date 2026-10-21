@@ -175,3 +175,14 @@ The Chrome shortcut for the counter isn't needed any more.
 8. **After the Vercel move (section 9):** run the workflow with the new site URL and install over the top.
 
 The printer, the drawer, the offline counter and everything else work exactly as in Chrome. Pop-up receipts and Excel downloads aren't supported in the app. The counter doesn't need them, because receipts go to the built-in printer.
+
+## 11. The kitchen screen: the TPN Kitchen app
+
+The kitchen has its own app from the same code: **TPN Kitchen**. It opens on the Kitchen station, uses the same sign-in as the counter (each cook signs in as themselves, and **Switch user** hands over), keeps the screen on, and reopens after a power cut. It has no customer screen.
+
+1. On the kitchen device, open Chrome to **https://github.com/UnoRfl/tpn-os/releases/latest/download/tpn-kitchen.apk** (about 165 MB, so use Wi-Fi). Allow "Install unknown apps" for Chrome if asked, then install.
+2. **Open TPN Kitchen.** Tap **Open setting**, turn on **Allow display over other apps** (that's what lets it reopen by itself after a power cut), then go back.
+3. **Sign in.** Use a cook's own account, or the shared **kitchen display** account if the screen should just show tickets.
+4. Check that new orders appear with the chime. Tap the screen once if sound is blocked.
+
+It works on any Android 8+ device, because it carries its own web engine. Counter and kitchen apps install side by side; both are signed with the same key, and each new build installs over the old one.

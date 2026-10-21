@@ -17,10 +17,11 @@
 </script>
 <script src="config.js?v=20261017o"></script>
 <script src="tpn-supabase.js?v=20261017o"></script>
-<script src="tpn-kit.js?v=20261021c"></script>
+<script src="tpn-kit.js?v=20261021d"></script>
 <script src="modules/offline.js?v=20261021b"></script>
 <script src="tpn-i18n.js?v=20261017o"></script>
 <link rel="stylesheet" href="tpn-glass.css?v=20261021c">
+<link rel="stylesheet" href="tpn-signin.css?v=20261021a">
 <link rel="manifest" href="counter.webmanifest">
 <meta name="mobile-web-app-capable" content="yes">
 <link rel="stylesheet" href="tpn-ui.css?v=20261017o">
@@ -344,56 +345,6 @@
 
 <!-- AUTH GATE — hides content until we've confirmed the user is manager+ -->
 <style>
-  /* Sign-in on the counter: the portal's sign-in (brick panel + paper card,
-     v3 colours, Fraunces + Plus Jakarta Sans), without its extra lines.
-     Each person signs in with their own account; no portal load. */
-  #tpn-auth-gate {
-    --c-paper: #F7F0E2; --c-card: #FFFDF8; --c-sand: #F4EAD8; --c-ink: #2E1A10; --c-ink-2: #6E5240;
-    --c-line: rgba(46, 26, 16, .14); --c-brick: #A3321A; --c-brick-deep: #8A2914; --c-saffron: #E4A23C; --c-cream: #FFF8E8;
-    position: fixed; inset: 0; z-index: 9999; display: grid; grid-template-columns: 1fr 1fr;
-    background: var(--c-paper); color: var(--c-ink); font-family: "Plus Jakarta Sans", system-ui, sans-serif;
-  }
-  #tpn-auth-gate .cs-brand { background: linear-gradient(135deg, var(--c-brick-deep), var(--c-brick)); color: var(--c-cream);
-    padding: 56px 48px; display: flex; flex-direction: column; justify-content: center; gap: 22px; position: relative; overflow: hidden; }
-  #tpn-auth-gate .cs-brand::after { content: ""; position: absolute; right: -18%; bottom: -22%; width: 70%; aspect-ratio: 1; opacity: .12;
-    background: url("assets/site/mandala-a.webp") center / contain no-repeat; pointer-events: none; }
-  #tpn-auth-gate .cs-brand img { width: 96px; height: auto; filter: drop-shadow(0 10px 22px rgba(0, 0, 0, .3)); }
-  #tpn-auth-gate .cs-logo { font-family: Fraunces, Georgia, serif; font-variation-settings: "SOFT" 100; font-weight: 900; font-size: 34px; line-height: 1.1; }
-  #tpn-auth-gate .cs-logo span, #tpn-auth-gate .cs-headline em { color: var(--c-saffron); }
-  #tpn-auth-gate .cs-headline { font-family: Fraunces, Georgia, serif; font-variation-settings: "SOFT" 100, "opsz" 144; font-weight: 900;
-    font-size: clamp(36px, 4vw, 52px); line-height: 1.08; margin: 0; }
-  #tpn-auth-gate .cs-headline em { font-style: italic; }
-  #tpn-auth-gate .cs-side { position: relative; display: flex; align-items: center; justify-content: center; padding: 48px; }
-  #tpn-auth-gate .cs-portal { position: absolute; top: 16px; left: 16px; background: transparent; border: 1px solid var(--c-line); color: var(--c-ink-2);
-    padding: 8px 14px; border-radius: 8px; font: 500 13px inherit; font-family: inherit; cursor: pointer; }
-  #tpn-auth-gate .cs-portal:hover { border-color: var(--c-brick); color: var(--c-brick); }
-  #tpn-auth-gate .cs-wrap { width: 100%; max-width: 400px; display: grid; justify-items: stretch; gap: 14px; }
-  #tpn-auth-gate .g-spin { justify-self: center; width: 34px; height: 34px; border: 3px solid var(--c-sand); border-top-color: var(--c-brick); border-radius: 50%; animation: gspin .9s linear infinite; }
-  @keyframes gspin { to { transform: rotate(360deg); } }
-  #tpn-auth-gate .g-sub { text-align: center; color: var(--c-ink-2); font-size: 14px; }
-  #tpn-auth-gate .g-sub:empty { display: none; }
-  #tpn-auth-gate .g-form { display: grid; gap: 14px; }
-  #tpn-auth-gate .g-form[hidden] { display: none; }
-  #tpn-auth-gate .cs-title { font-family: Fraunces, Georgia, serif; font-variation-settings: "SOFT" 100; font-weight: 900; font-size: 38px;
-    line-height: 1.1; letter-spacing: -.01em; margin: 0 0 6px; }
-  #tpn-auth-gate .g-recent { display: flex; flex-wrap: wrap; gap: 4px; padding: 3px; background: var(--c-sand); border-radius: 8px; width: fit-content; max-width: 100%; }
-  #tpn-auth-gate .g-recent:empty { display: none; }
-  #tpn-auth-gate .g-recent button { background: transparent; border: none; border-radius: 6px; padding: 8px 14px; min-height: 40px;
-    font: 600 14px inherit; font-family: inherit; color: var(--c-ink-2); cursor: pointer; }
-  #tpn-auth-gate .g-recent button.on { background: var(--c-card); color: var(--c-brick); box-shadow: 0 1px 3px rgba(46, 26, 16, .12); }
-  #tpn-auth-gate .g-form label { font-size: 13px; font-weight: 600; color: var(--c-ink-2); margin-bottom: -8px; }
-  #tpn-auth-gate .g-form input { font: 500 16px inherit; font-family: inherit; color: var(--c-ink); background: var(--c-card);
-    border: 1px solid var(--c-line); border-radius: 8px; padding: 12px 14px; min-height: 48px; }
-  #tpn-auth-gate .g-form input:focus { outline: 2px solid var(--c-brick); outline-offset: 1px; border-color: transparent; }
-  #tpn-auth-gate .g-btn { background: var(--c-brick); color: var(--c-cream); border: none; border-radius: 8px; padding: 14px; min-height: 50px;
-    font: 700 15px inherit; font-family: inherit; letter-spacing: .03em; cursor: pointer; box-shadow: 0 8px 18px -10px rgba(138, 41, 20, .6); }
-  #tpn-auth-gate .g-btn:hover { background: var(--c-brick-deep); }
-  #tpn-auth-gate .g-btn:disabled { opacity: .7; cursor: progress; }
-  #tpn-auth-gate .g-err { margin: 0; font-size: 13px; color: #A3321A; background: rgba(163, 50, 26, .07); border: 1px solid rgba(163, 50, 26, .22);
-    border-radius: 8px; padding: 10px 12px; }
-  #tpn-auth-gate .g-err:empty { display: none; }
-  #tpn-auth-gate #tpn-auth-btn { justify-self: center; }
-  @media (max-width: 900px) { #tpn-auth-gate { grid-template-columns: 1fr; } #tpn-auth-gate .cs-brand { display: none; } #tpn-auth-gate .cs-side { padding: 32px 20px; } }
   body.tpn-display-mode #switch-user { display: none; }
   body.tpn-authed #tpn-auth-gate { display: none; }
   body:not(.tpn-authed) > *:not(#tpn-auth-gate):not(script) { visibility: hidden; }
@@ -413,31 +364,8 @@
   .detail-void-btn[disabled] { cursor: default; opacity: 0.8; }
   .detail-item { display: flex; align-items: center; }
 </style>
-<div id="tpn-auth-gate">
-  <div class="cs-brand" aria-hidden="true">
-    <img src="assets/site/logo.webp" alt="">
-    <div class="cs-logo">Tyo Paeng <span>Nyo</span></div>
-    <h1 class="cs-headline">Welcome back, <em>kabayan</em>.</h1>
-  </div>
-  <div class="cs-side">
-    <button class="cs-portal" type="button" onclick="window.location.href='portal'">← Portal</button>
-    <div class="cs-wrap">
-      <div class="g-spin"></div>
-      <div class="g-sub" id="tpn-auth-msg" role="status">Checking your login…</div>
-      <form class="g-form" id="tpn-signin" hidden onsubmit="return counterSignIn(event)">
-        <h2 class="cs-title">Welcome.</h2>
-        <div class="g-recent" id="cs-recent" role="group" aria-label="Recent"></div>
-        <label for="cs-email">Email</label>
-        <input id="cs-email" type="email" autocomplete="username" inputmode="email" placeholder="you@tyopaengnyo.com" required>
-        <label for="cs-pass">Password</label>
-        <input id="cs-pass" type="password" autocomplete="current-password" placeholder="Your password" required>
-        <button class="g-btn" type="submit" id="cs-go">Sign In</button>
-        <p class="g-err" id="cs-err" role="alert"></p>
-      </form>
-      <button class="g-btn" id="tpn-auth-btn" style="display:none;" onclick="window.location.href='portal'">Open the portal</button>
-    </div>
-  </div>
-</div>
+<div id="tpn-auth-gate"></div>
+<script src="modules/signin.js?v=20261021a"></script>
 
 <!-- TOPBAR -->
 <header class="topbar">
@@ -451,7 +379,7 @@
   <div class="topbar-right">
     <div class="live-pill connecting" id="live-pill" role="status" aria-live="polite"><span class="dot"></span><span>Connecting…</span></div>
     <div class="topbar-badge" id="role-badge">Manager</div>
-    <button class="topbar-btn secondary" id="switch-user" onclick="switchUser()">Switch user</button>
+    <button class="topbar-btn secondary" id="switch-user" onclick="TPN_SIGNIN.switchUser({ drawer: true })">Switch user</button>
     <button class="topbar-btn secondary" data-lang-toggle onclick="TPN_I18N.toggle()">🌐 Tagalog</button>
     <button class="topbar-btn secondary" onclick="window.location.reload()">↺ Refresh</button>
     <button class="topbar-btn" data-manager-only onclick="openAddTableModal()">+ Table</button>
@@ -591,63 +519,8 @@ async function refreshPendingVoids() {
 }
 
 // ─── AUTH GATE ───
-/* ── Counter sign-in and shift handover ───────────────────────────
-   Each person signs in here with their own account (no portal load), and
-   "Switch user" hands the counter to the next person. The last few people
-   who signed in on this device are one tap away (their email only). */
-const CS_RECENT = 'tpn.counter.recent';
-function csRecent() { try { return JSON.parse(localStorage.getItem(CS_RECENT) || '[]'); } catch (e) { return []; } }
-function showCounterSignIn(msg) {
-  document.querySelector('#tpn-auth-gate .g-spin').style.display = 'none';
-  msg.textContent = '';   // the heading says enough; only a real state gets a line
-  if (navigator.onLine === false) document.getElementById('cs-err').textContent = 'No internet. Signing in needs a connection.';
-  const form = document.getElementById('tpn-signin');
-  form.hidden = false;
-  const recent = csRecent();
-  document.getElementById('cs-recent').innerHTML = recent.map(r =>
-    `<button type="button" class="${r.email === (recent[0] || {}).email ? 'on' : ''}" onclick="csPick(this, '${JA(r.email)}')">${E(r.name || r.email)}</button>`).join('');
-  document.getElementById(recent.length ? 'cs-pass' : 'cs-email').focus();
-  if (recent.length) document.getElementById('cs-email').value = recent[0].email;
-}
-function csPick(btn, email) {
-  document.querySelectorAll('#cs-recent button').forEach(b => b.classList.toggle('on', b === btn));
-  document.getElementById('cs-email').value = email; const p = document.getElementById('cs-pass'); p.value = ''; p.focus();
-}
-async function counterSignIn(ev) {
-  ev.preventDefault();
-  const email = document.getElementById('cs-email').value.trim(), pass = document.getElementById('cs-pass').value;
-  const go = document.getElementById('cs-go'), err = document.getElementById('cs-err');
-  err.textContent = ''; go.disabled = true; go.textContent = 'Signing in…';
-  try {
-    const me = await TPN.login(email, pass);
-    const first = String((me && me.full_name) || '').trim().split(/\s+/)[0];
-    const list = [{ email, name: first || email }].concat(csRecent().filter(r => r.email !== email)).slice(0, 5);
-    try { localStorage.setItem(CS_RECENT, JSON.stringify(list)); } catch (e) {}
-    location.reload();
-  } catch (e) {
-    err.textContent = /invalid/i.test(e.message || '') ? 'That email and password don\'t match.' : (e.message || 'Could not sign in.');
-    go.disabled = false; go.textContent = 'Sign in';
-  }
-  return false;
-}
-async function switchUser() {
-  // A drawer shift belongs to the person who opened it: close it first so their cash is counted.
-  let open = null;
-  try { open = await TPN.myOpenCashSession(); } catch (e) {}
-  const q = open ? 'Your drawer shift is still open. Close it first (Counter → Close shift) so your cash is counted. Switch anyway?'
-                 : 'Sign out so the next person can sign in?';
-  const ok = window.tpnConfirm ? await tpnConfirm(q, { confirmText: 'Switch user' }) : confirm(q);
-  if (!ok) return;
-  try { await TPN.logout(); } catch (e) {}
-  try { localStorage.removeItem('tpn.offline.me'); } catch (e) {}
-  location.reload();
-}
-
 async function tpnAuthGate() {
   const msg = document.getElementById('tpn-auth-msg');
-  // A message (inactive account, no access…) replaces the spinner.
-  new MutationObserver(() => { if (msg.textContent && msg.textContent !== 'Checking your login…') document.querySelector('#tpn-auth-gate .g-spin').style.display = 'none'; })
-    .observe(msg, { childList: true, characterData: true, subtree: true });
   const btn = document.getElementById('tpn-auth-btn');
   try {
     // Wait for supabase-js to restore session from localStorage. With no
@@ -658,7 +531,7 @@ async function tpnAuthGate() {
       new Promise(r => setTimeout(() => r({ data: { session: null } }), 6000))]);
     const offlineOk = !session && window.TPN_OFFLINE && await TPN_OFFLINE.canRunOffline();
     if (!session && !offlineOk) {
-      showCounterSignIn(msg);
+      TPN_SIGNIN.show(msg);
       return false;
     }
     const profile = await TPN.loadProfile();

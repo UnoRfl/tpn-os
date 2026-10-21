@@ -25,11 +25,11 @@ import org.mozilla.geckoview.GeckoView;
 import org.mozilla.geckoview.WebRequestError;
 
 /**
- * TPN OS, all in one app.
+ * TPN OS, one app per station (flavors: counter, kitchen).
  *
- * It opens on Floor & Counter, whose own light sign-in asks each person for
- * their account (so the counter always knows who is on). The portal and the
- * kitchen station open in the same window from there.
+ * It opens on its station — Floor & Counter, or the Kitchen station — whose
+ * own light sign-in asks each person for their account, so the station
+ * always knows who is on. The portal opens in the same window from there.
  * The front screen runs on GeckoView, a modern
  * web engine bundled in the APK, so it no longer depends on the device's
  * Android System WebView (the D4-504 ships 83; TPN OS needs 87+).
@@ -42,6 +42,8 @@ import org.mozilla.geckoview.WebRequestError;
 public class MainActivity extends Activity {
     static final String SITE = BuildConfig.SITE_URL;            // ends with '/'
     static final String COUNTER = SITE + "tpn-dine-in-floor";
+    /** This app's station: the counter, or the kitchen. */
+    static final String START = SITE + BuildConfig.START_PATH;
     static final String CUSTOMER = SITE + "tpn-dine-in-floor-customer";
     static final String PORTAL = SITE + "portal";
     private static final int PERM_REQ = 7;
@@ -105,8 +107,11 @@ public class MainActivity extends Activity {
         if (!Settings.canDrawOverlays(this) && !askedOverlay) {
             askedOverlay = true;
             overlayDialog = new AlertDialog.Builder(this)
-                    .setTitle("Allow the customer screen")
-                    .setMessage("TPN Counter shows the guest's order on the back screen. Turn on \"Allow display over other apps\" for TPN Counter on the next screen, then come back.")
+                    // Counter: the back screen needs it. Kitchen: opening by itself after a power cut needs it (Android 10+).
+                    .setTitle(BuildConfig.CUSTOMER_SCREEN ? "Allow the customer screen" : "Allow opening after a power cut")
+                    .setMessage(BuildConfig.CUSTOMER_SCREEN
+                            ? "TPN Counter shows the guest's order on the back screen. Turn on \"Allow display over other apps\" for TPN Counter on the next screen, then come back."
+                            : "So the kitchen screen comes back by itself after a power cut, turn on \"Allow display over other apps\" for TPN Kitchen on the next screen, then come back.")
                     .setPositiveButton("Open setting", (d, w) -> {
                         try { startActivity(new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:" + getPackageName()))); }
                         catch (Exception e) { startActivity(new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION)); }
@@ -116,7 +121,7 @@ public class MainActivity extends Activity {
                     .show();
             return;
         }
-        CustomerScreenService.start(this);
+        if (BuildConfig.CUSTOMER_SCREEN) CustomerScreenService.start(this);
         if (started) return;
         started = true;
         openCounter();
@@ -131,9 +136,9 @@ public class MainActivity extends Activity {
 
     private void newSession() {
         if (session != null) { try { session.close(); } catch (Exception ignored) { } }
-        // "TPNCounter/x" tells the site it is on the counter (tpn-kit.js turns on its light drawing mode).
+        // "TPNCounter/x" / "TPNKitchen/x" tells the site it is on a station (tpn-kit.js turns on its light drawing mode).
         session = new GeckoSession(new GeckoSessionSettings.Builder().usePrivateMode(false)
-                .userAgentOverride(GeckoSession.getDefaultUserAgent() + " TPNCounter/" + BuildConfig.VERSION_NAME).build());
+                .userAgentOverride(GeckoSession.getDefaultUserAgent() + " " + BuildConfig.UA_TAG + "/" + BuildConfig.VERSION_NAME).build());
 
 
         session.setNavigationDelegate(new GeckoSession.NavigationDelegate() {
@@ -144,7 +149,7 @@ public class MainActivity extends Activity {
             // offline (its service worker), so go there instead.
             @Override
             public GeckoResult<String> onLoadError(GeckoSession s, String uri, WebRequestError error) {
-                if (uri != null && uri.startsWith(SITE) && !uri.startsWith(COUNTER)) runOnUiThread(() -> s.loadUri(COUNTER));
+                if (uri != null && uri.startsWith(SITE) && !uri.startsWith(START)) runOnUiThread(() -> s.loadUri(START));
                 return null;
             }
 
@@ -233,9 +238,9 @@ public class MainActivity extends Activity {
 
         session.open(runtime());
         view.setSession(session);
-        // The counter, with its own light sign-in: each person signs in with their account
+        // The station, with its own light sign-in: each person signs in with their account
         // ("Switch user" hands over); the full portal loads only from ← Portal.
-        session.loadUri(COUNTER);
+        session.loadUri(START);
     }
 
     @SuppressWarnings("deprecation")

@@ -1,6 +1,6 @@
 # TPN OS — Session Handoff
 
-**Last updated:** Oct 21, 2026 (rev 30 — sign-in at the counter, Switch user, see "Rev 30"; rev 29 — reopens where it left off, light drawing on the iMin, see "Rev 29"; rev 28 — one app on its own engine + brand reel, see "Rev 28"; rev 27 — welcome loop; in-app engine on hold, see "Rev 27"; rev 26 — counter in Chrome + app drives the back screen, see "Rev 26"; rev 25 — the iMin's old WebView, see "Rev 25"; rev 24 — customer screen on the iMin + TPN Counter Android app, see "Rev 24"; rev 23 — security pass and fallbacks, see "Rev 23"; rev 22 — BIR booklet invoices and Vercel prep, see "Rev 22"; Oct 20: nightly encrypted backups on the headless PC, see "Backups"; rev 21 — offline counter, see "Rev 21"). Earlier: Oct 17, 2026 (rev 8 — read receipts, Tagalog everywhere, layout, guide; see "Rev 8"). Rev 7 — portal split out of the website, hubs, Counter on the floor screen; see "Rev 7"). Rev 6 (Oct 16 — v2 overhaul, see "Rev 6" and GO-LIVE.md). Previously rev 5 — UI/UX reliability pass, no migrations; see "Rev 5" below). Rev 4 (Aug 22): split bills, daily close, variance, working add-ons, low-stock alerts; migrations 18–28
+**Last updated:** Oct 21, 2026 (rev 31 — TPN Kitchen app, shared station sign-in, see "Rev 31"; rev 30 — sign-in at the counter, Switch user, see "Rev 30"; rev 29 — reopens where it left off, light drawing on the iMin, see "Rev 29"; rev 28 — one app on its own engine + brand reel, see "Rev 28"; rev 27 — welcome loop; in-app engine on hold, see "Rev 27"; rev 26 — counter in Chrome + app drives the back screen, see "Rev 26"; rev 25 — the iMin's old WebView, see "Rev 25"; rev 24 — customer screen on the iMin + TPN Counter Android app, see "Rev 24"; rev 23 — security pass and fallbacks, see "Rev 23"; rev 22 — BIR booklet invoices and Vercel prep, see "Rev 22"; Oct 20: nightly encrypted backups on the headless PC, see "Backups"; rev 21 — offline counter, see "Rev 21"). Earlier: Oct 17, 2026 (rev 8 — read receipts, Tagalog everywhere, layout, guide; see "Rev 8"). Rev 7 — portal split out of the website, hubs, Counter on the floor screen; see "Rev 7"). Rev 6 (Oct 16 — v2 overhaul, see "Rev 6" and GO-LIVE.md). Previously rev 5 — UI/UX reliability pass, no migrations; see "Rev 5" below). Rev 4 (Aug 22): split bills, daily close, variance, working add-ons, low-stock alerts; migrations 18–28
 **Deployed:** https://unorfl.github.io/tpn-os/
 **Repo:** https://github.com/UnoRfl/tpn-os
 **Supabase project ref:** `xjlqfpnzobfqxetgkkai` (single project, single branch)
@@ -61,6 +61,26 @@ tpn-os/
 | **Extensionless URLs** (`/tpn-table-menu`, `/tpn-dine-in-floor`) | ✅ live |
 
 ---
+
+## Rev 31 — TPN Kitchen app; one shared station sign-in (Oct 21, 2026)
+
+The owner asked for an app for the kitchen hardware too, even before it arrives.
+- **Two apps from one Android project (product flavors, `flavorDimensions 'station'`):**
+  - `counter`: `ph.tyopaengnyo.counter`, "TPN Counter", start `tpn-dine-in-floor`, customer screen on, user agent tag `TPNCounter`.
+  - `kitchen`: `ph.tyopaengnyo.kitchen`, "TPN Kitchen", start `tpn-kitchen-station`, no customer screen, tag `TPNKitchen`.
+  - `app_name` now comes from each flavor's `resValue` (`strings.xml` removed). BuildConfig carries `START_PATH`, `CUSTOMER_SCREEN` and `UA_TAG`. Version names are 1.3.x.
+  - The kitchen app still asks for "Display over other apps", which Android 10+ requires for `BootReceiver` to reopen it after a power cut. It never starts `CustomerScreenService`.
+  - The workflow ("Build TPN apps") runs `assembleCounterRelease assembleKitchenRelease` and uploads both. **Publish both APKs in the same release** (`tpn-counter.apk`, `tpn-kitchen.apk`), so both `releases/latest/download/…` links keep working.
+- **One shared sign-in:**
+  - `modules/signin.js` (`TPN_SIGNIN.show / switchUser / whoLabel`) draws the gate into an empty `#tpn-auth-gate`; the styles are in `tpn-signin.css`. The floor and kitchen pages both use it, and the floor's inline copy is gone.
+  - Recent people are kept in `localStorage tpn.station.recent`; the old `tpn.counter.recent` list is read once, then moved over.
+  - Narrow screens give the ← Portal button its own room.
+- **Kitchen station:**
+  - It signs people in on the station; it used to send them to the portal.
+  - **Switch user** is shown for everyone, including the kitchen display account, so the kitchen device can always hand over.
+  - The badge shows "First name · Role".
+  - It admits kitchen tier and up, or anyone whose access role has `kitchen_station.view`, after `TPN.loadPermissions`.
+- **`tpn-kit.js` `?v=20261021d`:** `html.tpn-lite` applies for both `TPNCounter/` and `TPNKitchen/`.
 
 ## Rev 30 — every person signs in at the counter; the app opens on the counter (Oct 21, 2026)
 

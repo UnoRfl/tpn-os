@@ -1,5 +1,7 @@
-// TPN Counter: the floor screen on a bundled GeckoView, plus the customer
-// screen on the iMin's second display (system WebView). Built by .github/workflows/build-apk.yml.
+// Two apps from one codebase (product flavors):
+//   counter  TPN Counter — Floor & Counter on a bundled GeckoView, plus the
+//            customer screen on the iMin's second display (system WebView)
+//   kitchen  TPN Kitchen — the Kitchen station, same engine, no back screen Built by .github/workflows/build-apk.yml.
 // Env (all optional): TPN_SITE_URL, TPN_VERSION_CODE, TPN_KEYSTORE,
 // TPN_KEYSTORE_PASSWORD. Without a keystore the APK is debug-signed.
 plugins { id 'com.android.application' }
@@ -18,12 +20,32 @@ android {
         minSdk 26
         targetSdk 34
         versionCode env('TPN_VERSION_CODE', '1') as int
-        versionName '1.1.' + env('TPN_VERSION_CODE', '1')
+        versionName '1.3.' + env('TPN_VERSION_CODE', '1')
         buildConfigField 'String', 'SITE_URL', "\"${site}\""
         // ARM only (the iMin and every Android POS we'd use): keeps the bundled engine's size down.
         ndk { abiFilters 'arm64-v8a', 'armeabi-v7a' }
     }
     buildFeatures { buildConfig true }
+
+    flavorDimensions 'station'
+    productFlavors {
+        counter {
+            dimension 'station'
+            applicationId 'ph.tyopaengnyo.counter'
+            resValue 'string', 'app_name', 'TPN Counter'
+            buildConfigField 'String', 'START_PATH', '"tpn-dine-in-floor"'
+            buildConfigField 'boolean', 'CUSTOMER_SCREEN', 'true'
+            buildConfigField 'String', 'UA_TAG', '"TPNCounter"'
+        }
+        kitchen {
+            dimension 'station'
+            applicationId 'ph.tyopaengnyo.kitchen'
+            resValue 'string', 'app_name', 'TPN Kitchen'
+            buildConfigField 'String', 'START_PATH', '"tpn-kitchen-station"'
+            buildConfigField 'boolean', 'CUSTOMER_SCREEN', 'false'
+            buildConfigField 'String', 'UA_TAG', '"TPNKitchen"'
+        }
+    }
 
     signingConfigs {
         release {
