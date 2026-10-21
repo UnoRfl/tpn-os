@@ -1,6 +1,6 @@
 # TPN OS — Session Handoff
 
-**Last updated:** Oct 21, 2026 (rev 27 — welcome loop; in-app engine on hold, see "Rev 27"; rev 26 — counter in Chrome + app drives the back screen, see "Rev 26"; rev 25 — the iMin's old WebView, see "Rev 25"; rev 24 — customer screen on the iMin + TPN Counter Android app, see "Rev 24"; rev 23 — security pass and fallbacks, see "Rev 23"; rev 22 — BIR booklet invoices and Vercel prep, see "Rev 22"; Oct 20: nightly encrypted backups on the headless PC, see "Backups"; rev 21 — offline counter, see "Rev 21"). Earlier: Oct 17, 2026 (rev 8 — read receipts, Tagalog everywhere, layout, guide; see "Rev 8"). Rev 7 — portal split out of the website, hubs, Counter on the floor screen; see "Rev 7"). Rev 6 (Oct 16 — v2 overhaul, see "Rev 6" and GO-LIVE.md). Previously rev 5 — UI/UX reliability pass, no migrations; see "Rev 5" below). Rev 4 (Aug 22): split bills, daily close, variance, working add-ons, low-stock alerts; migrations 18–28
+**Last updated:** Oct 21, 2026 (rev 28 — one app on its own engine + brand reel, see "Rev 28"; rev 27 — welcome loop; in-app engine on hold, see "Rev 27"; rev 26 — counter in Chrome + app drives the back screen, see "Rev 26"; rev 25 — the iMin's old WebView, see "Rev 25"; rev 24 — customer screen on the iMin + TPN Counter Android app, see "Rev 24"; rev 23 — security pass and fallbacks, see "Rev 23"; rev 22 — BIR booklet invoices and Vercel prep, see "Rev 22"; Oct 20: nightly encrypted backups on the headless PC, see "Backups"; rev 21 — offline counter, see "Rev 21"). Earlier: Oct 17, 2026 (rev 8 — read receipts, Tagalog everywhere, layout, guide; see "Rev 8"). Rev 7 — portal split out of the website, hubs, Counter on the floor screen; see "Rev 7"). Rev 6 (Oct 16 — v2 overhaul, see "Rev 6" and GO-LIVE.md). Previously rev 5 — UI/UX reliability pass, no migrations; see "Rev 5" below). Rev 4 (Aug 22): split bills, daily close, variance, working add-ons, low-stock alerts; migrations 18–28
 **Deployed:** https://unorfl.github.io/tpn-os/
 **Repo:** https://github.com/UnoRfl/tpn-os
 **Supabase project ref:** `xjlqfpnzobfqxetgkkai` (single project, single branch)
@@ -61,6 +61,31 @@ tpn-os/
 | **Extensionless URLs** (`/tpn-table-menu`, `/tpn-dine-in-floor`) | ✅ live |
 
 ---
+
+## Rev 28 — one app with its own engine; brand reel on the back screen (Oct 21, 2026)
+
+The owner wants everything in one app: sign-in, then the whole system, with the counter and the kitchen as parts of it, not Chrome. The D4-504 has no system update that fixes its WebView (83).
+- **TPN Counter 1.1 runs on a bundled GeckoView (Firefox's engine)**, `org.mozilla.geckoview:geckoview:153.0.20260810162159`.
+  - **Versions:** 154 and up need compileSdk 37 (androidx core 1.19), which AGP 8.9 can't do, so 153 is the newest that builds. Move up together with the toolchain. The build uses AGP 8.9.1, Gradle 8.11.1 and compileSdk 36, with `useAndroidX`.
+  - **Size:** ARM only (`arm64-v8a`, `armeabi-v7a`), with native libs compressed (`useLegacyPackaging true`): about 165 MB. Uncompressed it was 332 MB; `libxul` alone is 146 MB (arm64) plus 112 MB (v7a). Dropping v7a would save about 40 MB once the iMin is confirmed 64-bit (`chrome://version` on it says 32- or 64-bit).
+- **`MainActivity` (GeckoView):**
+  - **Opens on `portal`:** sign-in is required, and display accounts are sent on to their screens by the portal.
+  - **Same window:** links the portal opens in a new tab (Floor & Counter, Kitchen station: `external` hub items) load in the same window (`TARGET_WINDOW_NEW` → `loadUri`).
+  - **Offline launch:** if the portal can't load (`onLoadError`), it opens the offline counter instead.
+  - **Permissions:** the camera only for our site and never the microphone; autoplay (the order chime) and persistent storage are allowed for our site.
+  - **Dialogs and recovery:** `alert`/`confirm`/`prompt` show as native dialogs, the page restarts after a crash, Back stays inside the site, and remote debugging is on only while USB debugging is on.
+  - **Back screen:** unchanged. `CustomerScreenService` plus the loopback link, which GeckoView reaches the same way Chrome did.
+- **Floor & Counter screen:**
+  - It now admits anyone whose access role has `floor.view`; before, it was manager+ only, so a dining counter account was turned away. Permissions load first with `TPN.loadPermissions`.
+  - A **← Portal** button (hidden for the `dine_in_display` screen account). The kitchen's back button now also reads ← Portal.
+- **Back-screen welcome = a brand motion reel** (after a reference video from the owner; about 24s, loops, with no hard cuts):
+  1. **Tiles:** the background colour glides between scenes. A paisley-arc truchet field has a saffron wave that flips tiles as it passes. It crossfades into a 3D mandala of dots.
+  2. **Burst:** the mandala takes a breath and **its own dots burst outward as streaks**. From the same centre the colour floods saffron, the engraved paisley comes up (`#engr`, `mix-blend-mode: overlay`, so it takes the tint of whatever colour is underneath), and tinted mandalas bloom (`.tmand`, CSS-masked, so any colour works).
+  3. **The name:** TYO / PAENG / NYO bloom in and soften out, each in a different brand face (Fraunces soft, Plus Jakarta Sans 800, Fraunces italic), on brick, saffron and cocoa.
+  4. **Tickers:** three crossing MABUHAY! / KAIN NA! tickers, one per face, on cream.
+  5. **Reveal and tagline:** on brick, the badge spins in and TPN stretches into TyoPaengNyo, then **the tagline "kapag iyong natikman, hindi mo titigilan"** rises word by word. The owner asked for one line, one font (Fraunces soft) and one colour (saffron).
+  - **Speed:** the canvas batches its drawing (Path2D by colour, width and depth), a few strokes a frame. Layer fades don't use full-screen blur. The frame loop schedules first and catches errors, so a bad frame can't stop it. Result: 60 fps, no frame over 18ms, no errors across a full loop. ES2017.
+  - Reduced motion: the badge, name and tagline, still.
 
 ## Rev 27 — welcome loop on the back screen; in-app engine on hold (Oct 21, 2026)
 

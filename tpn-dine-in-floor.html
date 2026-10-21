@@ -92,6 +92,7 @@
   .topbar-btn:hover { background: var(--brick-light); }
   .topbar-btn.secondary { background: rgba(255,255,255,0.1); }
   .topbar-btn.secondary:hover { background: rgba(255,255,255,0.2); }
+  body.tpn-display-mode .back-to-portal { display: none; }   /* the shared floor screen stays put */
 
   /* ── TAB NAV ── */
   .tab-nav { background: #fff; border-bottom: 2px solid var(--border); display: flex; overflow-x: auto; scrollbar-width: none; }
@@ -383,6 +384,7 @@
 <!-- TOPBAR -->
 <header class="topbar">
   <div class="topbar-left">
+    <button class="topbar-btn secondary back-to-portal" onclick="window.location.href='portal'">← Portal</button>
     <div>
       <div class="topbar-logo">Tyo Paeng Nyo</div>
       <div class="topbar-sub">Dine-In Floor · <span id="current-branch-label">Las Piñas</span></div>
@@ -559,13 +561,16 @@ async function tpnAuthGate() {
     }
     // Two ways in:
     //   1. dine_in_display — the dedicated screen account for the dining floor
-    //   2. manager and higher — the original audience
+    //   2. anyone whose access role grants floor.view (the counter is here, so
+    //      dining staff need it; managers and up always had it)
     // dine_in_display sits BELOW dining in the enum, so hasRole() refuses
     // it everywhere else. This is the one surface it is allowed on, and it
     // runs in a reduced mode (see applyDisplayMode).
     IS_DISPLAY_ACCOUNT = (profile.role === 'dine_in_display');
-    if (!IS_DISPLAY_ACCOUNT && !TPN.hasRole('manager')) {
-      msg.textContent = 'The floor panel is for manager+ staff only. Your account: ' + (profile.role || 'unknown') + '.';
+    // What this account may do (access roles). If it can't load, TPN.can falls back to tier gating.
+    try { if (TPN.loadPermissions) await TPN.loadPermissions(); } catch (e) {}
+    if (!IS_DISPLAY_ACCOUNT && !TPN.hasRole('manager') && !(TPN.can && TPN.can('floor.view'))) {
+      msg.textContent = 'This account can\'t open the floor and counter. Ask a manager to give it Floor access. Your account: ' + (profile.role || 'unknown') + '.';
       btn.style.display = 'inline-block';
       return false;
     }
