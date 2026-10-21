@@ -56,7 +56,7 @@
     return Number.isFinite(n) ? n.toFixed(d) : (0).toFixed(d);
   };
 </script>
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,700;1,500&family=DM+Sans:wght@300;400;500;600&family=Lora:ital@0;1&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,700;1,500&family=DM+Sans:wght@300;400;500;600&family=Lora:ital@0;1&family=Fraunces:ital,opsz,wght,SOFT@0,9..144,500..900,0..100;1,9..144,500..900,0..100&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root {
     --brick: #8B1A0E; --brick-dark: #6a1208; --brick-light: #c4392a;
@@ -344,32 +344,56 @@
 
 <!-- AUTH GATE — hides content until we've confirmed the user is manager+ -->
 <style>
+  /* Sign-in on the counter: the portal's sign-in (brick panel + paper card,
+     v3 colours, Fraunces + Plus Jakarta Sans), without its extra lines.
+     Each person signs in with their own account; no portal load. */
   #tpn-auth-gate {
-    position: fixed; inset: 0; z-index: 9999;
-    background: var(--charcoal); color: #fff;
-    display: flex; align-items: center; justify-content: center;
-    flex-direction: column; gap: 16px;
-    font-family: 'DM Sans', sans-serif;
+    --c-paper: #F7F0E2; --c-card: #FFFDF8; --c-sand: #F4EAD8; --c-ink: #2E1A10; --c-ink-2: #6E5240;
+    --c-line: rgba(46, 26, 16, .14); --c-brick: #A3321A; --c-brick-deep: #8A2914; --c-saffron: #E4A23C; --c-cream: #FFF8E8;
+    position: fixed; inset: 0; z-index: 9999; display: grid; grid-template-columns: 1fr 1fr;
+    background: var(--c-paper); color: var(--c-ink); font-family: "Plus Jakarta Sans", system-ui, sans-serif;
   }
-  #tpn-auth-gate .g-title { font-family: 'Playfair Display', serif; font-size: 22px; color: var(--gold-light); }
-  #tpn-auth-gate .g-sub   { font-size: 14px; color: rgba(255,255,255,0.7); text-align: center; max-width: 320px; }
-  #tpn-auth-gate .g-spin  { width: 34px; height: 34px; border: 3px solid rgba(255,255,255,0.15); border-top-color: var(--gold); border-radius: 50%; animation: gspin 0.9s linear infinite; }
+  #tpn-auth-gate .cs-brand { background: linear-gradient(135deg, var(--c-brick-deep), var(--c-brick)); color: var(--c-cream);
+    padding: 56px 48px; display: flex; flex-direction: column; justify-content: center; gap: 22px; position: relative; overflow: hidden; }
+  #tpn-auth-gate .cs-brand::after { content: ""; position: absolute; right: -18%; bottom: -22%; width: 70%; aspect-ratio: 1; opacity: .12;
+    background: url("assets/site/mandala-a.webp") center / contain no-repeat; pointer-events: none; }
+  #tpn-auth-gate .cs-brand img { width: 96px; height: auto; filter: drop-shadow(0 10px 22px rgba(0, 0, 0, .3)); }
+  #tpn-auth-gate .cs-logo { font-family: Fraunces, Georgia, serif; font-variation-settings: "SOFT" 100; font-weight: 900; font-size: 34px; line-height: 1.1; }
+  #tpn-auth-gate .cs-logo span, #tpn-auth-gate .cs-headline em { color: var(--c-saffron); }
+  #tpn-auth-gate .cs-headline { font-family: Fraunces, Georgia, serif; font-variation-settings: "SOFT" 100, "opsz" 144; font-weight: 900;
+    font-size: clamp(36px, 4vw, 52px); line-height: 1.08; margin: 0; }
+  #tpn-auth-gate .cs-headline em { font-style: italic; }
+  #tpn-auth-gate .cs-side { position: relative; display: flex; align-items: center; justify-content: center; padding: 48px; }
+  #tpn-auth-gate .cs-portal { position: absolute; top: 16px; left: 16px; background: transparent; border: 1px solid var(--c-line); color: var(--c-ink-2);
+    padding: 8px 14px; border-radius: 8px; font: 500 13px inherit; font-family: inherit; cursor: pointer; }
+  #tpn-auth-gate .cs-portal:hover { border-color: var(--c-brick); color: var(--c-brick); }
+  #tpn-auth-gate .cs-wrap { width: 100%; max-width: 400px; display: grid; justify-items: stretch; gap: 14px; }
+  #tpn-auth-gate .g-spin { justify-self: center; width: 34px; height: 34px; border: 3px solid var(--c-sand); border-top-color: var(--c-brick); border-radius: 50%; animation: gspin .9s linear infinite; }
   @keyframes gspin { to { transform: rotate(360deg); } }
-  #tpn-auth-gate .g-btn { margin-top: 12px; background: var(--brick); color: #fff; border: none; padding: 10px 22px; border-radius: 10px; font-weight: 700; font-family: 'DM Sans', sans-serif; cursor: pointer; }
-  /* Sign-in right on the counter: each person signs in with their own account,
-     so every order, payment, void and drawer shift is theirs. No portal load. */
-  #tpn-auth-gate .g-form { display: grid; gap: 10px; width: min(360px, 86vw); margin-top: 6px; }
+  #tpn-auth-gate .g-sub { text-align: center; color: var(--c-ink-2); font-size: 14px; }
+  #tpn-auth-gate .g-sub:empty { display: none; }
+  #tpn-auth-gate .g-form { display: grid; gap: 14px; }
   #tpn-auth-gate .g-form[hidden] { display: none; }
-  #tpn-auth-gate .g-form label { font-size: 13px; color: rgba(255,255,255,0.75); margin-bottom: -4px; }
-  #tpn-auth-gate .g-form input { font: 500 16px 'DM Sans', sans-serif; padding: 12px 14px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.25);
-    background: rgba(255,255,255,0.08); color: #fff; min-height: 48px; }
-  #tpn-auth-gate .g-form input:focus { outline: 2px solid var(--gold); outline-offset: 1px; }
-  #tpn-auth-gate .g-form .g-btn { margin-top: 6px; min-height: 48px; font-size: 15px; }
-  #tpn-auth-gate .g-err { min-height: 18px; margin: 0; font-size: 13px; color: #ffc4b8; }
-  #tpn-auth-gate .g-recent { display: flex; flex-wrap: wrap; gap: 8px; }
-  #tpn-auth-gate .g-recent button { font: 600 13px 'DM Sans', sans-serif; padding: 8px 12px; border-radius: 99px; border: 1px solid rgba(255,255,255,0.25);
-    background: transparent; color: #fff; cursor: pointer; min-height: 40px; }
-  #tpn-auth-gate .g-link { background: none; border: none; color: rgba(255,255,255,0.65); font: 500 13px 'DM Sans', sans-serif; text-decoration: underline; cursor: pointer; margin-top: 4px; }
+  #tpn-auth-gate .cs-title { font-family: Fraunces, Georgia, serif; font-variation-settings: "SOFT" 100; font-weight: 900; font-size: 38px;
+    line-height: 1.1; letter-spacing: -.01em; margin: 0 0 6px; }
+  #tpn-auth-gate .g-recent { display: flex; flex-wrap: wrap; gap: 4px; padding: 3px; background: var(--c-sand); border-radius: 8px; width: fit-content; max-width: 100%; }
+  #tpn-auth-gate .g-recent:empty { display: none; }
+  #tpn-auth-gate .g-recent button { background: transparent; border: none; border-radius: 6px; padding: 8px 14px; min-height: 40px;
+    font: 600 14px inherit; font-family: inherit; color: var(--c-ink-2); cursor: pointer; }
+  #tpn-auth-gate .g-recent button.on { background: var(--c-card); color: var(--c-brick); box-shadow: 0 1px 3px rgba(46, 26, 16, .12); }
+  #tpn-auth-gate .g-form label { font-size: 13px; font-weight: 600; color: var(--c-ink-2); margin-bottom: -8px; }
+  #tpn-auth-gate .g-form input { font: 500 16px inherit; font-family: inherit; color: var(--c-ink); background: var(--c-card);
+    border: 1px solid var(--c-line); border-radius: 8px; padding: 12px 14px; min-height: 48px; }
+  #tpn-auth-gate .g-form input:focus { outline: 2px solid var(--c-brick); outline-offset: 1px; border-color: transparent; }
+  #tpn-auth-gate .g-btn { background: var(--c-brick); color: var(--c-cream); border: none; border-radius: 8px; padding: 14px; min-height: 50px;
+    font: 700 15px inherit; font-family: inherit; letter-spacing: .03em; cursor: pointer; box-shadow: 0 8px 18px -10px rgba(138, 41, 20, .6); }
+  #tpn-auth-gate .g-btn:hover { background: var(--c-brick-deep); }
+  #tpn-auth-gate .g-btn:disabled { opacity: .7; cursor: progress; }
+  #tpn-auth-gate .g-err { margin: 0; font-size: 13px; color: #A3321A; background: rgba(163, 50, 26, .07); border: 1px solid rgba(163, 50, 26, .22);
+    border-radius: 8px; padding: 10px 12px; }
+  #tpn-auth-gate .g-err:empty { display: none; }
+  #tpn-auth-gate #tpn-auth-btn { justify-self: center; }
+  @media (max-width: 900px) { #tpn-auth-gate { grid-template-columns: 1fr; } #tpn-auth-gate .cs-brand { display: none; } #tpn-auth-gate .cs-side { padding: 32px 20px; } }
   body.tpn-display-mode #switch-user { display: none; }
   body.tpn-authed #tpn-auth-gate { display: none; }
   body:not(.tpn-authed) > *:not(#tpn-auth-gate):not(script) { visibility: hidden; }
@@ -390,19 +414,29 @@
   .detail-item { display: flex; align-items: center; }
 </style>
 <div id="tpn-auth-gate">
-  <div class="g-title">Tyo Paeng Nyo</div>
-  <div class="g-spin"></div>
-  <div class="g-sub" id="tpn-auth-msg">Checking your login…</div>
-  <form class="g-form" id="tpn-signin" hidden onsubmit="return counterSignIn(event)">
-    <div class="g-recent" id="cs-recent"></div>
-    <label for="cs-email">Your email</label>
-    <input id="cs-email" type="email" autocomplete="username" inputmode="email" required>
-    <label for="cs-pass">Password</label>
-    <input id="cs-pass" type="password" autocomplete="current-password" required>
-    <button class="g-btn" type="submit" id="cs-go">Sign in</button>
-    <p class="g-err" id="cs-err" role="alert"></p>
-  </form>
-  <button class="g-btn" id="tpn-auth-btn" style="display:none;" onclick="window.location.href='portal'">Open the portal</button>
+  <div class="cs-brand" aria-hidden="true">
+    <img src="assets/site/logo.webp" alt="">
+    <div class="cs-logo">Tyo Paeng <span>Nyo</span></div>
+    <h1 class="cs-headline">Welcome back, <em>kabayan</em>.</h1>
+  </div>
+  <div class="cs-side">
+    <button class="cs-portal" type="button" onclick="window.location.href='portal'">← Portal</button>
+    <div class="cs-wrap">
+      <div class="g-spin"></div>
+      <div class="g-sub" id="tpn-auth-msg" role="status">Checking your login…</div>
+      <form class="g-form" id="tpn-signin" hidden onsubmit="return counterSignIn(event)">
+        <h2 class="cs-title">Welcome.</h2>
+        <div class="g-recent" id="cs-recent" role="group" aria-label="Recent"></div>
+        <label for="cs-email">Email</label>
+        <input id="cs-email" type="email" autocomplete="username" inputmode="email" placeholder="you@tyopaengnyo.com" required>
+        <label for="cs-pass">Password</label>
+        <input id="cs-pass" type="password" autocomplete="current-password" placeholder="Your password" required>
+        <button class="g-btn" type="submit" id="cs-go">Sign In</button>
+        <p class="g-err" id="cs-err" role="alert"></p>
+      </form>
+      <button class="g-btn" id="tpn-auth-btn" style="display:none;" onclick="window.location.href='portal'">Open the portal</button>
+    </div>
+  </div>
 </div>
 
 <!-- TOPBAR -->
@@ -565,16 +599,20 @@ const CS_RECENT = 'tpn.counter.recent';
 function csRecent() { try { return JSON.parse(localStorage.getItem(CS_RECENT) || '[]'); } catch (e) { return []; } }
 function showCounterSignIn(msg) {
   document.querySelector('#tpn-auth-gate .g-spin').style.display = 'none';
-  msg.textContent = navigator.onLine === false ? 'No internet: signing in needs a connection.' : 'Sign in with your own account to take the counter.';
+  msg.textContent = '';   // the heading says enough; only a real state gets a line
+  if (navigator.onLine === false) document.getElementById('cs-err').textContent = 'No internet. Signing in needs a connection.';
   const form = document.getElementById('tpn-signin');
   form.hidden = false;
   const recent = csRecent();
   document.getElementById('cs-recent').innerHTML = recent.map(r =>
-    `<button type="button" onclick="csPick('${JA(r.email)}')">${E(r.name || r.email)}</button>`).join('');
+    `<button type="button" class="${r.email === (recent[0] || {}).email ? 'on' : ''}" onclick="csPick(this, '${JA(r.email)}')">${E(r.name || r.email)}</button>`).join('');
   document.getElementById(recent.length ? 'cs-pass' : 'cs-email').focus();
   if (recent.length) document.getElementById('cs-email').value = recent[0].email;
 }
-function csPick(email) { document.getElementById('cs-email').value = email; const p = document.getElementById('cs-pass'); p.value = ''; p.focus(); }
+function csPick(btn, email) {
+  document.querySelectorAll('#cs-recent button').forEach(b => b.classList.toggle('on', b === btn));
+  document.getElementById('cs-email').value = email; const p = document.getElementById('cs-pass'); p.value = ''; p.focus();
+}
 async function counterSignIn(ev) {
   ev.preventDefault();
   const email = document.getElementById('cs-email').value.trim(), pass = document.getElementById('cs-pass').value;
@@ -607,6 +645,9 @@ async function switchUser() {
 
 async function tpnAuthGate() {
   const msg = document.getElementById('tpn-auth-msg');
+  // A message (inactive account, no access…) replaces the spinner.
+  new MutationObserver(() => { if (msg.textContent && msg.textContent !== 'Checking your login…') document.querySelector('#tpn-auth-gate .g-spin').style.display = 'none'; })
+    .observe(msg, { childList: true, characterData: true, subtree: true });
   const btn = document.getElementById('tpn-auth-btn');
   try {
     // Wait for supabase-js to restore session from localStorage. With no
