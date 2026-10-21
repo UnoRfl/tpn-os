@@ -1,6 +1,6 @@
 # TPN OS — Session Handoff
 
-**Last updated:** Oct 21, 2026 (rev 31 — TPN Kitchen app, shared station sign-in, see "Rev 31"; rev 30 — sign-in at the counter, Switch user, see "Rev 30"; rev 29 — reopens where it left off, light drawing on the iMin, see "Rev 29"; rev 28 — one app on its own engine + brand reel, see "Rev 28"; rev 27 — welcome loop; in-app engine on hold, see "Rev 27"; rev 26 — counter in Chrome + app drives the back screen, see "Rev 26"; rev 25 — the iMin's old WebView, see "Rev 25"; rev 24 — customer screen on the iMin + TPN Counter Android app, see "Rev 24"; rev 23 — security pass and fallbacks, see "Rev 23"; rev 22 — BIR booklet invoices and Vercel prep, see "Rev 22"; Oct 20: nightly encrypted backups on the headless PC, see "Backups"; rev 21 — offline counter, see "Rev 21"). Earlier: Oct 17, 2026 (rev 8 — read receipts, Tagalog everywhere, layout, guide; see "Rev 8"). Rev 7 — portal split out of the website, hubs, Counter on the floor screen; see "Rev 7"). Rev 6 (Oct 16 — v2 overhaul, see "Rev 6" and GO-LIVE.md). Previously rev 5 — UI/UX reliability pass, no migrations; see "Rev 5" below). Rev 4 (Aug 22): split bills, daily close, variance, working add-ons, low-stock alerts; migrations 18–28
+**Last updated:** Oct 21, 2026 (rev 31 — TPN Kitchen app, shared station sign-in, sign-in = clock-in, see "Rev 31"; rev 30 — sign-in at the counter, Switch user, see "Rev 30"; rev 29 — reopens where it left off, light drawing on the iMin, see "Rev 29"; rev 28 — one app on its own engine + brand reel, see "Rev 28"; rev 27 — welcome loop; in-app engine on hold, see "Rev 27"; rev 26 — counter in Chrome + app drives the back screen, see "Rev 26"; rev 25 — the iMin's old WebView, see "Rev 25"; rev 24 — customer screen on the iMin + TPN Counter Android app, see "Rev 24"; rev 23 — security pass and fallbacks, see "Rev 23"; rev 22 — BIR booklet invoices and Vercel prep, see "Rev 22"; Oct 20: nightly encrypted backups on the headless PC, see "Backups"; rev 21 — offline counter, see "Rev 21"). Earlier: Oct 17, 2026 (rev 8 — read receipts, Tagalog everywhere, layout, guide; see "Rev 8"). Rev 7 — portal split out of the website, hubs, Counter on the floor screen; see "Rev 7"). Rev 6 (Oct 16 — v2 overhaul, see "Rev 6" and GO-LIVE.md). Previously rev 5 — UI/UX reliability pass, no migrations; see "Rev 5" below). Rev 4 (Aug 22): split bills, daily close, variance, working add-ons, low-stock alerts; migrations 18–28
 **Deployed:** https://unorfl.github.io/tpn-os/
 **Repo:** https://github.com/UnoRfl/tpn-os
 **Supabase project ref:** `xjlqfpnzobfqxetgkkai` (single project, single branch)
@@ -80,6 +80,14 @@ The owner asked for an app for the kitchen hardware too, even before it arrives.
   - **Switch user** is shown for everyone, including the kitchen display account, so the kitchen device can always hand over.
   - The badge shows "First name · Role".
   - It admits kitchen tier and up, or anyone whose access role has `kitchen_station.view`, after `TPN.loadPermissions`.
+- **Signing in at a station is the time-in** (owner, Oct 21). After `TPN.login`, `modules/signin.js` calls `TPN.clockIn('Signed in at the counter' | '… kitchen')`, i.e. `clock_in_verified(p_expect_photo false)`, and shows "Clocked in at h:mm" after the reload (sessionStorage `tpn.station.flash`).
+  - It skips this if the person is already clocked in (`already_clocked_in` → "You were already clocked in").
+  - **Switch user** calls `TPN.clockOut()` before signing out; if that fails, it asks before signing out anyway.
+  - The screen-only roles `kitchen_display` and `dine_in_display` never clock in.
+  - Station clock-ins are `needs_approval` with reasons `no_photo` (plus `untrusted_network` / `network_unknown` until the restaurant network is trusted), so they show in Clock-in review. Making a trusted-network station clock-in auto-verified would be a policy change for the owner, who is reworking roles and permissions.
+  - Closing the app without Switch user leaves the shift open.
+  - Tested on production in a rolled-back transaction as a new dining account: clock-in, refusal of a second clock-in, clock-out, and a no-op second clock-out; the row read `needs_approval` with the station note.
+  - `signin.js` `?v=20261021c`.
 - **`tpn-kit.js` `?v=20261021d`:** `html.tpn-lite` applies for both `TPNCounter/` and `TPNKitchen/`.
 
 ## Rev 30 — every person signs in at the counter; the app opens on the counter (Oct 21, 2026)

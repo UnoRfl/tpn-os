@@ -155,8 +155,10 @@ Try **A** first. If Chrome can't reach the back screen, use **B**.
 2. **Install the new one:** open https://github.com/UnoRfl/tpn-os/releases/latest/download/tpn-counter.apk in Chrome (about 165 MB, so use Wi-Fi), tap it, and allow "Install unknown apps" for Chrome if asked.
 3. **Open TPN Counter.** Tap **Open setting**, turn on **Allow display over other apps**, then go back.
 4. The back screen plays the TPN welcome reel. The front opens on the **counter's sign-in**.
-5. **Each person signs in with their own account**, typing their own email and password every time; signing in is how they start their time on the counter. Everything you ring up, take payment for or void is recorded under your name, and the top bar shows who's on (for example "Maria · Dining").
-6. **Shift change:** tap **Switch user** on the top bar. If your drawer shift is still open, it asks you to close it first (Counter → Close shift) so your cash is counted. Then the next person signs in.
+5. **Each person signs in with their own account**, typing their own email and password every time. **Signing in clocks them in** (a short note confirms the time). Everything you ring up, take payment for or void is recorded under your name, and the top bar shows who's on (for example "Maria · Dining").
+6. **Shift change:** tap **Switch user** on the top bar. It **clocks you out** and signs you out. If your drawer shift is still open, it asks you to close it first (Counter → Close shift) so your cash is counted. Then the next person signs in.
+   - Station clock-ins have no photo, so they appear in **Clock-in review** for a manager to approve, like any photo-less clock-in.
+   - Closing the app without Switch user leaves the shift open. A manager can correct the time in Attendance.
 7. **Managers:** **← Portal** opens the full portal (reports, staff, menu…) inside the app. Coming back to the counter is one tap.
 8. **Customer screen:** the top bar shows **Customer screen: on** within about 20 seconds. Ring up a test order and watch the back screen follow it.
 9. Printer chip → **Test print** and **Open drawer**. Allow the camera when a clock-in asks for it.
@@ -182,7 +184,7 @@ The kitchen has its own app from the same code: **TPN Kitchen**. It opens on the
 
 1. On the kitchen device, open Chrome to **https://github.com/UnoRfl/tpn-os/releases/latest/download/tpn-kitchen.apk** (about 165 MB, so use Wi-Fi). Allow "Install unknown apps" for Chrome if asked, then install.
 2. **Open TPN Kitchen.** Tap **Open setting**, turn on **Allow display over other apps** (that's what lets it reopen by itself after a power cut), then go back.
-3. **Sign in.** Use a cook's own account, or the shared **kitchen display** account if the screen should just show tickets.
+3. **Sign in.** Each cook signs in with their own account, which **clocks them in**. **Switch user** clocks them out. The shared **kitchen display** account (screen only) never clocks in.
 4. Check that new orders appear with the chime. Tap the screen once if sound is blocked.
 
 It works on any Android 8+ device, because it carries its own web engine. Counter and kitchen apps install side by side; both are signed with the same key, and each new build installs over the old one.
