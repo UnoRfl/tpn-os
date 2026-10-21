@@ -42,7 +42,8 @@ android {
             signingConfig ks ? signingConfigs.release : signingConfigs.debug
         }
     }
-    packaging { jniLibs { useLegacyPackaging false } }
+    // Compressed native libs: the bundled engine is ~3x smaller to download (slightly slower first start).
+    packaging { jniLibs { useLegacyPackaging true } }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17

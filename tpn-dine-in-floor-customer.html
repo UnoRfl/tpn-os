@@ -52,30 +52,39 @@
   .odo .ct { display: inline-flex; font-size: .42em; margin: .12em 0 0 .04em; }
 
   /* ── Welcome ── */
-  /* ── Welcome: TPN stretches into TyoPaengNyo, melts through the greetings,
-     spirals back into TPN. On the website's paisley, under slowly turning
-     mandalas of mixed sizes. ── */
+  /* ── Welcome: a looping brand reel ──────────────────────────────
+     Fast cuts in TPN's colours: a paisley-arc tile field with a saffron
+     wave → a 3D mandala of dots → saffron rays → TYO / PAENG / NYO slam in
+     → MABUHAY! / KAIN NA! tickers → the badge spins in and TPN stretches
+     into TyoPaengNyo over turning mandalas. Canvas for the generative
+     scenes, GSAP for the cuts. ── */
   #idle { background: var(--cocoa); overflow: hidden; }
-  #idle .pat { position: absolute; top: 0; right: 0; bottom: 0; left: 0; opacity: .07;
+  #reel { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+  .r-layer { position: absolute; top: 0; right: 0; bottom: 0; left: 0; display: grid; place-items: center; visibility: hidden; overflow: hidden; }
+  .slam { font-family: var(--display); font-weight: 900; font-variation-settings: "SOFT" 0, "opsz" 144; font-size: calc(var(--u) * 27);
+    line-height: .9; letter-spacing: -.035em; white-space: nowrap; will-change: transform, filter; }
+  .ticks { position: absolute; left: 0; right: 0; top: 50%; transform: translateY(-50%); display: grid; gap: calc(var(--u) * 1.2); }
+  .tick { white-space: nowrap; font-family: var(--display); font-weight: 900; font-variation-settings: "SOFT" 0, "opsz" 144;
+    font-size: calc(var(--u) * 12.5); line-height: 1; letter-spacing: -.02em; will-change: transform; }
+  .tick:nth-child(1) { color: var(--brick); } .tick:nth-child(2) { color: var(--cocoa); } .tick:nth-child(3) { color: var(--saffron); }
+  .pat { position: absolute; top: 0; right: 0; bottom: 0; left: 0; opacity: .08;
     background: url("assets/site/paisley-light.webp") 0 0 / calc(var(--u) * 46) auto repeat; }
   .mandala { position: absolute; width: var(--s); height: var(--s); margin: calc(var(--s) / -2) 0 0 calc(var(--s) / -2);
     background: url("assets/site/mandala-a.webp") center / contain no-repeat; opacity: var(--o);
     animation: turn var(--t) linear infinite; animation-direction: var(--d, normal); will-change: transform; }
   .mandala.b { background-image: url("assets/site/mandala-b.webp"); }
   @keyframes turn { to { transform: rotate(360deg); } }
-  #idle .in { position: relative; height: 100%; display: grid; place-items: center; }
-  .morph { position: relative; width: 100%; height: calc(var(--u) * 22); filter: url(#goo); animation: breathe 5.5s ease-in-out infinite; }
-  .morph > * { position: absolute; left: 0; right: 0; top: 50%; text-align: center; white-space: nowrap;
-    font-family: var(--display); font-weight: 900; font-variation-settings: "SOFT" 100, "opsz" 144; font-size: calc(var(--u) * 15);
-    line-height: 1; letter-spacing: -.01em; color: var(--saffron); margin-top: -.5em; }
-  .morph .wd { display: flex; justify-content: center; }
+  .reveal-in { position: relative; display: grid; justify-items: center; gap: calc(var(--u) * 3); }
+  .reveal-in img { width: calc(var(--u) * 22); height: auto; filter: drop-shadow(0 14px 30px rgba(0, 0, 0, .35)); }
+  .morph { position: relative; height: calc(var(--u) * 15); width: 100vw; }
+  .morph .wd { position: absolute; left: 0; right: 0; top: 50%; margin-top: -.5em; display: flex; justify-content: center; white-space: nowrap;
+    font-family: var(--display); font-weight: 900; font-variation-settings: "SOFT" 100, "opsz" 144; font-size: calc(var(--u) * 12);
+    line-height: 1; letter-spacing: -.01em; color: var(--paper); }
   .morph .wd span { display: inline-block; }
   /* The letters TPN grows into. Clipped at the sides only (not overflow:
      hidden), so the tails of y and g below the line still show. */
   .morph .rest { width: 0; -webkit-clip-path: inset(-.5em 0 -.5em 0); clip-path: inset(-.5em 0 -.5em 0); }
-  #wA, #wB { opacity: 0; }   /* the greetings, faded in by the loop */
-  @keyframes breathe { 50% { transform: scale(1.035); } }
-  @media (prefers-reduced-motion: reduce) { .morph, .mandala { animation: none; } }
+  @media (prefers-reduced-motion: reduce) { .mandala { animation: none; } }
 
   /* ── Order and payment ── */
   #order { display: grid; grid-template-columns: 1.45fr 1fr; }
@@ -146,23 +155,25 @@
 </head>
 <body>
 <section class="view on" id="idle" aria-live="polite">
-  <div class="pat"></div>
-  <i class="mandala"   style="--s:78vh;left:50%;top:50%;--o:.11;--t:140s"></i>
-  <i class="mandala b" style="--s:44vh;left:88%;top:16%;--o:.13;--t:70s;--d:reverse"></i>
-  <i class="mandala"   style="--s:36vh;left:9%;top:84%;--o:.12;--t:60s"></i>
-  <i class="mandala b" style="--s:18vh;left:16%;top:18%;--o:.18;--t:28s;--d:reverse"></i>
-  <i class="mandala"   style="--s:14vh;left:84%;top:82%;--o:.2;--t:22s"></i>
-  <i class="mandala b" style="--s:10vh;left:66%;top:9%;--o:.16;--t:18s"></i>
-  <div class="in">
-    <div class="morph" id="morph" role="img" aria-label="Tyo Paeng Nyo">
-      <div class="wd" id="wTPN" aria-hidden="true"><span class="cap">T</span><span class="rest">yo</span><span class="cap">P</span><span class="rest">aeng</span><span class="cap">N</span><span class="rest">yo</span></div>
-      <div class="wd" id="wA" aria-hidden="true"></div>
-      <div class="wd" id="wB" aria-hidden="true"></div>
+  <canvas id="reel" aria-hidden="true"></canvas>
+  <div class="r-layer" id="rSlam" aria-hidden="true"><div class="slam" id="slam"></div></div>
+  <div class="r-layer" id="rTicks" aria-hidden="true"><div class="ticks">
+    <div class="tick">Mabuhay! · Kain na! · Mabuhay! · Kain na! · Mabuhay! · Kain na! ·</div>
+    <div class="tick">Kain na! · Mabuhay! · Kain na! · Mabuhay! · Kain na! · Mabuhay! ·</div>
+    <div class="tick">Mabuhay! · Kain na! · Mabuhay! · Kain na! · Mabuhay! · Kain na! ·</div>
+  </div></div>
+  <div class="r-layer" id="rReveal" role="img" aria-label="Tyo Paeng Nyo">
+    <div class="pat"></div>
+    <i class="mandala"   style="--s:86vh;left:50%;top:50%;--o:.16;--t:90s"></i>
+    <i class="mandala b" style="--s:44vh;left:90%;top:14%;--o:.16;--t:50s;--d:reverse"></i>
+    <i class="mandala"   style="--s:34vh;left:8%;top:86%;--o:.14;--t:44s"></i>
+    <i class="mandala b" style="--s:16vh;left:14%;top:20%;--o:.2;--t:22s;--d:reverse"></i>
+    <i class="mandala"   style="--s:12vh;left:86%;top:84%;--o:.22;--t:16s"></i>
+    <div class="reveal-in">
+      <img id="rLogo" src="assets/site/logo.webp" alt="">
+      <div class="morph"><div class="wd" id="wTPN" aria-hidden="true"><span class="cap">T</span><span class="rest">yo</span><span class="cap">P</span><span class="rest">aeng</span><span class="cap">N</span><span class="rest">yo</span></div></div>
     </div>
   </div>
-  <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><filter id="goo">
-    <feColorMatrix in="SourceGraphic" type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 255 -140"/>
-  </filter></defs></svg>
 </section>
 
 <section class="view" id="order" aria-live="polite">
@@ -398,60 +409,133 @@
     $('thOrder').innerHTML = s.number ? `Your order number is <strong>${E(s.number)}</strong>` : '';
   }
 
-  /* ── Welcome loop ─────────────────────────────────────────────
-     TPN spins in as one piece → stretches both ways into TyoPaengNyo →
-     melts into Mabuhay! → melts into Kain na! → the whole word spins down
-     into the centre → TPN spins back out. One GSAP timeline, built once the fonts
-     are in (it measures the letters), played only while the welcome screen
-     is up. Without motion it is a still "TPN". */
+  /* ── Welcome reel ───────────────────────────────────────────────
+     One GSAP timeline cuts between six scenes (~15s, loops). The canvas
+     draws the generative ones (tiles, dot mandala, rays) only while they
+     are on; everything stops when an order comes up. Reduced motion: the
+     badge and the name, still. */
   const morph = (() => {
-    const word = $('wTPN'), A = $('wA'), B = $('wB');
-    const rests = [...word.querySelectorAll('.rest')];
-    A.textContent = 'Mabuhay!'; B.textContent = 'Kain na!';
-    const melt = (from, to, d) => { const p = { f: 0 };
-      return G.to(p, { f: 1, duration: d, ease: 'sine.inOut', onUpdate() {
-        const f = p.f, g = 1 - f;
-        to.style.filter = blur(f); to.style.opacity = Math.pow(f, .4);
-        from.style.filter = blur(g); from.style.opacity = Math.pow(g, .4);
-      } }); };
-    // Capped at 20px: past that the word is invisible anyway, and big blurs are what cost frames.
-    const blur = (f) => `blur(${Math.min(8 / Math.max(f, .001) - 8, 20)}px)`;
-    let tl = null, want = false;
+    const idle = $('idle'), cv = $('reel'), ctx = cv.getContext('2d');
+    const L = { slam: $('rSlam'), ticks: $('rTicks'), reveal: $('rReveal') };
+    const slamEl = $('slam'), word = $('wTPN'), logo = $('rLogo');
+    const rests = [...word.querySelectorAll('.rest')], ticks = [...document.querySelectorAll('.tick')];
+    const COCOA = '#3A1D10', CREAM = '#F4EAD8', SAFF = '#E4A23C', BRICK = '#A3321A';
+    let W = 0, H = 0, scene = '', on = false, raf = 0, tl = null, want = false;
+    const wave = { p: 0 }, sphere = { s: 0, a: 0 }, rays = { p: 0 };
+
+    function size() { const k = Math.min(1, 1600 / innerWidth); W = cv.width = Math.round(innerWidth * k); H = cv.height = Math.round(innerHeight * k); }
+    size(); addEventListener('resize', size);
+    function only(name) { Object.keys(L).forEach(k => { L[k].style.visibility = k === name ? 'visible' : 'hidden'; }); cv.style.visibility = name ? 'hidden' : 'visible'; }
+
+    // 1. Paisley-arc tiles; a saffron wave rolls through and flips them as it passes.
+    function tiles() {
+      const n = 22, sz = W / n, rows = Math.ceil(H / sz) + 1;
+      ctx.fillStyle = COCOA; ctx.fillRect(0, 0, W, H); ctx.lineCap = 'round';
+      const arc = (cx, cy, a0, a1) => { ctx.beginPath(); ctx.arc(cx, cy, sz / 2, a0, a1); ctx.stroke(); };
+      for (let r = 0; r < rows; r++) for (let c = 0; c < n; c++) {
+        const x = c * sz, y = r * sz, h = ((Math.sin(c * 12.9898 + r * 78.233) * 43758.5453) % 1 + 1) % 1 > .5 ? 1 : 0;   // random orientation → squiggles, not circles
+        const d = (c + r * .6) / (n + rows * .6), band = Math.exp(-Math.pow((d - wave.p) * 7, 2));
+        const flip = h ^ (band > .5 ? 1 : 0), hot = band > .12;
+        ctx.strokeStyle = hot ? SAFF : CREAM; ctx.globalAlpha = hot ? 1 : .5; ctx.lineWidth = sz * (.13 + band * .17);
+        if (!flip) { arc(x, y, 0, Math.PI / 2); arc(x + sz, y + sz, Math.PI, 1.5 * Math.PI); }
+        else { arc(x + sz, y, Math.PI / 2, Math.PI); arc(x, y + sz, 1.5 * Math.PI, 2 * Math.PI); }
+      }
+      ctx.globalAlpha = 1;
+    }
+    // 2. A mandala made of dots on a sphere, turning in 3D (eight petals round each ring).
+    const DOTS = [];
+    for (let i = 0; i < 15; i++) {
+      const lat = -Math.PI / 2 + (i + .5) / 15 * Math.PI, ring = Math.max(6, Math.round(Math.cos(lat) * 46));
+      for (let j = 0; j < ring; j++) { const lon = j / ring * 2 * Math.PI, pet = 1 + .1 * Math.cos(lon * 8);
+        DOTS.push([Math.cos(lat) * Math.cos(lon) * pet, Math.sin(lat), Math.cos(lat) * Math.sin(lon) * pet]); }
+    }
+    function dots() {
+      ctx.fillStyle = COCOA; ctx.fillRect(0, 0, W, H);
+      const R = Math.min(W, H) * .34 * sphere.s; if (R < 1) return;
+      const ca = Math.cos(sphere.a), sa = Math.sin(sphere.a), ct = Math.cos(.42), st = Math.sin(.42), k = W / 1280;
+      ctx.fillStyle = SAFF;
+      for (const [x, y, z] of DOTS) {
+        const X = x * ca + z * sa, Z0 = -x * sa + z * ca, Y = y * ct - Z0 * st, Z = y * st + Z0 * ct, p = 2.6 / (2.6 + Z);
+        ctx.globalAlpha = .3 + .7 * ((1 - Z) / 2);
+        ctx.beginPath(); ctx.arc(W / 2 + X * R * p, H / 2 + Y * R * p, Math.max(.7, (1.4 + 1.8 * (1 - Z)) * p * k), 0, 6.2832); ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+    }
+    // 3. Saffron and cream rays rushing out of the middle.
+    const RAYS = Array.from({ length: 96 }, (_, i) => ({ a: i / 96 * 6.2832 + Math.random() * .03, o: Math.random(), w: .6 + Math.random() * 1.6, c: i % 4 ? SAFF : CREAM }));
+    function streaks() {
+      ctx.fillStyle = COCOA; ctx.fillRect(0, 0, W, H); ctx.lineCap = 'round';
+      const m = Math.hypot(W, H) / 2, k = W / 1280;
+      for (const r of RAYS) {
+        const d = (r.o + rays.p) % 1, r0 = m * Math.pow(d, 2.2), r1 = r0 + m * .2 * d + 3;
+        ctx.strokeStyle = r.c; ctx.globalAlpha = Math.min(1, d * 2.5); ctx.lineWidth = r.w * (1 + d * 3) * k;
+        ctx.beginPath(); ctx.moveTo(W / 2 + Math.cos(r.a) * r0, H / 2 + Math.sin(r.a) * r0); ctx.lineTo(W / 2 + Math.cos(r.a) * r1, H / 2 + Math.sin(r.a) * r1); ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
+    }
+    function frame() {
+      if (!on) return;
+      if (scene === 'tiles') tiles(); else if (scene === 'dots') dots(); else if (scene === 'rays') streaks();
+      raf = requestAnimationFrame(frame);
+    }
+    const cut = (name, bg) => () => { scene = name; idle.style.backgroundColor = bg; only(name === 'tiles' || name === 'dots' || name === 'rays' ? '' : name); };
+
+    // 4. A word slams in from huge and blurred, holds, and whips off.
+    function slam(text, bg, fg) {
+      return G.timeline()
+        .call(() => { cut('slam', bg)(); slamEl.textContent = text; slamEl.style.color = fg; })
+        .fromTo(slamEl, { scale: 2.8, xPercent: 0, yPercent: -6, opacity: 0, filter: 'blur(22px)' },
+                        { scale: 1, yPercent: 0, opacity: 1, filter: 'blur(0px)', duration: .34, ease: 'expo.out' })
+        .to(slamEl, { scale: 1.07, duration: .5, ease: 'none' })
+        .to(slamEl, { xPercent: -130, filter: 'blur(16px)', duration: .2, ease: 'power3.in' });
+    }
 
     function build() {
-      // Measure the full name, to zoom out just enough for it to fit.
+      // Measure the full name, so the reveal zooms out just enough to fit.
       rests.forEach(r => { r.style.width = 'auto'; });
       const widths = rests.map(r => r.getBoundingClientRect().width);
-      const fit = Math.min(1, (innerWidth * .84) / word.scrollWidth);
+      const fit = Math.min(1, (innerWidth * .86) / word.scrollWidth);
       rests.forEach(r => { r.style.width = '0px'; });
-      A.style.opacity = B.style.opacity = 0;
-
       tl = G.timeline({ repeat: -1, paused: true })
-        .set(word, { opacity: 1, filter: 'none', scale: 1 })
+        // 1. tiles
+        .call(cut('tiles', COCOA))
+        .fromTo(wave, { p: -.25 }, { p: 1.25, duration: 2.6, ease: 'sine.inOut' })
+        // 2. dot mandala: grows in turning, spins, then rushes at the glass…
+        .call(cut('dots', COCOA))
+        .fromTo(sphere, { s: 0, a: 0 }, { s: 1, a: 3.6, duration: 1.3, ease: 'power3.out' })
+        .to(sphere, { a: '+=2.6', duration: 1, ease: 'none' })
+        .to(sphere, { s: 3.4, a: '+=1.2', duration: .45, ease: 'power3.in' })
+        // 3. …and bursts into rays
+        .call(cut('rays', COCOA))
+        .fromTo(rays, { p: 0 }, { p: 2.4, duration: 1.15, ease: 'power2.in' })
+        // 4. the name, hard cuts between the brand colours
+        .add(slam('TYO', BRICK, CREAM))
+        .add(slam('PAENG', SAFF, COCOA))
+        .add(slam('NYO', COCOA, SAFF))
+        // 5. tickers, crossing each other
+        .call(cut('ticks', CREAM))
+        .fromTo(ticks, { yPercent: 140, opacity: 0 }, { yPercent: 0, opacity: 1, duration: .4, ease: 'expo.out', stagger: .06 })
+        .fromTo(ticks, { xPercent: (i) => i % 2 ? -50 : 0 }, { xPercent: (i) => i % 2 ? 0 : -50, duration: 2.4, ease: 'none' }, '<')
+        // 6. the badge spins in, TPN stretches into TyoPaengNyo
+        .call(cut('reveal', BRICK))
         .set(rests, { width: 0, opacity: 0 })
-        .set([A, B], { opacity: 0, filter: 'none', rotation: 0, scale: 1 })
-        // 1. TPN spins in, as one piece, from a dot in the middle
-        .fromTo(word, { rotation: -540, scale: .05, opacity: 0 }, { rotation: 0, scale: 1, opacity: 1, duration: 1.2, ease: 'back.out(1.4)' })
-        .to({}, { duration: 1.4 })
-        // 2. …and stretches both ways into TyoPaengNyo, zooming out to fit
-        .to(rests, { width: (i) => widths[i], opacity: 1, duration: 1.2, ease: 'power3.inOut', stagger: { each: .06, from: 'center' } })
-        .to(word, { scale: fit, duration: 1.2, ease: 'power3.inOut' }, '<')
-        .to({}, { duration: 1.9 })
-        // 3. melts into the greetings
-        .add(melt(word, A, 1.4))
+        .set(word, { scale: 1 })
+        .fromTo(logo, { rotation: -220, scale: 0, opacity: 0 }, { rotation: 0, scale: 1, opacity: 1, duration: .7, ease: 'back.out(1.6)' })
+        .fromTo(word, { yPercent: 60, opacity: 0 }, { yPercent: 0, opacity: 1, duration: .45, ease: 'expo.out' }, '-=.25')
+        .to(rests, { width: (i) => widths[i], opacity: 1, duration: 1, ease: 'power3.inOut', stagger: { each: .06, from: 'center' } }, '+=.35')
+        .to(word, { scale: fit, duration: 1, ease: 'power3.inOut' }, '<')
         .to({}, { duration: 1.8 })
-        .add(melt(A, B, 1.4))
-        .to({}, { duration: 1.6 })
-        // 4. the whole word spins down into the middle and is gone
-        .to(B, { rotation: 720, scale: .05, opacity: 0, duration: 1.1, ease: 'power3.in' })
-        .to({}, { duration: .25 });
-      if (want) tl.play(0);
+        .to(L.reveal, { scale: 1.08, opacity: 0, duration: .3, ease: 'power2.in' })
+        .set(L.reveal, { scale: 1, opacity: 1 });
+      if (want) { on = true; raf = requestAnimationFrame(frame); tl.play(0); }
     }
-    // Measuring needs the real font, or the widths are Georgia's.
-    if (G) (document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve()).then(build);
+    // Still version: the badge and the full name.
+    function still() { cut('reveal', BRICK)(); rests.forEach(r => { r.style.width = 'auto'; }); }
+
+    if (G) (document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve()).then(build); else still();
     return {
-      start() { want = true; if (tl) tl.play(0); },
-      stop() { want = false; if (tl) tl.pause(); }
+      start() { want = true; if (!tl || on) return; on = true; raf = requestAnimationFrame(frame); tl.play(0); },
+      stop() { want = false; on = false; cancelAnimationFrame(raf); if (tl) tl.pause(); }
     };
   })();
 
