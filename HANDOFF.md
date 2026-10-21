@@ -73,7 +73,7 @@ The owner asked for an app for the kitchen hardware too, even before it arrives.
   - The workflow ("Build TPN apps") runs `assembleCounterRelease assembleKitchenRelease` and uploads both. **Publish both APKs in the same release** (`tpn-counter.apk`, `tpn-kitchen.apk`), so both `releases/latest/download/…` links keep working.
 - **One shared sign-in:**
   - `modules/signin.js` (`TPN_SIGNIN.show / switchUser / whoLabel`) draws the gate into an empty `#tpn-auth-gate`; the styles are in `tpn-signin.css`. The floor and kitchen pages both use it, and the floor's inline copy is gone.
-  - Recent people are kept in `localStorage tpn.station.recent`; the old `tpn.counter.recent` list is read once, then moved over.
+  - **No remembered people** (owner, Oct 21): each person types their own email and password every time, because signing in is how they start their time on the station. There are no name buttons, no prefill and no autocomplete. The old `tpn.station.recent` / `tpn.counter.recent` lists are deleted on load.
   - Narrow screens give the ← Portal button its own room.
 - **Kitchen station:**
   - It signs people in on the station; it used to send them to the portal.
@@ -86,9 +86,9 @@ The owner asked for an app for the kitchen hardware too, even before it arrives.
 
 The owner wants each staff member to sign in with their own account at the counter, so the system always knows who is on, and wants it lighter. The data side already works per person: drawer shifts, payments, voids and the audit log are keyed to `auth.uid()`. So no remodel was needed, only the path.
 - **The floor screen's gate now has its own sign-in form** (`#tpn-signin`, `counterSignIn` → `TPN.login` → reload). It no longer sends people to the portal, so the 460 KB portal never loads just to sign in.
-  - **Recent people:** the last five people who signed in on this device show as name chips (`localStorage tpn.counter.recent`, email and first name only). The most recent email is prefilled, with focus on the password.
+  - **Recent people (removed in Rev 31):** this version showed the last five people as name chips; the owner wants everyone to type their own login.
   - **Offline:** with no internet the form says signing in needs a connection. The offline counter still opens for whoever last signed in (`modules/offline.js`).
-- **Look (owner's rule, Oct 21: follow the theme, reuse existing screens, no clutter subheadings):** the counter sign-in is the portal sign-in rebuilt with v3 tokens scoped to `#tpn-auth-gate`. Brick panel: logo, "Tyo Paeng *Nyo*", "Welcome back, *kabayan*.". Paper side: "Welcome.", a recent-people segmented switch, Email, Password, Sign In. It drops the portal's eyebrow, sub line, blurb and footer. Status text appears only for real states (offline, inactive account). Fraunces and Plus Jakarta Sans were added to the floor page's font link.
+- **Look (owner's rule, Oct 21: follow the theme, reuse existing screens, no clutter subheadings):** the counter sign-in is the portal sign-in rebuilt with v3 tokens scoped to `#tpn-auth-gate`. Brick panel: logo, "Tyo Paeng *Nyo*", "Welcome back, *kabayan*.". Paper side: "Welcome.", Email, Password, Sign In. It drops the portal's eyebrow, sub line, blurb and footer. Status text appears only for real states (offline, inactive account). Fraunces and Plus Jakarta Sans were added to the floor page's font link.
 - **Who's on:** the top bar badge reads "First name · Role". **Switch user** (hidden for the shared floor-screen account) warns if this person's drawer shift is still open (`TPN.myOpenCashSession`), then signs out, clears the offline-remembered profile, and returns to the sign-in.
 - **App (1.2.0):** always opens `tpn-dine-in-floor`, the counter sign-in. Rev 29's "reopen the last page" is gone, because this flow replaces it. ← Portal still opens the portal in the same window.
 

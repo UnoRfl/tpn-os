@@ -33,11 +33,7 @@
 #tpn-auth-gate .g-form[hidden] { display: none; }
 #tpn-auth-gate .cs-title { font-family: Fraunces, Georgia, serif; font-variation-settings: "SOFT" 100; font-weight: 900; font-size: 38px;
   line-height: 1.1; letter-spacing: -.01em; margin: 0 0 6px; }
-#tpn-auth-gate .g-recent { display: flex; flex-wrap: wrap; gap: 4px; padding: 3px; background: var(--c-sand); border-radius: 8px; width: fit-content; max-width: 100%; }
-#tpn-auth-gate .g-recent:empty { display: none; }
-#tpn-auth-gate .g-recent button { background: transparent; border: none; border-radius: 6px; padding: 8px 14px; min-height: 40px;
   font: 600 14px inherit; font-family: inherit; color: var(--c-ink-2); cursor: pointer; }
-#tpn-auth-gate .g-recent button.on { background: var(--c-card); color: var(--c-brick); box-shadow: 0 1px 3px rgba(46, 26, 16, .12); }
 #tpn-auth-gate .g-form label { font-size: 13px; font-weight: 600; color: var(--c-ink-2); margin-bottom: -8px; }
 #tpn-auth-gate .g-form input { font: 500 16px inherit; font-family: inherit; color: var(--c-ink); background: var(--c-card);
   border: 1px solid var(--c-line); border-radius: 8px; padding: 12px 14px; min-height: 48px; }

@@ -12,14 +12,15 @@
                                      ({ drawer: true } warns about an open
                                      cash-drawer shift first)
 
-   The last five people who signed in on this device are one tap away
-   (email and first name only, localStorage tpn.station.recent).
+   Nothing about who signed in before is kept or suggested: each person
+   types their own login every time, because signing in is how they start
+   their time on the station.
    ═══════════════════════════════════════════════════════════════ */
 (function () {
   'use strict';
-  const KEY = 'tpn.station.recent', OLD_KEY = 'tpn.counter.recent';
+  // Earlier builds kept a "recent people" list on the device; it goes.
+  try { localStorage.removeItem('tpn.station.recent'); localStorage.removeItem('tpn.counter.recent'); } catch (e) {}
   const gate = document.getElementById('tpn-auth-gate');
-  const esc = (v) => String(v == null ? '' : v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
   if (gate) gate.innerHTML = `
     <div class="cs-brand" aria-hidden="true">
@@ -34,9 +35,8 @@
         <div class="g-sub" id="tpn-auth-msg" role="status">Checking your login…</div>
         <form class="g-form" id="tpn-signin" hidden>
           <h2 class="cs-title">Welcome.</h2>
-          <div class="g-recent" id="cs-recent" role="group" aria-label="Recent"></div>
           <label for="cs-email">Email</label>
-          <input id="cs-email" type="email" autocomplete="username" inputmode="email" placeholder="you@tyopaengnyo.com" required>
+          <input id="cs-email" type="email" autocomplete="off" autocapitalize="off" spellcheck="false" inputmode="email" placeholder="you@tyopaengnyo.com" required>
           <label for="cs-pass">Password</label>
           <input id="cs-pass" type="password" autocomplete="current-password" placeholder="Your password" required>
           <button class="g-btn" type="submit" id="cs-go">Sign In</button>
@@ -52,30 +52,14 @@
     if (msgEl.textContent && msgEl.textContent !== 'Checking your login…') gate.querySelector('.g-spin').style.display = 'none';
   }).observe(msgEl, { childList: true, characterData: true, subtree: true });
 
-  function recent() {
-    try {
-      const now = JSON.parse(localStorage.getItem(KEY) || 'null');
-      if (now) return now;
-      return JSON.parse(localStorage.getItem(OLD_KEY) || '[]');   // from 1.2.0's counter-only list
-    } catch (e) { return []; }
-  }
-
   function show(msg) {
     gate.querySelector('.g-spin').style.display = 'none';
     (msg || msgEl).textContent = '';   // the heading says enough; only a real state gets a line
     const form = document.getElementById('tpn-signin'), err = document.getElementById('cs-err');
     form.hidden = false;
     if (navigator.onLine === false) err.textContent = 'No internet. Signing in needs a connection.';
-    const list = recent();
-    const box = document.getElementById('cs-recent');
-    box.innerHTML = list.map((r, i) => `<button type="button" class="${i ? '' : 'on'}" data-email="${esc(r.email)}">${esc(r.name || r.email)}</button>`).join('');
-    box.querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
-      box.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b));
-      document.getElementById('cs-email').value = b.dataset.email;
-      const p = document.getElementById('cs-pass'); p.value = ''; p.focus();
-    }));
-    if (list.length) document.getElementById('cs-email').value = list[0].email;
-    document.getElementById(list.length ? 'cs-pass' : 'cs-email').focus();
+    document.getElementById('cs-email').value = '';
+    document.getElementById('cs-email').focus();
   }
 
   async function signIn(ev) {
@@ -84,10 +68,7 @@
     const go = document.getElementById('cs-go'), err = document.getElementById('cs-err');
     err.textContent = ''; go.disabled = true; go.textContent = 'Signing in…';
     try {
-      const me = await TPN.login(email, pass);
-      const first = String((me && me.full_name) || '').trim().split(/\s+/)[0];
-      const list = [{ email, name: first || email }].concat(recent().filter(r => r.email !== email)).slice(0, 5);
-      try { localStorage.setItem(KEY, JSON.stringify(list)); localStorage.removeItem(OLD_KEY); } catch (e) {}
+      await TPN.login(email, pass);
       location.reload();
     } catch (e) {
       err.textContent = /invalid/i.test(e.message || '') ? 'That email and password don’t match.' : (e.message || 'Could not sign in.');
