@@ -18,7 +18,8 @@
 
   async function vatStatus() {
     if (vatCache) return vatCache;
-    const { data } = await sb.from('site_settings').select('value').eq('key', 'bir.vat_registered').maybeSingle();
+    const { data, error } = await sb.from('site_settings').select('value').eq('key', 'bir.vat_registered').maybeSingle();
+    if (error) throw error;   // a failed read is not "not VAT-registered": don't cache it
     const v = String((data && data.value) ?? '').trim().toLowerCase();
     vatCache = { vat: ['yes', 'true', 'y', 'oo'].includes(v), set: v !== '' && v !== 'null' };
     return vatCache;
@@ -86,7 +87,14 @@
     if (!el) return;
     let s;
     try { s = await TPN.invoiceDaySummary(date); }
-    catch (e) { el.innerHTML = ''; return; }
+    catch (e) {
+      // Say so: an empty space here reads as "nothing missing".
+      el.innerHTML = `<div class="panel" style="margin-top:18px;padding:14px 16px;" role="alert">
+        <div class="pref-group-title">🧾 BIR invoices (booklet)</div>
+        <p class="pref-row-hint">Couldn't check which sales still need a booklet invoice${navigator.onLine ? '' : ' (no internet)'}.</p>
+        <button class="btn-ghost" onclick="TPN_INVOICES.dayBox(${date ? `'${JA(date)}'` : 'null'}, document.getElementById('${JA(el.id)}'))">Try again</button></div>`;
+      return;
+    }
     const recorded = (s.day_invoices || []).reduce((a, d) => a + Number(d.amount), 0);
     const left = Math.max(0, Number(s.small_total) - recorded);
     const miss = s.missing || [];

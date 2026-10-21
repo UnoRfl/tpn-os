@@ -2,7 +2,7 @@
 <html lang="en" data-theme="dark">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https://xjlqfpnzobfqxetgkkai.supabase.co https://api.qrserver.com; connect-src 'self' https://xjlqfpnzobfqxetgkkai.supabase.co wss://xjlqfpnzobfqxetgkkai.supabase.co; media-src 'self' data: blob:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https://xjlqfpnzobfqxetgkkai.supabase.co https://api.qrserver.com; connect-src 'self' https://xjlqfpnzobfqxetgkkai.supabase.co wss://xjlqfpnzobfqxetgkkai.supabase.co; media-src 'self' data: blob:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'">
 <meta name="referrer" content="strict-origin-when-cross-origin">
 <script>
   // GitHub Pages cannot send X-Frame-Options, so refuse to run inside
@@ -351,14 +351,19 @@ let _pendingVoidItemIds = new Set();
 async function tpnAuthGate() {
   const msg = document.getElementById('tpn-auth-msg');
   const btn = document.getElementById('tpn-auth-btn');
+  // Wall tablets often power up before the router: a slow or failed check
+  // is retried (see bootKitchen), not shown as "sign in" for good.
+  const timed = (pr) => Promise.race([pr, new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 10000))]);
   try {
-    const { data: { session } } = await sb.auth.getSession();
+    const { data: { session }, error } = await timed(sb.auth.getSession());
+    if (error && !session) throw error;
     if (!session) {
       msg.textContent = 'You need to be signed in to view the kitchen station.';
       btn.style.display = 'inline-block';
       return false;
     }
-    const profile = await TPN.loadProfile();
+    const profile = await timed(TPN.loadProfile());
+    if (!profile && !navigator.onLine) return 'retry';
     if (!profile) {
       msg.textContent = 'Your account is not linked to a staff profile.';
       btn.style.display = 'inline-block';
@@ -397,16 +402,35 @@ async function tpnAuthGate() {
     return true;
   } catch (e) {
     console.error('Auth gate:', e);
-    msg.textContent = 'Could not verify your login. Try refreshing.';
-    btn.style.display = 'inline-block';
-    return false;
+    return 'retry';
   }
 }
 
+let _bootTry = 0, _bootTimer = null;
+async function bootKitchen() {
+  clearTimeout(_bootTimer); _bootTimer = null;
+  const ok = await tpnAuthGate();
+  if (ok === 'retry') {
+    const wait = Math.min(60, 5 * 2 ** _bootTry++);
+    document.getElementById('tpn-auth-msg').textContent = `Can't reach the server yet. Trying again in ${wait}s…`;
+    document.getElementById('tpn-auth-btn').style.display = 'inline-block';
+    _bootTimer = setTimeout(() => bootKitchen().then(ok => { if (ok) startKitchen(); }), wait * 1000);
+    return false;
+  }
+  return ok;
+}
+window.addEventListener('online', () => { if (_bootTimer) bootKitchen().then(ok => { if (ok) startKitchen(); }); });
+
 // ─── INIT ─────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
-  const ok = await tpnAuthGate();
-  if (!ok) return;
+  const ok = await bootKitchen();
+  if (ok) startKitchen();
+});
+// Retries from bootKitchen's timer land here too.
+let _kitchenStarted = false;
+async function startKitchen() {
+  if (_kitchenStarted) return;
+  _kitchenStarted = true;
 
   await loadOrdersFromSupabase();
   await refreshPendingVoids();
@@ -437,7 +461,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Rerender every 15s so age counters stay fresh
   setInterval(() => { if (!document.hidden) render(); }, 15000);
-});
+}
 
 function updateClock() {
   const el = document.getElementById('current-time');

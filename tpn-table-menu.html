@@ -2,7 +2,7 @@
 <html lang="tl">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https://xjlqfpnzobfqxetgkkai.supabase.co; connect-src 'self' https://xjlqfpnzobfqxetgkkai.supabase.co wss://xjlqfpnzobfqxetgkkai.supabase.co; media-src 'self' data: blob:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https://xjlqfpnzobfqxetgkkai.supabase.co; connect-src 'self' https://xjlqfpnzobfqxetgkkai.supabase.co wss://xjlqfpnzobfqxetgkkai.supabase.co; media-src 'self' data: blob:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'">
 <meta name="referrer" content="strict-origin-when-cross-origin">
 <script>
   // GitHub Pages cannot send X-Frame-Options, so refuse to run inside
@@ -436,7 +436,16 @@ async function resolveTableIds() {
     TABLE_UUID = table.id;
   } catch(e) { console.error('resolveTableIds failed:', e); }
 }
-resolveTableIds();
+// A blip at load must not leave the table stuck on "not set up": look
+// again when the guest taps Send / Bill / Call staff, or the line returns.
+let tableIdsP = resolveTableIds();
+async function tableReady() {
+  if (TABLE_UUID && BRANCH_UUID) return true;
+  tableIdsP = tableIdsP.then(() => (TABLE_UUID && BRANCH_UUID) ? null : resolveTableIds());
+  await tableIdsP;
+  return !!(TABLE_UUID && BRANCH_UUID);
+}
+window.addEventListener('online', () => { tableReady(); });
 
 /* ── state ── */
 let cart = (() => { try { const s = JSON.parse(sessionStorage.getItem(CART_KEY) || 'null'); return Array.isArray(s) ? s : []; } catch (e) { return []; } })();
@@ -760,7 +769,7 @@ async function submitOrder() {
   const name = guestName.trim(), pax = guestPax;
   if (!name) { toast(T('needName')); document.getElementById('tmName')?.focus(); return; }
   if (!cart.length) return;
-  if (!TABLE_UUID || !BRANCH_UUID) { toast(T('noTable')); return; }
+  if (!(await tableReady())) { toast(T('noTable')); return; }
   // Guard against a double-tap firing two orders; re-enabled on failure.
   const btn = document.getElementById('tmSend');
   if (btn.dataset.busy === '1') return;
@@ -935,7 +944,7 @@ async function submitBillRequest() {
 }
 // true = sent, false = already asked recently (still fine), null = failed
 async function notifyBillRequest(method) {
-  if (!TABLE_UUID) { toast(T('noTable')); return null; }
+  if (!(await tableReady())) { toast(T('noTable')); return null; }
   try {
     const { data, error } = await sb.rpc('signal_bill_request', { p_table_id: TABLE_UUID, p_payment_method: method, p_total: sessionTotal });
     if (error) throw error;
@@ -985,7 +994,7 @@ function renderBillSent(again) {
 }
 
 async function callStaff() {
-  if (!TABLE_UUID) { toast(T('noTable')); return; }
+  if (!(await tableReady())) { toast(T('noTable')); return; }
   try {
     // signal_call_staff returns FALSE inside its 90-second cooldown.
     const { data, error } = await sb.rpc('signal_call_staff', { p_table_id: TABLE_UUID });

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https://xjlqfpnzobfqxetgkkai.supabase.co https://api.qrserver.com https://tile.openstreetmap.org; connect-src 'self' https://xjlqfpnzobfqxetgkkai.supabase.co wss://xjlqfpnzobfqxetgkkai.supabase.co; media-src 'self' data: blob:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https://xjlqfpnzobfqxetgkkai.supabase.co https://api.qrserver.com https://tile.openstreetmap.org; connect-src 'self' https://xjlqfpnzobfqxetgkkai.supabase.co wss://xjlqfpnzobfqxetgkkai.supabase.co; media-src 'self' data: blob:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'">
 <meta name="referrer" content="strict-origin-when-cross-origin">
 <meta name="color-scheme" content="only light">
 <script>
@@ -1502,6 +1502,8 @@ function restoreCheckout() {
     if (last && last.data && last.data.ref && Date.now() - last.ts < CK_TTL && !cart.length) {
       checkoutData = Object.assign({}, last.data, { _restored: true }); checkoutStep = 5; return;
     }
+    // Past its 2 hours: the customer's name, phone and address go too (shared phones).
+    if (last && !(Date.now() - last.ts < CK_TTL)) localStorage.removeItem(LAST_ORDER_KEY);
     if (!saved || Date.now() - saved.ts > CK_TTL || !saved.data) return;
     checkoutData = Object.assign(checkoutData, saved.data);
     delete checkoutData.ref; delete checkoutData.receipt; delete checkoutData._restored;

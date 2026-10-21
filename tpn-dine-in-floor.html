@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https://xjlqfpnzobfqxetgkkai.supabase.co https://api.qrserver.com; connect-src 'self' https://xjlqfpnzobfqxetgkkai.supabase.co wss://xjlqfpnzobfqxetgkkai.supabase.co ws://127.0.0.1:8081 http://127.0.0.1:8081; media-src 'self' data: blob:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https://xjlqfpnzobfqxetgkkai.supabase.co https://api.qrserver.com; connect-src 'self' https://xjlqfpnzobfqxetgkkai.supabase.co wss://xjlqfpnzobfqxetgkkai.supabase.co ws://127.0.0.1:8081 http://127.0.0.1:8081; media-src 'self' data: blob:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'">
 <meta name="referrer" content="strict-origin-when-cross-origin">
 <script>
   // GitHub Pages cannot send X-Frame-Options, so refuse to run inside
@@ -1975,7 +1975,7 @@ function openQRModal(tableNum, branchName, url) {
     <div style="margin-top:12px;font-size:12px;color:var(--text-muted)">(QR code would be generated from this URL in production)</div>
   </div>
   <div style="display:flex;gap:10px;margin-top:10px">
-    <a href="${url}?table=${tableNum}&branch=${encodeURIComponent(branchName)}" target="_blank" style="flex:1;text-align:center;padding:12px;background:var(--brick);color:#fff;border-radius:10px;font-weight:700;font-size:13px;text-decoration:none">Open Customer Menu</a>
+    <a href="${url}?table=${tableNum}&branch=${encodeURIComponent(branchName)}" target="_blank" rel="noopener" style="flex:1;text-align:center;padding:12px;background:var(--brick);color:#fff;border-radius:10px;font-weight:700;font-size:13px;text-decoration:none">Open Customer Menu</a>
   </div>
   `, [{ label: 'Close', cls: 'secondary', fn: 'closeModal()' }]);
 }
@@ -2129,10 +2129,10 @@ window.onPosSent = function (o, type) {
 </script>
 <script src="vendor/qrcode-generator-1.4.4.js"></script>
 <script src="modules/payments.js?v=20261021a"></script>
-<script src="modules/invoices.js?v=20261021a"></script>
+<script src="modules/invoices.js?v=20261021b"></script>
 <script src="modules/pos.js?v=20261020a"></script>
 <script src="vendor/imin-printer-1.4.0.min.js"></script>
-<script src="modules/imin.js?v=20261020a"></script>
+<script src="modules/imin.js?v=20261021b"></script>
 <script src="modules/guide.js?v=20261017o"></script>
 </body>
 </html>
