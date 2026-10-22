@@ -15,6 +15,10 @@
    TPN_PRINT.receipt(id)  print an order's bill (auto after payment if on)
    TPN_PRINT.kitchen(..)  print a kitchen ticket
    TPN_PRINT.openDrawer() pop the cash drawer (logged in the audit trail)
+   TPN_PRINT.testKitchen() / testReceipt()  sample slips, marked TEST
+
+   Both slips print as one picture in the v3 look (modules/slips.js),
+   one job at a time; if a picture fails, the plain text slip prints.
    ═══════════════════════════════════════════════════════════════ */
 (function () {
   'use strict';
@@ -70,11 +74,53 @@
   }
   const rule = () => line('--------------------------------', { align: 1 });
 
+  /* ── One job at a time, so a receipt and a ticket never interleave ── */
+  let queue = Promise.resolve();
+  const job = (fn) => (queue = queue.then(fn).catch(e => console.warn('iMin print', e)));
+  const feedCut = () => { p.printAndFeedPaper(100); p.partialCut(); };
+  // The v3 picture (modules/slips.js); the plain text slip if it fails.
+  async function picture(draw, text) {
+    if (window.TPN_SLIP) {
+      try {
+        await TPN_SLIP.ready();
+        const url = draw().toDataURL('image/png');
+        await Promise.race([p.printSingleBitmap(url), new Promise((_, no) => setTimeout(() => no(new Error('timeout')), 15000))]);
+        return feedCut();
+      } catch (e) { console.warn('iMin picture, printing text', e); }
+    }
+    text(); feedCut();
+  }
+
+  const PAY = { cash: 'Cash', gcash: 'GCash', maya: 'Maya', qrph: 'QR Ph', card: 'Card', bank: 'Bank' };
   T.receipt = async function (orderId, { force = false } = {}) {
     if (!T.ready || (!force && !T.autoReceipt)) return false;
     const [o, pay] = await Promise.all([TPN.getOrder(orderId), TPN.orderPayments(orderId)]);
     const site = (window.tpnSite && tpnSite.state.settings) || {};
     const items = (o.order_items || []).filter(i => !i.voided_at);
+    const paid = (pay.payments || []).filter(x => x.status === 'completed');
+    let qr = null;
+    // Stamp card claim link for paid counter orders (same rule as the paper bill).
+    if (['true', 'yes', true].includes(site['rewards.enabled']) && o.customer_phone && o.track_token && pay.payment_status === 'paid') {
+      const url = new URL('tpn-rewards', location.href); url.searchParams.set('claim', o.order_number); url.searchParams.set('t', o.track_token);
+      qr = url.toString();
+    }
+    const slip = () => TPN_SLIP.receipt({
+      number: o.order_number, at: o.placed_at || o.created_at,
+      where: o.restaurant_tables ? 'Table ' + o.restaurant_tables.table_number : (o.customer_name || ''),
+      deliverTo: o.order_type === 'delivery' ? o.delivery_address : '',
+      address: site['contact.address'] || 'KM 19, 316 Real St., Talon Uno, Las Piñas',
+      phone: site['contact.phone'] || '0999 888 7817',
+      items: items.map(i => ({ qty: i.quantity, name: i.name_snapshot, size: i.pax_size || '', total: i.total_price })),
+      subtotal: o.subtotal, discount: o.discount_amount, service: o.service_charge, delivery: o.delivery_fee, total: o.total,
+      payments: paid.map(x => ({ label: x.kind === 'refund' ? 'Refund' : (PAY[x.method] || x.method) + (x.reference ? ' ' + x.reference : ''),
+                                 amount: x.amount, refund: x.kind === 'refund', change: x.change_due })),
+      balance: pay.amount_due, qr,
+    });
+    await job(() => picture(slip, () => textReceipt(o, pay, site, items)));
+    return true;
+  };
+
+  function textReceipt(o, pay, site, items) {
     line('Tyo Paeng Nyo', { align: 1, size: 34, bold: true });
     line(site['contact.address'] || 'KM 19, 316 Real St., Talon Uno, Las Piñas', { align: 1, size: 20 });
     line(site['contact.phone'] || '0999 888 7817', { align: 1, size: 20 });
@@ -93,7 +139,7 @@
     if (Number(o.delivery_fee)) cols('Delivery fee', Number(o.delivery_fee).toFixed(2));
     cols('TOTAL', peso(o.total), { bold: true, size: 28 });
     (pay.payments || []).filter(x => x.status === 'completed').forEach(x => {
-      cols(x.kind === 'refund' ? 'Refund' : ({ cash: 'Cash', gcash: 'GCash', maya: 'Maya', qrph: 'QR Ph', card: 'Card', bank: 'Bank' }[x.method] || x.method) + (x.reference ? ' ' + x.reference : ''),
+      cols(x.kind === 'refund' ? 'Refund' : (PAY[x.method] || x.method) + (x.reference ? ' ' + x.reference : ''),
            (x.kind === 'refund' ? '-' : '') + Number(x.amount).toFixed(2));
       if (Number(x.change_due)) cols('Change', Number(x.change_due).toFixed(2));
     });
@@ -107,12 +153,15 @@
     }
     line('This is not an official receipt.', { align: 1, size: 20 });
     line('Salamat po! Come again.', { align: 1, size: 22, bold: true });
-    p.printAndFeedPaper(100); p.partialCut();
-    return true;
-  };
+  }
 
   T.kitchen = function (number, lines, type, where) {
     if (!T.ready) return false;
+    const at = Date.now();
+    job(() => picture(() => TPN_SLIP.kitchen({ number, lines, type, where, at }), () => textKitchen(number, lines, type, where)));
+    return true;
+  };
+  function textKitchen(number, lines, type, where) {
     line(number, { size: 40, bold: true });
     if (where) line(where, { size: 34, bold: true });
     line(({ pickup: 'TAKE-OUT', dine_in: 'DINE-IN', delivery: 'DELIVERY' }[type] || type) + ' · ' +
@@ -123,9 +172,7 @@
       if (l.modNames && l.modNames.length) line('   ' + l.modNames.join(', '), { size: 24 });
       if (l.note) line('   ** ' + l.note, { size: 24 });
     });
-    p.printAndFeedPaper(100); p.partialCut();
-    return true;
-  };
+  }
 
   T.openDrawer = function (reason) {
     if (!T.ready) return false;
@@ -134,11 +181,19 @@
     return true;
   };
 
-  T.test = function () {
-    if (!T.ready) return false;
-    line('Tyo Paeng Nyo', { align: 1, size: 34, bold: true });
-    line('Printer test · ' + new Date().toLocaleString('en-PH'), { align: 1, size: 22 });
-    p.printAndFeedPaper(100); p.partialCut();
+  // Test buttons: the same slips with made-up dishes, marked TEST.
+  T.testKitchen = function () {
+    if (!T.ready || !window.TPN_SLIP) return false;
+    const t = TPN_SLIP.sample.kitchen();
+    job(() => picture(() => TPN_SLIP.kitchen(t), () => textKitchen(t.number, t.lines, t.type, t.where)));
+    return true;
+  };
+  T.testReceipt = function () {
+    if (!T.ready || !window.TPN_SLIP) return false;
+    job(() => picture(() => TPN_SLIP.receipt(TPN_SLIP.sample.receipt()), () => {
+      line('Tyo Paeng Nyo', { align: 1, size: 34, bold: true });
+      line('Printer test · ' + new Date().toLocaleString('en-PH'), { align: 1, size: 22 });
+    }));
     return true;
   };
 
@@ -148,7 +203,7 @@
      is recorded, so: check the socket is open, never throw, and return
      false so a kitchen ticket falls back to the browser print window. */
   const live = () => T.ready && !!p && !!p.ws && p.ws.readyState === 1;
-  ['kitchen', 'openDrawer', 'test'].forEach(k => {
+  ['kitchen', 'openDrawer', 'testKitchen', 'testReceipt'].forEach(k => {
     const f = T[k];
     T[k] = function () {
       if (!live()) return false;
@@ -190,7 +245,7 @@
     const html = `<p style="margin:0 0 10px">${T.ready ? 'Receipts print on the built-in printer.' :
       'Install <strong>iMinprinterplugin</strong> from the iMin App Store on this device, then tap Reconnect.'}</p>
       <div style="display:flex;flex-wrap:wrap;gap:8px">
-        ${T.ready ? '<button class="modal-btn secondary" onclick="TPN_PRINT.test()">Test print</button>' : ''}
+        ${T.ready ? '<button class="modal-btn secondary" onclick="TPN_PRINT.testKitchen()">Test kitchen ticket</button><button class="modal-btn secondary" onclick="TPN_PRINT.testReceipt()">Test receipt</button>' : ''}
         ${T.ready && canDrawer ? '<button class="modal-btn secondary" onclick="TPN_PRINT.openDrawer(\'no sale\')">Open drawer</button>' : ''}
         <button class="modal-btn secondary" onclick="TPN_PRINT.reconnect()">Reconnect</button>
         ${T.ready ? `<button class="modal-btn secondary" onclick="TPN_PRINT.toggleAuto()">Auto-print receipts: ${T.autoReceipt ? 'On' : 'Off'}</button>` : ''}

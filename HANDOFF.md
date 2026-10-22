@@ -1,6 +1,6 @@
 # TPN OS — Session Handoff
 
-**Last updated:** Oct 21, 2026 (rev 31 — TPN Kitchen app, shared station sign-in, sign-in = clock-in, see "Rev 31"; rev 30 — sign-in at the counter, Switch user, see "Rev 30"; rev 29 — reopens where it left off, light drawing on the iMin, see "Rev 29"; rev 28 — one app on its own engine + brand reel, see "Rev 28"; rev 27 — welcome loop; in-app engine on hold, see "Rev 27"; rev 26 — counter in Chrome + app drives the back screen, see "Rev 26"; rev 25 — the iMin's old WebView, see "Rev 25"; rev 24 — customer screen on the iMin + TPN Counter Android app, see "Rev 24"; rev 23 — security pass and fallbacks, see "Rev 23"; rev 22 — BIR booklet invoices and Vercel prep, see "Rev 22"; Oct 20: nightly encrypted backups on the headless PC, see "Backups"; rev 21 — offline counter, see "Rev 21"). Earlier: Oct 17, 2026 (rev 8 — read receipts, Tagalog everywhere, layout, guide; see "Rev 8"). Rev 7 — portal split out of the website, hubs, Counter on the floor screen; see "Rev 7"). Rev 6 (Oct 16 — v2 overhaul, see "Rev 6" and GO-LIVE.md). Previously rev 5 — UI/UX reliability pass, no migrations; see "Rev 5" below). Rev 4 (Aug 22): split bills, daily close, variance, working add-ons, low-stock alerts; migrations 18–28
+**Last updated:** Oct 22, 2026 (rev 32 — printed slips in the v3 look + test buttons, see "Rev 32"; rev 31 — TPN Kitchen app, shared station sign-in, sign-in = clock-in, see "Rev 31"; rev 30 — sign-in at the counter, Switch user, see "Rev 30"; rev 29 — reopens where it left off, light drawing on the iMin, see "Rev 29"; rev 28 — one app on its own engine + brand reel, see "Rev 28"; rev 27 — welcome loop; in-app engine on hold, see "Rev 27"; rev 26 — counter in Chrome + app drives the back screen, see "Rev 26"; rev 25 — the iMin's old WebView, see "Rev 25"; rev 24 — customer screen on the iMin + TPN Counter Android app, see "Rev 24"; rev 23 — security pass and fallbacks, see "Rev 23"; rev 22 — BIR booklet invoices and Vercel prep, see "Rev 22"; Oct 20: nightly encrypted backups on the headless PC, see "Backups"; rev 21 — offline counter, see "Rev 21"). Earlier: Oct 17, 2026 (rev 8 — read receipts, Tagalog everywhere, layout, guide; see "Rev 8"). Rev 7 — portal split out of the website, hubs, Counter on the floor screen; see "Rev 7"). Rev 6 (Oct 16 — v2 overhaul, see "Rev 6" and GO-LIVE.md). Previously rev 5 — UI/UX reliability pass, no migrations; see "Rev 5" below). Rev 4 (Aug 22): split bills, daily close, variance, working add-ons, low-stock alerts; migrations 18–28
 **Deployed:** https://unorfl.github.io/tpn-os/
 **Repo:** https://github.com/UnoRfl/tpn-os
 **Supabase project ref:** `xjlqfpnzobfqxetgkkai` (single project, single branch)
@@ -61,6 +61,21 @@ tpn-os/
 | **Extensionless URLs** (`/tpn-table-menu`, `/tpn-dine-in-floor`) | ✅ live |
 
 ---
+
+## Rev 32 — printed slips in the v3 look; test buttons (Oct 22, 2026)
+
+The owner wanted the kitchen ticket and receipt to follow the theme in black and white, and a way to test both from the counter.
+- **`modules/slips.js` (`TPN_SLIP`)** draws each slip as one 576px-wide black-and-white picture (80mm paper, dot for dot): Fraunces for the table, quantities, wordmark and total; Plus Jakarta Sans for the rest; rounded ink panels where the screens use brick.
+  - Kitchen ticket: an ink panel with the table (or guest name, or the order number if there's neither) and dine-in/take-out/delivery + time; the order number under it; each dish with its quantity in a serif margin column, size and add-ons under it, the note in an outlined box. No prices. Long names shrink a little, then wrap.
+  - Receipt: wordmark, address, phone; order, table or guest, date; items; subtotal, discounts, service charge, delivery fee; Total in an ink panel; payments and change; Balance only when something is still due; the stamp-card QR (drawn with `vendor/qrcode-generator`, same rule as before); "Salamat po!" and "This is not an official receipt."
+  - Fonts: it adds its own Google Fonts link (the portal serves faces under other names) and waits up to 4s; offline, Georgia and the system sans stand in.
+- **`modules/imin.js`:** receipts and kitchen tickets print as the picture via the SDK's `printSingleBitmap` (HTTP upload to `127.0.0.1:8081/upload`, already in the floor and portal CSP), then feed and cut. If the picture fails or takes over 15s, the old text slip prints, so nothing is lost. All print jobs now run one at a time in a queue, so a receipt and a ticket can't interleave.
+  - `TPN_PRINT.kitchen` still returns `true` straight away (the ticket is queued), so `pos.js` doesn't open the browser print window as well.
+  - The printer menu's **Test print** is now **Test kitchen ticket** and **Test receipt**: the same slips with sample dishes, marked TEST. `TPN_SLIP.preview('kitchen' | 'receipt')` shows them in a window on any device.
+- Off the iMin nothing changed: the browser print window still prints the plain kitchen ticket and bill.
+- Tested in a browser with a stand-in printer: both test buttons, a real-shaped receipt (voided items left out), a queued kitchen ticket, and the text fallback when the upload fails. Long guest names and two-digit quantities checked. **Not yet printed on the iMin.**
+- Versions: `slips.js` / `imin.js` `?v=20261022a` (floor, portal); `tpn-i18n.js` `?v=20261022a` on every page that loads it (two new TL strings).
+- Next: a separate kitchen printer (network, ESC/POS over port 9100) so the ticket prints in the kitchen and the counter keeps receipts; keep the kitchen screen as an option ("screen / printer / both") for other restaurants.
 
 ## Rev 31 — TPN Kitchen app; one shared station sign-in (Oct 21, 2026)
 
