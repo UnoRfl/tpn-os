@@ -14,8 +14,9 @@ Everything about TPN OS, Tyo Paeng Nyo's restaurant system: every screen and wha
 ## Changed after this guide was researched
 
 - **Orders have one door (sql/47, live Oct 22).** Part 3 (3.9) found that any signed-in staff account could insert an order row directly, with any total and already "paid". That is now closed: `orders_auth_create` is dropped and `INSERT` on `orders` is revoked from guests and staff, so every order goes through `submit_order`. Where Part 3 mentions `orders_auth_create` refusing the screen accounts, that policy no longer exists. Next free migration: 48.
+- **Counter money locks (sql/48, live Oct 22).** Three gaps from 3.9 are closed: a paid bill's money can no longer move (voids, un-voids, void approvals, discount add/remove and direct discount/service-charge/delivery-fee edits all raise `order_already_paid`; refund first, which reopens the bill); `record_manual_payment` / `settle_table_manual` with `bank` now write a *pending* payment that someone else must confirm; and cash is refused with `no_open_shift` when no drawer shift is open (offline replays keep the shift they were taken in). See 3.6 rules 8, 11, 19 and 3.8.3. Next free migration: 49.
 - **Fonts on the portal.** Part 1 noted that the portal serves the v3 faces under its old names ("DM Sans" = Plus Jakarta Sans, "Playfair Display" = Fraunces), so `tpn-forms.css` fell back to system fonts there. `tpn-forms.css` now lists those names as fallbacks (`?v=20261022b`).
-- **Still open from Part 3 (3.9):** personal overrides and custom roles can go below a permission's minimum tier; `payroll.run` can change a run's status directly; a manual "bank" payment is marked received without the second-person check; a paid bill's total can still move (direct discount or service-charge edits by supervisor+, `remove_discount`, `void_order_item`); some functions don't check the branch argument is yours; some reports cut days at UTC midnight instead of Manila; production has three policies that aren't in `sql/`.
+- **Still open from Part 3 (3.9):** personal overrides and custom roles can go below a permission's minimum tier; `payroll.run` can change a run's status directly; some functions don't check the branch argument is yours; some reports cut days at UTC midnight instead of Manila; production has three policies that aren't in `sql/`.
 
 ---
 
@@ -1899,10 +1900,12 @@ Run order is file-name order (`tests/db/run.mjs` sorts the names, so `15-` runs 
 | `44-staff-rank-guard.sql` | `private.guard_staff_rank` on `staff` and `private.guard_override_rank` on `staff_permission_overrides`: nobody changes their own role/access/status, nobody touches someone at or above their tier, nobody grants a tier above their own. CEO exempt. | Current. |
 | `45-printer-permission.sql` | Permission `printer.manage` (Administration, manager). | Current. |
 | `46-my-notifications-only.sql` | `my_notifications` and `my_unread_counts` list only my own plus shared notifications. | Current. |
+| `47-orders-one-door.sql` | Drops `orders_auth_create`; no `INSERT` on `orders` for `anon`/`authenticated`: `submit_order` is the only door. | Current. |
+| `48-counter-money-locks.sql` | Paid bills frozen (`trg_guard_order_update` + `trg_order_items_paid_lock`, `trg_applied_discounts_paid_lock`, `trg_void_requests_paid_lock`, `private.order_paid`); manual and table bank written pending; `trg_payment_cash_session` requires an open shift for cash payments (`no_open_shift`, `bad_cash_session`), `trg_payment_late_offline_cash`; `my_shift()`. | Current. |
 
 `tests/db/prod-drift-after-17.sql` is not a migration. The test runner applies it right after `17` to recreate things production has that no migration creates: the legacy `discount_presets` table and the legacy order columns `discount`, `discount_label`, `discount_preset_id`, `discount_reference`, `discount_applied_by`, `discount_applied_at`.
 
-Next free migration number, per `HANDOFF.md`: **47**.
+Next free migration number, per `HANDOFF.md`: **49**.
 
 ---
 
@@ -2562,10 +2565,10 @@ Defined but not called by any app file found: `order_prep_target` (`sql/28`), `n
 | 5 | **No negative lines.** | `trg_order_items_nonneg` on insert. | `sql/15b` |
 | 6 | **Payment state is derived only from payments.** Not even a manager can type "paid". | `trg_guard_order_update` raises `payment_state_is_derived` unless `private.settle_order` is running (flag `tpn.settle`). | `sql/31`, `37b` |
 | 7 | **Every peso in or out is a ledger row**, written only by functions. | No insert/update/delete grant on `payments`; audit trigger on every insert/update. | `sql/31` |
-| 8 | **A bank transfer is not money until a second person confirms it.** | `record_bank_transfer` writes pending; `confirm_bank_transfer` needs `payments.confirm` and refuses the recorder unless manager+. (Note: `record_manual_payment` with method `bank` skips this; see 3.9.4.) | `sql/31` |
+| 8 | **A bank transfer is not money until a second person confirms it.** | `record_bank_transfer`, and since `sql/48` `record_manual_payment` / `settle_table_manual` with method `bank`, write pending; `confirm_bank_transfer` needs `payments.confirm` and refuses the recorder unless manager+. | `sql/31`, `48` |
 | 9 | **HitPay is paid only when HitPay says so, for the right amount.** | Only the webhook (service role, signature checked in the Edge Function) completes it; amount and PHP must match; retries are harmless. The customer's return to the site changes nothing. | `sql/31` |
 | 10 | **Refunds are capped and need a reason.** | `refund_check`: refund ≤ that payment − its completed and pending refunds; manager tier by default (`payments.refund`); reason ≥ 3 chars. | `sql/31` |
-| 11 | **No discount, service charge or delivery-fee change on a paid bill.** | `apply_discount`, `set_service_charge`, `set_delivery_fee` raise `order_already_paid`. (Direct column updates by supervisors and `remove_discount` are not covered; see 3.9.5.) | `sql/31`, `38` |
+| 11 | **A paid bill's money does not move; refund first.** | `apply_discount`, `set_service_charge`, `set_delivery_fee` raise `order_already_paid`; since `sql/48` so does `trg_guard_order_update` for any change to total/subtotal/discount/service charge/delivery fee on a paid bill (every caller), and triggers on `order_items` (void, un-void, `approve_void_request`), `applied_discounts` (`remove_discount`) and `void_requests` (no new request). A refund reopens the bill. | `sql/31`, `38`, `48` |
 | 12 | **Discounts are supervisor+ and audited.** | `apply_discount` tier check; `trg_guard_order_update` refuses discount/service-charge changes below supervisor; audit rows inside the functions. | `sql/15b`, `16`, `31` |
 | 13 | **Statutory discounts are VAT-correct and cannot be deleted.** | `vat_exempt` computation; delete policy excludes templates with `legal_law`. | `sql/31`, `16` |
 | 14 | **Voids are manager+; everyone else can only ask.** | `void_order_item` / `approve_void_request` manager tier; `request_void` for staff and screens; no direct line updates. | `sql/11`, `15b` |
@@ -2573,7 +2576,7 @@ Defined but not called by any app file found: `order_prep_target` (`sql/28`), `n
 | 16 | **Closed orders cannot be voided, un-voided or discounted.** | Status checks in `void_order_item`, `unvoid_order_item`, `apply_discount`, `remove_discount`, `approve_void_request`. | `sql/11`, `17`, `16`, `31` |
 | 17 | **Screens can only move tickets along.** | `trg_guard_order_update` jsonb comparison; cannot complete/cancel; cannot create orders; no permissions beyond the five screen keys. | `sql/15b`, `17`, `19` |
 | 18 | **Delivery fee and BIR invoice numbers change only through their functions.** | `trg_guard_delivery_fee`, `trg_guard_invoice_no`. | `sql/38`, `43` |
-| 19 | **Cash belongs to a drawer; the drawer is counted.** | `trg_payment_cash_session`; Z read stores variance permanently; one open drawer per register. | `sql/32` |
+| 19 | **Cash belongs to a drawer; the drawer is counted.** | `trg_payment_cash_session`: since `sql/48` a cash payment with no open shift is refused (`no_open_shift`); an offline replay keeps the (closed) shift it was taken in and that Z read's stored variance is corrected and audited. Z read stores variance permanently; one open drawer per register. | `sql/32`, `48` |
 | 20 | **A paid payroll run is frozen.** | `trg_payroll_items_lock`; drafts only can be deleted. | `sql/25` |
 | 21 | **Stamps come only from real payments.** | `trg_order_stamp` on `paid`; reversal on refund/cancel; no browser writes; rotating one-time redeem codes. | `sql/34` |
 | 22 | **A disabled or pending account is no account.** | `my_role`, `my_branch`, `can` return nothing for non-active staff. | `sql/29` |
@@ -2618,6 +2621,7 @@ Defined but not called by any app file found: `order_prep_target` (`sql/28`), `n
 | `t_44_staff_rank.sql` | Admin cannot make themselves CEO, demote the CEO, disable the director, or give a role above their own; admin can still promote crew to supervisor and edit their own name; admin cannot grant themselves a permission or set overrides on the director; admin can set overrides on crew; director cannot delete the CEO; the CEO can change anyone; the service role / SQL editor is not blocked. |
 | `t_45_printer_perm.sql` | `printer.manage` default: dining, kitchen and both screens not allowed; manager and admin allowed. |
 | `t_46_my_notifications.sql` | Admin's bell shows own + shared; skips the CEO's personal one; "mark all read" leaves nothing unread; the CEO's notification is still unread for the CEO. |
+| `t_48_counter_money_locks.sql` | Cash refused with no shift (single and table) and nothing written; `my_shift`; manual and table bank pending, recorder cannot confirm, a second person can; cash lands in the open shift; on a paid bill void, un-void, approving an old request, remove/apply discount, direct discount, direct service charge, the SQL API and a new void request are all refused; an old request can be denied; refund reopens and void then works; offline replay stays on its closed shift and the stored variance is corrected and audited; closed shift without the tag refused; stale shift id lands in the open shift; other branch's shift refused; grants. (35 checks; full suite 201 on Oct 22.) |
 
 No test file exists for: void requests, discounts other than the Senior share, tasks, inventory, payroll, guest memory, site content, access control beyond `sql/44`/`45`, or the audit archive. (Not found in `tests/db`.)
 
@@ -2641,6 +2645,9 @@ Source: `HANDOFF.md` rev 36, "Found, not fixed". `submit_order` (`sql/41`, and s
 #### 3.8.2 Admins can read every notification by policy
 Source: `sql/46` header and `HANDOFF.md` rev 36. `notif_read` (`sql/15b`) lets admin and up read all notifications, including other people's personal ones (a void request sent to the CEO, for example). Since `sql/46`, the bell (`my_notifications`, `my_unread_counts`) shows only your own plus shared rows, which fixed "read notifications come back after a refresh". The policy itself is unchanged, so an admin screen or a direct query can still read everyone's notifications.
 
+#### 3.8.3 Counter money gaps — fixed by `sql/48` (Oct 22, 2026)
+Confirmed on production in rolled-back transactions before the fix: a ₱495 cash-paid bill voided down to ₱0 still read "paid"; a hand-entered bank payment was completed at once and paid the bill; with no drawer open, cash was recorded with no shift and paid the bill. All three are closed by `sql/48` (rules 8, 11 and 19 in 3.6; HANDOFF Rev 40). Left as they are on purpose: a table closed with bank is still completed on the floor while its rounds wait for the confirmation; cash refunds do not need an open shift.
+
 ---
 
 ### 3.9 Further observations from reading the code
@@ -2658,10 +2665,10 @@ These were found while writing this guide by reading the SQL. They are **not** l
 #### 3.9.3 Payroll status can be changed outside the state machine
 `pr_write` (`sql/25`) lets any `payroll.run` holder update `payroll_runs` directly, including `status`. That bypasses `set_payroll_status` (and its audit row): for example, a paid run could be set back to `draft`, which would then unlock its lines. There is no audit trigger on `payroll_runs`.
 
-#### 3.9.4 `record_manual_payment` with method "bank" skips the second-person confirmation
+#### 3.9.4 `record_manual_payment` with method "bank" skips the second-person confirmation — fixed by `sql/48`
 `private.manual_method` (`sql/37b`) maps `bank` to a manual method, and `record_manual_payment` writes it as completed immediately. `record_bank_transfer` + `confirm_bank_transfer` (`sql/31`) require a second person. Both paths exist.
 
-#### 3.9.5 Changes that can still move a paid bill's total
+#### 3.9.5 Changes that can still move a paid bill's total — fixed by `sql/48`
 - A supervisor or higher can set `orders.discount_amount` or `service_charge` with a plain UPDATE. The guard allows supervisor+, the total recomputes, and `trg_audit_order_money` logs `order.money_change`, but the paid-bill, template, ID and cap checks of `apply_discount` / `set_service_charge` are skipped.
 - `remove_discount` (`sql/16`) refuses closed orders but not paid ones.
 - `void_order_item` refuses closed orders but not paid ones.
@@ -3217,7 +3224,7 @@ GO-LIVE §10 B still shows the older single-app naming (`gh release create count
 
 #### Migration numbering
 - Sequential two-digit numbers with letter suffixes for enum-only or split files (`15a`, `15b`, `29a`, `29b`, `29c`, `37a`, `37b`). Note `sql/15-discounts.sql` also exists; `16` supersedes it.
-- **Next free number: 47** (HANDOFF Rev 36; confirmed: highest file is `46-my-notifications-only.sql`).
+- **Next free number: 49** (HANDOFF Rev 40; confirmed: highest file is `48-counter-money-locks.sql`).
 - Production migration names for 18–28 differ from the file names (e.g. `restore_anon_pickup_delivery_ordering`); from 29 on they match the file (`29_security_hotfix` … `46_my_notifications_only`). 01–15 predate the recorded history.
 
 #### Money and security hard rules (never break)
@@ -3329,6 +3336,8 @@ GO-LIVE §10 B still shows the older single-app naming (`gh release create count
 **Rev 35 — table bills print; one receipt per table; apps stay on staff pages; dish photos at the counter (Oct 22).** The floor's Bill button and a guest's QR bill request now print the table bill; Close table prints one combined receipt; the stamp QR made reliably scannable; inside the apps the public pages redirect to the station; dish photos moved to `modules/photos.js` and shown at the counter.
 
 **Rev 36 — full live test; the bell keeps read things read; one look for every text box and alert (Oct 22).** A full live test of every button with `TEST — Claude` orders (money matched across X read, daily close and dashboard), then cleaned up. Fixed: the bell showed other people's notifications that couldn't be marked read (`sql/46`); all 13 native `confirm()`/`prompt()` replaced (Approve void had done nothing inside the apps); `tpn-forms.css` gives every text box, label, toast and dialog the theme; floor and kitchen fonts and phone top bars; peso amounts with commas; QR links without a table ask for the code. Left for the owner: the two-bills race, the guest phone's message after paying, sold-out dishes vanishing, and the design-rule leftovers. Next free migration: 47.
+
+**Rev 40 — counter money locks (Oct 22).** `sql/48`: a paid bill can't change (refund first); hand-entered bank waits for a second person; no cash without an open shift (offline replays keep their shift, the Z read is corrected). The counter shows a big Open shift button instead of the cash keypad, a waiting message for bank, and "This bill is paid; refund instead." where discounts and voids used to be. Tests 201/201. Next free migration: 49.
 
 ---
 

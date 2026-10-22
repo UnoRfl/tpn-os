@@ -1287,7 +1287,8 @@ TPN.voidRequestErrorText = function (e) {
     request_not_found:       'That request no longer exists.',
     request_not_pending:     'That request has already been handled.',
     wrong_branch:            'That order belongs to a different branch.',
-    order_terminal:          'This order is already closed or cancelled.'
+    order_terminal:          'This order is already closed or cancelled.',
+    order_already_paid:      'This bill is paid; refund instead.'
   };
   const key = String((e && (e.message || e.code)) || '');
   const hit = Object.keys(map).find(k => key.indexOf(k) !== -1);
@@ -2364,7 +2365,9 @@ TPN.prettyPaymentError = function (msg) {
   if (/bad_method/.test(msg)) return 'Pick how they paid.';
   if (/reason_required/.test(msg)) return 'Please give a reason.';
   if (/use_hitpay_refund/.test(msg)) return 'Online payments are refunded through HitPay — use Refund on that payment.';
-  if (/order_already_paid/.test(msg)) return 'This bill is already paid. Refund first if it needs changing.';
+  if (/order_already_paid/.test(msg)) return 'This bill is paid; refund instead.';
+  if (/no_open_shift/.test(msg)) return 'No shift is open. Open a shift before taking cash.';
+  if (/bad_cash_session/.test(msg)) return 'That cash drawer belongs to another branch. Reload the page and try again.';
   if (/bad_percent/.test(msg)) return 'Service charge must be between 0 and 20%.';
   if (/permission_denied/.test(msg)) return 'Your account is not allowed to do that.';
   if (/payment_state_is_derived/.test(msg)) return 'Record a payment instead of changing the status.';
@@ -2403,6 +2406,13 @@ TPN.setItemAvailable = async function (itemId, available, reason) {
   const { data, error } = await sb.rpc('set_item_available', { p_item_id: itemId, p_available: !!available, p_reason: reason || null });
   if (error) throw error;
   return data;
+};
+// The open shift of my branch, for anyone who takes payments (sql/48):
+// cash is refused without one, so the counter shows "Open shift" instead.
+TPN.myShift = async function () {
+  const { data, error } = await sb.rpc('my_shift');
+  if (error) throw error;
+  return data || null;
 };
 TPN.myOpenCashSession = async function (register) {
   const { data, error } = await sb.rpc('my_open_cash_session', { p_register: register || 'Counter' });

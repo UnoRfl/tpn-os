@@ -199,6 +199,8 @@
     await putEntry(e); await load();
     return e;
   };
+  // The shift open when the cash was taken travels with it: the server keeps
+  // a replay on that shift even if it closed meanwhile (sql/48).
   T.queueCash = async function ({ orderId, orderNumber, tendered, amount, tip }) {
     const seq = await nextSeq();
     const e = {
@@ -388,7 +390,10 @@
     const e = T.entries.find(x => x.id === id); if (!e) return;
     const ten = Math.round((+document.getElementById('oc-ten').value || 0) * 100) / 100;
     if (ten < e.estTotal) { window.toast && toast('Not enough cash for the bill (need ' + P(e.estTotal) + ').'); return; }
-    e.cash = { tendered: ten, tip: 0, cashSession: window.tpnCashSessionId || T.lastCashSession() };
+    // Cash belongs to a shift (sql/48); one can't be opened without the server.
+    const shiftId = window.tpnCashSessionId || T.lastCashSession();
+    if (!shiftId) { window.toast && toast('No shift is open. Open a shift before taking cash.'); return; }
+    e.cash = { tendered: ten, tip: 0, cashSession: shiftId };
     if (e.state === 'synced') { e.state = 'waiting'; e.stage = 'payment'; }
     await putEntry(e); await load();
     if (window.TPN_PRINT) TPN_PRINT.openDrawer('cash payment (offline ' + e.localNo + ')');

@@ -13,6 +13,8 @@ do $$ declare b uuid; big uuid; small uuid; o1 jsonb; o2 jsonb; o3 jsonb; begin
     ('00000000-0000-0000-0000-0000000043c1', 'Cashier 43', 'dining', b, 'active'),
     ('00000000-0000-0000-0000-0000000043d1', 'Kitchen screen 43', 'kitchen_display', b, 'active')
   on conflict (id) do update set role = excluded.role, branch_id = excluded.branch_id, employment_status = 'active';
+  -- sql/48: cash needs an open shift.
+  insert into public.cash_sessions (branch_id, opened_by, opening_float) values (b, '00000000-0000-0000-0000-0000000043c1', 0);
   o1 := public.submit_order(b, 'pickup', jsonb_build_array(jsonb_build_object('menu_item_id', big, 'quantity', 1)), null, 'Big', null);
   o2 := public.submit_order(b, 'pickup', jsonb_build_array(jsonb_build_object('menu_item_id', small, 'quantity', 1)), null, 'Small A', null);
   o3 := public.submit_order(b, 'pickup', jsonb_build_array(jsonb_build_object('menu_item_id', small, 'quantity', 1)), null, 'Small B', null);

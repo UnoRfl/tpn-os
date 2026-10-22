@@ -11,6 +11,11 @@ select v.id::uuid, v.n, v.r::public.staff_role, (select id from public.branches 
 on conflict (id) do update set role = excluded.role, branch_id = excluded.branch_id, employment_status = 'active';
 create table if not exists public.t_ctx (k text primary key, v text);
 grant all on public.t_ctx to anon, authenticated;
+-- sql/48: cash needs an open shift. A fixture drawer on its own register
+-- (t_32 opens and closes the "Counter" one itself).
+insert into public.cash_sessions (branch_id, register_label, opened_by, opening_float)
+select (select id from public.branches limit 1), 'Fixture', '00000000-0000-0000-0000-00000000c003', 0
+ where not exists (select 1 from public.cash_sessions where register_label = 'Fixture' and status = 'open');
 
 -- An order worth ₱1,000 placed through the normal customer path.
 do $$ declare b uuid; m uuid; r jsonb; begin
