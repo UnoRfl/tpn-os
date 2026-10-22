@@ -19,6 +19,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
@@ -41,6 +42,7 @@ import java.util.Locale;
 public class CustomerScreenService extends Service {
     static final int PORT = 8091;
     private static final int MAX_BODY = 64 * 1024;
+    private static final int MAX_PRINT = 2 * 1024 * 1024;
     private static final String CHANNEL = "customer_screen";
     private static volatile CustomerScreenService self;
 
@@ -178,7 +180,7 @@ public class CustomerScreenService extends Service {
             boolean ours = allowedOrigin.equals(origin);
             if (method.equals("OPTIONS")) { reply(out, 204, origin, ours, ""); return; }
             if (method.equals("GET") && path.startsWith("/ping")) {
-                reply(out, 200, origin, ours, "{\"ok\":true,\"screen\":" + (presentation != null) + "}");
+                reply(out, 200, origin, ours, "{\"ok\":true,\"print\":true,\"screen\":" + (presentation != null) + "}");
                 return;
             }
             if (method.equals("POST") && path.startsWith("/state") && ours && length > 0 && length <= MAX_BODY) {
@@ -190,8 +192,54 @@ public class CustomerScreenService extends Service {
                 reply(out, 204, origin, ours, "");
                 return;
             }
+            if (method.equals("POST") && path.startsWith("/print") && ours && length > 0 && length <= MAX_PRINT) {
+                String err = print(path, in, length);
+                reply(out, err == null ? 200 : 502, origin, ours, err == null ? "{\"ok\":true}" : "{\"ok\":false,\"error\":\"" + err + "\"}");
+                return;
+            }
             reply(out, ours ? 404 : 403, origin, ours, "");
         } catch (Exception ignored) { }
+    }
+
+    /* ── Network printer (the kitchen printer) ─────────────────
+       The page can't open a raw socket, so it POSTs the printer's own
+       ESC/POS bytes to /print?host=192.168.1.50&port=9100 and this
+       passes them on. Only printers on the restaurant's own network
+       (private IPv4 addresses) and the raw print ports 9100–9109. */
+    private static String print(String path, InputStream in, int length) {
+        Uri q = Uri.parse("http://x" + path);
+        String host = q.getQueryParameter("host");
+        int port;
+        try { port = Integer.parseInt(q.getQueryParameter("port") == null ? "9100" : q.getQueryParameter("port")); } catch (NumberFormatException e) { return "bad port"; }
+        if (host == null || !isLan(host)) return "not a printer on this network";
+        if (port < 9100 || port > 9109) return "bad port";
+        try {
+            byte[] body = new byte[length];
+            int got = 0;
+            while (got < length) { int n = in.read(body, got, length - got); if (n < 0) break; got += n; }
+            if (got < length) return "incomplete";
+            try (Socket p = new Socket()) {
+                p.connect(new InetSocketAddress(host, port), 4000);
+                p.setSoTimeout(8000);
+                OutputStream o = p.getOutputStream();
+                o.write(body, 0, got);
+                o.flush();
+            }
+            return null;
+        } catch (java.net.SocketTimeoutException e) {
+            return "printer did not answer";
+        } catch (Exception e) {
+            return "could not reach the printer";
+        }
+    }
+
+    static boolean isLan(String host) {
+        String[] p = host.split("\\.");
+        if (p.length != 4) return false;
+        int[] n = new int[4];
+        try { for (int i = 0; i < 4; i++) { n[i] = Integer.parseInt(p[i]); if (n[i] < 0 || n[i] > 255 || !p[i].equals(String.valueOf(n[i]))) return false; } }
+        catch (NumberFormatException e) { return false; }
+        return n[0] == 10 || (n[0] == 172 && n[1] >= 16 && n[1] <= 31) || (n[0] == 192 && n[1] == 168);
     }
 
     private static String readHead(InputStream in) throws java.io.IOException {

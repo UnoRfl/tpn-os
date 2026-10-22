@@ -48,6 +48,7 @@ Run each file **on its own**, in this order. All are safe to re-run.
 | `sql/42-silog-menu.sql` | Chicken Silog is renamed Chicksilog; Tocilog (₱115) is back on the menu. Data only. Applied to production Oct 17 as `42_silog_menu` |
 | `sql/43-bir-invoices.sql` | booklet invoice numbers on orders, the end-of-day invoice, and which sales need one (VAT setting in Website). Applied to production Oct 21 as `43_bir_invoices` |
 | `sql/44-staff-rank-guard.sql` | nobody promotes themselves, edits someone at or above their tier, or grants themselves permissions. Applied to production Oct 21 as `44_staff_rank_guard` |
+| `sql/45-printer-permission.sql` | `printer.manage`: test prints, the no-sale drawer button, auto-print and the kitchen printer settings are for managers and up. Applied to production Oct 22 as `45_printer_permission` |
 
 Then: Supabase → Advisors → Security. Expected warnings only: the customer functions (`submit_order`, `track_order`, `claim_stamp_card`, `my_stamp_card`, `stamp_card_code`, `my_guest_profile`, `addon_suggestions`, `signal_*`) are public on purpose.
 
