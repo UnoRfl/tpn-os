@@ -82,6 +82,8 @@ The owner asked for a full test of every button and every combination on the liv
 - **Portal:** `M()` shows ₱ amounts with thousands commas (68 places; `N()` stays plain because it fills number boxes); a screen that fails after you've moved on no longer paints its error over the next screen (`TPN_MOD.render` sequence check); Kitchen Queue header and the Performance 30-day bars fit a phone.
 - **QR menu:** a link with no table number no longer becomes Table 1; it asks the guest to scan the code on their table.
 
+**Cleanup (19:18):** deleted the 7 `TEST — Claude` orders (0117–0121, 0134, 0135) with their items, void requests, 8 payments and 1 refund, the 21 notifications they raised and their 15 read receipts, and the ₱1 cash in/out. Checked after: no TEST rows left, no table flagged, Calamares available, today's gross back to ₱290 (the one real order), the open drawer's X read back to its float + ₱145. Kept on purpose: the 56 audit-log rows (the record that the test happened), and the jump in order numbers. Re-tested after deploy: Approve void through the real button and the themed dialog works.
+
 **Found, not fixed (owner to decide):**
 - Two guests ordering at the same table in the same instant open two bills (the join in `submit_order` locks an existing bill, not "no bill yet"); harmless today because the floor, the bill print and Close Table add every open order. Fix: `pg_advisory_xact_lock` on the table id in `submit_order`.
 - The guest's phone keeps saying "Staff will be right with you" after the table is paid.
