@@ -108,17 +108,19 @@
     const list = await TPN_SLIP.loadOrders(ids);
     const r = await TPN_SLIP.fromOrders(list, { bill, method });
     await job(() => picture(() => TPN_SLIP.receipt(r), () => list.forEach(x => {
-      textReceipt(x.o, x.pay, {}, (x.o.order_items || []).filter(i => !i.voided_at));
+      textReceipt(x.o, x.pay, {}, (x.o.order_items || []).filter(i => !i.voided_at), bill);
     })));
     return true;
   };
   T.bill = (ids, method) => T.slip(ids, { bill: true, method });
   T.tableReceipt = (ids) => (T.autoReceipt ? T.slip(ids) : Promise.resolve(false));
 
-  function textReceipt(o, pay, site, items) {
+  function textReceipt(o, pay, site, items, bill) {
     line('Tyo Paeng Nyo', { align: 1, size: 34, bold: true });
     line(site['contact.address'] || 'KM 19, 316 Real St., Talon Uno, Las Piñas', { align: 1, size: 20 });
     line(site['contact.phone'] || '0999 888 7817', { align: 1, size: 20 });
+    rule();
+    line(bill ? 'BILL' : 'RECEIPT', { align: 1, size: 34, bold: true });
     rule();
     line('Order ' + o.order_number, { bold: true });
     line(new Date(o.placed_at || o.created_at).toLocaleString('en-PH'), { size: 20 });
@@ -157,6 +159,8 @@
     return true;
   };
   function textKitchen(number, lines, type, where) {
+    line('KITCHEN TICKET', { align: 1, size: 30, bold: true });
+    rule();
     line(number, { size: 40, bold: true });
     if (where) line(where, { size: 34, bold: true });
     line(({ pickup: 'TAKE-OUT', dine_in: 'DINE-IN', delivery: 'DELIVERY' }[type] || type) + ' · ' +

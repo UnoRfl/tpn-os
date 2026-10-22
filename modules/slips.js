@@ -154,12 +154,42 @@
     s.y += h;
   }
 
+  // What the slip is (Receipt, Bill, Kitchen ticket), in an outlined box
+  // so it reads at a glance and can't be confused with the ink panels.
+  function title(s, word) {
+    const x = s.x, h = 72;
+    x.lineWidth = 3; s.round(PAD + 1.5, s.y, W - PAD * 2 - 3, h, 24, false);
+    s.font(700, 44, SERIF); x.textAlign = 'center'; x.textBaseline = 'middle';
+    x.fillText(word, W / 2, s.y + h / 2 + 2);
+    x.textAlign = 'left'; x.textBaseline = 'alphabetic';
+    s.y += h;
+  }
+
+  // The same foot on every slip: a big line and a small one on the left,
+  // the badge logo small at the bottom right.
+  function footer(s, big, small) {
+    const x = s.x;
+    s.rule();
+    if (logo) {
+      const top = s.y + 10, mid = top + LOGO / 2;
+      x.drawImage(logo, W - PAD - LOGO, top);
+      s.font(700, 38, SERIF); x.fillText(big, PAD, mid - 4);
+      s.font(400, 21); s.wrap(small, W - PAD * 3 - LOGO).forEach((ln, i) => x.fillText(ln, PAD, mid + 28 + i * 26));
+      s.y = top + LOGO + 12;
+    } else {
+      s.center(big, 700, 38, SERIF, 2);
+      s.center(small, 400, 21);
+    }
+  }
+
   /* ── Kitchen ticket ─────────────────────────────────────────
      Big table (or guest), then each dish with its quantity in the
      margin. Notes sit in an outlined box so they can't be missed. */
   function kitchen(t) {
     const s = sheet(), x = s.x;
     const where = t.where || t.number;
+    title(s, 'Kitchen ticket');
+    s.y += 16;
     panel(s, where, [TYPE[t.type] || t.type || '', clock(t.at || Date.now())]);
     if (t.where) { s.y += 10; s.row('#' + String(t.number).replace(/^#/, ''), '', { w: 600, px: 25, gap: 6 }); }
     s.y += 14;
@@ -190,6 +220,7 @@
       ls.forEach((ln, i) => x.fillText(ln, PAD + 14, s.y + 34 + i * 33));
       s.y += h;
     }
+    footer(s, t.brand || 'Tyo Paeng Nyo', 'Kitchen copy');
     return s.done();
   }
 
@@ -200,10 +231,11 @@
     s.center(r.brand || 'Tyo Paeng Nyo', 700, 50, SERIF, 10);
     if (r.address) s.center(r.address, 400, 22, SANS, 2);
     if (r.phone) s.center(r.phone, 400, 22, SANS, 6);
-    s.rule();
-    if (r.bill) s.row('Bill', r.where || '', { w: 800, px: 30, gap: 8 });
+    s.y += 22;
+    title(s, r.bill ? 'Bill' : 'Receipt');
+    s.y += 10;
     const nums = r.numbers && r.numbers.length ? r.numbers : [r.number];
-    s.row((nums.length > 1 ? 'Orders ' : 'Order ') + nums.join(', '), r.bill ? '' : (r.where || ''), { w: 600, px: 25, gap: 6 });
+    s.row((nums.length > 1 ? 'Orders ' : 'Order ') + nums.join(', '), r.where || '', { w: 600, px: 25, gap: 6 });
     s.row([day(r.at), clock(r.at)].join(' · '), '', { px: 23, gap: 4 });
     if (r.deliverTo) s.row('Deliver to: ' + r.deliverTo, '', { px: 23, gap: 4 });
     s.rule();
@@ -252,18 +284,7 @@
         .forEach((ln, i, all) => x.fillText(ln, qx + size + 22, s.y + size / 2 + 9 + (i - (all.length - 1) / 2) * 33));
       s.y += size + cell * 3;
     }
-    s.rule();
-    if (logo) {
-      // Thanks on the left, the badge small at the bottom right.
-      const top = s.y + 10, mid = top + LOGO / 2;
-      x.drawImage(logo, W - PAD - LOGO, top);
-      s.font(700, 38, SERIF); x.fillText('Salamat po!', PAD, mid - 4);
-      s.font(400, 21); x.fillText('This is not an official receipt.', PAD, mid + 28);
-      s.y = top + LOGO + 12;
-    } else {
-      s.center('Salamat po!', 700, 38, SERIF, 2);
-      s.center('This is not an official receipt.', 400, 21);
-    }
+    footer(s, 'Salamat po!', 'This is not an official receipt.');
     return s.done();
   }
 
