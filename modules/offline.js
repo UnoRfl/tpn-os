@@ -355,7 +355,8 @@
   T.openPayment = function (id) {
     const e = T.entries.find(x => x.id === id); if (!e) return;
     const due = e.estTotal;
-    const quick = [...new Set([due, Math.ceil(due / 100) * 100, Math.ceil(due / 500) * 500, Math.ceil(due / 1000) * 1000])].filter(v => v >= due).slice(0, 4);
+    // Same quick amounts as every cash screen (modules/payments.js).
+    const quick = window.tpnCashQuick ? tpnCashQuick(due) : [{ v: due, label: 'Exact' }];
     showModal(`<div class="modal-title">Payment · ${esc(e.localNo)} <span class="tpn-pill warn">offline</span></div>
       <div class="modal-content">
         <div class="pay-head"><div><div class="pref-row-hint">Estimated total</div><span class="pref-row-hint">From the menu prices on this device. The server checks it when the order syncs.</span></div>
@@ -363,7 +364,7 @@
         <div class="pay-work glass">
           <label class="form-label" for="oc-ten">Cash received</label>
           <input class="form-input pay-big" id="oc-ten" type="number" step="0.01" min="0" inputmode="decimal" placeholder="0.00">
-          <div class="tpn-dlg-chips">${quick.map(v => `<button type="button" class="tpn-chip" onclick="document.getElementById('oc-ten').value='${v.toFixed(2)}';TPN_OFFLINE.calc(${due})">${P(v)}</button>`).join('')}</div>
+          <div class="tpn-dlg-chips pay-quick" role="group" aria-label="Quick amounts">${quick.map(q => `<button type="button" class="tpn-chip" onclick="document.getElementById('oc-ten').value='${q.v.toFixed(2)}';TPN_OFFLINE.calc(${due})">${esc(q.label)}</button>`).join('')}</div>
           <div class="pay-change" id="oc-change" aria-live="assertive"></div>
           <div class="modal-actions"><button class="btn-next" onclick="TPN_OFFLINE.saveCash('${esc(e.id)}')">💵 Record cash (syncs later)</button></div>
         </div>

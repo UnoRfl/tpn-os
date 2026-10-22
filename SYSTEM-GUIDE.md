@@ -218,12 +218,12 @@ Known quirk: after a reload, only the routes in the `validStaff` list (line 1051
 | Tab | Shown to | What it does |
 |---|---|---|
 | 🪑 **Floor Map** (badge: occupied tables) | everyone | Four stat tiles: Tables Occupied, Active Orders, Bill Requested, and Session Revenue (or "Covers Tonight" on the screen account, because guests can see it). The table grid: each card shows the table number, status (Empty, Occupied, Active Orders, Food Ready, 💳 Bill Requested), guest, minutes open, total, and buttons **View**, **Open QR**, **+ Order**, **Bill**, **Close Table**, **Clear**. **+ Add Table** |
-| 🧾 **Counter** | people with `pos.use`, never the screen account (`canCounter`, line 2124) | The `pos` module: menu tiles with dish photos, search, the ticket, **Open shift**, **X read**, **Close shift (Z read)**, **＋ Cash in**, **－ Cash out / petty cash**, **🖨 Print** |
+| 🧾 **Counter** | people with `pos.use`, never the screen account (`canCounter`, line 2124) | The `pos` module: a **Most ordered** row (top 12 dishes of the last 30 days), menu tiles with dish photos, search, the ticket with **Hold** and held-order chips, **Open shift**, **X read**, **Close shift (Z read)**, **＋ Cash in**, **－ Cash out / petty cash**, **🖨 Print** |
 | 📋 **Dine-In Orders** (badge) | everyone | Filter chips All, 🟡 Received, 🔴 Preparing, 🟢 Ready, ✅ Done; order cards that move to the next step |
 | 🍽️ **Menu Status** | managers (hidden for the screen account) | "Menu Availability": switch dishes on and off |
 | ⚙️ **Settings** | managers (hidden for the screen account) | Branch & Table Settings, Branch Info, Table QR Codes, General (Live updates, QR Menu URL, Sound) |
 
-**Close Table** opens the payment panel (`modules/payments.js`) with method buttons and quick cash amounts; the bill can be printed for the table (all rounds) before paying.
+**Close Table** opens the payment panel (`modules/payments.js`) with method buttons and quick cash amounts (**Exact** and the next round notes, `tpnCashQuick`); the bill can be printed for the table (all rounds) before paying.
 
 **Table requests** (`renderRequests`, line 799): when a guest taps **Call staff** or **Ask for the bill** on the QR menu, a card appears at the bottom right — "🤚 Table N needs assistance" (**On it ✓**) or "💳 Table N wants the bill" with how they will pay (**Got it ✓**). Cards stay until someone takes them, pulse after 2 minutes, and re-chime every 30 seconds.
 
@@ -1168,10 +1168,12 @@ Tabs registered with `TPN_MOD`:
 **Key flows**
 
 - **Drawer bar** (needs `cash.drawer`): Open shift (float with quick chips 1000/2000/3000), Cash in / Cash out with reason chips, X read (mid-shift report, printable), Close shift (Z read) with a denomination count (₱1000 down to ₱0.25), live "exact / over / short" and a confirm if the count does not match ("The difference is recorded with your name").
+- **Most ordered** (`refreshTop`, `topItems`, Rev 39): on the All tab with no search, the 12 dishes sold most in the last 30 days (completed orders of this branch, voided lines left out; staff read their own branch's orders under RLS), sold-out dishes skipped, topped up with the ★ Bestsellers while sales are few. The ranking is cached in `tpn.pos.top` and fetched again once per Manila day, so it works offline. Two lines of six that scroll sideways.
 - **Menu grid**: category tabs, search (press `/` to focus), tiles with a dish photo (from `TPN_PHOTO`) or emoji, "Sold out" tiles disabled.
 - **Picking a dish**: if it has sizes (`pax_options`) or add-on groups, a dialog asks for size, required/optional choices (min/max enforced), quantity (1–50) and a kitchen note. Same dish + size + add-ons + note adds to the existing line.
 - **Prices on the ticket are display only.** `linePrice()` comment: "display only; the server prices the order". The ticket says "Final price is checked by the server when you send." The order sent to the server contains dish ids, quantities, sizes, notes and add-on ids — no prices.
 - **Order type**: Take-out, Dine-in (choose table), Delivery (address and, if zones exist, area; the zone's fee is shown).
+- **Hold** (`posHold`, `posResume`, `posDropHeld`, Rev 39): take-out and delivery tickets can be parked on this device (`tpn.pos.held`) with their lines, sizes, add-ons, notes, name, phone and address, shown as chips "Held · Maria · 3 items" above the order. Tap to open (a ticket already on screen is parked first, after a `tpnConfirm`), × to discard. Nothing reaches the kitchen or the database until it is sent.
 - **Send** (`posSend`): makes an idempotency key with `TPN.orderKey` (same order → same key), then:
   - Online: `TPN.createOrder` with `source: 'pos'` and a 15-second timeout (when `offline.js` is present).
   - Offline, or a network error: the order goes to the offline outbox (`TPN_OFFLINE.queueOrder`) with a local number like `OFF-007`. Any other error is shown and nothing is queued.
@@ -1183,9 +1185,9 @@ Tabs registered with `TPN_MOD`:
 - **86 panel** (`open86Panel`): lists every dish with Available / Sold out; tapping calls `TPN.setItemAvailable`. Customers stop seeing it immediately.
 - **Customer screen**: every ticket change is sent to `TPN_CDS.order(...)`; after sending a take-out/delivery order the lines are remembered (`TPN_CDS.remember`) so the pay screen still lists them.
 
-**Globals**: `posStartFor(opts)` (the floor's "+ Order" on a table opens the counter as dine-in for that table and guest), `posOpenShift`, `posCashMove`, `posXRead`, `posCloseShift`, `posCloseShiftSave`, `posCat`, `posSearch`, `posPick`, `posPickSave`, `posQty`, `posClear`, `posType`, `posSet`, `posRedraw`, `posSend`, `printKitchenAtCounter`, `open86Panel`, `toggle86`.
+**Globals**: `posHold`, `posResume`, `posDropHeld`, `posStartFor(opts)` (the floor's "+ Order" on a table opens the counter as dine-in for that table and guest), `posOpenShift`, `posCashMove`, `posXRead`, `posCloseShift`, `posCloseShiftSave`, `posCat`, `posSearch`, `posPick`, `posPickSave`, `posQty`, `posClear`, `posType`, `posSet`, `posRedraw`, `posSend`, `printKitchenAtCounter`, `open86Panel`, `toggle86`.
 
-**localStorage**: `tpn.pos.ticket` (the unsent ticket lines).
+**localStorage**: `tpn.pos.ticket` (the unsent ticket lines), `tpn.pos.held` (held tickets), `tpn.pos.top` (Most ordered ranking: `{day, branch, ids}`).
 
 #### 2.2 `payments.js` — payment panel and Payments tab
 
@@ -1197,7 +1199,7 @@ Tabs registered with `TPN_MOD`:
 
 - Loads `TPN.orderPayments` (with `tpnRetry`) and shows subtotal, discounts, service charge, a delivery fee line (worked out as total − (subtotal − discount + service charge)), total, amount due and every payment with status (Received, Waiting, Failed, Cancelled, Expired).
 - Opens a realtime channel `pay-<orderId>` on `payments` for this order, so the panel refreshes itself when HitPay's webhook settles it.
-- **Cash** (`payCash`): "This payment covers", tip, cash received with quick amounts (exact, next ₱100, ₱500, ₱1000), change shown big. Save calls `TPN.recordCash` with the open drawer shift; then pops the iMin drawer (`TPN_PRINT.openDrawer('cash payment')`) and asks for a receipt (`TPN_PRINT.receipt`, which only prints if auto-print is on). On a network error (and only on the floor screen, where `TPN_OFFLINE` exists) the cash is queued in the outbox, the drawer opens, and the guest is told change.
+- **Cash** (`payCash`): "This payment covers", tip, cash received with quick amounts from `tpnCashQuick(due)` (Exact, then the due rounded up to ₱50/₱100/₱500/₱1,000, ₱20 too under ₱100, topped up in ₱500 steps: ₱1,165 → 1,200 / 1,500 / 2,000), change shown big. The same helper draws the quick amounts on Close Table and the offline cash panel. Save calls `TPN.recordCash` with the open drawer shift; then pops the iMin drawer (`TPN_PRINT.openDrawer('cash payment')`) and asks for a receipt (`TPN_PRINT.receipt`, which only prints if auto-print is on). On a network error (and only on the floor screen, where `TPN_OFFLINE` exists) the cash is queued in the outbox, the drawer opens, and the guest is told change.
 - **GCash / Maya / QR Ph / Card / Bank** (`payManual`): staff check the customer's app or the card terminal, then type the reference or approval code (at least 3 characters). Saved with `TPN.recordManualPayment` as received. These buttons are disabled offline ("the reference has to be checked and recorded on the server"). A network error here is **not** queued; staff are told to check the bill before recording again.
 - **Online link** (`payOnline`): only when the site setting `payments.online_enabled` is true/yes and the device is online. Shows a QR of the HitPay checkout link plus "Open payment page" and "Copy link". Because `tpnSite` is not loaded on the floor screen, this button can only appear in the portal (`onlineOn()` reads `window.tpnSite`).
 - **Refund** (`payRefund`), **Confirm bank transfer** (`payConfirmBank`), **Service charge** (`payServiceCharge`, chips 0/5/10 %).
@@ -2778,13 +2780,14 @@ The permissions that matter for daily work, with the minimum tier set in the SQL
 #### 4.2.3 Counter take-out and delivery order, and taking payment
 
 **For staff**
-1. Floor screen → **Counter** tab. Tap dish tiles (photos where the website has one, emoji otherwise). Search with the box or press `/`.
+1. Floor screen → **Counter** tab. The **Most ordered** row at the top has the dishes sold most this month. Tap dish tiles (photos where the website has one, emoji otherwise). Search with the box or press `/`.
+   - Guest not ready (still choosing, getting cash)? Tap **Hold**: the ticket waits as a chip ("Held · Maria · 3 items") and the counter is free for the next guest. Tap the chip to carry on; × throws it away. Held tickets stay on this device and never reach the kitchen until sent.
 2. Dishes with sizes or add-ons open a small sheet: pick size, add-ons, quantity, a note for the kitchen. Sold-out dishes show "Sold out" and cannot be added.
 3. On the ticket, pick **🛍 Take-out**, **🍽 Dine-in** or **🛵 Delivery**. Optional customer name and phone (phone is needed for stamps). Delivery needs an address and, if delivery areas are set up, an area; the area's fee is added.
 4. The ticket total says "Final price is checked by the server when you send."
 5. Tap **Send to kitchen & take payment**. The kitchen ticket prints (where it prints is the "Kitchen tickets" setting, 4.2.11), and the payment panel opens.
 6. In the payment panel:
-   - **💵 Cash:** type the amount tendered (quick amounts offered); the change shows big; save. The drawer pops on the iMin. A receipt prints if Auto-print is on.
+   - **💵 Cash:** tap **Exact** or one of the round amounts (₱1,200 / ₱1,500 / ₱2,000 for a ₱1,165 bill), or type the amount tendered; the change shows big; save. The drawer pops on the iMin. A receipt prints if Auto-print is on.
    - **GCash / Maya / QR Ph / Card / Bank:** show the shop QR or run the card terminal, check the payment on the restaurant phone (never from the guest's screenshot), type the **reference or approval code** (at least 3 characters), optional tip and note, tap **✓ Received**. Bank transfers are recorded as **waiting** until a supervisor confirms them.
 7. The ticket stays on the device until it is sent, so a page reload does not lose it. Double taps on Send create only one order.
 

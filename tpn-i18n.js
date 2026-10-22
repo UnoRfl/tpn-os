@@ -1523,7 +1523,23 @@
     "Your order was cancelled. Call us if you have questions.": "Na-cancel ang iyong order. Kung may tanong, tawagan kami.",
     "Your password": "Password mo",
     "Your Reference": "Ang reference mo",
-    "Your session ended": "Natapos ang session mo"
+    "Your session ended": "Natapos ang session mo",
+    // Counter: Most ordered, Hold, quick cash (Rev 39)
+    "Most ordered": "Pinakamabenta",
+    "Hold": "I-hold",
+    "Held": "Naka-hold",
+    "item": "item",
+    "items": "item",
+    "Orders on hold": "Mga order na naka-hold",
+    "On hold:": "Naka-hold:",
+    "Discard": "Itapon",
+    "Open this held order?": "Buksan ang naka-hold na order na ito?",
+    "The order on screen goes on hold, so nothing is lost.": "Mai-hold ang order na nasa screen, kaya walang mawawala.",
+    "Hold this one and open": "I-hold ito at buksan",
+    "Discard this held order?": "Itapon ang naka-hold na order na ito?",
+    "It was never sent to the kitchen.": "Hindi pa ito naipadala sa kusina.",
+    "Exact": "Eksakto",
+    "Quick amounts": "Mabilisang halaga"
   };
 
   const ATTRS = ['placeholder', 'title', 'aria-label'];
