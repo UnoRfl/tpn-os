@@ -10,7 +10,10 @@
    iMin (html.tpn-lite) draws it as cheaply as before.
    ═══════════════════════════════════════════════════════════════ */
 :root {
-  --f-font: "Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  /* The portal serves these faces under its old names (tpn-portal.css):
+     "DM Sans" is Plus Jakarta Sans there and "Playfair Display" is Fraunces. */
+  --f-font: "Plus Jakarta Sans", "DM Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-display: "Fraunces", "Playfair Display", Georgia, serif;
   --f-bg: #FFFDF8;
   --f-bg-hover: #FFFFFF;
   --f-border: rgba(46, 26, 16, 0.18);
@@ -147,7 +150,7 @@ html body .tpn-dlg {
   font-family: var(--f-font);
 }
 html[data-theme="dark"] body .tpn-dlg, html[data-theme="night"] body .tpn-dlg { background: #251A17 !important; color: #F5E7D0; border-color: rgba(255, 236, 210, 0.08); }
-html body .tpn-dlg-title { font-family: "Fraunces", Georgia, serif; font-weight: 700; font-size: 20px; line-height: 1.25; }
+html body .tpn-dlg-title { font-family: var(--f-display); font-weight: 700; font-size: 20px; line-height: 1.25; }
 html body .tpn-dlg-msg { color: var(--f-muted); font-size: 15px; line-height: 1.5; }
 html body .tpn-dlg-err:not(:empty) { color: var(--f-error); font-size: 13.5px; font-weight: 600; margin-top: 6px; }
 html body .tpn-dlg-overlay { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; background: rgba(30, 14, 8, 0.48); }
