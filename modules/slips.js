@@ -7,7 +7,7 @@
    prints dot for dot. modules/imin.js sends it to the iMin printer and
    falls back to its plain text slips if the picture can't be printed.
 
-   TPN_SLIP.kitchen(t)   → canvas   { number, where, type, at, lines }
+   TPN_SLIP.kitchen(t)   → canvas   { number, where, type, at, lines, note }
    TPN_SLIP.receipt(r)   → canvas   see sample.receipt below
    TPN_SLIP.ready()      → promise, resolves once the fonts are in
    TPN_SLIP.sample       test data for the printer's test buttons
@@ -181,6 +181,12 @@
       }
       s.y += 18;
     });
+    if (t.note) {   // the guest's note for the whole order
+      s.font(600, 25); const ls = s.wrap(t.note, W - PAD * 2 - 28), h = ls.length * 33 + 18;
+      x.fillRect(PAD, s.y, W - PAD * 2, 2); s.y += 16; x.lineWidth = 3; s.round(PAD, s.y, W - PAD * 2, h, 16, false);
+      ls.forEach((ln, i) => x.fillText(ln, PAD + 14, s.y + 34 + i * 33));
+      s.y += h;
+    }
     return s.done();
   }
 

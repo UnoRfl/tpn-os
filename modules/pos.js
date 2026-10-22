@@ -283,6 +283,7 @@
     else if (window.onPosSent) window.onPosSent(o, type);
   };
   ['posSend'].forEach(n => window.guardAsync && guardAsync(n));
+  window.printKitchenAtCounter = printAtCounter;
 
   // Table number or the guest's name, so a paper ticket finds its owner.
   function ticketWhere() {
@@ -291,8 +292,16 @@
   }
   // Kitchen ticket for a printer by the pass (optional; the KDS already has
   // it). Offline it always prints: then the paper is all the kitchen has.
+  // Where it prints is the printer menu's "Kitchen tickets" setting
+  // (modules/kprint.js): the kitchen printer (the counter if that fails),
+  // the counter printer, or none when the kitchen works from its screen.
   function printKitchenTicket(num, lines, type, always, where) {
-    if (!always && (!window.getPref || getPref('posPrintTicket') !== 'on')) return;
+    const t = { number: num, lines, type, where };
+    if (window.TPN_KPRINT && TPN_KPRINT.route(t, always, () => printAtCounter(num, lines, type, where))) return;
+    if (!always && !window.TPN_KPRINT && (!window.getPref || getPref('posPrintTicket') !== 'on')) return;
+    printAtCounter(num, lines, type, where);
+  }
+  function printAtCounter(num, lines, type, where) {
     // iMin counter: straight to the built-in printer, no print window.
     if (window.TPN_PRINT && TPN_PRINT.kitchen(num, lines, type, where)) return;
     // A print window, or a hidden frame where pop-ups are blocked.
@@ -305,7 +314,7 @@
     }
     w.document.write(`<!doctype html><meta charset="utf-8"><title>${E(num)}</title><style>@page{size:80mm auto;margin:3mm}body{font:15px/1.3 ui-monospace,Consolas,monospace;width:74mm}h1{font-size:20px;margin:0}li{margin:4px 0}</style>
       <h1>${E(num)}</h1>${where ? `<h1>${E(where)}</h1>` : ''}<div>${E({ pickup: 'TAKE-OUT', dine_in: 'DINE-IN', delivery: 'DELIVERY' }[type] || type)} · ${E(new Date().toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit' }))}</div><hr>
-      <ul style="padding-left:16px">${lines.map(l => `<li><b>${l.qty}× ${E(l.name)}</b>${l.size ? ' (' + E(l.size) + ')' : ''}${l.modNames.length ? '<br>&nbsp;&nbsp;' + E(l.modNames.join(', ')) : ''}${l.note ? '<br>&nbsp;&nbsp;** ' + E(l.note) : ''}</li>`).join('')}</ul>
+      <ul style="padding-left:16px">${lines.map(l => `<li><b>${l.qty}× ${E(l.name)}</b>${l.size ? ' (' + E(l.size) + ')' : ''}${(l.modNames || []).length ? '<br>&nbsp;&nbsp;' + E(l.modNames.join(', ')) : ''}${l.note ? '<br>&nbsp;&nbsp;** ' + E(l.note) : ''}</li>`).join('')}</ul>
       ${frame ? '' : '<script>window.onload=()=>{print();setTimeout(()=>close(),400)}<\/script>'}`);
     w.document.close();
     if (frame) { w.focus(); w.print(); }
