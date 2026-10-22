@@ -41,10 +41,44 @@
     // The faces only exist once the stylesheet is in; then fetch each one.
     const want = ['700 60px "Fraunces"', '400 24px "Plus Jakarta Sans"', '600 24px "Plus Jakarta Sans"', '800 24px "Plus Jakarta Sans"'];
     fonts = Promise.race([
-      sheetIn.then(() => Promise.all(want.map(f => document.fonts.load(f, 'Tyo Paeng Nyo ₱1,216.00 ñ–·').catch(() => null)))),
+      Promise.all([
+        sheetIn.then(() => Promise.all(want.map(f => document.fonts.load(f, 'Tyo Paeng Nyo ₱1,216.00 ñ–·').catch(() => null)))),
+        loadLogo(),
+      ]),
       new Promise(r => setTimeout(r, 4000)),
     ]);
     return fonts;
+  }
+
+  /* ── The badge logo, turned to black dots for thermal paper
+     (grey → Floyd–Steinberg dither). No logo, no problem: the
+     footer just centres its text. ──────────────────────────── */
+  let logo = null;
+  const LOGO = 132;
+  function loadLogo() {
+    return new Promise(r => {
+      const img = new Image();
+      img.onload = () => {
+        try {
+          const c = document.createElement('canvas'); c.width = c.height = LOGO;
+          const x = c.getContext('2d'); x.fillStyle = PAPER; x.fillRect(0, 0, LOGO, LOGO);
+          const k = Math.min(LOGO / img.width, LOGO / img.height), w = img.width * k, h = img.height * k;
+          x.drawImage(img, (LOGO - w) / 2, (LOGO - h) / 2, w, h);
+          const d = x.getImageData(0, 0, LOGO, LOGO), px = d.data, g = new Float32Array(LOGO * LOGO);
+          for (let i = 0; i < g.length; i++) g[i] = px[i * 4] * 0.299 + px[i * 4 + 1] * 0.587 + px[i * 4 + 2] * 0.114;
+          for (let y = 0; y < LOGO; y++) for (let xx = 0; xx < LOGO; xx++) {
+            const i = y * LOGO + xx, v = g[i] < 128 ? 0 : 255, e = g[i] - v; g[i] = v;
+            if (xx + 1 < LOGO) g[i + 1] += e * 7 / 16;
+            if (y + 1 < LOGO) { if (xx) g[i + LOGO - 1] += e * 3 / 16; g[i + LOGO] += e * 5 / 16; if (xx + 1 < LOGO) g[i + LOGO + 1] += e / 16; }
+          }
+          for (let i = 0; i < g.length; i++) { px[i * 4] = px[i * 4 + 1] = px[i * 4 + 2] = g[i]; px[i * 4 + 3] = 255; }
+          x.putImageData(d, 0, 0); logo = c;
+        } catch (e) { logo = null; }
+        r();
+      };
+      img.onerror = () => r();
+      img.src = 'assets/site/logo.webp';
+    });
   }
 
   /* ── A tall sheet we draw down, then crop to what was used ── */
@@ -199,8 +233,17 @@
       s.y += size;
     }
     s.rule();
-    s.center('Salamat po!', 700, 38, SERIF, 2);
-    s.center('This is not an official receipt.', 400, 21);
+    if (logo) {
+      // Thanks on the left, the badge small at the bottom right.
+      const top = s.y + 4, mid = top + LOGO / 2;
+      x.drawImage(logo, W - PAD - LOGO, top);
+      s.font(700, 38, SERIF); x.fillText('Salamat po!', PAD, mid - 4);
+      s.font(400, 21); x.fillText('This is not an official receipt.', PAD, mid + 28);
+      s.y = top + LOGO;
+    } else {
+      s.center('Salamat po!', 700, 38, SERIF, 2);
+      s.center('This is not an official receipt.', 400, 21);
+    }
     return s.done();
   }
 
