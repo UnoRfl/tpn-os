@@ -11,15 +11,19 @@
   'use strict';
   const can = (k) => !!(window.TPN && TPN.can && TPN.can(k));
   const TICKET_KEY = 'tpn.pos.ticket';
+  const HELD_KEY = 'tpn.pos.held';   // tickets parked with Hold, this device only
+  const TOP_KEY = 'tpn.pos.top';     // "Most ordered" ranking, refreshed once a day
   // modules/offline.js, on the floor screen only (the portal has no outbox).
   const OFF = () => window.TPN_OFFLINE || null;
   const st = {
     cats: [], items: [], mods: { groups: [], byItem: {} }, tables: [], branch: null, zones: [], zone: '',
     cat: 'all', q: '', session: null, report: null,
-    ticket: load(), type: 'pickup', table: '', name: '', phone: '', address: '', notes: ''
+    ticket: load(), held: loadKey(HELD_KEY, []), top: loadKey(TOP_KEY, null), type: 'pickup', table: '', name: '', phone: '', address: '', notes: ''
   };
   function load() { try { return JSON.parse(localStorage.getItem(TICKET_KEY) || '[]'); } catch (e) { return []; } }
   function save() { try { localStorage.setItem(TICKET_KEY, JSON.stringify(st.ticket)); } catch (e) {} }
+  function loadKey(k, dflt) { try { return JSON.parse(localStorage.getItem(k) || 'null') || dflt; } catch (e) { return dflt; } }
+  function saveKey(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
 
   async function loadData() {
     st.branch = st.branch || await TPN.getBranchByCode('laspinas');
@@ -54,6 +58,7 @@
         <section class="pos-menu panel" aria-label="Menu">
           <label class="sr-only" for="posSearch">Search the menu</label>
           <input id="posSearch" class="form-input" type="search" placeholder="Search dishes… (press / to focus)" autocomplete="off" oninput="posSearch(this.value)">
+          <div id="posTop"></div>
           <div id="posCats"></div>
           <div id="posGrid" class="pos-grid" role="list"></div>
         </section>
@@ -62,6 +67,7 @@
     try { await loadData(); }
     catch (e) { main.querySelector('.pos-wrap').outerHTML = loadErrorPanel('the menu', e, "route('pos',{refresh:true})"); return; }
     drawDrawer(); drawCats(); drawGrid(); drawTicket();
+    refreshTop();
   }
 
   /* ── Drawer bar ──────────────────────────────────────────── */
@@ -143,17 +149,61 @@
   window.posSearch = (q) => { st.q = q.trim().toLowerCase(); drawGrid(); };
   const priceLabel = (it) => it.pax_options && Object.keys(it.pax_options).length
     ? Object.values(it.pax_options).map(v => peso(v)).join(' / ') : peso(it.price);
-  function drawGrid() {
-    const g = document.getElementById('posGrid'); if (!g) return;
-    const rows = st.items.filter(it => (st.cat === 'all' || it.category_id === st.cat)
-      && (!st.q || (it.name + ' ' + (it.name_tagalog || '')).toLowerCase().includes(st.q)));
-    g.innerHTML = rows.map(it => `
+  const tile = (it) => `
       <button type="button" role="listitem" class="pos-tile ${it.is_available === false ? 'is-out' : ''}" ${it.is_available === false ? 'aria-disabled="true"' : ''}
         onclick="posPick('${JA(it.id)}')" aria-label="${E(it.name)}, ${E(priceLabel(it))}${it.is_available === false ? ', sold out' : ''}">
         ${window.TPN_PHOTO && TPN_PHOTO(it.name) ? `<img class="pos-tile-photo" src="${E(TPN_PHOTO(it.name))}" alt="" loading="lazy" decoding="async" width="72" height="72">` : `<span class="pos-tile-emoji" aria-hidden="true">${E(it.emoji || '🍽️')}</span>`}
         <span class="pos-tile-name">${E(it.name)}</span>
         <span class="pos-tile-price">${it.is_available === false ? 'Sold out' : E(priceLabel(it))}</span>
-      </button>`).join('') || '<p class="tpn-muted" style="padding:20px">No dishes match.</p>';
+      </button>`;
+  function drawGrid() {
+    const g = document.getElementById('posGrid'); if (!g) return;
+    const rows = st.items.filter(it => (st.cat === 'all' || it.category_id === st.cat)
+      && (!st.q || (it.name + ' ' + (it.name_tagalog || '')).toLowerCase().includes(st.q)));
+    g.innerHTML = rows.map(tile).join('') || '<p class="tpn-muted" style="padding:20px">No dishes match.</p>';
+    drawTop();
+  }
+
+  /* ── Most ordered ────────────────────────────────────────── */
+  // The 12 dishes sold most in the last 30 days, first on the All tab.
+  // Ranked from completed orders of this branch (staff can read their own
+  // branch's orders), kept on the device so it works offline, refreshed
+  // once a day. Until there are enough sales the menu's ★ Bestsellers fill in.
+  function topItems() {
+    const by = new Map(st.items.map(it => [it.id, it]));
+    const ids = ((st.top && st.top.ids) || []).concat(st.items.filter(it => it.is_featured).map(it => it.id));
+    const out = [];
+    for (const id of ids) {
+      const it = by.get(id);
+      if (it && it.is_available !== false && !out.includes(it)) out.push(it);
+      if (out.length === 12) break;
+    }
+    return out;
+  }
+  function drawTop() {
+    const el = document.getElementById('posTop'); if (!el) return;
+    const rows = st.cat === 'all' && !st.q ? topItems() : [];
+    el.innerHTML = rows.length ? `<h2 class="pos-top-h" id="posTopH">Most ordered</h2>
+      <div class="pos-grid pos-top-grid" role="list" aria-labelledby="posTopH">${rows.map(tile).join('')}</div>` : '';
+  }
+  async function refreshTop() {
+    const today = TPN.today ? TPN.today() : new Date().toISOString().slice(0, 10);
+    if (st.top && st.top.day === today && st.top.branch === st.branch.id) return;
+    if (OFF() && OFF().isOffline()) return;
+    try {
+      const since = new Date(Date.now() - 30 * 864e5).toISOString(), tally = {};
+      for (let from = 0; from < 50000; from += 1000) {   // the API hands back 1,000 rows at a time
+        const r = await sb.from('order_items').select('menu_item_id, quantity, orders!inner(branch_id, status, placed_at)')
+          .eq('orders.branch_id', st.branch.id).eq('orders.status', 'completed').gte('orders.placed_at', since)
+          .is('voided_at', null).not('menu_item_id', 'is', null).order('id').range(from, from + 999);
+        if (r.error) throw r.error;
+        r.data.forEach(x => { tally[x.menu_item_id] = (tally[x.menu_item_id] || 0) + (Number(x.quantity) || 0); });
+        if (r.data.length < 1000) break;
+      }
+      const ids = Object.keys(tally).sort((a, b) => tally[b] - tally[a]).slice(0, 40);
+      st.top = { day: today, branch: st.branch.id, ids }; saveKey(TOP_KEY, st.top);
+      drawTop();
+    } catch (e) { console.warn('[pos] most ordered', e); }   // the cached row (or the Bestsellers) stays
   }
 
   window.posPick = function (id) {
@@ -212,7 +262,10 @@
     // The customer screen follows the ticket as it is rung up.
     if (window.TPN_CDS) TPN_CDS.order({ lines: TPN_CDS.lines(st.ticket), fee, total, type: st.type });
     el.innerHTML = `
-      <div class="pos-ticket-head"><h2>Order</h2>${st.ticket.length ? `<button class="link-btn" onclick="posClear()">Clear</button>` : ''}</div>
+      ${st.held.length ? `<div class="pos-held" role="list" aria-label="Orders on hold">${st.held.map(h => `<span class="pos-held-chip" role="listitem">
+        <button type="button" class="pos-held-open" onclick="posResume('${JA(h.id)}')"><span>Held</span>&nbsp;·&nbsp;<span translate="no">${E(heldName(h))}</span>&nbsp;·&nbsp;${heldCount(h)}&nbsp;<span>${heldCount(h) === 1 ? 'item' : 'items'}</span></button>
+        <button type="button" class="pos-held-x" onclick="posDropHeld('${JA(h.id)}')" aria-label="Discard">×</button></span>`).join('')}</div>` : ''}
+      <div class="pos-ticket-head"><h2>Order</h2>${st.ticket.length ? `<div class="pos-ticket-acts">${st.type !== 'dine_in' ? '<button type="button" class="btn-ghost pos-hold" onclick="posHold()">Hold</button>' : ''}<button class="link-btn" onclick="posClear()">Clear</button></div>` : ''}</div>
       <div class="sr-only" aria-live="polite" id="posLive"></div>
       ${st.ticket.length ? `<ul class="pos-lines">${st.ticket.map((l, i) => `
         <li><div class="pos-line-main"><strong>${E(l.name)}</strong>${l.size ? ` <span class="form-hint">${E(l.size)} pax</span>` : ''}
@@ -238,6 +291,41 @@
   window.posQty = (i, d) => { const l = st.ticket[i]; l.qty += d; if (l.qty <= 0) st.ticket.splice(i, 1); save(); drawTicket(); };
   window.posClear = async () => { if (await tpnConfirm('Clear this order? Nothing has been sent yet.', { confirmText: 'Clear' })) { st.ticket = []; save(); drawTicket(); } };
   window.posType = (t) => { st.type = t; drawTicket(); };
+
+  /* ── Hold ────────────────────────────────────────────────── */
+  // A take-out or delivery ticket parked while the guest decides or goes to
+  // get cash. Kept on this device only: nothing reaches the kitchen or the
+  // database until it is opened again and sent.
+  const HELD_FIELDS = ['type', 'table', 'name', 'phone', 'address', 'zone', 'notes'];
+  const heldName = (h) => h.name || (h.type === 'delivery' ? 'Delivery' : h.type === 'dine_in' ? 'Dine-in' : 'Take-out');
+  const heldCount = (h) => h.lines.reduce((a, l) => a + l.qty, 0);
+  function park() {
+    const h = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), at: Date.now(), lines: st.ticket };
+    HELD_FIELDS.forEach(k => { h[k] = st[k]; });
+    st.held.push(h); saveKey(HELD_KEY, st.held);
+    st.ticket = []; st.key = null; st.type = 'pickup'; st.name = st.phone = st.address = st.table = st.zone = st.notes = '';
+    save();
+    return h;
+  }
+  window.posHold = function () {
+    if (!st.ticket.length) return;
+    const h = park(); drawTicket();
+    toast('On hold: ' + heldName(h));
+  };
+  window.posResume = async function (id) {
+    const h = st.held.find(x => x.id === id); if (!h) return;
+    if (st.ticket.length && !await tpnConfirm('The order on screen goes on hold, so nothing is lost.', { title: 'Open this held order?', confirmText: 'Hold this one and open' })) return;
+    if (st.ticket.length) park();
+    st.held = st.held.filter(x => x.id !== id); saveKey(HELD_KEY, st.held);
+    st.ticket = h.lines; st.key = null;
+    HELD_FIELDS.forEach(k => { st[k] = h[k] || (k === 'type' ? 'pickup' : ''); });
+    save(); drawTicket();
+  };
+  window.posDropHeld = async function (id) {
+    const h = st.held.find(x => x.id === id); if (!h) return;
+    if (!await tpnConfirm('It was never sent to the kitchen.', { title: 'Discard this held order?', confirmText: 'Discard', danger: true })) return;
+    st.held = st.held.filter(x => x.id !== id); saveKey(HELD_KEY, st.held); drawTicket();
+  };
   window.posSet = (k, v) => { st[k] = v; };
   window.posRedraw = () => drawTicket();
   window.posSend = async function () {
@@ -353,5 +441,29 @@
   // The Counter lives on the floor screen (tpn-dine-in-floor → Counter tab),
   // next to the tables it rings up for. No separate portal tab; the portal
   // keeps this file only for the 86 panel on the kitchen board.
+  // Most ordered row, Hold chips and the Hold button (tiles reuse .pos-tile).
+  if (!document.getElementById('pos-style')) {
+    const css = document.createElement('style'); css.id = 'pos-style';
+    css.textContent = `
+      .pos-top-h { font-family: 'Fraunces', 'Playfair Display', serif; font-size: 18px; color: var(--ink); margin: 2px 0 8px; }
+      .pos-top-grid { grid-template-columns: repeat(6, 168px); overflow-x: auto; overscroll-behavior-x: contain;
+        scroll-snap-type: x proximity; padding: 2px 2px 6px; margin-bottom: 12px; }
+      .pos-top-grid .pos-tile { scroll-snap-align: start; }
+      .pos-menu { min-width: 0; }   /* the sideways row must not widen the panel on phones */
+      @media (max-width: 700px) { .pos-top-grid { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: 148px; } }
+      .pos-held { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 12px; }
+      .pos-held-chip { display: inline-flex; align-items: stretch; border: 1.5px solid var(--brick, #A3321A); border-radius: 12px; overflow: hidden; background: var(--f-bg, #FFFDF8); }
+      .pos-held-chip button { all: unset; box-sizing: border-box; cursor: pointer; min-height: 44px; display: inline-flex; align-items: center; white-space: nowrap; font-size: 13.5px; font-weight: 600; color: var(--ink, #2E1A10); }
+      .pos-held-open { padding: 0 12px; }
+      .pos-held-x { padding: 0 14px; font-size: 20px; border-left: 1px solid var(--line-soft, #E8DCC8); color: var(--ink-muted, #6E5240) !important; }
+      .pos-held-chip button:focus-visible { box-shadow: var(--focus-ring); }
+      .pos-held-chip button:active { background: rgba(163, 50, 26, .08); }
+      .pos-ticket-head { align-items: center; }
+      .pos-ticket-acts { display: flex; align-items: center; gap: 14px; }
+      .pos-hold { margin: 0 !important; min-height: 44px; padding: 0 22px; white-space: nowrap; }
+      .pay-quick .tpn-chip { min-height: 44px; padding: 0 16px; font-size: 15px; white-space: nowrap; }`;
+    document.head.appendChild(css);
+  }
+
   TPN_MOD.register({ id: 'pos', side: 'both', hidden: true, perm: 'pos.use', icon: '🧾', label: 'Counter (POS)', labelTl: 'Counter (POS)', render });
 })();

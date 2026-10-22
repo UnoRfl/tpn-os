@@ -38,6 +38,23 @@
   const OFFLINE_WHY = 'No internet. GCash, Maya, QR Ph, card and bank need the server to check and record the reference, so they are off until the connection is back. Cash still works: it is saved on this device and syncs by itself.';
   let liveChan = null;
 
+  // Quick cash buttons for every cash screen (this panel, Close Table, the
+  // offline panel): Exact, then the next amounts a guest is likely to hand
+  // over, rounded up to the notes they carry. ₱1,165 → 1,200 / 1,500 / 2,000;
+  // ₱85 → 100 / 500 / 1,000; ₱980 → 1,000 / 1,500 / 2,000.
+  window.tpnCashQuick = function (due) {
+    due = Math.round(Number(due) * 100) / 100;
+    if (!(due > 0)) return [];
+    const up = [];
+    (due < 100 ? [20, 50, 100, 500, 1000] : [50, 100, 500, 1000]).forEach(s => {
+      const v = Math.ceil(due / s) * s;
+      if (v > due && !up.includes(v)) up.push(v);
+    });
+    while (up.length < 3) up.push((Math.floor((up[up.length - 1] || due) / 500) + 1) * 500);
+    const fmt = (v) => '₱' + v.toLocaleString('en', { minimumFractionDigits: v % 1 ? 2 : 0, maximumFractionDigits: 2 });
+    return [{ v: due, label: 'Exact' }].concat(up.slice(0, 3).map(v => ({ v, label: fmt(v) })));
+  };
+
   function qrSvg(text, size = 220) {
     if (typeof window.qrcode !== 'function') return '';
     const q = qrcode(0, 'M'); q.addData(text); q.make();
@@ -130,7 +147,6 @@
   window.payCash = function () {
     cdsMethod = 'cash'; cdsPay();
     const due = Number(cur.amount_due);
-    const quick = [...new Set([due, Math.ceil(due / 100) * 100, Math.ceil(due / 500) * 500, Math.ceil(due / 1000) * 1000])].filter(v => v >= due).slice(0, 4);
     document.getElementById('payWork').innerHTML = `
       <div class="pay-work glass">
         <div class="form-row">
@@ -141,7 +157,7 @@
         </div>
         <label class="form-label" for="pc-ten">Cash received</label>
         <input class="form-input pay-big" id="pc-ten" type="number" step="0.01" min="0" inputmode="decimal" placeholder="0.00" autofocus>
-        <div class="tpn-dlg-chips">${quick.map(v => `<button type="button" class="tpn-chip" onclick="document.getElementById('pc-ten').value='${v.toFixed(2)}';payCashCalc()">${peso(v)}</button>`).join('')}</div>
+        <div class="tpn-dlg-chips pay-quick" role="group" aria-label="Quick amounts">${tpnCashQuick(due).map(q => `<button type="button" class="tpn-chip" onclick="payCashQuick(${q.v})">${E(q.label)}</button>`).join('')}</div>
         <div class="pay-change" id="pc-change" aria-live="assertive"></div>
         <div class="modal-actions"><button class="btn-next" onclick="payCashSave()">Record cash</button></div>
       </div>`;
@@ -149,6 +165,7 @@
     w.addEventListener('input', payCashCalc);
     document.getElementById('pc-ten').focus();
   };
+  window.payCashQuick = function (v) { const i = document.getElementById('pc-ten'); if (i) { i.value = v.toFixed(2); payCashCalc(); } };
   window.payCashCalc = function () {
     const amt = +document.getElementById('pc-amt').value || 0, tip = +document.getElementById('pc-tip').value || 0;
     const ten = +document.getElementById('pc-ten').value || 0, ch = ten - amt - tip;

@@ -18,8 +18,8 @@
 <script src="config.js?v=20261017o"></script>
 <script src="tpn-supabase.js?v=20261017o"></script>
 <script src="tpn-kit.js?v=20261022b"></script>
-<script src="modules/offline.js?v=20261021b"></script>
-<script src="tpn-i18n.js?v=20261022d"></script>
+<script src="modules/offline.js?v=20261022g"></script>
+<script src="tpn-i18n.js?v=20261022g"></script>
 <link rel="stylesheet" href="tpn-glass.css?v=20261022a">
 <link rel="stylesheet" href="tpn-signin.css?v=20261021b">
 <link rel="manifest" href="counter.webmanifest">
@@ -159,7 +159,7 @@
   .close-pay-input { width: 100%; font: 700 22px/1.2 'Plus Jakarta Sans', system-ui, sans-serif; padding: 10px 12px; border-radius: 10px; border: 1.5px solid var(--border); background: #fff; color: var(--text); }
   .close-pay-input.small { font-size: 15px; font-weight: 500; padding: 8px 10px; }
   .close-pay-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
-  .close-pay-chips button { min-height: 44px; padding: 0 16px; border-radius: 999px; border: 1px solid var(--border); background: #fff; font: 600 14px 'Plus Jakarta Sans', system-ui, sans-serif; cursor: pointer; color: var(--text); }
+  .close-pay-chips button { min-height: 44px; padding: 0 16px; border-radius: 12px; white-space: nowrap; border: 1px solid var(--border); background: #fff; font: 600 14px 'Plus Jakarta Sans', system-ui, sans-serif; cursor: pointer; color: var(--text); }
   .close-pay-methods { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
   .close-pay-methods button { min-height: 42px; padding: 0 14px; border-radius: 999px; border: 1.5px solid var(--border); background: #fff; font: 600 13px 'Plus Jakarta Sans', system-ui, sans-serif; cursor: pointer; color: var(--text); transition: background .18s, color .18s, border-color .18s; }
   .close-pay-methods button[aria-checked="true"] { background: var(--brick); border-color: var(--brick); color: #fff; }
@@ -1436,7 +1436,7 @@ async function closeTable(tableNum, branchId) {
 
   // Money first: the table closes only once what it owes has come in.
   const owes = dueKnown && dueSum > 0;
-  const chips = owes ? [...new Set([dueSum, Math.ceil(dueSum / 100) * 100, Math.ceil(dueSum / 500) * 500, Math.ceil(dueSum / 1000) * 1000])] : [];
+  const chips = !owes ? [] : window.tpnCashQuick ? tpnCashQuick(dueSum) : [{ v: dueSum, label: 'Exact' }];   // modules/payments.js
   const payBlock = !orderIds.length ? '' : !dueKnown
     ? `<p style="color:var(--brick);font-size:13px;margin-bottom:10px">Could not check what is owed. Check the connection and try again.</p>`
     : !owes
@@ -1448,7 +1448,7 @@ async function closeTable(tableNum, branchId) {
           <div id="closeCashBox">
             <label for="closeTendered" style="display:block;font-size:13px;font-weight:600;margin-bottom:6px">Cash received</label>
             <input id="closeTendered" class="close-pay-input" type="number" inputmode="decimal" min="0" step="0.01" placeholder="₱" oninput="floorCloseCalc()">
-            <div class="close-pay-chips">${chips.map(c => `<button type="button" onclick="floorCloseChip(${c})">₱${c.toLocaleString('en', { minimumFractionDigits: c % 1 ? 2 : 0 })}</button>`).join('')}</div>
+            <div class="close-pay-chips">${chips.map(c => `<button type="button" onclick="floorCloseChip(${c.v})">${E(c.label)}</button>`).join('')}</div>
           </div>
           <div id="closeRefBox" hidden>
             <p id="closeRefHint" style="font-size:13px;color:var(--text-muted);margin:0 0 8px"></p>
@@ -2157,10 +2157,10 @@ window.onPosSent = function (o, type) {
 </script>
 <script src="vendor/qrcode-generator-1.4.4.js"></script>
 <script src="modules/customer-display.js?v=20261021b"></script>
-<script src="modules/payments.js?v=20261022a"></script>
+<script src="modules/payments.js?v=20261022g"></script>
 <script src="modules/invoices.js?v=20261022a"></script>
 <script src="modules/photos.js?v=20261022a"></script>
-<script src="modules/pos.js?v=20261022b"></script>
+<script src="modules/pos.js?v=20261022g"></script>
 <script src="vendor/imin-printer-1.4.0.min.js"></script>
 <script src="modules/slips.js?v=20261022f"></script>
 <script src="modules/kprint.js?v=20261022c"></script>
