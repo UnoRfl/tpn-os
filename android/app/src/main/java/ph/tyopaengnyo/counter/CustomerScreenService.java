@@ -79,7 +79,9 @@ public class CustomerScreenService extends Service {
         super.onCreate();
         self = this;
         Uri site = Uri.parse(MainActivity.SITE);
-        allowedOrigin = site.getScheme() + "://" + site.getHost();
+        // With the port when there is one: a test build pointed at a PC's copy of
+        // the site (http://127.0.0.1:7071/ through adb reverse) sends "…:7071".
+        allowedOrigin = site.getScheme() + "://" + site.getHost() + (site.getPort() > 0 ? ":" + site.getPort() : "");
         startForeground(1, notification());
         displays = getSystemService(DisplayManager.class);
         displays.registerDisplayListener(displayListener, main);

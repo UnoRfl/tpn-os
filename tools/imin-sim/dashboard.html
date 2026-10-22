@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>iMin simulator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,700&family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet">
+<script src="/qrcode.js"></script>
+<style>
+  :root { --paper: #FBF6EC; --card: #FFFDF8; --ink: #2E1A10; --ink2: #6E5240; --brick: #A3321A; --saffron: #E4A23C; --cocoa: #3A1D10; --hair: rgba(46, 26, 16, .12); }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--paper); color: var(--ink); font: 15px/1.5 "Plus Jakarta Sans", system-ui, sans-serif; }
+  ::selection { background: rgba(228, 162, 60, .35); }
+  header { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; padding: 16px 20px; border-bottom: 1px solid var(--hair); background: var(--card); position: sticky; top: 0; z-index: 2; }
+  h1 { font: 700 22px/1.2 Fraunces, Georgia, serif; margin: 0 auto 0 0; }
+  h2 { font: 700 17px/1.3 Fraunces, Georgia, serif; margin: 0 0 10px; }
+  label { font-weight: 600; font-size: 13.5px; color: var(--ink2); display: flex; align-items: center; gap: 8px; }
+  select, button { font: 600 14px "Plus Jakarta Sans", system-ui, sans-serif; color: var(--ink); background: var(--card); border: 1.5px solid var(--hair); border-radius: 10px; padding: 7px 12px; min-height: 38px; cursor: pointer; }
+  select:focus-visible, button:focus-visible { outline: none; border-color: var(--brick); box-shadow: 0 0 0 3px rgba(228, 162, 60, .42); }
+  button:hover { border-color: var(--brick); }
+  main { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px; padding: 20px; align-items: start; }
+  section { background: var(--card); border: 1px solid var(--hair); border-radius: 16px; padding: 16px; min-width: 0; }
+  .roll { display: flex; flex-direction: column; gap: 14px; max-height: 76vh; overflow: auto; padding: 4px; }
+  .slip { width: 300px; margin: 0 auto; background: #fff; color: #000; padding: 10px 12px 18px; box-shadow: 0 10px 24px -14px rgba(58, 29, 16, .5); border-top: 1px dashed #bbb; }
+  .slip img { width: 100%; display: block; image-rendering: pixelated; }
+  .slip .ln { white-space: pre-wrap; font-family: ui-monospace, Menlo, Consolas, monospace; }
+  .slip .cols { display: flex; font-family: ui-monospace, Menlo, Consolas, monospace; }
+  .slip .cols span { overflow: hidden; }
+  .slip .when { font: 11px "Plus Jakarta Sans", sans-serif; color: #777; margin-bottom: 6px; }
+  .log { display: flex; flex-direction: column; gap: 6px; max-height: 76vh; overflow: auto; font-size: 13.5px; }
+  .log div { padding: 6px 10px; border-radius: 10px; background: var(--paper); }
+  .log .drawer { background: #F6E3C0; }
+  .log .fault { background: #F4D6CF; color: #6E1C0C; }
+  .rear { font-size: 14px; background: var(--paper); border-radius: 12px; padding: 12px; white-space: pre-wrap; font-family: ui-monospace, Menlo, Consolas, monospace; max-height: 32vh; overflow: auto; }
+  .empty { color: var(--ink2); }
+  a { color: var(--brick); }
+</style>
+</head>
+<body>
+<header>
+  <h1>iMin simulator</h1>
+  <label>Counter printer
+    <select id="printer"><option value="ready">Ready</option><option value="paper">Out of paper</option><option value="cover">Cover open</option><option value="off">Print service not installed</option></select></label>
+  <label>Kitchen printer
+    <select id="kitchen"><option value="ready">Ready</option><option value="off">Unplugged</option></select></label>
+  <label>App link
+    <select id="relay"><option value="on">TPN Counter 1.4+</option><option value="off">No app / older app</option></select></label>
+  <label>Print delay
+    <select id="slow"><option value="0">None</option><option value="1500">1.5 s</option><option value="5000">5 s</option></select></label>
+  <button type="button" data-open="counter">Open counter</button>
+  <button type="button" data-open="rear">Open rear screen</button>
+  <button type="button" data-open="kitchen">Open kitchen</button>
+  <button type="button" id="clear">Clear</button>
+</header>
+<main>
+  <section><h2>Counter printer</h2><div class="roll" id="counter"><p class="empty">Nothing printed yet.</p></div></section>
+  <section><h2>Kitchen printer</h2><div class="roll" id="kitchenRoll"><p class="empty">Nothing printed yet. Set the counter's kitchen printer to any home-network address, such as 192.168.1.250.</p></div></section>
+  <section>
+    <h2>Rear screen</h2>
+    <div class="rear" id="rear">Waiting for the counter.</div>
+    <h2 style="margin-top:16px">Drawer and events</h2>
+    <div class="log" id="log"></div>
+    <p style="font-size:13px;color:var(--ink2)">Site: <a href="%%SITE%%" target="_blank" rel="noopener">%%SITE%%</a></p>
+  </section>
+</main>
+<script>
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const time = (t) => new Date(t).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit' });
+// iMin text sizes are in dots on 576-dot paper; the slip here is 300px wide.
+const px = (dots) => Math.max(9, Math.round((dots || 24) * 300 / 576 * 1.1));
+const alignCss = (a) => ['left', 'center', 'right'][a || 0] || 'left';
+function qrSvg(text, size) {
+  try { const q = qrcode(0, 'M'); q.addData(text); q.make(); return q.createSvgTag({ cellSize: Math.max(2, size || 4), margin: 2, scalable: false }); }
+  catch (e) { return '<div class="ln">[QR ' + esc(text) + ']</div>'; }
+}
+function slipHtml(ev) {
+  let h = `<div class="slip"><div class="when">${time(ev.at)}${ev.host ? ' · ' + esc(ev.host) + ':' + ev.port : ''}</div>`;
+  if (ev.png) h += `<img src="${ev.png}" alt="Kitchen ticket">`;
+  for (const o of ev.ops || []) {
+    if (o.t === 'text') h += `<div class="ln" style="text-align:${alignCss(o.align)};font-size:${px(o.size)}px;font-weight:${o.bold ? 800 : 400}">${esc(o.s)}</div>`;
+    else if (o.t === 'cols') { const tot = o.widths.reduce((a, b) => a + b, 0) || 1; h += `<div class="cols" style="font-size:${px(o.size)}px;font-weight:${o.bold ? 800 : 400}">${o.cols.map((c, i) => `<span style="flex:${o.widths[i] / tot};text-align:${alignCss(o.aligns[i])}">${esc(c)}</span>`).join('')}</div>`; }
+    else if (o.t === 'qr') h += `<div style="text-align:${alignCss(o.align)}">${qrSvg(o.s, o.size)}</div>`;
+    else if (o.t === 'img') h += o.src ? `<img src="${o.src}" alt="Printed picture">` : '<div class="ln">[picture missing: upload failed]</div>';
+    else if (o.t === 'feed') h += `<div style="height:${8 * o.n}px"></div>`;
+  }
+  return h + '</div>';
+}
+function add(rollId, html) { const r = $(rollId); const e = r.querySelector('.empty'); if (e) e.remove(); r.insertAdjacentHTML('afterbegin', html); }
+function log(ev) { $('log').insertAdjacentHTML('afterbegin', `<div class="${ev.type}">${time(ev.at)} · ${esc(ev.note || ev.type)}</div>`); }
+function handle(ev) {
+  if (ev.type === 'hello') { for (const k of ['printer', 'kitchen', 'relay', 'slow']) $(k).value = String(ev.sim[k]); ev.history.forEach(handle); return; }
+  if (ev.type === 'slip') add(ev.printer === 'kitchen' ? 'kitchenRoll' : 'counter', slipHtml(ev));
+  else if (ev.type === 'state') $('rear').textContent = JSON.stringify(ev.state, null, 2);
+  else log(ev);
+}
+new EventSource('/events').onmessage = (m) => handle(JSON.parse(m.data));
+for (const k of ['printer', 'kitchen', 'relay', 'slow']) $(k).addEventListener('change', () =>
+  fetch('/set', { method: 'POST', body: JSON.stringify({ [k]: k === 'slow' ? Number($(k).value) : $(k).value }) }));
+document.querySelectorAll('[data-open]').forEach((b) => b.addEventListener('click', () => fetch('/open', { method: 'POST', body: b.dataset.open })));
+$('clear').addEventListener('click', () => { $('counter').innerHTML = '<p class="empty">Nothing printed yet.</p>'; $('kitchenRoll').innerHTML = '<p class="empty">Nothing printed yet.</p>'; $('log').innerHTML = ''; });
+</script>
+</body>
+</html>
