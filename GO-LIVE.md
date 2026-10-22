@@ -50,6 +50,7 @@ Run each file **on its own**, in this order. All are safe to re-run.
 | `sql/44-staff-rank-guard.sql` | nobody promotes themselves, edits someone at or above their tier, or grants themselves permissions. Applied to production Oct 21 as `44_staff_rank_guard` |
 | `sql/45-printer-permission.sql` | `printer.manage`: test prints, the no-sale drawer button, auto-print and the kitchen printer settings are for managers and up. Applied to production Oct 22 as `45_printer_permission` |
 | `sql/46-my-notifications-only.sql` | the bell lists only my notifications and the shared ones, so read ones stay read. Applied to production Oct 22 as `46_my_notifications_only` |
+| `sql/47-orders-one-door.sql` | no direct inserts into orders for staff or guests; every order goes through `submit_order`. Applied to production Oct 22 as `47_orders_one_door` |
 
 Then: Supabase → Advisors → Security. Expected warnings only: the customer functions (`submit_order`, `track_order`, `claim_stamp_card`, `my_stamp_card`, `stamp_card_code`, `my_guest_profile`, `addon_suggestions`, `signal_*`) are public on purpose.
 
