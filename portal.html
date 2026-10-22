@@ -17,7 +17,7 @@
 </script>
 <script src="config.js?v=20261017o"></script>
 <script src="tpn-supabase.js?v=20261017o"></script>
-<script src="tpn-kit.js?v=20261022a"></script>
+<script src="tpn-kit.js?v=20261022b"></script>
 <script src="tpn-site.js?v=20261017o"></script>
 <script src="tpn-i18n.js?v=20261022c"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
@@ -52,7 +52,7 @@
 <!-- fonts: tpn-portal.css serves the website's faces under the old family names -->
 <link rel="stylesheet" href="tpn-app.css?v=20261021c">
 <link rel="stylesheet" href="tpn-glass.css?v=20261022a">
-<link rel="stylesheet" href="tpn-portal.css?v=20261017p1">
+<link rel="stylesheet" href="tpn-portal.css?v=20261022a">
 </head>
 <body>
 <a class="skip-link" href="#main-content" onclick="event.preventDefault();var t=document.querySelector('.page.active h1, .portal-page.active main');if(t){t.setAttribute('tabindex','-1');t.focus();}">Skip to content</a>
@@ -230,7 +230,7 @@ async function loadAddonSuggestions() {
       return `<div class="upsell">
         <div class="upsell-icon">${a.addon_group === 'Drinks' ? '🥤' : a.addon_group === 'Rice' ? '🍚' : '➕'}</div>
         <div>
-          <div class="upsell-title">${E(label)} — ₱${N(a.price, 0)}</div>
+          <div class="upsell-title">${E(label)} — ₱${M(a.price, 0)}</div>
           <div class="upsell-sub">${E(a.addon_group || (TPN_LANG === 'tl' ? 'Pwedeng idagdag' : 'Add to your order'))}</div>
         </div>
         <button class="upsell-add" onclick="addToCart('${JA(a.id)}','single')">+ ${E(T('common.add'))}</button>
@@ -821,6 +821,12 @@ function loadErrorPanel(what, err, retryJs) {
 const N = (v, digits = 2) => {
   const n = Number(v);
   return Number.isFinite(n) ? n.toFixed(digits) : (0).toFixed(digits);
+};
+// Money as people read it (₱1,960.00). N() stays plain because it also
+// fills number boxes, which can't take commas.
+const M = (v, digits = 2) => {
+  const n = Number(v);
+  return (Number.isFinite(n) ? n : 0).toLocaleString('en-PH', { minimumFractionDigits: digits, maximumFractionDigits: digits });
 };
 
 /* ════════════════════════════════════════════════════
@@ -1861,7 +1867,7 @@ function renderDashboard(main) {
                 <div style="font-size:12px;color:var(--ink-muted);">${E(o.items) || '—'}</div>
               </div>
               <div style="text-align:right;">
-                <div style="font-weight:700;color:var(--ink);">₱${N(o.total, 0)}</div>
+                <div style="font-weight:700;color:var(--ink);">₱${M(o.total, 0)}</div>
                 <div style="font-size:11px;color:var(--ink-muted);text-transform:capitalize;">${E(o.status)}</div>
               </div>
             </div>`).join('') : '<div style="padding:30px;text-align:center;color:var(--ink-faint);">No orders yet today.</div>'}
@@ -2528,9 +2534,9 @@ function renderOrders(main) {
         <div class="order-customer">${E(o.customer)}</div>
         <div class="order-items">${E(o.items)}</div>
         ${(o.paymentMethod&&o.paymentMethod!=="cash")?"<div style=\"font-size:11px;color:var(--amber);margin-bottom:3px;\">\uD83D\uDCB3 "+({gcash:"GCash QR",paymaya:"PayMaya QR",card:"Card Terminal"})[o.paymentMethod]+"</div>":""}
-        ${Number(o.discountAmount||0) > 0 ? `<div style="font-size:11px;color:var(--green,#2d7a4f);margin-bottom:3px;">💸 Discount: −₱${N(o.discountAmount,2)}</div>` : ''}
+        ${Number(o.discountAmount||0) > 0 ? `<div style="font-size:11px;color:var(--green,#2d7a4f);margin-bottom:3px;">💸 Discount: −₱${M(o.discountAmount,2)}</div>` : ''}
         <div class="order-row-foot">
-          <div class="order-total">₱${N(o.total, 2)}</div>
+          <div class="order-total">₱${M(o.total, 2)}</div>
           <div class="order-time-wrap">
             ${(() => { const age = getOrderAge(o); return '<span class="order-time order-time-' + age.level + '">' + (age.level==='urgent'?'🔴 ':age.level==='warn'?'🟡 ':'') + age.label + '</span>'; })()}
           </div>
@@ -3159,7 +3165,7 @@ async function renderTableQR(main) {
 }
 
 async function promptAddTable(branchCode) {
-  const numStr = prompt('Table number to add (integer):');
+  const numStr = await tpnAsk('Add a table', { input: { type: 'number', inputmode: 'numeric', placeholder: '9', min: 1, step: 1 }, confirmText: 'Add table' });
   if (!numStr) return;
   const num = parseInt(numStr, 10);
   if (!Number.isInteger(num) || num < 1 || num > 999) { toast('Invalid table number'); return; }
@@ -3230,7 +3236,7 @@ async function refreshMenuManager() {
       g.items.forEach(it => {
         const price = it.pax_options
           ? Object.entries(it.pax_options).map(([k,v]) => `${E(k)}: ₱${E(v)}`).join(' · ')
-          : '₱' + N(it.price, 0);
+          : '₱' + M(it.price, 0);
         // UnoSys: escape for JS-attr context in the Delete confirm handler.
         html += `<tr>
           <td style="font-size:20px;">${E(it.emoji || '🍽️')}</td>
@@ -3364,7 +3370,7 @@ async function toggleMenuAvail(itemId, newValue) {
 }
 
 async function deleteMenuItem(itemId, name) {
-  if (!confirm(`Delete "${E(name)}" from the menu? This can't be undone.`)) return;
+  if (!await tpnConfirm(`Delete "${name}" from the menu? This can't be undone.`, { title: 'Delete dish', confirmText: 'Delete', danger: true })) return;
   try {
     const { error } = await sb.from('menu_items').delete().eq('id', itemId);
     if (error) throw error;
@@ -3591,7 +3597,7 @@ async function submitCorrectAttendance(id) {
 }
 
 async function deleteAttendanceEntry(id) {
-  if (!confirm('Delete this attendance entry? This cannot be undone.')) return;
+  if (!await tpnConfirm('Delete this attendance entry? This cannot be undone.', { title: 'Delete entry', confirmText: 'Delete', danger: true })) return;
   try {
     const { error } = await sb.from('attendance').delete().eq('id', id);
     if (error) throw error;
@@ -3723,7 +3729,7 @@ async function openVoidItemsModal(orderDbId) {
         <div style="font-weight:600;color:${voided ? 'var(--ink-muted)' : 'var(--ink)'};text-decoration:${voided ? 'line-through' : 'none'};">
           ${E(it.quantity)}× ${E(it.name_snapshot)}${it.pax_size ? ' ('+E(it.pax_size)+')' : ''}
         </div>
-        <div style="font-size:12px;color:var(--ink-muted);">₱${N(it.total_price,2)}${voided ? ' · voided — ' + E(it.void_reason||'') : ''}</div>
+        <div style="font-size:12px;color:var(--ink-muted);">₱${M(it.total_price,2)}${voided ? ' · voided — ' + E(it.void_reason||'') : ''}</div>
       </div>
       <div style="flex-shrink:0;">${action}</div>
     </div>`;
@@ -3750,7 +3756,7 @@ async function openVoidItemsModal(orderDbId) {
 }
 
 async function promptVoidItem(itemId, orderDbId) {
-  const reason = window.prompt('Void reason (min 3 characters) — this is logged:\n\nItem: ' + _voidItemName(itemId), '');
+  const reason = await tpnAsk('Void ' + _voidItemName(itemId) + '?', { message: 'Your reason is logged.', chips: ['Wrong item', 'Customer changed mind', 'Kitchen error', 'Duplicate'], input: { placeholder: 'Reason (at least 3 characters)' }, confirmText: 'Void item', danger: true });
   if (reason === null) return;   // cancelled
   if (!reason || reason.trim().length < 3) { toast('Void reason must be at least 3 characters.'); return; }
   try {
@@ -3780,7 +3786,7 @@ async function promptVoidItem(itemId, orderDbId) {
 }
 
 async function unvoidItem(itemId, orderDbId) {
-  if (!window.confirm('Un-void this item? It will be added back to the order total.')) return;
+  if (!await tpnConfirm('It goes back on the order total.', { title: 'Restore this item?', confirmText: 'Restore' })) return;
   try {
     await TPN.unvoidOrderItem(itemId);
     toast('✓ Item restored.');
@@ -3803,9 +3809,7 @@ async function promptRequestVoid(orderDbId, itemId) {
   const what = itemId
     ? ('Item: ' + _voidItemName(itemId))
     : 'This will ask a manager to cancel the ENTIRE order.';
-  const reason = window.prompt(
-    'Why does this need to be voided? (min 3 characters)\n' +
-    'A manager sees this and decides.\n\n' + what, '');
+  const reason = await tpnAsk('Ask a manager to void this?', { message: what + ' A manager sees your reason and decides.', chips: ['Wrong item', 'Customer changed mind', 'Kitchen error', 'Duplicate'], input: { placeholder: 'Reason (at least 3 characters)' }, confirmText: 'Send request' });
   if (reason === null) return;
   if (!reason || reason.trim().length < 3) { toast('Give a reason of at least 3 characters.'); return; }
   try {
@@ -3820,10 +3824,7 @@ async function promptRequestVoid(orderDbId, itemId) {
 // Manager+ voiding a whole order. Goes through the same request→approve
 // pipeline so there is one audit shape for whole-order voids, self-approved.
 async function promptVoidWholeOrder(orderDbId, orderNumber) {
-  const reason = window.prompt(
-    'Void the ENTIRE order ' + (orderNumber || '') + '?\n' +
-    'Every remaining item is voided and the order is marked cancelled.\n\n' +
-    'Reason (min 3 characters) — this is logged:', '');
+  const reason = await tpnAsk('Void the whole order ' + (orderNumber || '') + '?', { message: 'Every remaining item is voided and the order is cancelled. Your reason is logged.', input: { placeholder: 'Reason (at least 3 characters)' }, confirmText: 'Void order', danger: true });
   if (reason === null) return;
   if (!reason || reason.trim().length < 3) { toast('Reason must be at least 3 characters.'); return; }
   try {
@@ -3932,7 +3933,7 @@ async function renderVoidRequests(main, mode) {
     const title   = isWhole
       ? `Entire order ${E(r.order_number || '')}`
       : `${E(r.item_qty || 1)}× ${E(r.item_name || 'item')}`;
-    const amount  = r.item_amount != null ? `₱${N(r.item_amount, 2)}` : '';
+    const amount  = r.item_amount != null ? `₱${M(r.item_amount, 2)}` : '';
     const who     = E(r.requested_by_name || 'Unknown');
     const whoRole = r.requested_by_role ? roleDisplayLabel(r.requested_by_role) : '';
 
@@ -3978,8 +3979,8 @@ async function renderVoidRequests(main, mode) {
 }
 
 async function approveVoidReq(id) {
-  if (!window.confirm('Approve this void? The item comes off the order total and the order is recalculated. This is logged against your name.')) return;
-  const note = window.prompt('Optional note for the record (leave blank to skip):', '');
+  const note = await tpnAsk('Approve this void?', { message: 'The item comes off the order total. This is logged against your name.', input: { placeholder: 'Note for the record (optional)' }, allowEmpty: true, confirmText: 'Approve void' });
+  if (note === null) return;
   try {
     await TPN.approveVoidRequest(id, note && note.trim() ? note.trim() : null);
     toast('✓ Void approved.');
@@ -3990,7 +3991,7 @@ async function approveVoidReq(id) {
 }
 
 async function denyVoidReq(id) {
-  const note = window.prompt('Why are you denying this? The person who asked will see it:', '');
+  const note = await tpnAsk('Deny this void?', { message: 'The person who asked sees your reason.', input: { placeholder: 'Reason' }, allowEmpty: true, confirmText: 'Deny', danger: true });
   if (note === null) return;
   try {
     await TPN.denyVoidRequest(id, note && note.trim() ? note.trim() : null);
@@ -4001,7 +4002,7 @@ async function denyVoidReq(id) {
 }
 
 async function withdrawVoidReq(id) {
-  if (!window.confirm('Withdraw this void request?')) return;
+  if (!await tpnConfirm('The manager will no longer see it.', { title: 'Withdraw this request?', confirmText: 'Withdraw' })) return;
   try {
     await TPN.cancelVoidRequest(id);
     toast('Request withdrawn.');
@@ -4066,7 +4067,7 @@ function _renderDiscountList() {
     const activeBadge = t.is_active
       ? '<span class="portal-nav-badge" style="background:#2d7a4f;color:#fff;">Active</span>'
       : '<span class="portal-nav-badge" style="background:var(--ink-muted);color:#fff;">Off</span>';
-    const valLabel = t.kind === 'percent' ? `${Number(t.value)}% off` : `−₱${N(t.value,2)}`;
+    const valLabel = t.kind === 'percent' ? `${Number(t.value)}% off` : `−₱${M(t.value,2)}`;
     const vatBadge = t.kind === 'percent' && t.vat_treatment === 'net_of_vat'
       ? '<span style="font-size:11px;color:var(--ink-muted);">🧾 Net of VAT</span>' : '';
     return `<div style="padding:14px 16px;border-bottom:1px solid var(--line-soft);display:flex;gap:14px;align-items:flex-start;">
@@ -4079,7 +4080,7 @@ function _renderDiscountList() {
           ${!t.stackable ? '<span style="font-size:11px;color:var(--ink-muted);">🚫 Non-stackable</span>' : ''}
           ${vatBadge}
         </div>
-        <div style="font-size:12px;color:var(--ink-muted);margin-bottom:4px;">${E(t.code)} · <strong style="color:var(--ink);">${valLabel}</strong>${t.min_subtotal>0?` · min ₱${N(t.min_subtotal,2)}`:''}${t.max_discount?` · cap ₱${N(t.max_discount,2)}`:''}</div>
+        <div style="font-size:12px;color:var(--ink-muted);margin-bottom:4px;">${E(t.code)} · <strong style="color:var(--ink);">${valLabel}</strong>${t.min_subtotal>0?` · min ₱${M(t.min_subtotal,2)}`:''}${t.max_discount?` · cap ₱${M(t.max_discount,2)}`:''}</div>
         ${t.description ? `<div style="font-size:12px;color:var(--ink-muted);">${E(t.description)}</div>` : ''}
       </div>
       ${canEdit ? `<div style="flex-shrink:0;display:flex;gap:6px;flex-direction:column;">
@@ -4187,7 +4188,7 @@ async function saveDiscountTemplate(id, locked) {
 }
 
 async function deleteDiscountTemplate(id, name) {
-  if (!window.confirm(`Delete template "${E(name)}"? This cannot be undone.`)) return;
+  if (!await tpnConfirm(`Delete "${name}"? This cannot be undone.`, { title: 'Delete discount', confirmText: 'Delete', danger: true })) return;
   try {
     await TPN.deleteDiscountTemplate(id);
     toast('✓ Deleted');
@@ -4214,7 +4215,7 @@ async function openDiscountPicker(orderDbId, opts) {
     ? applied.map(a => `<div style="display:flex;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line-soft);">
         <div style="flex:1;min-width:0;">
           <div style="font-weight:600;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${E(a.name_snapshot)}${a.legal_law?` <span style="font-size:10px;color:var(--ink-muted);">(${E(a.legal_law)})</span>`:''}</div>
-          <div style="font-size:11px;color:var(--ink-muted);">−₱${N(a.amount_applied,2)}${a.id_ref?` · ID ${E(a.id_ref)}`:''}</div>
+          <div style="font-size:11px;color:var(--ink-muted);">−₱${M(a.amount_applied,2)}${a.id_ref?` · ID ${E(a.id_ref)}`:''}</div>
         </div>
         ${canRemove ? `<button class="btn-secondary danger" onclick="removeAppliedDiscount('${JA(a.id)}','${JA(orderDbId)}')">Remove</button>` : ''}
       </div>`).join('')
@@ -4225,7 +4226,7 @@ async function openDiscountPicker(orderDbId, opts) {
   // paragraph of BIR wording here is what made this modal unusable.
   const templateRows = active.length
     ? active.map(t => {
-        const valLabel = t.kind === 'percent' ? `${Number(t.value)}%` : `−₱${N(t.value,2)}`;
+        const valLabel = t.kind === 'percent' ? `${Number(t.value)}%` : `−₱${M(t.value,2)}`;
         const lawChip  = t.legal_law
           ? `<span style="flex:0 0 auto;font-size:9px;font-weight:700;letter-spacing:.04em;
                  background:rgba(139,26,14,.10);color:var(--brick,#8B1A0E);
@@ -4251,7 +4252,7 @@ async function openDiscountPicker(orderDbId, opts) {
     <div class="modal-title">Discounts</div>
     <div class="modal-sub" style="font-variant-numeric:tabular-nums;">
       ${E(order.order_number || '')}<br>
-      Subtotal ₱${N(order.subtotal,2)} · Discount −₱${N(currentDisc,2)} · <strong>Total ₱${N(currentTotal,2)}</strong>
+      Subtotal ₱${M(order.subtotal,2)} · Discount −₱${M(currentDisc,2)} · <strong>Total ₱${M(currentTotal,2)}</strong>
     </div>
     <div class="modal-content" style="max-height:56vh;overflow-y:auto;overflow-x:hidden;">
       <div style="font-size:11px;font-weight:700;color:var(--ink-muted);letter-spacing:.08em;margin:4px 0 6px;">APPLIED</div>
@@ -5188,7 +5189,7 @@ async function loadHistory() {
 }
 
 async function triggerAuditArchive() {
-  if (!window.confirm('Move audit rows older than 31 days into the archive and refresh the monthly summary?')) return;
+  if (!await tpnConfirm('Rows older than 31 days move to the archive and the monthly summary refreshes.', { title: 'Archive old audit rows?', confirmText: 'Archive' })) return;
   try {
     const res = await TPN.archiveAuditLog(31);
     const r = Array.isArray(res) ? res[0] : res;
@@ -6213,10 +6214,10 @@ function _renderInventoryTable() {
         ${N(i.reorder_level, 2)}
       </td>
       <td style="padding:10px 12px;border-bottom:1px solid var(--line-soft);text-align:right;font-size:12px;white-space:nowrap;">
-        ${i.avg_unit_cost != null ? '₱' + N(i.avg_unit_cost, 2) : '—'}
+        ${i.avg_unit_cost != null ? '₱' + M(i.avg_unit_cost, 2) : '—'}
       </td>
       <td style="padding:10px 12px;border-bottom:1px solid var(--line-soft);text-align:right;font-size:12px;white-space:nowrap;">
-        ${i.stock_value != null ? '₱' + N(i.stock_value, 2) : '—'}
+        ${i.stock_value != null ? '₱' + M(i.stock_value, 2) : '—'}
       </td>
       <td style="padding:10px 12px;border-bottom:1px solid var(--line-soft);text-align:right;white-space:nowrap;">
         ${TPN.can('inventory.receive') ? `<button class="btn-ghost" style="padding:4px 10px;font-size:11px;" onclick="openStockMovement('${i.id}','delivery_in')">+ ${E(T('inv.deliveryIn'))}</button>` : ''}
@@ -6230,7 +6231,7 @@ function _renderInventoryTable() {
     <div class="fin-grid">
       <div class="fin-tile">
         <div class="fin-tile-label">${E(T('inv.value'))}</div>
-        <div class="fin-tile-value">₱${N(totalValue, 2)}</div>
+        <div class="fin-tile-value">₱${M(totalValue, 2)}</div>
         <div class="fin-tile-note">${items.length} ingredient${items.length === 1 ? '' : 's'}</div>
       </div>
       <div class="fin-tile">
@@ -6279,7 +6280,7 @@ function _renderMovementLog() {
           ${m.notes ? `<div style="color:var(--ink-faint);font-size:11px;">${E(m.notes)}</div>` : ''}
         </span>
         <span style="color:var(--ink-faint);white-space:nowrap;">
-          ${m.total_cost != null ? '₱' + N(m.total_cost, 2) + ' · ' : ''}${_timeAgo(m.occurred_at)}
+          ${m.total_cost != null ? '₱' + M(m.total_cost, 2) + ' · ' : ''}${_timeAgo(m.occurred_at)}
         </span>
       </div>`;
     }).join('')}
@@ -6577,19 +6578,19 @@ function _renderFinanceBody() {
   const tiles = `
     <div class="fin-grid">
       <div class="fin-tile"><div class="fin-tile-label">${E(T('fin.net'))}</div>
-        <div class="fin-tile-value">₱${N(net, 2)}</div>
-        <div class="fin-tile-note">${orders} ${E(T('fin.orders').toLowerCase())} · ${E(T('fin.gross'))} ₱${N(gross, 2)}</div></div>
+        <div class="fin-tile-value">₱${M(net, 2)}</div>
+        <div class="fin-tile-note">${orders} ${E(T('fin.orders').toLowerCase())} · ${E(T('fin.gross'))} ₱${M(gross, 2)}</div></div>
       <div class="fin-tile"><div class="fin-tile-label">${E(T('fin.cogs'))}</div>
-        <div class="fin-tile-value">₱${N(cogs, 2)}</div>
+        <div class="fin-tile-value">₱${M(cogs, 2)}</div>
         <div class="fin-tile-note">${net > 0 ? N(cogs / net * 100, 1) + '% of net sales' : '—'}</div></div>
       <div class="fin-tile"><div class="fin-tile-label">${E(T('fin.labour'))}</div>
-        <div class="fin-tile-value">₱${N(labour, 2)}</div>
+        <div class="fin-tile-value">₱${M(labour, 2)}</div>
         <div class="fin-tile-note">${net > 0 ? N(labour / net * 100, 1) + '% of net sales' : '—'}</div></div>
       <div class="fin-tile"><div class="fin-tile-label">${E(T('fin.expenses'))}</div>
-        <div class="fin-tile-value">₱${N(other, 2)}</div>
+        <div class="fin-tile-value">₱${M(other, 2)}</div>
         <div class="fin-tile-note">${_finState.expenses.length} entr${_finState.expenses.length === 1 ? 'y' : 'ies'}</div></div>
       <div class="fin-tile"><div class="fin-tile-label">${E(T('fin.netIncome'))}</div>
-        <div class="fin-tile-value ${income < 0 ? 'neg' : 'pos'}">₱${N(income, 2)}</div>
+        <div class="fin-tile-value ${income < 0 ? 'neg' : 'pos'}">₱${M(income, 2)}</div>
         <div class="fin-tile-note">${margin !== null ? N(margin, 1) + '% margin' : '—'}${disc > 0 ? ' · ' + E(T('fin.discounts')) + ' ₱' + N(disc, 2) : ''}</div></div>
     </div>
     <div class="fin-basis">
@@ -6609,12 +6610,12 @@ function _renderFinanceBody() {
         const inc = Number(r.net_income || 0);
         return `<tr>
           <td style="padding:9px 12px;border-bottom:1px solid var(--line-soft);white-space:nowrap;">${E(_finPeriodLabel(r.period_start))}</td>
-          <td style="padding:9px 12px;border-bottom:1px solid var(--line-soft);text-align:right;">₱${N(r.net_sales, 2)}</td>
+          <td style="padding:9px 12px;border-bottom:1px solid var(--line-soft);text-align:right;">₱${M(r.net_sales, 2)}</td>
           <td style="padding:9px 12px;border-bottom:1px solid var(--line-soft);text-align:right;color:var(--ink-muted);">${r.order_count}</td>
-          <td style="padding:9px 12px;border-bottom:1px solid var(--line-soft);text-align:right;color:var(--ink-muted);">₱${N(r.cogs, 2)}</td>
-          <td style="padding:9px 12px;border-bottom:1px solid var(--line-soft);text-align:right;color:var(--ink-muted);">₱${N(r.labour_cost, 2)}</td>
-          <td style="padding:9px 12px;border-bottom:1px solid var(--line-soft);text-align:right;color:var(--ink-muted);">₱${N(r.other_expenses, 2)}</td>
-          <td style="padding:9px 12px;border-bottom:1px solid var(--line-soft);text-align:right;font-weight:700;color:${inc < 0 ? '#8B1A0E' : '#2D7A4F'};">₱${N(inc, 2)}</td>
+          <td style="padding:9px 12px;border-bottom:1px solid var(--line-soft);text-align:right;color:var(--ink-muted);">₱${M(r.cogs, 2)}</td>
+          <td style="padding:9px 12px;border-bottom:1px solid var(--line-soft);text-align:right;color:var(--ink-muted);">₱${M(r.labour_cost, 2)}</td>
+          <td style="padding:9px 12px;border-bottom:1px solid var(--line-soft);text-align:right;color:var(--ink-muted);">₱${M(r.other_expenses, 2)}</td>
+          <td style="padding:9px 12px;border-bottom:1px solid var(--line-soft);text-align:right;font-weight:700;color:${inc < 0 ? '#8B1A0E' : '#2D7A4F'};">₱${M(inc, 2)}</td>
         </tr>`;
       }).join('')}</tbody>
     </table>
@@ -6647,7 +6648,7 @@ function _renderExpenseList() {
         <span style="color:var(--ink-muted);font-size:11px;"> · ${E(String(x.category).replace('_', ' '))}</span>
         ${x.notes ? `<div style="color:var(--ink-faint);font-size:11px;">${E(x.notes)}</div>` : ''}
       </span>
-      <span style="font-weight:700;white-space:nowrap;">₱${N(x.amount, 2)}</span>
+      <span style="font-weight:700;white-space:nowrap;">₱${M(x.amount, 2)}</span>
       ${TPN.can('expenses.record') ? `<button class="btn-ghost" style="padding:3px 9px;font-size:11px;" onclick="openExpenseEditor('${x.id}')">${E(T('common.edit'))}</button>` : ''}
     </div>`).join('')}
   </div>`;
@@ -6791,7 +6792,7 @@ async function openPayRates() {
               <strong style="font-size:13px;">${E(p.full_name)}</strong>
               <span style="font-size:11px;color:var(--ink-faint);"> · ${E(p.role)}</span>
               <div style="font-size:11px;color:var(--ink-muted);">
-                ${c ? '₱' + N(Number(c.rate) + Number(c.allowance || 0), 2) + ' ' + E(cadence) : 'No rate set'}
+                ${c ? '₱' + M(Number(c.rate) + Number(c.allowance || 0), 2) + ' ' + E(cadence) : 'No rate set'}
               </div>
             </span>
             ${canEdit ? `<button class="btn-ghost" style="padding:4px 10px;font-size:11px;" onclick="openSetPay('${p.id}','${JA(p.full_name)}')">${c ? E(T('common.edit')) : E(T('common.add'))}</button>` : ''}
@@ -7002,11 +7003,11 @@ function _renderPayRunDetail(id) {
   box.innerHTML = `
     <div class="fin-grid" style="padding:14px 16px 0;">
       <div class="fin-tile"><div class="fin-tile-label">${E(T('pay.gross'))}</div>
-        <div class="fin-tile-value">₱${N(gross, 2)}</div></div>
+        <div class="fin-tile-value">₱${M(gross, 2)}</div></div>
       <div class="fin-tile"><div class="fin-tile-label">${E(T('pay.deduct'))}</div>
-        <div class="fin-tile-value">₱${N(ded, 2)}</div></div>
+        <div class="fin-tile-value">₱${M(ded, 2)}</div></div>
       <div class="fin-tile"><div class="fin-tile-label">${E(T('pay.net'))}</div>
-        <div class="fin-tile-value pos">₱${N(net, 2)}</div>
+        <div class="fin-tile-value pos">₱${M(net, 2)}</div>
         <div class="fin-tile-note">${items.length} staff</div></div>
     </div>
 
@@ -7026,16 +7027,16 @@ function _renderPayRunDetail(id) {
           <td style="padding:9px 12px;border-bottom:1px solid var(--line-soft);">
             <div style="font-weight:600;">${E(i.staff_name)}</div>
             <div style="font-size:11px;color:var(--ink-faint);">
-              ${E(i.pay_type)} · ₱${N(i.rate, 2)}${Number(i.allowance) ? ' + ₱' + N(i.allowance, 2) : ''}
+              ${E(i.pay_type)} · ₱${M(i.rate, 2)}${Number(i.allowance) ? ' + ₱' + N(i.allowance, 2) : ''}
             </div>
             ${i.note ? `<div style="font-size:11px;color:var(--brick);margin-top:3px;">${E(i.note)}</div>` : ''}
           </td>
           <td style="padding:9px 12px;border-bottom:1px solid var(--line-soft);text-align:right;color:var(--ink-muted);">
             ${N(i.days_worked, 0)}${Number(i.hours_worked) ? `<div style="font-size:10px;">${N(i.hours_worked, 1)}h</div>` : ''}
           </td>
-          <td style="padding:9px 12px;border-bottom:1px solid var(--line-soft);text-align:right;">₱${N(i.gross, 2)}</td>
-          <td style="padding:9px 12px;border-bottom:1px solid var(--line-soft);text-align:right;color:${Number(i.deductions) ? '#8B1A0E' : 'var(--ink-faint)'};">₱${N(i.deductions, 2)}</td>
-          <td style="padding:9px 12px;border-bottom:1px solid var(--line-soft);text-align:right;font-weight:700;">₱${N(i.net, 2)}</td>
+          <td style="padding:9px 12px;border-bottom:1px solid var(--line-soft);text-align:right;">₱${M(i.gross, 2)}</td>
+          <td style="padding:9px 12px;border-bottom:1px solid var(--line-soft);text-align:right;color:${Number(i.deductions) ? '#8B1A0E' : 'var(--ink-faint)'};">₱${M(i.deductions, 2)}</td>
+          <td style="padding:9px 12px;border-bottom:1px solid var(--line-soft);text-align:right;font-weight:700;">₱${M(i.net, 2)}</td>
           <td style="padding:9px 12px;border-bottom:1px solid var(--line-soft);text-align:right;">
             ${editable ? `<button class="btn-ghost" style="padding:4px 10px;font-size:11px;" onclick="openPayLineEditor('${i.id}','${id}')">${E(T('common.edit'))}</button>` : ''}
           </td>
@@ -7159,7 +7160,7 @@ function openPayLineEditor(itemId, runId) {
   const m = document.getElementById('modal');
   m.innerHTML = `
     <div class="modal-title">${E(item.staff_name)}</div>
-    <div class="modal-sub">${E(item.pay_type)} · ₱${N(item.rate, 2)} · ${N(item.days_worked, 0)} ${E(T('pay.daysWorked').toLowerCase())}</div>
+    <div class="modal-sub">${E(item.pay_type)} · ₱${M(item.rate, 2)} · ${N(item.days_worked, 0)} ${E(T('pay.daysWorked').toLowerCase())}</div>
     <div class="modal-content">
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
         <div><label class="form-label">${E(T('pay.gross'))}</label>
@@ -7520,7 +7521,7 @@ function _renderGuestList() {
         <div class="fin-tile-value">${rows.length}</div>
         <div class="fin-tile-note">${repeat} ${E(T('guests.returning'))}</div></div>
       <div class="fin-tile"><div class="fin-tile-label">${E(T('guests.totalSpend'))}</div>
-        <div class="fin-tile-value">₱${N(spend, 2)}</div></div>
+        <div class="fin-tile-value">₱${M(spend, 2)}</div></div>
       <div class="fin-tile"><div class="fin-tile-label">${E(T('guests.flagged'))}</div>
         <div class="fin-tile-value ${flagged ? 'neg' : ''}">${flagged}</div></div>
     </div>
@@ -7546,8 +7547,8 @@ function _renderGuestList() {
           </td>
           <td style="padding:10px 12px;border-bottom:1px solid var(--line-soft);text-align:right;font-weight:700;">${r.order_count}</td>
           <td style="padding:10px 12px;border-bottom:1px solid var(--line-soft);text-align:right;">
-            ₱${N(r.lifetime_spend, 2)}
-            <div style="font-size:10px;color:var(--ink-faint);">₱${N(r.avg_spend, 2)} ${E(T('guests.avg'))}</div>
+            ₱${M(r.lifetime_spend, 2)}
+            <div style="font-size:10px;color:var(--ink-faint);">₱${M(r.avg_spend, 2)} ${E(T('guests.avg'))}</div>
           </td>
           <td style="padding:10px 12px;border-bottom:1px solid var(--line-soft);color:var(--ink-muted);">${E(r.usual || '—')}</td>
           <td style="padding:10px 12px;border-bottom:1px solid var(--line-soft);text-align:right;color:var(--ink-faint);white-space:nowrap;">
@@ -7567,7 +7568,7 @@ function openGuestEditor(deviceId) {
   const m = document.getElementById('modal');
   m.innerHTML = `
     <div class="modal-title">${E(r.name || T('guests.unnamed'))}</div>
-    <div class="modal-sub">${r.order_count} ${E(T('guests.visits').toLowerCase())} · ₱${N(r.lifetime_spend,2)} ${E(T('guests.spent').toLowerCase())}${r.usual ? ' · ' + E(T('guests.usual').toLowerCase()) + ': ' + E(r.usual) : ''}</div>
+    <div class="modal-sub">${r.order_count} ${E(T('guests.visits').toLowerCase())} · ₱${M(r.lifetime_spend,2)} ${E(T('guests.spent').toLowerCase())}${r.usual ? ' · ' + E(T('guests.usual').toLowerCase()) + ': ' + E(r.usual) : ''}</div>
     <div class="modal-content">
       <div style="margin-bottom:14px;">
         <label class="form-label">${E(T('guests.note'))}</label>
@@ -7720,20 +7721,20 @@ function _renderClose() {
     <div style="display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-bottom:1px solid var(--line-soft);font-size:13px;">
       <span style="text-transform:capitalize;">${E(String(m.method).replace('_',' '))}
         <span style="color:var(--ink-faint);font-size:11px;">· ${m.orders}</span></span>
-      <strong>₱${N(m.total,2)}</strong>
+      <strong>₱${M(m.total,2)}</strong>
     </div>`).join('');
 
   const types = (r.by_type || []).map(t => `
     <div style="display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-bottom:1px solid var(--line-soft);font-size:13px;">
       <span style="text-transform:capitalize;">${E(String(t.type).replace('_',' '))}
         <span style="color:var(--ink-faint);font-size:11px;">· ${t.orders}</span></span>
-      <strong>₱${N(t.total,2)}</strong>
+      <strong>₱${M(t.total,2)}</strong>
     </div>`).join('');
 
   const top = (r.top_items || []).map(i => `
     <div style="display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-bottom:1px solid var(--line-soft);font-size:13px;">
       <span>${E(i.name)}</span>
-      <span style="color:var(--ink-muted);">${i.qty}× <strong style="color:var(--ink);">₱${N(i.total,2)}</strong></span>
+      <span style="color:var(--ink-muted);">${i.qty}× <strong style="color:var(--ink);">₱${M(i.total,2)}</strong></span>
     </div>`).join('');
 
   const voided = r.voided_items || {};
@@ -7744,22 +7745,22 @@ function _renderClose() {
   el.innerHTML = `
     <div class="fin-grid">
       <div class="fin-tile"><div class="fin-tile-label">${E(T('fin.net'))}</div>
-        <div class="fin-tile-value">₱${N(r.net_sales,2)}</div>
-        <div class="fin-tile-note">${r.order_count} ${E(T('fin.orders').toLowerCase())} · ₱${N(r.avg_ticket,2)} ${E(T('close.avgTicket'))}</div></div>
+        <div class="fin-tile-value">₱${M(r.net_sales,2)}</div>
+        <div class="fin-tile-note">${r.order_count} ${E(T('fin.orders').toLowerCase())} · ₱${M(r.avg_ticket,2)} ${E(T('close.avgTicket'))}</div></div>
       <div class="fin-tile"><div class="fin-tile-label">${E(T('fin.discounts'))}</div>
-        <div class="fin-tile-value">₱${N(r.discounts,2)}</div>
-        <div class="fin-tile-note">${E(T('fin.gross'))} ₱${N(r.gross_sales,2)}</div></div>
+        <div class="fin-tile-value">₱${M(r.discounts,2)}</div>
+        <div class="fin-tile-note">${E(T('fin.gross'))} ₱${M(r.gross_sales,2)}</div></div>
       <div class="fin-tile"><div class="fin-tile-label">${E(T('close.voids'))}</div>
-        <div class="fin-tile-value ${Number(voided.value) ? 'neg' : ''}">₱${N(voided.value || 0,2)}</div>
+        <div class="fin-tile-value ${Number(voided.value) ? 'neg' : ''}">₱${M(voided.value || 0,2)}</div>
         <div class="fin-tile-note">${voided.lines || 0} ${E(T('close.lines'))} · ${cancelled.orders || 0} ${E(T('close.cancelled'))}</div></div>
       <div class="fin-tile"><div class="fin-tile-label">${E(T('close.declaredCash'))}</div>
-        <div class="fin-tile-value">₱${N(declaredCash,2)}</div>
+        <div class="fin-tile-value">₱${M(declaredCash,2)}</div>
         <div class="fin-tile-note">${E(T('close.inDrawer'))}</div></div>
     </div>
 
     <div class="fin-basis">ℹ️ ${E(T('close.declaredWarning'))}</div>
-    ${Number(unpaid.orders) ? `<div class="pay-alert" role="alert">⚠️ <strong>${unpaid.orders} order${unpaid.orders > 1 ? 's' : ''} not fully paid</strong> (₱${N(unpaid.value,2)}). Open them from Live Orders → Take payment before closing.</div>` : ''}
-    ${Number(pendingBank.count) ? `<div class="pay-alert">🏦 ${pendingBank.count} bank transfer${pendingBank.count > 1 ? 's' : ''} waiting for confirmation (₱${N(pendingBank.value,2)}) — see Payments.</div>` : ''}
+    ${Number(unpaid.orders) ? `<div class="pay-alert" role="alert">⚠️ <strong>${unpaid.orders} order${unpaid.orders > 1 ? 's' : ''} not fully paid</strong> (₱${M(unpaid.value,2)}). Open them from Live Orders → Take payment before closing.</div>` : ''}
+    ${Number(pendingBank.count) ? `<div class="pay-alert">🏦 ${pendingBank.count} bank transfer${pendingBank.count > 1 ? 's' : ''} waiting for confirmation (₱${M(pendingBank.value,2)}) — see Payments.</div>` : ''}
 
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;margin-bottom:18px;">
       <div class="panel" style="padding:14px 16px;">
@@ -7775,12 +7776,12 @@ function _renderClose() {
       ${closed ? `
         <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:baseline;margin-bottom:10px;">
           <div><div class="pref-row-hint">${E(T('close.expected'))}</div>
-            <div style="font-size:18px;font-weight:700;">₱${N(closed.expected_cash,2)}</div></div>
+            <div style="font-size:18px;font-weight:700;">₱${M(closed.expected_cash,2)}</div></div>
           <div><div class="pref-row-hint">${E(T('close.counted'))}</div>
-            <div style="font-size:18px;font-weight:700;">₱${N(closed.counted_cash,2)}</div></div>
+            <div style="font-size:18px;font-weight:700;">₱${M(closed.counted_cash,2)}</div></div>
           <div><div class="pref-row-hint">${E(T('close.variance'))}</div>
             <div style="font-size:18px;font-weight:800;color:${Number(closed.variance) === 0 ? '#2D7A4F' : '#8B1A0E'};">
-              ${Number(closed.variance) > 0 ? '+' : ''}₱${N(closed.variance,2)}</div></div>
+              ${Number(closed.variance) > 0 ? '+' : ''}₱${M(closed.variance,2)}</div></div>
         </div>
         ${closed.notes ? `<div style="font-size:12px;color:var(--ink-muted);margin-bottom:10px;">📝 ${E(closed.notes)}</div>` : ''}
         <div class="pref-row-hint">${E(T('close.closedAt'))} ${E(_timeAgo(closed.closed_at))}. ${E(T('close.recloseHint'))}</div>
@@ -7811,11 +7812,11 @@ function _closeHistory() {
         const v = Number(d.variance || 0);
         return `<tr style="cursor:pointer;" onclick="setCloseDate('${d.close_date}')">
           <td style="padding:9px 12px;border-bottom:1px solid var(--line-soft);white-space:nowrap;">${E(d.close_date)}</td>
-          <td style="padding:9px 12px;border-bottom:1px solid var(--line-soft);text-align:right;">₱${N(d.net_sales,2)}</td>
-          <td style="padding:9px 12px;border-bottom:1px solid var(--line-soft);text-align:right;color:var(--ink-muted);">₱${N(d.expected_cash,2)}</td>
-          <td style="padding:9px 12px;border-bottom:1px solid var(--line-soft);text-align:right;color:var(--ink-muted);">₱${N(d.counted_cash,2)}</td>
+          <td style="padding:9px 12px;border-bottom:1px solid var(--line-soft);text-align:right;">₱${M(d.net_sales,2)}</td>
+          <td style="padding:9px 12px;border-bottom:1px solid var(--line-soft);text-align:right;color:var(--ink-muted);">₱${M(d.expected_cash,2)}</td>
+          <td style="padding:9px 12px;border-bottom:1px solid var(--line-soft);text-align:right;color:var(--ink-muted);">₱${M(d.counted_cash,2)}</td>
           <td style="padding:9px 12px;border-bottom:1px solid var(--line-soft);text-align:right;font-weight:700;color:${v===0?'#2D7A4F':'#8B1A0E'};">
-            ${v>0?'+':''}₱${N(v,2)}</td>
+            ${v>0?'+':''}₱${M(v,2)}</td>
         </tr>`;
       }).join('')}</tbody>
     </table>
@@ -7828,7 +7829,7 @@ function openCloseTill() {
   const m = document.getElementById('modal');
   m.innerHTML = `
     <div class="modal-title">${E(T('close.countDrawer'))}</div>
-    <div class="modal-sub">${E(_closeState.date)} · ${E(T('close.expected'))} ₱${N(expected,2)}</div>
+    <div class="modal-sub">${E(_closeState.date)} · ${E(T('close.expected'))} ₱${M(expected,2)}</div>
     <div class="modal-content">
       <div style="margin-bottom:12px;">
         <label class="form-label">${E(T('close.counted'))}</label>
@@ -7861,7 +7862,7 @@ function _ccPreview() {
   if (!el) return;
   el.innerHTML = v === 0
     ? `<span style="color:#2D7A4F;font-weight:700;">${E(T('close.balanced'))}</span>`
-    : `<span style="color:#8B1A0E;font-weight:700;">${v > 0 ? '+' : ''}₱${N(v,2)} — ${E(v > 0 ? T('close.over') : T('close.short'))}</span>`;
+    : `<span style="color:#8B1A0E;font-weight:700;">${v > 0 ? '+' : ''}₱${M(v,2)} — ${E(v > 0 ? T('close.over') : T('close.short'))}</span>`;
 }
 
 async function doCloseTill() {
@@ -7951,12 +7952,12 @@ function _renderVariance() {
   el.innerHTML = `
     <div class="fin-grid">
       <div class="fin-tile"><div class="fin-tile-label">${E(T('var.discovered'))}</div>
-        <div class="fin-tile-value ${lost ? 'neg' : ''}">₱${N(lost,2)}</div>
+        <div class="fin-tile-value ${lost ? 'neg' : ''}">₱${M(lost,2)}</div>
         <div class="fin-tile-note">${worst} ${E(T('var.itemsShort'))}</div></div>
       <div class="fin-tile"><div class="fin-tile-label">${E(T('var.wasteValue'))}</div>
-        <div class="fin-tile-value ${waste ? 'neg' : ''}">₱${N(waste,2)}</div></div>
+        <div class="fin-tile-value ${waste ? 'neg' : ''}">₱${M(waste,2)}</div></div>
       <div class="fin-tile"><div class="fin-tile-label">${E(T('var.combined'))}</div>
-        <div class="fin-tile-value ${(lost+waste) ? 'neg' : ''}">₱${N(lost+waste,2)}</div>
+        <div class="fin-tile-value ${(lost+waste) ? 'neg' : ''}">₱${M(lost+waste,2)}</div>
         <div class="fin-tile-note">${E(T('var.overPeriod'))}</div></div>
     </div>
     <div class="fin-basis">${E(T('var.caveat'))}</div>
@@ -7977,7 +7978,7 @@ function _renderVariance() {
             <td style="padding:9px 12px;border-bottom:1px solid var(--line-soft);text-align:right;color:${Number(r.wasted)?'#B45309':'var(--ink-faint)'};">${N(r.wasted,2)}</td>
             <td style="padding:9px 12px;border-bottom:1px solid var(--line-soft);text-align:right;font-weight:${Number(r.found_short)?'700':'400'};color:${Number(r.found_short)?'#8B1A0E':'var(--ink-faint)'};">${N(r.found_short,2)}</td>
             <td style="padding:9px 12px;border-bottom:1px solid var(--line-soft);text-align:right;">${N(r.closing_stock,2)}</td>
-            <td style="padding:9px 12px;border-bottom:1px solid var(--line-soft);text-align:right;font-weight:700;color:${loss?'#8B1A0E':'var(--ink-faint)'};">₱${N(loss,2)}</td>
+            <td style="padding:9px 12px;border-bottom:1px solid var(--line-soft);text-align:right;font-weight:700;color:${loss?'#8B1A0E':'var(--ink-faint)'};">₱${M(loss,2)}</td>
           </tr>`;
         }).join('')}</tbody>
       </table>
@@ -8842,7 +8843,7 @@ function guardAsync(name) {
 <script src="modules/website.js?v=20261021a"></script>
 <script src="vendor/qrcode-generator-1.4.4.js"></script>
 <script src="modules/payments.js?v=20261022a"></script>
-<script src="modules/invoices.js?v=20261021b"></script>
+<script src="modules/invoices.js?v=20261022a"></script>
 <script src="modules/photos.js?v=20261022a"></script>
 <script src="modules/pos.js?v=20261022b"></script>
 <script src="vendor/imin-printer-1.4.0.min.js"></script>
@@ -8856,5 +8857,6 @@ function guardAsync(name) {
 <script src="modules/delivery.js?v=20261017o"></script>
 <script src="modules/guide.js?v=20261017o"></script>
 <script src="modules/search.js?v=20261017o"></script>
+<link rel="stylesheet" href="tpn-forms.css?v=20261022a">
 </body>
 </html>

@@ -107,3 +107,13 @@ input[type="number"], input[type="tel"], input[type="date"], input[type="time"],
   border-radius: 14px; padding: 12px 18px; overflow-wrap: anywhere;
   bottom: calc(96px + env(safe-area-inset-bottom));
 }
+
+/* ── Narrow screens (Oct 22 full test) ───────────────────────────
+   Kitchen Queue's header wraps instead of pushing the 86 button off
+   the edge; the 30-day bars shrink to fit the phone. */
+.kds-topbar { flex-wrap: wrap; gap: 10px; }
+.kds-stats { flex-wrap: wrap; row-gap: 8px; }
+@media (max-width: 600px) {
+  .perf-daily-bar { min-width: 0; }
+  .perf-daily-chart { gap: 2px; }
+}

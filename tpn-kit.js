@@ -79,10 +79,14 @@ try {
     render(id, main, side) {
       const d = this.routes[id];
       if (!d) return false;
+      // A screen that fails after someone already moved on must not paint
+      // its error over the screen they're on now.
+      const seq = (this._seq = (this._seq || 0) + 1);
       try {
         const out = d.render(main, side);
         if (out && typeof out.catch === 'function') out.catch(err => {
           console.error('[module ' + id + ']', err);
+          if (seq !== this._seq) return;
           main.innerHTML = (typeof loadErrorPanel === 'function') ? loadErrorPanel(d.label, err, `route('${id}',{refresh:true})`) : esc(err.message);
         });
       } catch (err) {
