@@ -19,7 +19,7 @@
 <script src="tpn-supabase.js?v=20261017o"></script>
 <script src="tpn-kit.js?v=20261021d"></script>
 <script src="modules/offline.js?v=20261021b"></script>
-<script src="tpn-i18n.js?v=20261022b"></script>
+<script src="tpn-i18n.js?v=20261022c"></script>
 <link rel="stylesheet" href="tpn-glass.css?v=20261021c">
 <link rel="stylesheet" href="tpn-signin.css?v=20261021b">
 <link rel="manifest" href="counter.webmanifest">
@@ -685,6 +685,8 @@ function subscribeToRealtime() {
   TPN.subscribeOrders(null, async (payload) => {
     if (payload.eventType === 'INSERT') {
       const order = payload.new;
+      // Guests' orders print in the kitchen when it uses a printer (modules/kprint.js).
+      if (window.TPN_KPRINT) TPN_KPRINT.onOrder(order.id);
       // Find which branch
       const branch = branches.find(b => branchUuidCache[b.id] === order.branch_id);
       if (!branch) return;
@@ -2122,10 +2124,10 @@ window.onPosSent = function (o, type) {
 <script src="modules/customer-display.js?v=20261021b"></script>
 <script src="modules/payments.js?v=20261021b"></script>
 <script src="modules/invoices.js?v=20261021b"></script>
-<script src="modules/pos.js?v=20261021b"></script>
+<script src="modules/pos.js?v=20261022a"></script>
 <script src="vendor/imin-printer-1.4.0.min.js"></script>
-<script src="modules/slips.js?v=20261022b"></script>
-<script src="modules/kprint.js?v=20261022b"></script>
+<script src="modules/slips.js?v=20261022c"></script>
+<script src="modules/kprint.js?v=20261022c"></script>
 <script src="modules/imin.js?v=20261022c"></script>
 <script src="modules/guide.js?v=20261017o"></script>
 </body>

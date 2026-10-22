@@ -1,6 +1,6 @@
 # TPN OS — Session Handoff
 
-**Last updated:** Oct 22, 2026 (rev 33 — kitchen network printer: test prints from the counter, apps 1.4, see "Rev 33"; rev 32 — printed slips in the v3 look + test buttons, see "Rev 32"; rev 31 — TPN Kitchen app, shared station sign-in, sign-in = clock-in, see "Rev 31"; rev 30 — sign-in at the counter, Switch user, see "Rev 30"; rev 29 — reopens where it left off, light drawing on the iMin, see "Rev 29"; rev 28 — one app on its own engine + brand reel, see "Rev 28"; rev 27 — welcome loop; in-app engine on hold, see "Rev 27"; rev 26 — counter in Chrome + app drives the back screen, see "Rev 26"; rev 25 — the iMin's old WebView, see "Rev 25"; rev 24 — customer screen on the iMin + TPN Counter Android app, see "Rev 24"; rev 23 — security pass and fallbacks, see "Rev 23"; rev 22 — BIR booklet invoices and Vercel prep, see "Rev 22"; Oct 20: nightly encrypted backups on the headless PC, see "Backups"; rev 21 — offline counter, see "Rev 21"). Earlier: Oct 17, 2026 (rev 8 — read receipts, Tagalog everywhere, layout, guide; see "Rev 8"). Rev 7 — portal split out of the website, hubs, Counter on the floor screen; see "Rev 7"). Rev 6 (Oct 16 — v2 overhaul, see "Rev 6" and GO-LIVE.md). Previously rev 5 — UI/UX reliability pass, no migrations; see "Rev 5" below). Rev 4 (Aug 22): split bills, daily close, variance, working add-ons, low-stock alerts; migrations 18–28
+**Last updated:** Oct 22, 2026 (rev 34 — real kitchen tickets go to the kitchen printer, see "Rev 34"; rev 33 — kitchen network printer: test prints from the counter, apps 1.4, see "Rev 33"; rev 32 — printed slips in the v3 look + test buttons, see "Rev 32"; rev 31 — TPN Kitchen app, shared station sign-in, sign-in = clock-in, see "Rev 31"; rev 30 — sign-in at the counter, Switch user, see "Rev 30"; rev 29 — reopens where it left off, light drawing on the iMin, see "Rev 29"; rev 28 — one app on its own engine + brand reel, see "Rev 28"; rev 27 — welcome loop; in-app engine on hold, see "Rev 27"; rev 26 — counter in Chrome + app drives the back screen, see "Rev 26"; rev 25 — the iMin's old WebView, see "Rev 25"; rev 24 — customer screen on the iMin + TPN Counter Android app, see "Rev 24"; rev 23 — security pass and fallbacks, see "Rev 23"; rev 22 — BIR booklet invoices and Vercel prep, see "Rev 22"; Oct 20: nightly encrypted backups on the headless PC, see "Backups"; rev 21 — offline counter, see "Rev 21"). Earlier: Oct 17, 2026 (rev 8 — read receipts, Tagalog everywhere, layout, guide; see "Rev 8"). Rev 7 — portal split out of the website, hubs, Counter on the floor screen; see "Rev 7"). Rev 6 (Oct 16 — v2 overhaul, see "Rev 6" and GO-LIVE.md). Previously rev 5 — UI/UX reliability pass, no migrations; see "Rev 5" below). Rev 4 (Aug 22): split bills, daily close, variance, working add-ons, low-stock alerts; migrations 18–28
 **Deployed:** https://unorfl.github.io/tpn-os/
 **Repo:** https://github.com/UnoRfl/tpn-os
 **Supabase project ref:** `xjlqfpnzobfqxetgkkai` (single project, single branch)
@@ -61,6 +61,20 @@ tpn-os/
 | **Extensionless URLs** (`/tpn-table-menu`, `/tpn-dine-in-floor`) | ✅ live |
 
 ---
+
+## Rev 34 — kitchen tickets: kitchen printer, counter printer or screen only (Oct 22, 2026)
+
+The owner's kitchen printer test worked; real tickets now go there. The kitchen screen stays for restaurants that want it.
+- **"Kitchen tickets" setting** (printer menu → Kitchen printer, manager only, per device in localStorage `tpn.kprint.mode`):
+  - `off` — **Kitchen screen only**: nothing prints online; offline the counter still prints (paper is all the kitchen has then).
+  - `kitchen` — **Kitchen printer**; if it doesn't print, the same ticket prints on the counter printer (then the browser print window) and a toast says so.
+  - `counter` — **Counter printer** (what the old `posPrintTicket` pref did; that pref, which had no UI left, now maps to `counter`/`off` when no mode is saved).
+  - The kitchen screen always shows every order whatever this says, so "screen + printer" is `kitchen` with the screen running.
+- **Counter orders** (`modules/pos.js`): `printKitchenTicket` asks `TPN_KPRINT.route(ticket, always, atCounter)`; the old counter/browser printing is now `printAtCounter` (also `window.printKitchenAtCounter`).
+- **Guests' orders (QR menu, website)** never printed anywhere before (the table menu's "printer" is an animation). In `kitchen` mode the floor screen prints them: its realtime INSERT handler calls `TPN_KPRINT.onOrder(id)`, and a 60s check of `listActiveOrders` catches missed events. Only `source <> 'pos'`, status pending/confirmed, placed in the last 15 minutes, once per device (`tpn.kprint.done`, last 300 ids). Turning the mode on (or the first check on a new device) marks the open orders as printed, so no backlog prints. **Only one device should be in kitchen-printer mode**, or guests' orders print twice.
+- Kitchen ticket: voided lines left out; add-ons from `order_items.modifiers[].name`; the order's own note (`orders.notes`) prints in a box at the bottom.
+- Tested in a browser with a stand-in relay and a stand-in order feed: screen-only online/offline, kitchen mode, a dead printer falling back to the counter, counter mode, a QR order printed once (not on repeat events), a counter-source order and an already-open order skipped; the captured bytes decoded to the right ticket. Not yet run on the iMin with the real kitchen printer.
+- Versions: `kprint.js` `?v=20261022c`, `pos.js` `?v=20261022a`, `slips.js` `?v=20261022c` (floor, portal); `tpn-i18n.js` `?v=20261022c`.
 
 ## Rev 33 — kitchen network printer, test prints from the counter; apps 1.4 (Oct 22, 2026)
 
