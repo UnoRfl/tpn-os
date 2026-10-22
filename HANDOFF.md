@@ -73,7 +73,7 @@ The owner wanted the kitchen ticket and receipt to follow the theme in black and
   - `TPN_PRINT.kitchen` still returns `true` straight away (the ticket is queued), so `pos.js` doesn't open the browser print window as well.
   - The printer menu's **Test print** is now **Test kitchen ticket** and **Test receipt**: the same slips with sample dishes, marked TEST. `TPN_SLIP.preview('kitchen' | 'receipt')` shows them in a window on any device.
 - Off the iMin nothing changed: the browser print window still prints the plain kitchen ticket and bill.
-- Tested in a browser with a stand-in printer: both test buttons, a real-shaped receipt (voided items left out), a queued kitchen ticket, and the text fallback when the upload fails. Long guest names and two-digit quantities checked. **Not yet printed on the iMin.**
+- Tested in a browser with a stand-in printer: both test buttons, a real-shaped receipt (voided items left out), a queued kitchen ticket, and the text fallback when the upload fails. Long guest names and two-digit quantities checked. **Printed on the iMin D4 (Oct 22): owner says both test slips look good.**
 - Versions: `slips.js` `?v=20261022b`, `imin.js` `?v=20261022a` (floor, portal); `tpn-i18n.js` `?v=20261022a` on every page that loads it (two new TL strings).
 - Next: a separate kitchen printer (network, ESC/POS over port 9100) so the ticket prints in the kitchen and the counter keeps receipts; keep the kitchen screen as an option ("screen / printer / both") for other restaurants.
 
