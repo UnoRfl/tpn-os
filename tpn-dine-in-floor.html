@@ -16,11 +16,11 @@
   if (!window.supabase) document.write('<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js" integrity="sha384-Rj26LVGvoeRVR6+mwQmFfcR3QOBEwT+ZmuCWpuiqeTzJpCs0ER4ITAWGb4Hiy3Ok" crossorigin="anonymous"><' + '/script>');
 </script>
 <script src="config.js?v=20261017o"></script>
-<script src="tpn-supabase.js?v=20261017o"></script>
+<script src="tpn-supabase.js?v=20261022m"></script>
 <script src="tpn-kit.js?v=20261022b"></script>
-<script src="modules/offline.js?v=20261022g"></script>
-<script src="tpn-i18n.js?v=20261022g"></script>
-<link rel="stylesheet" href="tpn-glass.css?v=20261022a">
+<script src="modules/offline.js?v=20261022m"></script>
+<script src="tpn-i18n.js?v=20261022m"></script>
+<link rel="stylesheet" href="tpn-glass.css?v=20261022m">
 <link rel="stylesheet" href="tpn-signin.css?v=20261021b">
 <link rel="manifest" href="counter.webmanifest">
 <meta name="mobile-web-app-capable" content="yes">
@@ -164,6 +164,9 @@
   .close-pay-methods button { min-height: 42px; padding: 0 14px; border-radius: 999px; border: 1.5px solid var(--border); background: #fff; font: 600 13px 'Plus Jakarta Sans', system-ui, sans-serif; cursor: pointer; color: var(--text); transition: background .18s, color .18s, border-color .18s; }
   .close-pay-methods button[aria-checked="true"] { background: var(--brick); border-color: var(--brick); color: #fff; }
   .close-pay-change { margin-top: 10px; font-size: 16px; min-height: 22px; }
+  .close-shift { padding: 4px 0 2px; }
+  .close-shift-btn { width: 100%; min-height: 64px; font-size: 20px; white-space: nowrap; }
+  .floor-paid-note { font-size: 13px; color: var(--text-muted); margin: 0 0 10px; }
   .table-card.bill-requested { border-color: var(--blue); animation: borderPulse 1.5s infinite; }
   @keyframes borderPulse { 0%,100%{border-color:var(--blue)} 50%{border-color:#5090d0} }
 
@@ -716,6 +719,7 @@ function subscribeToRealtime() {
       if (existing) {
         existing.status = mapDbStatusToUi(updated.status);
         if (updated.total != null) existing.total = updated.total;
+        if (updated.payment_status) existing.paid = updated.payment_status === 'paid';
       }
       updateBadges();
       if (currentTab === 'floor' || currentTab === 'orders') renderTab();
@@ -912,6 +916,8 @@ function integrateOrder(dbOrder, branch) {
     // freshly loaded order showed no advance button at all and could
     // never leave 'confirmed' from this surface.
     status:    mapDbStatusToUi(dbOrder.status),
+    // A paid bill is frozen (sql/48): no void requests, refund instead.
+    paid:      dbOrder.payment_status === 'paid',
     type:      dbOrder.order_type
   };
   dineInOrders.push(uiOrder);
@@ -1416,6 +1422,8 @@ async function closeTable(tableNum, branchId) {
       dueSum = dues.reduce((a, d) => a + Number(d.amount_due || 0), 0);
       dueKnown = true;
     } catch (e) { console.warn('closeTable: amount due', e); }
+    // Cash needs an open shift (sql/48). Unknown (offline) = let the server decide.
+    try { window._floorShift = await TPN.myShift(); } catch (e) { window._floorShift = undefined; }
   } else {
     totalSum = tbl.sessionTotal || 0;
     subtotalSum = totalSum;
@@ -1430,7 +1438,11 @@ async function closeTable(tableNum, branchId) {
     : `<div style="font-size:12px;color:var(--text-muted);font-style:italic;padding:4px 0;">No discounts applied.</div>`;
 
   const canDiscount = TPN.hasRole && TPN.hasRole('supervisor');
-  const discountBtn = canDiscount && orderIds.length
+  // Paid bills are frozen (sql/48): the button would only be refused.
+  const paidLocked = dueKnown && orderIds.length && dueSum <= 0 && totalSum > 0;
+  const discountBtn = paidLocked
+    ? `<p class="floor-paid-note" role="note">🔒 This bill is paid; refund instead.</p>`
+    : canDiscount && orderIds.length
     ? `<button class="topbar-btn" style="width:100%;margin-bottom:10px;background:transparent;color:var(--brick);border:1px solid var(--brick);" onclick='openFloorDiscountPicker(${orderIdsJson}, "Table ${tableNum}", () => closeTable(${tableNum}, "${branchId}"))'>💸 Apply / manage discounts</button>`
     : '';
 
@@ -1445,11 +1457,15 @@ async function closeTable(tableNum, branchId) {
           <div class="close-pay-methods" role="radiogroup" aria-label="How they paid">
             ${FLOOR_METHODS.map(([m, label]) => `<button type="button" role="radio" aria-checked="${m === 'cash'}" data-m="${m}" onclick="floorCloseMethod('${m}')">${label}</button>`).join('')}
           </div>
-          <div id="closeCashBox">
+          ${window._floorShift === null ? `<div id="closeCashBox" class="close-shift" role="note">
+            <strong>No shift is open.</strong>
+            <p style="font-size:13px;color:var(--text-muted);margin:4px 0 10px">Cash goes into a counted drawer. Open a shift first; GCash, Maya, QR Ph, card and bank still work.</p>
+            ${TPN.can && TPN.can('cash.drawer') ? `<button type="button" class="topbar-btn close-shift-btn" onclick="floorOpenShift(${tableNum}, '${branchId}')">Open shift</button>` : '<p style="font-size:13px">Ask someone who can open the drawer to open a shift.</p>'}
+          </div>` : `<div id="closeCashBox">
             <label for="closeTendered" style="display:block;font-size:13px;font-weight:600;margin-bottom:6px">Cash received</label>
             <input id="closeTendered" class="close-pay-input" type="number" inputmode="decimal" min="0" step="0.01" placeholder="₱" oninput="floorCloseCalc()">
             <div class="close-pay-chips">${chips.map(c => `<button type="button" onclick="floorCloseChip(${c.v})">${E(c.label)}</button>`).join('')}</div>
-          </div>
+          </div>`}
           <div id="closeRefBox" hidden>
             <p id="closeRefHint" style="font-size:13px;color:var(--text-muted);margin:0 0 8px"></p>
             <label for="closeRef" id="closeRefLabel" style="display:block;font-size:13px;font-weight:600;margin-bottom:6px">Reference no.</label>
@@ -1482,6 +1498,7 @@ async function closeTable(tableNum, branchId) {
       : { label: dueKnown || !orderIds.length ? '✓ Close table' : '↻ Try again', cls: 'primary', fn: dueKnown || !orderIds.length ? `confirmCloseTable(${tableNum}, '${branchId}')` : `closeTable(${tableNum}, '${branchId}')` }
   ]);
   if (owes) setTimeout(() => document.getElementById('closeTendered')?.focus(), 50);
+  if (owes && window._floorShift === null) setTimeout(() => document.querySelector('.close-shift-btn')?.focus(), 50);
   // The guest already said how they'll pay from the QR menu: start there.
   const asked = tableRequests.find(r => r.key === key && r.kind === 'bill' && r.method);
   const PICK = { cash: 'cash', gcash: 'gcash', maya: 'maya', qr: 'qrph', qrph: 'qrph', card: 'card', bank: 'bank' };
@@ -1495,7 +1512,7 @@ const FLOOR_REF = {
   maya:  ['Maya reference no.', 'Check their Maya shows the payment.'],
   qrph:  ['QR Ph reference no.', 'Check the payment went through on their app.'],
   card:  ['Approval code', 'Run the card on the terminal. Type the approval code from the slip.'],
-  bank:  ['Bank reference no.', 'Check the transfer arrived in the bank app.']
+  bank:  ['Bank reference no.', 'Someone else checks the bank app and confirms it before the bill counts as paid.']
 };
 function floorCloseMethod(m) {
   const c = window._floorClose; if (!c) return;
@@ -1508,8 +1525,14 @@ function floorCloseMethod(m) {
     document.getElementById('closeRefLabel').textContent = FLOOR_REF[m][0];
     document.getElementById('closeRefHint').textContent = FLOOR_REF[m][1];
     document.getElementById('closeRef').focus();
-  } else document.getElementById('closeTendered').focus();
+  } else (document.getElementById('closeTendered') || document.querySelector('.close-shift-btn'))?.focus();
   floorCloseCalc();
+}
+// The Counter's Open shift (modules/pos.js), then straight back to the bill.
+async function floorOpenShift(tableNum, branchId) {
+  if (typeof window.posOpenShift !== 'function') { showToast('Open a shift from the Counter first.'); return; }
+  await posOpenShift();
+  closeTable(tableNum, branchId);
 }
 function floorCloseChip(v) { const i = document.getElementById('closeTendered'); if (i) { i.value = v; floorCloseCalc(); } }
 function floorCloseCalc() {
@@ -1558,6 +1581,7 @@ async function confirmCloseTable(tableNum, branchId, mode) {
       const method = c.method || 'cash';
       const tip = Number(document.getElementById('closeTip')?.value || 0);
       if (method === 'cash') {
+        if (window._floorShift === null) { showToast('No shift is open. Open a shift before taking cash.'); return; }
         const tendered = Number(document.getElementById('closeTendered')?.value || 0);
         if (!tendered) { showToast('Enter the cash received.'); document.getElementById('closeTendered')?.focus(); return; }
         if (tendered + 0.001 < c.due + tip) { showToast(`Not enough cash: need ₱${(c.due + tip).toFixed(2)}.`); return; }
@@ -1570,12 +1594,15 @@ async function confirmCloseTable(tableNum, branchId, mode) {
         const ref = (document.getElementById('closeRef')?.value || '').trim();
         if (ref.length < 3) { showToast(`Type the ${FLOOR_REF[method][0].replace(/\.$/, '')}.`); document.getElementById('closeRef')?.focus(); return; }
         try {
-          await TPN.settleTableManual(live.map(o => o.dbId), method, ref, { tip });
-          showToast('✅ Paid · ' + FLOOR_METHODS.find(x => x[0] === method)[1]);
+          const r = await TPN.settleTableManual(live.map(o => o.dbId), method, ref, { tip });
+          // Bank waits for a second person (sql/48): not paid yet, no receipt.
+          if (r && r.pending) { showToast('🏦 Saved — waiting for someone to confirm it in the bank app.'); window._floorBankPending = true; }
+          else showToast('✅ Paid · ' + FLOOR_METHODS.find(x => x[0] === method)[1]);
         } catch (e) { showToast('⚠️ ' + (e.message || 'Payment not recorded')); return; }
       }
       // One receipt for the table, every round on it.
-      if (window.TPN_PRINT) TPN_PRINT.tableReceipt(live.map(o => o.dbId)).catch(() => {});
+      if (window.TPN_PRINT && !window._floorBankPending) TPN_PRINT.tableReceipt(live.map(o => o.dbId)).catch(() => {});
+      window._floorBankPending = false;
     }
 
     let ok = 0, failed = 0, lastErr = '';
@@ -1718,6 +1745,7 @@ function _friendlyDiscountErr(msg) {
   if (msg.includes('template_inactive')) return 'That template is turned off.';
   if (msg.includes('id_ref_required')) return 'This discount requires a physical ID.';
   if (msg.includes('order_terminal')) return 'Order already closed.';
+  if (msg.includes('order_already_paid')) return 'This bill is paid; refund instead.';
   if (msg.includes('below_min_subtotal')) return 'Below the minimum subtotal.';
   if (msg.includes('not_stackable')) return 'Cannot combine with existing discounts.';
   return msg || 'unknown error';
@@ -1948,13 +1976,14 @@ function openOrderModal(ref) {
     <div style="background:var(--cream);border-radius:10px;padding:10px"><div style="font-size:10px;color:var(--text-muted);font-weight:700">TOTAL</div><div style="font-size:16px;font-weight:700;color:var(--brick)">₱${order.total.toFixed(2)}</div></div>
   </div>
   <div style="font-size:13px;font-weight:700;color:var(--text-muted);letter-spacing:0.07em;text-transform:uppercase;margin-bottom:10px">Items</div>
+  ${order.paid ? '<p class="floor-paid-note" role="note">🔒 This bill is paid; refund instead.</p>' : ''}
   <div class="order-detail-items">`;
   order.items.forEach(item => {
     const waiting = item.id && _pendingVoidItemIds.has(item.id);
     // Everyone here files a REQUEST — including managers, so that every
     // void on the floor leaves the same paper trail. Approval happens in
     // the portal's Void Requests tab.
-    const ask = (item.id && !item.voided)
+    const ask = (item.id && !item.voided && !order.paid)
       ? (waiting
           ? `<button class="detail-void-btn" disabled title="A manager has been notified">⏳</button>`
           // Only ids in the attribute — dish names carry apostrophes and
@@ -2157,10 +2186,10 @@ window.onPosSent = function (o, type) {
 </script>
 <script src="vendor/qrcode-generator-1.4.4.js"></script>
 <script src="modules/customer-display.js?v=20261021b"></script>
-<script src="modules/payments.js?v=20261022g"></script>
+<script src="modules/payments.js?v=20261022m"></script>
 <script src="modules/invoices.js?v=20261022a"></script>
 <script src="modules/photos.js?v=20261022a"></script>
-<script src="modules/pos.js?v=20261022g"></script>
+<script src="modules/pos.js?v=20261022m"></script>
 <script src="vendor/imin-printer-1.4.0.min.js"></script>
 <script src="modules/slips.js?v=20261022f"></script>
 <script src="modules/kprint.js?v=20261022c"></script>

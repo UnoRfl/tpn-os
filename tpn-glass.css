@@ -304,6 +304,9 @@ details.tpn-menu > summary::-webkit-details-marker { display: none; }
 .pay-work { padding: 16px; border-radius: 16px; margin: 10px 0; }
 .pay-big { font-size: 26px !important; font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; }
 .pay-change { font-size: 20px; margin: 8px 0; min-height: 28px; color: var(--ink); }
+.pay-shift p { margin: 4px 0 12px; }
+.pay-shift-btn { width: 100%; min-height: 64px; font-size: 20px; white-space: nowrap; }
+.pay-locked { margin: 8px 0 0; }
 .pay-change strong { font-size: 28px; color: var(--success); }
 .pay-qr { width: 220px; height: 220px; margin: 10px auto; background: #fff; border-radius: 14px; padding: 8px; }
 .pay-qr svg { width: 100%; height: 100%; }

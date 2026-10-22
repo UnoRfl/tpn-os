@@ -1052,6 +1052,7 @@
     "Refresh": "I-refresh",
     "Refund all or part of a paid order. Always audited with a reason.": "I-refund ang buo o bahagi ng bayad na order. Laging naitatala kasama ang dahilan.",
     "Refund payments": "Mag-refund ng bayad",
+    "Refund": "I-refund",
     "Refunded": "Na-refund",
     "Refunds": "Mga refund",
     "refused by the server": "tinanggihan ng server",
@@ -1539,7 +1540,19 @@
     "Discard this held order?": "Itapon ang naka-hold na order na ito?",
     "It was never sent to the kitchen.": "Hindi pa ito naipadala sa kusina.",
     "Exact": "Eksakto",
-    "Quick amounts": "Mabilisang halaga"
+    "Quick amounts": "Mabilisang halaga",
+    // sql/48 — counter money locks
+    "This bill is paid; refund instead.": "Bayad na ang bill na ito; mag-refund na lang.",
+    "Saved — waiting for someone to confirm it in the bank app.": "Na-save — hinihintay na may ibang mag-confirm nito sa bank app.",
+    "No shift is open.": "Walang bukas na shift.",
+    "No shift is open. Open a shift before taking cash.": "Walang bukas na shift. Magbukas muna ng shift bago tumanggap ng cash.",
+    "Cash goes into a counted drawer. Open a shift first; GCash, Maya, QR Ph, card and bank still work.": "Napupunta ang cash sa drawer na binibilang. Magbukas muna ng shift; gumagana pa rin ang GCash, Maya, QR Ph, card at bank.",
+    "Ask someone who can open the drawer to open a shift.": "Magpabukas ng shift sa taong may hawak ng drawer.",
+    "Open a shift from the Counter first.": "Magbukas muna ng shift sa Counter.",
+    "Type the bank reference number. Someone else checks the bank app and confirms it before the bill counts as paid.": "I-type ang bank reference number. Ibang tao ang titingin sa bank app at magko-confirm bago ito ituring na bayad.",
+    "Someone else checks the bank app and confirms it before the bill counts as paid.": "Ibang tao ang titingin sa bank app at magko-confirm bago ito ituring na bayad.",
+    "Save for confirming": "I-save para ma-confirm",
+    "That cash drawer belongs to another branch. Reload the page and try again.": "Sa ibang branch ang cash drawer na iyan. I-reload ang page at subukan ulit."
   };
 
   const ATTRS = ['placeholder', 'title', 'aria-label'];

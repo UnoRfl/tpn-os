@@ -3,8 +3,10 @@
    Server rules: sql/31-payments.sql. Online: supabase/functions/hitpay-*.
 
    What staff can do here, by permission:
-     payments.take      cash (with change); GCash, Maya, QR Ph, card and bank
-                        taken by hand and recorded with their reference (sql/37b)
+     payments.take      cash (with change, only while a shift is open, sql/48);
+                        GCash, Maya, QR Ph, card and bank taken by hand and
+                        recorded with their reference (sql/37b; bank waits for
+                        a second person, sql/48)
      payments.confirm   mark a pending bank transfer received
      payments.refund    refund (cash/bank here; HitPay through HitPay)
      orders.service_charge  add / remove service charge
@@ -22,8 +24,10 @@
     maya:  { ref: 'Maya reference no.',  hint: 'Check the customer\'s Maya shows the payment, then type the reference number.' },
     qrph:  { ref: 'QR Ph reference no.', hint: 'Check the payment went through on the customer\'s app, then type the reference number.' },
     card:  { ref: 'Approval code',       hint: 'Run the card on the terminal. Type the approval code from the terminal slip.' },
-    bank:  { ref: 'Bank reference no.',  hint: 'Check the transfer arrived in the bank app, then type the reference number.' }
+    bank:  { ref: 'Bank reference no.',  hint: 'Type the bank reference number. Someone else checks the bank app and confirms it before the bill counts as paid.' }
   };
+  const BANK_WAITING = 'Saved — waiting for someone to confirm it in the bank app.';
+  const PAID_LOCKED = 'This bill is paid; refund instead.';
   const onlineOn = () => { const v = window.tpnSite && tpnSite.state.settings['payments.online_enabled']; return v === true || v === 'true' || v === 'yes'; };
   const STATUS = { completed: ['ok', 'Received'], pending: ['warn', 'Waiting'], failed: ['bad', 'Failed'], cancelled: ['bad', 'Cancelled'], expired: ['bad', 'Expired'] };
   let cur = null;           // current order payments summary
@@ -37,6 +41,30 @@
   const offline = () => !!(window.TPN_OFFLINE && TPN_OFFLINE.isOffline());
   const OFFLINE_WHY = 'No internet. GCash, Maya, QR Ph, card and bank need the server to check and record the reference, so they are off until the connection is back. Cash still works: it is saved on this device and syncs by itself.';
   let liveChan = null;
+  // The branch's open shift (sql/48): cash is refused without one. undefined
+  // = not known yet (offline): then the shift last seen on this device counts.
+  let shift;
+  async function loadShift() {
+    if (offline()) { shift = undefined; return; }
+    try {
+      shift = await TPN.myShift();
+      if (window.TPN_OFFLINE) TPN_OFFLINE.lastCashSession(shift);
+      if (shift && !window.tpnCashSessionId) window.tpnCashSessionId = shift;
+    } catch (e) { shift = undefined; }
+  }
+  const knownShift = () => shift !== undefined ? shift : (window.tpnCashSessionId || (window.TPN_OFFLINE && TPN_OFFLINE.lastCashSession()) || null);
+  // The Counter's Open shift (modules/pos.js), then back to this bill.
+  window.payOpenShift = async function () {
+    if (typeof window.posOpenShift !== 'function') { toast('Open a shift from the Counter first.'); return; }
+    await posOpenShift();
+    if (cur) await refresh(cur.order_id);
+  };
+  function shiftBlock() {
+    return `<div class="pay-work glass pay-shift" role="note"><strong>No shift is open.</strong>
+      <p class="pref-row-hint">Cash goes into a counted drawer. Open a shift first; GCash, Maya, QR Ph, card and bank still work.</p>
+      ${can('cash.drawer') && !offline() ? '<button class="btn-next pay-shift-btn" onclick="payOpenShift()">Open shift</button>' : '<p class="pref-row-hint">Ask someone who can open the drawer to open a shift.</p>'}</div>`;
+  }
+  window.payShiftBlock = shiftBlock;
 
   // Quick cash buttons for every cash screen (this panel, Close Table, the
   // offline panel): Exact, then the next amounts a guest is likely to hand
@@ -77,7 +105,7 @@
   async function refresh(orderId) {
     const box = document.getElementById('payPanel');
     if (!box) { if (liveChan) { try { sb.removeChannel(liveChan); } catch (e) {} liveChan = null; } return; }
-    try { cur = await tpnRetry(() => TPN.orderPayments(orderId), { what: 'payments' }); }
+    try { [cur] = await Promise.all([tpnRetry(() => TPN.orderPayments(orderId), { what: 'payments' }), loadShift()]); }
     catch (e) {
       if (window.TPN_OFFLINE && TPN_OFFLINE.isNetError(e)) TPN_OFFLINE.markOffline();
       // Still drawn from before the line dropped: keep it, cash can queue.
@@ -106,10 +134,11 @@
         ${(() => { const fee = Number(p.total) - (Number(p.subtotal) - Number(p.discount || 0) + Number(p.service_charge || 0)); return fee > 0.004 ? `<div><dt>Delivery fee</dt><dd>${peso(fee)}</dd></div>` : ''; })()}
         <div class="pay-total"><dt>Total</dt><dd>${peso(p.total)}</dd></div>
       </dl>
+      ${paid ? `<p class="pref-row-hint pay-locked" role="note">🔒 ${E(PAID_LOCKED)}</p>` : ''}
       <div id="payInvoice"></div>
       ${due > 0 && can('payments.take') ? `
       <div class="pay-actions" role="group" aria-label="Take payment">
-        <button class="btn-next" onclick="payCash()">💵 Cash</button>
+        <button class="btn-next" onclick="payCash()">💵 Cash${knownShift() ? '' : ' 🔒'}</button>
         ${['gcash', 'maya', 'qrph', 'card', 'bank'].map(m => `<button class="btn-ghost" ${offline() ? 'disabled' : ''} onclick="payManual('${m}')">${METHOD[m]}</button>`).join('')}
         ${onlineOn() && !offline() ? '<button class="btn-ghost" onclick="payOnline()">🌐 Online link</button>' : ''}
       </div>${offline() ? `<p class="pref-row-hint" role="note">${E(OFFLINE_WHY)}</p>` : ''}` : ''}
@@ -145,6 +174,8 @@
 
   /* Cash: tendered keypad with quick amounts; change shown big. */
   window.payCash = function () {
+    // No open shift: the big Open shift button instead of the keypad.
+    if (!knownShift()) { document.getElementById('payWork').innerHTML = shiftBlock(); return; }
     cdsMethod = 'cash'; cdsPay();
     const due = Number(cur.amount_due);
     document.getElementById('payWork').innerHTML = `
@@ -184,7 +215,11 @@
       if (window.TPN_PRINT) { TPN_PRINT.openDrawer('cash payment'); TPN_PRINT.receipt(cur.order_id).catch(() => {}); }
       await refresh(cur.order_id);
     } catch (e) {
-      if (!window.TPN_OFFLINE || !TPN_OFFLINE.isNetError(e)) { toast(e.message); return; }
+      if (!window.TPN_OFFLINE || !TPN_OFFLINE.isNetError(e)) {
+        toast(e.message);
+        if (/No shift is open/.test(e.message)) { shift = null; document.getElementById('payWork').innerHTML = shiftBlock(); }
+        return;
+      }
       // The answer never came. Queue it; the replay checks first whether
       // this one already landed (offline.js tags the payment note).
       TPN_OFFLINE.markOffline();
@@ -216,7 +251,8 @@
   };
   ['payOnline'].forEach(n => window.guardAsync && guardAsync(n));
 
-  // GCash / Maya / QR Ph / card / bank: recorded as received straight away.
+  // GCash / Maya / QR Ph / card: recorded as received straight away. Bank is
+  // saved as waiting until someone else confirms it (sql/48).
   window.payManual = function (method) {
     cdsMethod = method; cdsPay();
     const due = Number(cur.amount_due), m = MANUAL[method];
@@ -231,7 +267,7 @@
           <div><label class="form-label" for="pm-tip">Tip (optional)</label><input class="form-input" id="pm-tip" type="number" step="0.01" min="0" value="0" inputmode="decimal"></div>
           <div><label class="form-label" for="pm-note">Note (optional)</label><input class="form-input" id="pm-note"></div>
         </div>
-        <div class="modal-actions"><button class="btn-next" onclick="payManualSave('${method}')">✓ Received</button></div>
+        <div class="modal-actions"><button class="btn-next" onclick="payManualSave('${method}')">${method === 'bank' ? 'Save for confirming' : '✓ Received'}</button></div>
       </div>`;
     document.getElementById('pm-ref').focus();
   };
@@ -239,10 +275,11 @@
     const ref = document.getElementById('pm-ref').value.trim();
     if (ref.length < 3) { toast('Type the reference / approval code.'); document.getElementById('pm-ref').focus(); return; }
     try {
-      await TPN.recordManualPayment(cur.order_id, method, ref, { amount: +document.getElementById('pm-amt').value,
+      const r = await TPN.recordManualPayment(cur.order_id, method, ref, { amount: +document.getElementById('pm-amt').value,
         tip: +document.getElementById('pm-tip').value || 0, note: document.getElementById('pm-note').value.trim() });
-      toast('Recorded.');
-      if (window.TPN_PRINT) TPN_PRINT.receipt(cur.order_id).catch(() => {});
+      // Bank waits for a second person (sql/48): no receipt until it counts.
+      if (r && r.pending) toast(BANK_WAITING);
+      else { toast('Recorded.'); if (window.TPN_PRINT) TPN_PRINT.receipt(cur.order_id).catch(() => {}); }
       await refresh(cur.order_id);
     } catch (e) {
       if (window.TPN_OFFLINE && TPN_OFFLINE.isNetError(e)) { TPN_OFFLINE.markOffline(); toast('No answer from the server, so it may or may not have been recorded. Check this bill’s payments once the connection is back before recording it again.'); await refresh(cur.order_id); return; }
@@ -269,7 +306,7 @@
     try {
       await TPN.recordBankTransfer(cur.order_id, +document.getElementById('pb-amt').value,
         document.getElementById('pb-ref').value.trim(), document.getElementById('pb-note').value.trim());
-      toast('Recorded. A supervisor confirms it once it shows in the bank.');
+      toast(BANK_WAITING);
       await refresh(cur.order_id);
     } catch (e) { toast(e.message); }
   };

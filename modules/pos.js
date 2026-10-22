@@ -88,7 +88,7 @@
   window.posOpenShift = async function () {
     const f = await tpnAsk('Opening cash (float) in the drawer', { chips: ['1000', '2000', '3000'], input: { type: 'number', min: 0, step: '0.01', inputmode: 'decimal', placeholder: '₱' }, confirmText: 'Open drawer' });
     if (f === null) return;
-    try { st.session = await TPN.openCashSession(+f); window.tpnCashSessionId = st.session; toast('Drawer open with ' + peso(+f)); drawDrawer(); }
+    try { st.session = await TPN.openCashSession(+f); window.tpnCashSessionId = st.session; if (OFF()) OFF().lastCashSession(st.session); toast('Drawer open with ' + peso(+f)); drawDrawer(); }
     catch (e) { toast(/already_open/.test(e.message) ? 'A drawer is already open on this register.' : e.message); }
   };
   window.posCashMove = async function (kind) {
@@ -134,7 +134,7 @@
     if (Math.abs(total - expected) > 0.009 && !await tpnConfirm(`The count is ${peso(total)} but ${peso(expected)} was expected. Close anyway? The difference is recorded with your name.`, { title: 'Count does not match', confirmText: 'Close shift' })) return;
     try {
       const z = await TPN.closeCashSession(st.session, total, den, document.getElementById('zNotes').value);
-      st.session = null; window.tpnCashSessionId = null; drawDrawer();
+      st.session = null; window.tpnCashSessionId = null; if (OFF()) OFF().lastCashSession(null); drawDrawer();
       showModal(reportHtml(z, 'Z read — shift closed') + `<div class="modal-actions"><button class="btn-ghost" onclick="window.print()">🖨 Print</button><button class="btn-next" onclick="closeModal()">Done</button></div>`);
     } catch (e) { toast(e.message); }
   };
