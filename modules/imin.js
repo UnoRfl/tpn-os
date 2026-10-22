@@ -12,7 +12,9 @@
    drawer is opened by hand.
 
    TPN_PRINT.ready        true once the printer answered
-   TPN_PRINT.receipt(id)  print an order's bill (auto after payment if on)
+   TPN_PRINT.receipt(id)  print an order's receipt (auto after payment if on)
+   TPN_PRINT.bill(ids, method)   a table's bill before paying, all rounds
+   TPN_PRINT.tableReceipt(ids)   a table's receipt after paying (auto)
    TPN_PRINT.kitchen(..)  print a kitchen ticket
    TPN_PRINT.openDrawer() pop the cash drawer (logged in the audit trail)
    TPN_PRINT.testKitchen() / testReceipt()  sample slips, marked TEST
@@ -89,7 +91,7 @@
         const url = draw().toDataURL('image/png');
         await Promise.race([p.printSingleBitmap(url), new Promise((_, no) => setTimeout(() => no(new Error('timeout')), 15000))]);
         return feedCut();
-      } catch (e) { console.warn('iMin picture, printing text', e); }
+      } catch (e) { console.warn('iMin picture, printing text', e); T.lastError = (e && e.message) || String(e); T.lastErrorAt = Date.now(); }
     }
     text(); feedCut();
   }
@@ -97,31 +99,21 @@
   const PAY = { cash: 'Cash', gcash: 'GCash', maya: 'Maya', qrph: 'QR Ph', card: 'Card', bank: 'Bank' };
   T.receipt = async function (orderId, { force = false } = {}) {
     if (!T.ready || (!force && !T.autoReceipt)) return false;
-    const [o, pay] = await Promise.all([TPN.getOrder(orderId), TPN.orderPayments(orderId)]);
-    const site = (window.tpnSite && tpnSite.state.settings) || {};
-    const items = (o.order_items || []).filter(i => !i.voided_at);
-    const paid = (pay.payments || []).filter(x => x.status === 'completed');
-    let qr = null;
-    // Stamp card claim link for paid counter orders (same rule as the paper bill).
-    if (['true', 'yes', true].includes(site['rewards.enabled']) && o.customer_phone && o.track_token && pay.payment_status === 'paid') {
-      const url = new URL('tpn-rewards', location.href); url.searchParams.set('claim', o.order_number); url.searchParams.set('t', o.track_token);
-      qr = url.toString();
-    }
-    const slip = () => TPN_SLIP.receipt({
-      number: o.order_number, at: o.placed_at || o.created_at,
-      where: o.restaurant_tables ? 'Table ' + o.restaurant_tables.table_number : (o.customer_name || ''),
-      deliverTo: o.order_type === 'delivery' ? o.delivery_address : '',
-      address: site['contact.address'] || 'KM 19, 316 Real St., Talon Uno, Las Piñas',
-      phone: site['contact.phone'] || '0999 888 7817',
-      items: items.map(i => ({ qty: i.quantity, name: i.name_snapshot, size: i.pax_size || '', total: i.total_price })),
-      subtotal: o.subtotal, discount: o.discount_amount, service: o.service_charge, delivery: o.delivery_fee, total: o.total,
-      payments: paid.map(x => ({ label: x.kind === 'refund' ? 'Refund' : (PAY[x.method] || x.method) + (x.reference ? ' ' + x.reference : ''),
-                                 amount: x.amount, refund: x.kind === 'refund', change: x.change_due })),
-      balance: pay.amount_due, qr,
-    });
-    await job(() => picture(slip, () => textReceipt(o, pay, site, items)));
+    return T.slip([orderId]);
+  };
+  // One slip for one order or a whole table (each round is its own order).
+  // bill: what's still owed, before paying; otherwise the receipt.
+  T.slip = async function (ids, { bill = false, method = '' } = {}) {
+    if (!T.ready || !ids.length) return false;
+    const list = await TPN_SLIP.loadOrders(ids);
+    const r = await TPN_SLIP.fromOrders(list, { bill, method });
+    await job(() => picture(() => TPN_SLIP.receipt(r), () => list.forEach(x => {
+      textReceipt(x.o, x.pay, {}, (x.o.order_items || []).filter(i => !i.voided_at));
+    })));
     return true;
   };
+  T.bill = (ids, method) => T.slip(ids, { bill: true, method });
+  T.tableReceipt = (ids) => (T.autoReceipt ? T.slip(ids) : Promise.resolve(false));
 
   function textReceipt(o, pay, site, items) {
     line('Tyo Paeng Nyo', { align: 1, size: 34, bold: true });
@@ -213,11 +205,13 @@
       try { return f.apply(this, arguments); } catch (e) { console.warn('iMin ' + k, e); return false; }
     };
   });
-  const rec = T.receipt;
-  T.receipt = async function () {
-    if (!live()) return false;
-    try { return await rec.apply(this, arguments); } catch (e) { console.warn('iMin receipt', e); return false; }
-  };
+  ['receipt', 'slip'].forEach(k => {
+    const f = T[k];
+    T[k] = async function () {
+      if (!live()) return false;
+      try { return await f.apply(this, arguments); } catch (e) { console.warn('iMin ' + k, e); return false; }
+    };
+  });
 
   /* ── Hook the existing print paths ─────────────────────────── */
   const origReceipt = window.printReceipt;
@@ -254,7 +248,7 @@
         ${T.ready && mgr ? '<button class="modal-btn secondary" onclick="TPN_PRINT.noSale()">Open drawer</button>' : ''}
         <button class="modal-btn secondary" onclick="TPN_PRINT.reconnect()">Reconnect</button>
         ${T.ready && mgr ? `<button class="modal-btn secondary" onclick="TPN_PRINT.toggleAuto()">Auto-print receipts: ${T.autoReceipt ? 'On' : 'Off'}</button>` : ''}
-      </div>${kp ? TPN_KPRINT.section() : ''}`;
+      </div>${mgr && T.lastError ? `<p style="margin:10px 0 0;color:var(--danger)">Last slip printed as plain text (${new Date(T.lastErrorAt).toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit' })}): ${String(T.lastError).replace(/[<&]/g, '')}</p>` : ''}${kp ? TPN_KPRINT.section() : ''}`;
     if (typeof openModal === 'function') openModal('Printers', html, [{ label: 'Close', cls: 'primary', fn: 'closeModal()' }]);
     else if (typeof showModal === 'function') showModal(`<div class="modal-title">Printers</div><div class="modal-content">${html}</div><div class="modal-actions"><button class="btn-next" onclick="closeModal()">Close</button></div>`);
   }

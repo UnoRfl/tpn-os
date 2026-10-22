@@ -12,6 +12,9 @@
    TPN_SLIP.ready()      → promise, resolves once the fonts are in
    TPN_SLIP.sample       test data for the printer's test buttons
    TPN_SLIP.preview(k)   opens the picture in a window (any device)
+   TPN_SLIP.fromOrders(list, { bill, method })  receipt data for one
+                         order or a whole table; loadOrders(ids) fetches
+   TPN_SLIP.printWindow(canvas, title)  the picture through the browser
    ═══════════════════════════════════════════════════════════════ */
 (function () {
   'use strict';
@@ -198,7 +201,9 @@
     if (r.address) s.center(r.address, 400, 22, SANS, 0);
     if (r.phone) s.center(r.phone, 400, 22);
     s.rule();
-    s.row('Order ' + r.number, r.where || '', { w: 600, px: 25, gap: 0 });
+    if (r.bill) s.row('Bill', r.where || '', { w: 800, px: 30, gap: 0 });
+    const nums = r.numbers && r.numbers.length ? r.numbers : [r.number];
+    s.row((nums.length > 1 ? 'Orders ' : 'Order ') + nums.join(', '), r.bill ? '' : (r.where || ''), { w: 600, px: 25, gap: 0 });
     s.row([day(r.at), clock(r.at)].join(' · '), '', { px: 23, gap: 0 });
     if (r.deliverTo) s.row('Deliver to: ' + r.deliverTo, '', { px: 23, gap: 0 });
     s.rule();
@@ -218,25 +223,33 @@
     if (Number(r.service)) s.row('Service charge', money(r.service), { gap: 0 });
     if (Number(r.delivery)) s.row('Delivery fee', money(r.delivery), { gap: 0 });
     s.y += 18;
-    panel(s, 'Total', [], { px: 27, fam: SANS });
+    // A bill shows what's still owed; a receipt shows the total.
+    const paidSome = r.bill && (r.payments || []).length;
+    const big = r.bill ? r.balance : r.total;
+    if (paidSome) s.row('Total', money(r.total), { gap: 0 });
+    panel(s, r.bill ? 'Amount due' : 'Total', [], { px: 27, fam: SANS });
     // The amount sits on the right of the same panel, in the display face.
     s.font(700, 46, SERIF); x.fillStyle = PAPER; x.textAlign = 'right'; x.textBaseline = 'middle';
-    const ph = 27 * 1.15 + 24 * 1.4; x.fillText('₱' + money(r.total), W - PAD - 24, s.y - ph / 2 + 2);
+    const ph = 27 * 1.15 + 24 * 1.4; x.fillText('₱' + money(big), W - PAD - 24, s.y - ph / 2 + 2);
     x.textAlign = 'left'; x.textBaseline = 'alphabetic'; x.fillStyle = INK;
     s.y += 8;
     (r.payments || []).forEach(p => {
       s.row(p.label, (p.refund ? '−' : '') + money(p.amount), { gap: 0 });
       if (Number(p.change)) s.row('Change', money(p.change), { w: 800, gap: 0 });
     });
-    if (Number(r.balance) > 0) s.row('Balance', money(r.balance), { w: 800, gap: 0 });
+    if (!r.bill && Number(r.balance) > 0) s.row('Balance', money(r.balance), { w: 800, gap: 0 });
+    if (r.bill && r.method) s.row('Paying by ' + r.method, '', { w: 600, gap: 0 });
     if (r.qr && typeof window.qrcode === 'function') {
       s.rule();
       const q = qrcode(0, 'M'); q.addData(r.qr); q.make();
-      const n = q.getModuleCount(), cell = Math.max(3, Math.floor(150 / n)), size = n * cell;
-      for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) if (q.isDark(i, j)) x.fillRect(PAD + j * cell, s.y + i * cell, cell, cell);
-      s.font(600, 25); s.wrap('Scan to collect your stamp', W - PAD * 3 - size)
-        .forEach((ln, i, all) => x.fillText(ln, PAD + size + 22, s.y + size / 2 + 9 + (i - (all.length - 1) / 2) * 33));
-      s.y += size;
+      // At least 4 dots a module (0.5mm) and a quiet margin, so a phone
+      // reads it off thermal paper.
+      const n = q.getModuleCount(), cell = Math.max(4, Math.floor(210 / n)), size = n * cell, qx = PAD + cell * 2;
+      s.y += cell * 2;
+      for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) if (q.isDark(i, j)) x.fillRect(qx + j * cell, s.y + i * cell, cell, cell);
+      s.font(600, 25); s.wrap('Scan to collect your stamp', W - qx - size - 22 - PAD)
+        .forEach((ln, i, all) => x.fillText(ln, qx + size + 22, s.y + size / 2 + 9 + (i - (all.length - 1) / 2) * 33));
+      s.y += size + cell * 2;
     }
     s.rule();
     if (logo) {
@@ -289,5 +302,73 @@
     return c;
   }
 
-  window.TPN_SLIP = { kitchen, receipt, ready, sample, preview };
+  /* ── Real orders → receipt data ─────────────────────────────
+     One table can have several orders (each round is its own). The
+     bill and the receipt put them on one slip. */
+  let siteAt = 0, siteVal = null;
+  async function site() {
+    if (window.tpnSite && tpnSite.state && tpnSite.state.settings) return tpnSite.state.settings;
+    if (siteVal && Date.now() - siteAt < 5 * 60 * 1000) return siteVal;
+    try {
+      const { data } = await sb.from('site_settings').select('key,value').in('key', ['rewards.enabled', 'contact.address', 'contact.phone']);
+      siteVal = Object.fromEntries((data || []).map(r => [r.key, r.value])); siteAt = Date.now();
+    } catch (e) { siteVal = siteVal || {}; }
+    return siteVal;
+  }
+  const PAY = { cash: 'Cash', gcash: 'GCash', maya: 'Maya', qrph: 'QR Ph', card: 'Card', bank: 'Bank' };
+  // list: [{ o: order with order_items + restaurant_tables, pay: TPN.orderPayments() }]
+  async function fromOrders(list, { bill = false, method = '' } = {}) {
+    const st = await site(), sum = (f) => list.reduce((a, x) => a + Number(f(x) || 0), 0);
+    const first = list[0].o;
+    const on = ['true', 'yes', true].includes(st['rewards.enabled']);
+    const proof = !bill && on && list.find(x => x.o.customer_phone && x.o.track_token && x.pay.payment_status === 'paid');
+    let qr = null;
+    if (proof) {
+      const url = new URL('tpn-rewards', location.href);
+      url.searchParams.set('claim', proof.o.order_number); url.searchParams.set('t', proof.o.track_token);
+      qr = url.toString();
+    }
+    return {
+      bill, method: PAY[method] || method || '',
+      number: first.order_number, numbers: list.map(x => x.o.order_number),
+      at: bill ? Date.now() : list.reduce((a, x) => Math.max(a, new Date(x.o.placed_at || x.o.created_at).getTime()), 0),
+      where: first.restaurant_tables ? 'Table ' + first.restaurant_tables.table_number : (first.customer_name || ''),
+      deliverTo: first.order_type === 'delivery' ? first.delivery_address : '',
+      address: st['contact.address'] || 'KM 19, 316 Real St., Talon Uno, Las Piñas',
+      phone: st['contact.phone'] || '0999 888 7817',
+      items: list.flatMap(x => (x.o.order_items || []).filter(i => !i.voided_at)
+        .map(i => ({ qty: i.quantity, name: i.name_snapshot, size: i.pax_size || '', total: i.total_price }))),
+      subtotal: sum(x => x.o.subtotal), discount: sum(x => x.o.discount_amount), service: sum(x => x.o.service_charge),
+      delivery: sum(x => x.o.delivery_fee), total: sum(x => x.o.total),
+      payments: list.flatMap(x => (x.pay.payments || []).filter(p => p.status === 'completed').map(p => ({
+        label: p.kind === 'refund' ? 'Refund' : (PAY[p.method] || p.method) + (p.reference ? ' ' + p.reference : ''),
+        amount: p.amount, refund: p.kind === 'refund', change: p.change_due }))),
+      balance: sum(x => x.pay.amount_due), qr,
+    };
+  }
+  async function loadOrders(ids) {
+    return Promise.all(ids.map(async id => {
+      const [o, pay] = await Promise.all([TPN.getOrder(id), TPN.orderPayments(id)]);
+      return { o, pay };
+    }));
+  }
+
+  // Any device without the iMin: the same picture through the print window.
+  function printWindow(canvas, title) {
+    const src = canvas.toDataURL('image/png');
+    let w = window.open('', '_blank', 'width=420,height=720'), frame = null;
+    if (!w) {
+      frame = document.createElement('iframe');
+      frame.setAttribute('aria-hidden', 'true'); frame.style.cssText = 'position:fixed;width:0;height:0;border:0;right:0;bottom:0';
+      document.body.appendChild(frame); w = frame.contentWindow;
+      setTimeout(() => frame.remove(), 60000);
+    }
+    w.document.write(`<!doctype html><meta charset="utf-8"><title>${String(title || 'Print').replace(/[<&]/g, '')}</title>
+      <style>@page{size:80mm auto;margin:0}body{margin:0}img{width:72mm;display:block;margin:0 auto}</style>
+      <img src="${src}" alt="">${frame ? '' : '<script>window.onload=()=>{print();setTimeout(()=>close(),400)}<\/script>'}`);
+    w.document.close();
+    if (frame) { const img = w.document.querySelector('img'); const go = () => { w.focus(); w.print(); }; img.complete ? go() : (img.onload = go); }
+  }
+
+  window.TPN_SLIP = { kitchen, receipt, ready, sample, preview, fromOrders, loadOrders, site, printWindow };
 })();

@@ -304,6 +304,14 @@
     let o, p;
     try { o = await TPN.getOrder(orderId); p = await TPN.orderPayments(orderId); }
     catch (e) { toast('Could not load the bill: ' + e.message); return; }
+    // The same picture the counter printer prints (modules/slips.js).
+    if (window.TPN_SLIP) {
+      try {
+        await TPN_SLIP.ready();
+        TPN_SLIP.printWindow(TPN_SLIP.receipt(await TPN_SLIP.fromOrders([{ o, pay: p }])), o.order_number);
+        return;
+      } catch (e) { console.warn('bill picture', e); }
+    }
     const site = (window.tpnSite && tpnSite.state.settings) || {};
     const items = (o.order_items || []).filter(i => !i.voided_at);
     const w = window.open('', '_blank', 'width=420,height=640');

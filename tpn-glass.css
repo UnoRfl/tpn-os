@@ -330,6 +330,7 @@ details.tpn-menu > summary::-webkit-details-marker { display: none; }
 .pos-tile:active { transform: scale(.97); }
 .pos-tile:focus-visible { box-shadow: var(--focus-ring); }
 .pos-tile-emoji { font-size: 26px; }
+.pos-tile-photo { width: 72px; height: 72px; object-fit: contain; align-self: center; margin: -4px 0 2px; }
 .pos-tile-name { font-weight: 700; color: var(--ink); font-size: 14px; line-height: 1.25; }
 .pos-tile-price { margin-top: auto; color: var(--brick); font-weight: 700; font-size: 13px; font-variant-numeric: tabular-nums; }
 .pos-tile.is-out { opacity: .5; filter: grayscale(.6); }

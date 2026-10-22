@@ -17,10 +17,10 @@
 </script>
 <script src="config.js?v=20261017o"></script>
 <script src="tpn-supabase.js?v=20261017o"></script>
-<script src="tpn-kit.js?v=20261021d"></script>
+<script src="tpn-kit.js?v=20261022a"></script>
 <script src="modules/offline.js?v=20261021b"></script>
 <script src="tpn-i18n.js?v=20261022c"></script>
-<link rel="stylesheet" href="tpn-glass.css?v=20261021c">
+<link rel="stylesheet" href="tpn-glass.css?v=20261022a">
 <link rel="stylesheet" href="tpn-signin.css?v=20261021b">
 <link rel="manifest" href="counter.webmanifest">
 <meta name="mobile-web-app-capable" content="yes">
@@ -280,6 +280,7 @@
   .order-detail-items { display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px; }
   .detail-item { display: flex; align-items: flex-start; gap: 10px; padding: 10px; background: var(--cream); border-radius: 10px; }
   .detail-item-emoji { font-size: 24px; }
+  .dish-pic { width: 44px; height: 44px; object-fit: contain; display: block; }
   .detail-item-info { flex: 1; }
   .detail-item-name { font-size: 14px; font-weight: 700; }
   .detail-item-meta { font-size: 12px; color: var(--text-muted); }
@@ -753,6 +754,8 @@ function noteSignals(t, branch, opts) {
   if (isBill && !prev.bill) {
     if (tableStates[key]) tableStates[key].billRequested = true;
     addRequest('bill', t, branch, opts.silent);
+    // A guest asked for the bill from the QR menu: print it at the counter.
+    if (!opts.silent) printTableBill(key, t.table_number, t.bill_payment_method || '', t.id + '@' + t.bill_requested_at);
   }
   if (!isBill && prev.bill) removeRequest(key, 'bill');
   _lastSig[key] = { call: isCall, bill: isBill };
@@ -1162,7 +1165,7 @@ function renderMenuStatus() {
   <div class="menu-manager-list">`;
   menuAvailability.forEach((item, idx) => {
     html += `<div class="menu-item-row">
-      <div class="menu-item-emoji">${E(item.emoji)}</div>
+      <div class="menu-item-emoji">${dishPic(item.name, item.emoji)}</div>
       <div class="menu-item-info">
         <div class="menu-item-name">${E(item.name)}</div>
         <div style="font-size:11px;color:var(--text-muted)">${E(item.cat)} · ${E(item.price)}</div>
@@ -1293,10 +1296,29 @@ async function advanceOrder(ref) {
   }
 }
 
+// The dish's photo where the website has one (modules/photos.js), else its emoji.
+function dishPic(name, emoji) {
+  const src = window.TPN_PHOTO ? TPN_PHOTO(name) : '';
+  return src ? `<img class="dish-pic" src="${E(src)}" alt="" loading="lazy" decoding="async" width="44" height="44">` : E(emoji || '🍽️');
+}
+
+// The table's bill, every round on one slip, on the counter printer
+// (modules/imin.js). `once` keeps a repeated signal from printing twice.
+async function printTableBill(key, tableNum, method, once) {
+  const tbl = tableStates[key];
+  const ids = ((tbl && tbl.orders) || []).filter(o => o.dbId && o.status !== 'done').map(o => o.dbId);
+  if (!ids.length || !window.TPN_PRINT || !TPN_PRINT.ready) return;
+  if (once) {
+    try { const k = 'tpn.billPrinted'; const d = JSON.parse(sessionStorage.getItem(k) || '[]'); if (d.includes(once)) return; d.push(once); sessionStorage.setItem(k, JSON.stringify(d.slice(-100))); } catch (e) {}
+  }
+  if (await TPN_PRINT.bill(ids, method)) showToast(`🧾 Bill printed for Table ${tableNum}.`);
+}
+
 function markBillReady(tableNum, branchId) {
   const key = branchId + '_' + tableNum;
   const tbl = tableStates[key];
   if (!tbl) return;
+  printTableBill(key, tableNum, '');
   tbl.billRequested = true;
   tbl.status = 'bill-requested';
   tbl.orders.forEach(o => { o.billRequested = true; });
@@ -1540,7 +1562,8 @@ async function confirmCloseTable(tableNum, branchId, mode) {
           showToast('✅ Paid · ' + FLOOR_METHODS.find(x => x[0] === method)[1]);
         } catch (e) { showToast('⚠️ ' + (e.message || 'Payment not recorded')); return; }
       }
-      if (window.TPN_PRINT) live.forEach(o => TPN_PRINT.receipt(o.dbId).catch(() => {}));
+      // One receipt for the table, every round on it.
+      if (window.TPN_PRINT) TPN_PRINT.tableReceipt(live.map(o => o.dbId)).catch(() => {});
     }
 
     let ok = 0, failed = 0, lastErr = '';
@@ -1928,7 +1951,7 @@ function openOrderModal(ref) {
                onclick="requestVoid('${JA(order.dbId)}','${JA(item.id)}')">✕</button>`)
       : '';
     content += `<div class="detail-item" style="${item.voided ? 'opacity:0.5;' : ''}">
-      <div class="detail-item-emoji">${item.emoji || '🍽️'}</div>
+      <div class="detail-item-emoji">${dishPic(item.name, item.emoji)}</div>
       <div class="detail-item-info">
         <div class="detail-item-name" style="${item.voided ? 'text-decoration:line-through;' : ''}">${E(item.name)}${item.variant ? ' — ' + E(item.variant) : ''}</div>
         <div class="detail-item-meta">Qty: ${item.qty} × ₱${item.price}${item.voided ? ' · voided' : ''}</div>
@@ -2122,13 +2145,14 @@ window.onPosSent = function (o, type) {
 </script>
 <script src="vendor/qrcode-generator-1.4.4.js"></script>
 <script src="modules/customer-display.js?v=20261021b"></script>
-<script src="modules/payments.js?v=20261021b"></script>
+<script src="modules/payments.js?v=20261022a"></script>
 <script src="modules/invoices.js?v=20261021b"></script>
-<script src="modules/pos.js?v=20261022a"></script>
+<script src="modules/photos.js?v=20261022a"></script>
+<script src="modules/pos.js?v=20261022b"></script>
 <script src="vendor/imin-printer-1.4.0.min.js"></script>
-<script src="modules/slips.js?v=20261022c"></script>
+<script src="modules/slips.js?v=20261022d"></script>
 <script src="modules/kprint.js?v=20261022c"></script>
-<script src="modules/imin.js?v=20261022c"></script>
+<script src="modules/imin.js?v=20261022d"></script>
 <script src="modules/guide.js?v=20261017o"></script>
 </body>
 </html>

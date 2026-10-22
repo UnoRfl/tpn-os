@@ -100,32 +100,8 @@
   const jsq = v => (typeof JA === 'function') ? JA(v) : esc(v);
   const lang = () => (typeof TPN_LANG === 'string' ? TPN_LANG : 'en');
 
-  /* ---------- dish photos (top-down cutouts), matched by dish name ---------- */
-  const PHOTOS = {
-    'buttered shrimp': 'buttered-shrimp',
-    'adobong pusit with gata': 'pusit-gata',
-    'pares': 'pares',
-    'beef caldereta': 'caldereta',
-    'kare-kareng lechon kawali': 'kare-kare-lechon',
-    'ginataang sitaw at kalabasa': 'ginataang-sitaw-kalabasa',
-    'pork sisig': 'sisig',
-    'teriyaki wings': 'teriyaki-wings',
-    'laing': 'laing',
-    'cornedbeef silog': 'cornedbeef-silog',
-    'sisig silog': 'sisig-silog',
-    'liemposilog': 'liempo-silog',
-    'tapsilog': 'tapsilog',
-    'tocilog': 'tocilog',
-    'bacon silog': 'bacon-silog',
-    'chicksilog': 'chicksilog',
-    'calamares': 'calamares',
-    'beef bistek': 'bistek',
-    'pancit bihon': 'pancit-bihon',
-    'ginataang hipon': 'ginataang-hipon',
-  };
-  // bump when a photo is replaced under the same name, or browsers keep the old one
-  const PHOTO_V = '20261017f';
-  const photo = it => { const k = PHOTOS[(it.name || '').trim().toLowerCase()]; return k ? `assets/site/dishes/${k}.webp?v=${PHOTO_V}` : ''; };
+  /* ---------- dish photos (top-down cutouts), matched by dish name: modules/photos.js ---------- */
+  const photo = it => (window.TPN_PHOTO ? TPN_PHOTO(it.name) : '');
   // sharpest source photos first, so the big bento card never gets a small one
   const PHOTO_RANK = ['buttered shrimp', 'adobong pusit with gata', 'kare-kareng lechon kawali', 'beef caldereta', 'pork sisig',
     'laing', 'ginataang sitaw at kalabasa', 'calamares', 'teriyaki wings', 'ginataang hipon', 'beef bistek', 'pancit bihon',
