@@ -240,18 +240,19 @@
     chip.textContent = LABEL[T.status] || '🖨 Printer';
     chip.dataset.state = T.status;
   }
-  function menu() {
+  async function menu() {
+    if (window.TPN_KPRINT) await TPN_KPRINT.ping();
     const canDrawer = !!(window.TPN && TPN.can && TPN.can('cash.drawer'));
-    const html = `<p style="margin:0 0 10px">${T.ready ? 'Receipts print on the built-in printer.' :
+    const html = `${window.TPN_KPRINT ? '<h3 style="margin:0 0 8px;font-size:15px">Counter printer</h3>' : ''}<p style="margin:0 0 10px">${T.ready ? 'Receipts print on the built-in printer.' :
       'Install <strong>iMinprinterplugin</strong> from the iMin App Store on this device, then tap Reconnect.'}</p>
       <div style="display:flex;flex-wrap:wrap;gap:8px">
         ${T.ready ? '<button class="modal-btn secondary" onclick="TPN_PRINT.testKitchen()">Test kitchen ticket</button><button class="modal-btn secondary" onclick="TPN_PRINT.testReceipt()">Test receipt</button>' : ''}
         ${T.ready && canDrawer ? '<button class="modal-btn secondary" onclick="TPN_PRINT.openDrawer(\'no sale\')">Open drawer</button>' : ''}
         <button class="modal-btn secondary" onclick="TPN_PRINT.reconnect()">Reconnect</button>
         ${T.ready ? `<button class="modal-btn secondary" onclick="TPN_PRINT.toggleAuto()">Auto-print receipts: ${T.autoReceipt ? 'On' : 'Off'}</button>` : ''}
-      </div>`;
-    if (typeof openModal === 'function') openModal('Counter printer', html, [{ label: 'Close', cls: 'primary', fn: 'closeModal()' }]);
-    else if (typeof showModal === 'function') showModal(`<div class="modal-title">Counter printer</div><div class="modal-content">${html}</div><div class="modal-actions"><button class="btn-next" onclick="closeModal()">Close</button></div>`);
+      </div>${window.TPN_KPRINT ? TPN_KPRINT.section() : ''}`;
+    if (typeof openModal === 'function') openModal('Printers', html, [{ label: 'Close', cls: 'primary', fn: 'closeModal()' }]);
+    else if (typeof showModal === 'function') showModal(`<div class="modal-title">Printers</div><div class="modal-content">${html}</div><div class="modal-actions"><button class="btn-next" onclick="closeModal()">Close</button></div>`);
   }
   T.reconnect = () => { T.ready = false; T.status = 'off'; try { p && p.close(); } catch (e) {} connect(); };
   T.toggleAuto = () => { T.autoReceipt = !T.autoReceipt; SETP('auto', T.autoReceipt ? 'on' : 'off'); menu(); };

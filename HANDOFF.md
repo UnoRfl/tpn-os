@@ -1,6 +1,6 @@
 # TPN OS — Session Handoff
 
-**Last updated:** Oct 22, 2026 (rev 32 — printed slips in the v3 look + test buttons, see "Rev 32"; rev 31 — TPN Kitchen app, shared station sign-in, sign-in = clock-in, see "Rev 31"; rev 30 — sign-in at the counter, Switch user, see "Rev 30"; rev 29 — reopens where it left off, light drawing on the iMin, see "Rev 29"; rev 28 — one app on its own engine + brand reel, see "Rev 28"; rev 27 — welcome loop; in-app engine on hold, see "Rev 27"; rev 26 — counter in Chrome + app drives the back screen, see "Rev 26"; rev 25 — the iMin's old WebView, see "Rev 25"; rev 24 — customer screen on the iMin + TPN Counter Android app, see "Rev 24"; rev 23 — security pass and fallbacks, see "Rev 23"; rev 22 — BIR booklet invoices and Vercel prep, see "Rev 22"; Oct 20: nightly encrypted backups on the headless PC, see "Backups"; rev 21 — offline counter, see "Rev 21"). Earlier: Oct 17, 2026 (rev 8 — read receipts, Tagalog everywhere, layout, guide; see "Rev 8"). Rev 7 — portal split out of the website, hubs, Counter on the floor screen; see "Rev 7"). Rev 6 (Oct 16 — v2 overhaul, see "Rev 6" and GO-LIVE.md). Previously rev 5 — UI/UX reliability pass, no migrations; see "Rev 5" below). Rev 4 (Aug 22): split bills, daily close, variance, working add-ons, low-stock alerts; migrations 18–28
+**Last updated:** Oct 22, 2026 (rev 33 — kitchen network printer: test prints from the counter, apps 1.4, see "Rev 33"; rev 32 — printed slips in the v3 look + test buttons, see "Rev 32"; rev 31 — TPN Kitchen app, shared station sign-in, sign-in = clock-in, see "Rev 31"; rev 30 — sign-in at the counter, Switch user, see "Rev 30"; rev 29 — reopens where it left off, light drawing on the iMin, see "Rev 29"; rev 28 — one app on its own engine + brand reel, see "Rev 28"; rev 27 — welcome loop; in-app engine on hold, see "Rev 27"; rev 26 — counter in Chrome + app drives the back screen, see "Rev 26"; rev 25 — the iMin's old WebView, see "Rev 25"; rev 24 — customer screen on the iMin + TPN Counter Android app, see "Rev 24"; rev 23 — security pass and fallbacks, see "Rev 23"; rev 22 — BIR booklet invoices and Vercel prep, see "Rev 22"; Oct 20: nightly encrypted backups on the headless PC, see "Backups"; rev 21 — offline counter, see "Rev 21"). Earlier: Oct 17, 2026 (rev 8 — read receipts, Tagalog everywhere, layout, guide; see "Rev 8"). Rev 7 — portal split out of the website, hubs, Counter on the floor screen; see "Rev 7"). Rev 6 (Oct 16 — v2 overhaul, see "Rev 6" and GO-LIVE.md). Previously rev 5 — UI/UX reliability pass, no migrations; see "Rev 5" below). Rev 4 (Aug 22): split bills, daily close, variance, working add-ons, low-stock alerts; migrations 18–28
 **Deployed:** https://unorfl.github.io/tpn-os/
 **Repo:** https://github.com/UnoRfl/tpn-os
 **Supabase project ref:** `xjlqfpnzobfqxetgkkai` (single project, single branch)
@@ -61,6 +61,17 @@ tpn-os/
 | **Extensionless URLs** (`/tpn-table-menu`, `/tpn-dine-in-floor`) | ✅ live |
 
 ---
+
+## Rev 33 — kitchen network printer, test prints from the counter; apps 1.4 (Oct 22, 2026)
+
+The owner is setting up a separate thermal printer in the kitchen (so waiters stop walking tickets over) and wanted test prints of both slips to it from the counter. The kitchen screen and TPN Kitchen app stay: other restaurants may want screen, printer or both.
+- **App (`CustomerScreenService`, counter flavor):** the loopback server on `127.0.0.1:8091` gains `POST /print?host=…&port=…`. It takes raw ESC/POS bytes (≤ 2 MB) from our own site's Origin and writes them to the printer over TCP (connect 4s, write 8s). Only private IPv4 hosts (10/8, 172.16/12, 192.168/16) and ports 9100–9109. `/ping` now says `"print":true`. Errors come back as 502 `{"ok":false,"error":…}`. **Needs TPN Counter 1.4** (release `apps-1.4.0`); `versionName` is now `1.4.<run>`.
+- **`modules/kprint.js` (`TPN_KPRINT`):** turns a `TPN_SLIP` picture into an ESC/POS raster image (`GS v 0`, 128-row bands, then feed + partial cut `GS V 66 0`), scaled to 384 dots for 58mm paper. Settings are per device in localStorage `tpn.kprint.host / port / paper`.
+- **Printer menu** (🖨 chip, now titled "Printers"): a "Counter printer" part (unchanged) and a "Kitchen printer" part: address, port (9100), paper (80/58mm), Save, Test kitchen ticket, Test receipt. Without app 1.4 it says to update the app.
+- Portal CSP `connect-src` now also allows `http://127.0.0.1:8091` (the floor already did).
+- **Real kitchen tickets do not go to the kitchen printer yet** — only the tests. Next: a per-restaurant setting for where tickets go (kitchen printer / kitchen screen / both, counter printer as fallback).
+- Tested in a browser against a stand-in relay: address checks, both tests, and the captured bytes decoded back to the exact slip pictures. The Java was compiled by CI only. **Not yet tried with a real kitchen printer.**
+- Versions: `kprint.js` `?v=20261022a`, `imin.js` `?v=20261022b` (floor, portal); `tpn-i18n.js` `?v=20261022b`.
 
 ## Rev 32 — printed slips in the v3 look; test buttons (Oct 22, 2026)
 
