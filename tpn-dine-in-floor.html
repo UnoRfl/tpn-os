@@ -17,7 +17,7 @@
 </script>
 <script src="config.js?v=20261017o"></script>
 <script src="tpn-supabase.js?v=20261017o"></script>
-<script src="tpn-kit.js?v=20261022a"></script>
+<script src="tpn-kit.js?v=20261022b"></script>
 <script src="modules/offline.js?v=20261021b"></script>
 <script src="tpn-i18n.js?v=20261022c"></script>
 <link rel="stylesheet" href="tpn-glass.css?v=20261022a">
@@ -75,7 +75,7 @@
   }
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   html { font-size: 16px; -webkit-tap-highlight-color: transparent; }
-  body { font-family: 'DM Sans', sans-serif; background: var(--cream); color: var(--text); min-height: 100vh; }
+  body { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; background: var(--cream); color: var(--text); min-height: 100vh; }
 
   /* ── TOPBAR ── */
   .topbar {
@@ -85,11 +85,19 @@
     box-shadow: 0 2px 12px rgba(0,0,0,0.25);
   }
   .topbar-left { display: flex; align-items: center; gap: 12px; }
-  .topbar-logo { font-family: 'Playfair Display', serif; font-size: 18px; color: #fff; font-weight: 700; }
+  .topbar-logo { font-family: 'Fraunces', Georgia, serif; font-size: 18px; color: #fff; font-weight: 700; }
   .topbar-sub { font-size: 12px; color: var(--gold-light); font-weight: 500; }
   .topbar-right { display: flex; align-items: center; gap: 10px; }
+  /* Phones: the buttons scroll sideways inside the bar, never the page. */
+  @media (max-width: 760px) {
+    .topbar { gap: 10px; padding: 0 12px; }
+    .topbar-left { flex-shrink: 0; }
+    .topbar-right { min-width: 0; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+    .topbar-right::-webkit-scrollbar { display: none; }
+    .topbar-right > * { flex-shrink: 0; }
+  }
   .topbar-badge { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: #fff; font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: 20px; }
-  .topbar-btn { background: var(--brick); border: none; color: #fff; font-size: 12px; font-weight: 700; padding: 7px 14px; border-radius: 8px; cursor: pointer; font-family: 'DM Sans', sans-serif; transition: background 0.2s; }
+  .topbar-btn { background: var(--brick); border: none; color: #fff; font-size: 12px; font-weight: 700; padding: 7px 14px; border-radius: 8px; cursor: pointer; font-family: 'Plus Jakarta Sans', system-ui, sans-serif; transition: background 0.2s; }
   .topbar-btn:hover { background: var(--brick-light); }
   .topbar-btn.secondary { background: rgba(255,255,255,0.1); }
   .topbar-btn.secondary:hover { background: rgba(255,255,255,0.2); }
@@ -98,7 +106,7 @@
   /* ── TAB NAV ── */
   .tab-nav { background: #fff; border-bottom: 2px solid var(--border); display: flex; overflow-x: auto; scrollbar-width: none; }
   .tab-nav::-webkit-scrollbar { display: none; }
-  .tab-btn { flex-shrink: 0; padding: 14px 20px; font-size: 13px; font-weight: 700; color: var(--text-muted); background: none; border: none; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; white-space: nowrap; font-family: 'DM Sans', sans-serif; transition: color 0.18s; display: flex; align-items: center; gap: 6px; }
+  .tab-btn { flex-shrink: 0; padding: 14px 20px; font-size: 13px; font-weight: 700; color: var(--text-muted); background: none; border: none; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; white-space: nowrap; font-family: 'Plus Jakarta Sans', system-ui, sans-serif; transition: color 0.18s; display: flex; align-items: center; gap: 6px; }
   .tab-btn.active { color: var(--brick); border-bottom-color: var(--brick); }
   .tab-btn .badge { background: var(--brick); color: #fff; font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 10px; min-width: 18px; text-align: center; }
   .tab-btn .badge.amber { background: var(--amber); }
@@ -115,7 +123,7 @@
   .stat-clickable:hover { transform: translateY(-2px); box-shadow: var(--shadow); border-color: var(--gold); }
   .stat-clickable:active { transform: translateY(0); }
   .stat-label { font-size: 11px; font-weight: 700; color: var(--text-muted); letter-spacing: 0.07em; text-transform: uppercase; margin-bottom: 6px; }
-  .stat-value { font-size: 26px; font-weight: 700; color: var(--text); font-family: 'Playfair Display', serif; }
+  .stat-value { font-size: 26px; font-weight: 700; color: var(--text); font-family: 'Fraunces', Georgia, serif; }
   .stat-sub { font-size: 11px; color: var(--text-muted); margin-top: 3px; }
   .stat-tile.red .stat-value { color: var(--brick); }
   .stat-tile.green .stat-value { color: var(--green); }
@@ -123,8 +131,8 @@
 
   /* ── BRANCH + TABLE MANAGEMENT ── */
   .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; flex-wrap: wrap; gap: 10px; }
-  .section-title { font-family: 'Playfair Display', serif; font-size: 20px; font-weight: 700; }
-  .action-btn { background: var(--brick); color: #fff; border: none; padding: 9px 18px; border-radius: 10px; font-size: 13px; font-weight: 700; cursor: pointer; font-family: 'DM Sans', sans-serif; transition: background 0.2s; display: flex; align-items: center; gap: 6px; }
+  .section-title { font-family: 'Fraunces', Georgia, serif; font-size: 20px; font-weight: 700; }
+  .action-btn { background: var(--brick); color: #fff; border: none; padding: 9px 18px; border-radius: 10px; font-size: 13px; font-weight: 700; cursor: pointer; font-family: 'Plus Jakarta Sans', system-ui, sans-serif; transition: background 0.2s; display: flex; align-items: center; gap: 6px; }
   .action-btn:hover { background: var(--brick-light); }
   .action-btn.secondary { background: #fff; color: var(--text); border: 1.5px solid var(--border); }
   .action-btn.secondary:hover { border-color: var(--brick); color: var(--brick); }
@@ -148,19 +156,19 @@
   .table-card.active-orders { border-color: var(--brick); }
   .table-card.ready { border-color: var(--green); }
   .close-pay { background: var(--cream); border-radius: 12px; padding: 14px 16px; margin-bottom: 4px; }
-  .close-pay-input { width: 100%; font: 700 22px/1.2 'DM Sans', sans-serif; padding: 10px 12px; border-radius: 10px; border: 1.5px solid var(--border); background: #fff; color: var(--text); }
+  .close-pay-input { width: 100%; font: 700 22px/1.2 'Plus Jakarta Sans', system-ui, sans-serif; padding: 10px 12px; border-radius: 10px; border: 1.5px solid var(--border); background: #fff; color: var(--text); }
   .close-pay-input.small { font-size: 15px; font-weight: 500; padding: 8px 10px; }
   .close-pay-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
-  .close-pay-chips button { min-height: 44px; padding: 0 16px; border-radius: 999px; border: 1px solid var(--border); background: #fff; font: 600 14px 'DM Sans', sans-serif; cursor: pointer; color: var(--text); }
+  .close-pay-chips button { min-height: 44px; padding: 0 16px; border-radius: 999px; border: 1px solid var(--border); background: #fff; font: 600 14px 'Plus Jakarta Sans', system-ui, sans-serif; cursor: pointer; color: var(--text); }
   .close-pay-methods { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
-  .close-pay-methods button { min-height: 42px; padding: 0 14px; border-radius: 999px; border: 1.5px solid var(--border); background: #fff; font: 600 13px 'DM Sans', sans-serif; cursor: pointer; color: var(--text); transition: background .18s, color .18s, border-color .18s; }
+  .close-pay-methods button { min-height: 42px; padding: 0 14px; border-radius: 999px; border: 1.5px solid var(--border); background: #fff; font: 600 13px 'Plus Jakarta Sans', system-ui, sans-serif; cursor: pointer; color: var(--text); transition: background .18s, color .18s, border-color .18s; }
   .close-pay-methods button[aria-checked="true"] { background: var(--brick); border-color: var(--brick); color: #fff; }
   .close-pay-change { margin-top: 10px; font-size: 16px; min-height: 22px; }
   .table-card.bill-requested { border-color: var(--blue); animation: borderPulse 1.5s infinite; }
   @keyframes borderPulse { 0%,100%{border-color:var(--blue)} 50%{border-color:#5090d0} }
 
   .table-header { padding: 12px 14px 10px; display: flex; align-items: center; justify-content: space-between; }
-  .table-num { font-family: 'Playfair Display', serif; font-size: 20px; font-weight: 700; color: var(--text); }
+  .table-num { font-family: 'Fraunces', Georgia, serif; font-size: 20px; font-weight: 700; color: var(--text); }
   .table-status-dot { width: 10px; height: 10px; border-radius: 50%; }
   .dot-empty { background: var(--gray); }
   .dot-occupied { background: var(--amber); }
@@ -182,7 +190,7 @@
   .table-order-count { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text); margin-bottom: 8px; }
   .table-total { font-size: 15px; font-weight: 700; color: var(--brick); margin-bottom: 10px; }
   .table-actions { display: flex; gap: 6px; flex-wrap: wrap; }
-  .t-btn { flex: 1; padding: 7px 0; border-radius: 8px; font-size: 11px; font-weight: 700; border: none; cursor: pointer; font-family: 'DM Sans', sans-serif; transition: all 0.18s; min-width: 60px; }
+  .t-btn { flex: 1; padding: 7px 0; border-radius: 8px; font-size: 11px; font-weight: 700; border: none; cursor: pointer; font-family: 'Plus Jakarta Sans', system-ui, sans-serif; transition: all 0.18s; min-width: 60px; }
   .t-btn.view { background: var(--cream-dark); color: var(--text); }
   .t-btn.view:hover { background: var(--border); }
   .t-btn.advance { background: var(--brick); color: #fff; }
@@ -207,7 +215,7 @@
   .order-card.done { border-left: 4px solid var(--gray); opacity: 0.75; }
   .order-card-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 10px; gap: 10px; }
   .order-card-ref { font-size: 12px; color: var(--text-muted); font-weight: 600; letter-spacing: 0.05em; }
-  .order-card-table { font-family: 'Playfair Display', serif; font-size: 16px; font-weight: 700; }
+  .order-card-table { font-family: 'Fraunces', Georgia, serif; font-size: 16px; font-weight: 700; }
   .order-status-pill { font-size: 10px; font-weight: 700; padding: 3px 10px; border-radius: 20px; letter-spacing: 0.06em; text-transform: uppercase; flex-shrink: 0; }
   .pill-received { background: var(--amber-light); color: var(--amber); }
   .pill-preparing { background: var(--red-light); color: var(--brick); }
@@ -227,7 +235,7 @@
   .order-total { font-size: 16px; font-weight: 700; color: var(--brick); }
   .order-time { font-size: 11px; color: var(--text-muted); }
   .order-actions { display: flex; gap: 8px; }
-  .o-btn { padding: 8px 16px; border-radius: 8px; font-size: 12px; font-weight: 700; border: none; cursor: pointer; font-family: 'DM Sans', sans-serif; transition: background 0.18s; }
+  .o-btn { padding: 8px 16px; border-radius: 8px; font-size: 12px; font-weight: 700; border: none; cursor: pointer; font-family: 'Plus Jakarta Sans', system-ui, sans-serif; transition: background 0.18s; }
   .o-btn.advance { background: var(--brick); color: #fff; }
   .o-btn.advance:hover { background: var(--brick-light); }
   .o-btn.done-btn { background: var(--green); color: #fff; }
@@ -240,7 +248,7 @@
   .settings-row:last-child { border-bottom: none; padding-bottom: 0; }
   .settings-label { font-size: 14px; font-weight: 600; }
   .settings-sub { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
-  .settings-input { padding: 8px 12px; border-radius: 8px; border: 1.5px solid var(--border); font-size: 14px; font-family: 'DM Sans', sans-serif; color: var(--text); outline: none; width: 90px; text-align: center; }
+  .settings-input { padding: 8px 12px; border-radius: 8px; border: 1.5px solid var(--border); font-size: 14px; font-family: 'Plus Jakarta Sans', system-ui, sans-serif; color: var(--text); outline: none; width: 90px; text-align: center; }
   .settings-input:focus { border-color: var(--brick); }
   .toggle-switch { position: relative; width: 46px; height: 26px; flex-shrink: 0; }
   .toggle-switch input { opacity: 0; width: 0; height: 0; }
@@ -253,7 +261,7 @@
   .branch-item-name { flex: 1; font-size: 14px; font-weight: 600; }
   .branch-item-tables { font-size: 12px; color: var(--text-muted); }
   .add-branch-form { display: flex; gap: 10px; margin-top: 12px; flex-wrap: wrap; }
-  .add-branch-form input { flex: 1; min-width: 140px; padding: 10px 12px; border-radius: 8px; border: 1.5px solid var(--border); font-size: 14px; font-family: 'DM Sans', sans-serif; outline: none; }
+  .add-branch-form input { flex: 1; min-width: 140px; padding: 10px 12px; border-radius: 8px; border: 1.5px solid var(--border); font-size: 14px; font-family: 'Plus Jakarta Sans', system-ui, sans-serif; outline: none; }
   .add-branch-form input:focus { border-color: var(--brick); }
   .menu-manager-list { display: flex; flex-direction: column; gap: 8px; }
   .menu-item-row { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 10px; background: var(--cream); border: 1px solid var(--border); }
@@ -261,7 +269,7 @@
   .menu-item-info { flex: 1; }
   .menu-item-name { font-size: 14px; font-weight: 600; }
   .menu-item-price { font-size: 12px; color: var(--brick); font-weight: 700; }
-  .avail-toggle { font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 20px; border: none; cursor: pointer; font-family: 'DM Sans', sans-serif; }
+  .avail-toggle { font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 20px; border: none; cursor: pointer; font-family: 'Plus Jakarta Sans', system-ui, sans-serif; }
   .avail-toggle.on { background: var(--green-light); color: var(--green); }
   .avail-toggle.off { background: var(--gray-light); color: var(--gray); }
 
@@ -270,11 +278,11 @@
   .modal-overlay.open { opacity: 1; pointer-events: all; }
   .modal-box { background: #fff; border-radius: 20px; width: 100%; max-width: 520px; max-height: 90vh; overflow-y: auto; }
   .modal-top { padding: 20px 24px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: flex-start; justify-content: space-between; }
-  .modal-title { font-family: 'Playfair Display', serif; font-size: 20px; font-weight: 700; }
+  .modal-title { font-family: 'Fraunces', Georgia, serif; font-size: 20px; font-weight: 700; }
   .modal-close { background: none; border: none; font-size: 22px; cursor: pointer; color: var(--text-muted); }
   .modal-content { padding: 20px 24px; }
   .modal-footer { padding: 14px 24px 20px; border-top: 1px solid var(--border); display: flex; gap: 10px; justify-content: flex-end; }
-  .modal-btn { padding: 10px 22px; border-radius: 10px; font-size: 14px; font-weight: 700; border: none; cursor: pointer; font-family: 'DM Sans', sans-serif; }
+  .modal-btn { padding: 10px 22px; border-radius: 10px; font-size: 14px; font-weight: 700; border: none; cursor: pointer; font-family: 'Plus Jakarta Sans', system-ui, sans-serif; }
   .modal-btn.primary { background: var(--brick); color: #fff; }
   .modal-btn.secondary { background: var(--cream-dark); color: var(--text); }
   .order-detail-items { display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px; }
@@ -359,7 +367,7 @@
     border: 1px solid var(--border);
     width: 28px; height: 28px; line-height: 1; border-radius: 8px;
     font-size: 13px; cursor: pointer; transition: all 0.15s;
-    font-family: 'DM Sans', sans-serif;
+    font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
   }
   .detail-void-btn:hover:not([disabled]) { background: var(--brick); color: #fff; border-color: var(--brick); }
   .detail-void-btn[disabled] { cursor: default; opacity: 0.8; }
@@ -696,7 +704,7 @@ function subscribeToRealtime() {
         const full = await TPN.getOrder(order.id);
         integrateOrder(full, branch);
         floorChime();
-        showToast(`🔔 New order from Table ${full.restaurant_tables?.table_number || '?'}!`);
+        showToast(full.restaurant_tables ? `🔔 New order · Table ${full.restaurant_tables.table_number}` : `🔔 New ${full.order_type === 'delivery' ? 'delivery' : 'take-out'} order · ${full.customer_name || full.order_number}`);
         updateBadges();
         if (currentTab === 'floor' || currentTab === 'orders') renderTab();
       } catch(e) { console.error('fetch new order failed:', e); }
@@ -1474,6 +1482,10 @@ async function closeTable(tableNum, branchId) {
       : { label: dueKnown || !orderIds.length ? '✓ Close table' : '↻ Try again', cls: 'primary', fn: dueKnown || !orderIds.length ? `confirmCloseTable(${tableNum}, '${branchId}')` : `closeTable(${tableNum}, '${branchId}')` }
   ]);
   if (owes) setTimeout(() => document.getElementById('closeTendered')?.focus(), 50);
+  // The guest already said how they'll pay from the QR menu: start there.
+  const asked = tableRequests.find(r => r.key === key && r.kind === 'bill' && r.method);
+  const PICK = { cash: 'cash', gcash: 'gcash', maya: 'maya', qr: 'qrph', qrph: 'qrph', card: 'card', bank: 'bank' };
+  if (owes && asked && PICK[asked.method] && PICK[asked.method] !== 'cash') setTimeout(() => floorCloseMethod(PICK[asked.method]), 0);
 }
 // Every non-cash payment is taken by hand: staff show the shop's QR or run
 // the card terminal, check it went through, and type the reference.
@@ -1556,7 +1568,7 @@ async function confirmCloseTable(tableNum, branchId, mode) {
         } catch (e) { showToast('⚠️ ' + (e.message || 'Payment not recorded')); return; }
       } else {
         const ref = (document.getElementById('closeRef')?.value || '').trim();
-        if (ref.length < 3) { showToast(`Type the ${FLOOR_REF[method][0].toLowerCase()}.`); document.getElementById('closeRef')?.focus(); return; }
+        if (ref.length < 3) { showToast(`Type the ${FLOOR_REF[method][0].replace(/\.$/, '')}.`); document.getElementById('closeRef')?.focus(); return; }
         try {
           await TPN.settleTableManual(live.map(o => o.dbId), method, ref, { tip });
           showToast('✅ Paid · ' + FLOOR_METHODS.find(x => x[0] === method)[1]);
@@ -2020,7 +2032,7 @@ function showRevenueModal(totalRev) {
   openModal('💰 Session Revenue', `
     <div style="background:#f5ead8;border-radius:10px;padding:16px;margin-bottom:16px;text-align:center;">
       <div style="font-size:11px;color:#7a5c3a;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:4px;">Total Session Revenue</div>
-      <div style="font-family:'Playfair Display',serif;font-size:36px;font-weight:900;color:#8B1A0E;">₱${totalRev.toLocaleString('en',{minimumFractionDigits:2})}</div>
+      <div style="font-family:'Fraunces',Georgia,serif;font-size:36px;font-weight:900;color:#8B1A0E;">₱${totalRev.toLocaleString('en',{minimumFractionDigits:2})}</div>
       <div style="font-size:12px;color:#7a5c3a;margin-top:4px;">${currentBranch} · current shift</div>
     </div>
     <div style="font-size:11px;font-weight:700;color:#7a5c3a;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:8px;">Per Table</div>
@@ -2146,7 +2158,7 @@ window.onPosSent = function (o, type) {
 <script src="vendor/qrcode-generator-1.4.4.js"></script>
 <script src="modules/customer-display.js?v=20261021b"></script>
 <script src="modules/payments.js?v=20261022a"></script>
-<script src="modules/invoices.js?v=20261021b"></script>
+<script src="modules/invoices.js?v=20261022a"></script>
 <script src="modules/photos.js?v=20261022a"></script>
 <script src="modules/pos.js?v=20261022b"></script>
 <script src="vendor/imin-printer-1.4.0.min.js"></script>
@@ -2154,5 +2166,6 @@ window.onPosSent = function (o, type) {
 <script src="modules/kprint.js?v=20261022c"></script>
 <script src="modules/imin.js?v=20261022d"></script>
 <script src="modules/guide.js?v=20261017o"></script>
+<link rel="stylesheet" href="tpn-forms.css?v=20261022a">
 </body>
 </html>

@@ -1,0 +1,175 @@
+/* ═══════════════════════════════════════════════════════════════
+   Text boxes, labels, toasts and alerts: one v3 look on every page.
+
+   Loaded LAST on every page (just before </body>), so it settles the
+   older per-page styles (the floor's tpn-ui, the kitchen's inline
+   sheet, tpn-app) without rewriting each of them. Paper wells with a
+   hairline, brick focus, Plus Jakarta Sans at 16px (no zoom-on-focus
+   on phones), sentence-case labels, cocoa toasts. Colours follow the
+   portal's themes (Daylight / Dark / Night / System). No blur, so the
+   iMin (html.tpn-lite) draws it as cheaply as before.
+   ═══════════════════════════════════════════════════════════════ */
+:root {
+  --f-font: "Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-bg: #FFFDF8;
+  --f-bg-hover: #FFFFFF;
+  --f-border: rgba(46, 26, 16, 0.18);
+  --f-border-hover: rgba(46, 26, 16, 0.32);
+  --f-text: #2E1A10;
+  --f-muted: #6E5240;
+  --f-placeholder: #7A6150;
+  --f-focus: #A3321A;
+  --f-ring: 0 0 0 3px rgba(228, 162, 60, 0.42);
+  --f-error: #A3321A;
+  --f-disabled: rgba(46, 26, 16, 0.05);
+  --t-bg: #3A1D10;
+  --t-text: #FBF6EC;
+  --t-edge: rgba(255, 236, 210, 0.10);
+}
+html[data-theme="dark"], html[data-theme="night"] {
+  --f-bg: rgba(255, 236, 210, 0.06);
+  --f-bg-hover: rgba(255, 236, 210, 0.09);
+  --f-border: rgba(255, 236, 210, 0.18);
+  --f-border-hover: rgba(255, 236, 210, 0.30);
+  --f-text: #F5E7D0;
+  --f-muted: rgba(245, 231, 208, 0.72);
+  --f-placeholder: rgba(245, 231, 208, 0.58);
+  --f-focus: #E8A15C;
+  --f-ring: 0 0 0 3px rgba(232, 161, 92, 0.38);
+  --f-disabled: rgba(255, 236, 210, 0.03);
+  --t-bg: #F4EAD8;
+  --t-text: #2E1A10;
+  --t-edge: rgba(46, 26, 16, 0.12);
+}
+@media (prefers-color-scheme: dark) {
+  html[data-theme="system"] {
+    --f-bg: rgba(255, 236, 210, 0.06); --f-bg-hover: rgba(255, 236, 210, 0.09);
+    --f-border: rgba(255, 236, 210, 0.18); --f-border-hover: rgba(255, 236, 210, 0.30);
+    --f-text: #F5E7D0; --f-muted: rgba(245, 231, 208, 0.72); --f-placeholder: rgba(245, 231, 208, 0.58);
+    --f-focus: #E8A15C; --f-ring: 0 0 0 3px rgba(232, 161, 92, 0.38); --f-disabled: rgba(255, 236, 210, 0.03);
+    --t-bg: #F4EAD8; --t-text: #2E1A10; --t-edge: rgba(46, 26, 16, 0.12);
+  }
+}
+
+/* ── Text boxes ───────────────────────────────────────────── */
+html body :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]):not([type="hidden"]):not([type="submit"]):not([type="button"]), select, textarea, .form-input) {
+  font-family: var(--f-font);
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1.4;
+  color: var(--f-text);
+  background-color: var(--f-bg);
+  border: 1.5px solid var(--f-border);
+  border-radius: 12px;
+  min-height: 46px;
+  padding: 11px 14px;
+  box-sizing: border-box;
+  box-shadow: none;
+  caret-color: var(--f-focus);
+  transition: border-color .15s ease, box-shadow .15s ease, background-color .15s ease;
+}
+html body textarea { min-height: 92px; resize: vertical; line-height: 1.5; }
+html body select {
+  appearance: none; -webkit-appearance: none;
+  padding-right: 40px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%23A3321A' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 15px center; background-size: 12px 8px;
+}
+html body :is(input, select, textarea, .form-input)::placeholder { color: var(--f-placeholder); opacity: 1; font-weight: 400; }
+html body :is(input:not([type="checkbox"]):not([type="radio"]), select, textarea, .form-input):hover:not(:focus):not(:disabled) {
+  border-color: var(--f-border-hover); background-color: var(--f-bg-hover);
+}
+html body :is(input:not([type="checkbox"]):not([type="radio"]), select, textarea, .form-input):focus,
+html body :is(input:not([type="checkbox"]):not([type="radio"]), select, textarea, .form-input):focus-visible {
+  outline: none;
+  border-color: var(--f-focus);
+  background-color: var(--f-bg-hover);
+  box-shadow: var(--f-ring) !important;
+}
+html body :is(input, select, textarea, .form-input):disabled,
+html body :is(input, select, textarea, .form-input)[readonly] {
+  background-color: var(--f-disabled); color: var(--f-muted); cursor: not-allowed;
+}
+html body :is(input, select, textarea, .form-input)[aria-invalid="true"] { border-color: var(--f-error); }
+/* Numbers line up and drop the spinners that crowd a small box. */
+html body input[type="number"] { font-variant-numeric: tabular-nums; -moz-appearance: textfield; }
+html body input[type="number"]::-webkit-outer-spin-button,
+html body input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+html body input[type="search"]::-webkit-search-cancel-button { -webkit-appearance: none; }
+html body :is(input[type="checkbox"], input[type="radio"], input[type="range"]) { accent-color: var(--f-focus); }
+/* Phones get the box full width of its column; nothing narrower than a thumb. */
+@media (max-width: 600px) {
+  html body :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), select, textarea, .form-input) { min-height: 48px; }
+}
+
+/* ── Labels: sentence case, readable, no tracked capitals ──── */
+html body :is(label, legend, .form-label, .review-label, [class*="-label"]:not(input):not(button)) {
+  text-transform: none !important;
+  letter-spacing: normal !important;
+}
+html body :is(.form-label, .review-label, legend) {
+  font-family: var(--f-font);
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--f-muted);
+  margin-bottom: 6px;
+}
+html body ::selection { background: rgba(228, 162, 60, 0.35); color: inherit; }
+
+/* ── Toasts: cocoa, wrapped, never wider than the screen ───── */
+html body :is(.toast, #toast) {
+  font-family: var(--f-font);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.45;
+  letter-spacing: 0;
+  color: var(--t-text);
+  background: var(--t-bg);
+  border: 1px solid var(--t-edge);
+  border-radius: 14px;
+  padding: 12px 18px;
+  white-space: normal !important;
+  text-align: center;
+  overflow-wrap: anywhere;
+  width: max-content;
+  max-width: min(560px, calc(100vw - 32px));
+  box-shadow: 0 18px 36px -14px rgba(58, 29, 16, 0.55), 0 2px 6px rgba(58, 29, 16, 0.18);
+  -webkit-backdrop-filter: none; backdrop-filter: none;
+}
+
+/* ── Dialogs: a solid paper card, not frosted glass ────────── */
+html body .tpn-dlg {
+  -webkit-backdrop-filter: none !important; backdrop-filter: none !important;
+  background: #FBF6EC !important;
+  color: #2E1A10;
+  border: 1px solid rgba(46, 26, 16, 0.10);
+  box-shadow: 0 30px 60px -24px rgba(58, 29, 16, 0.45), 0 2px 8px rgba(58, 29, 16, 0.10) !important;
+  font-family: var(--f-font);
+}
+html[data-theme="dark"] body .tpn-dlg, html[data-theme="night"] body .tpn-dlg { background: #251A17 !important; color: #F5E7D0; border-color: rgba(255, 236, 210, 0.08); }
+html body .tpn-dlg-title { font-family: "Fraunces", Georgia, serif; font-weight: 700; font-size: 20px; line-height: 1.25; }
+html body .tpn-dlg-msg { color: var(--f-muted); font-size: 15px; line-height: 1.5; }
+html body .tpn-dlg-err:not(:empty) { color: var(--f-error); font-size: 13.5px; font-weight: 600; margin-top: 6px; }
+html body .tpn-dlg-overlay { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; background: rgba(30, 14, 8, 0.48); }
+html body .tpn-chip {
+  font-family: var(--f-font); font-size: 13.5px; font-weight: 600;
+  color: var(--f-text); background: var(--f-bg); border: 1.5px solid var(--f-border); border-radius: 12px;
+  padding: 7px 12px; min-height: 36px; cursor: pointer;
+}
+html body .tpn-chip:hover { border-color: var(--f-focus); }
+
+/* ── Floor alerts (table calls and bill requests) ──────────
+   Brick for "come to the table", saffron for "bring the bill". They sit
+   under any open form, so a payment is never covered by an alert. */
+html body .req-item { background: #A3321A; color: #FBF6EC; font-family: var(--f-font); border: 1px solid rgba(255, 236, 210, 0.12); box-shadow: 0 16px 32px -14px rgba(58, 29, 16, 0.6); }
+html body .req-item.bill { background: #E4A23C; color: #2E1A10; }
+html body .req-item.bill :is(button, .req-btn) { color: #2E1A10; border-color: rgba(46, 26, 16, 0.35); background: rgba(255, 253, 248, 0.55); }
+html body .modal-overlay { z-index: 700; }
+
+/* Form footers (Back + the main action) wrap on a phone, so a longer
+   Tagalog label never pushes the main button off the card. */
+html body .checkout-actions { flex-wrap: wrap; gap: 10px; }
+html body .checkout-actions > :last-child { margin-left: auto; }
+@media (max-width: 420px) {
+  html body .checkout-actions > * { flex: 1 1 auto; justify-content: center; text-align: center; }
+}

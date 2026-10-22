@@ -76,7 +76,7 @@
     } catch (e) { toast(e.message); }
   };
   window.invEdit = async function (orderId) {
-    const v = prompt('Correct booklet invoice no. (leave blank to remove it):');
+    const v = await tpnAsk('Correct the booklet invoice no.', { message: 'Leave it blank to remove it.', input: { inputmode: 'numeric', placeholder: '0001234' }, allowEmpty: true, confirmText: 'Save' });
     if (v === null) return;
     try { await TPN.recordOrderInvoice(orderId, v); toast('Saved.'); if (window.openPaymentPanel) openPaymentPanel(orderId); }
     catch (e) { toast(e.message); }

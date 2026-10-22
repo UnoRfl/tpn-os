@@ -17,7 +17,7 @@
 </script>
 <script src="config.js?v=20261017o"></script>
 <script src="tpn-supabase.js?v=20261017o"></script>
-<script src="tpn-kit.js?v=20261022a"></script>
+<script src="tpn-kit.js?v=20261022b"></script>
 <script src="tpn-i18n.js?v=20261022c"></script>
 <link rel="stylesheet" href="tpn-glass.css?v=20261022a">
 <link rel="stylesheet" href="tpn-signin.css?v=20261021b">
@@ -67,7 +67,7 @@
   }
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   html { font-size: 16px; -webkit-tap-highlight-color: transparent; }
-  body { font-family: 'DM Sans', sans-serif; background: var(--charcoal); color: #fff; min-height: 100vh; }
+  body { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; background: var(--charcoal); color: #fff; min-height: 100vh; }
 
   /* ── TOPBAR ── */
   .topbar {
@@ -78,9 +78,16 @@
     border-bottom: 1px solid rgba(255,255,255,0.05);
   }
   .topbar-left { display: flex; align-items: center; gap: 14px; }
-  .topbar-logo { font-family: 'Playfair Display', serif; font-size: 20px; color: #fff; font-weight: 700; }
+  .topbar-logo { font-family: 'Fraunces', Georgia, serif; font-size: 20px; color: #fff; font-weight: 700; }
   .topbar-sub { font-size: 12px; color: var(--gold-light); font-weight: 500; }
   .topbar-right { display: flex; align-items: center; gap: 10px; }
+  @media (max-width: 760px) {
+    .topbar { gap: 10px; }
+    .topbar-left { flex-shrink: 0; }
+    .topbar-right { min-width: 0; overflow-x: auto; scrollbar-width: none; }
+    .topbar-right::-webkit-scrollbar { display: none; }
+    .topbar-right > * { flex-shrink: 0; }
+  }
   .topbar-badge { background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); color: #fff; font-size: 11px; font-weight: 600; padding: 5px 12px; border-radius: 20px; }
   .topbar-badge.role { background: var(--brick); border-color: var(--brick-light); }
   .topbar-btn { background: var(--brick); border: none; color: #fff; font-size: 12px; font-weight: 700; padding: 8px 14px; border-radius: 8px; cursor: pointer; font-family: inherit; transition: background 0.2s; }
@@ -100,7 +107,7 @@
     border-right: 1px solid rgba(255,255,255,0.06); white-space: nowrap;
   }
   .stat-chip:last-child { border-right: none; }
-  .stat-num { font-family: 'Playfair Display', serif; font-size: 26px; font-weight: 700; }
+  .stat-num { font-family: 'Fraunces', Georgia, serif; font-size: 26px; font-weight: 700; }
   .stat-num.new     { color: var(--red-light); }
   .stat-num.cooking { color: var(--gold-light); }
   .stat-num.ready   { color: #7ed99a; }
@@ -152,7 +159,7 @@
     display: flex; align-items: center; justify-content: space-between;
     padding: 4px 4px 12px; border-bottom: 2px solid rgba(255,255,255,0.08); margin-bottom: 12px;
   }
-  .lane-title { font-family: 'Playfair Display', serif; font-size: 20px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+  .lane-title { font-family: 'Fraunces', Georgia, serif; font-size: 20px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
   .lane-count { background: rgba(255,255,255,0.1); font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 12px; }
   .lane.received .lane-title { color: var(--red-light); }
   .lane.received      { border-top: 3px solid var(--red); }
@@ -186,7 +193,7 @@
   @keyframes glowPulse { 0%,100% { opacity: 0; } 50% { opacity: 1; } }
 
   .ticket-head { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 8px; gap: 10px; }
-  .ticket-ref { font-family: 'Playfair Display', serif; font-size: 22px; font-weight: 900; line-height: 1; color: var(--text); }
+  .ticket-ref { font-family: 'Fraunces', Georgia, serif; font-size: 22px; font-weight: 900; line-height: 1; color: var(--text); }
   .ticket-cust { font-size: 12px; color: var(--text-muted); margin-top: 3px; }
   .ticket-badge { font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 6px; letter-spacing: 0.05em; }
   .badge-new       { background: var(--red-light); color: var(--brick); }
@@ -199,7 +206,7 @@
 
   .ticket-items { margin: 10px 0; padding: 10px 0; border-top: 1px dashed var(--border); border-bottom: 1px dashed var(--border); }
   .ticket-item { display: flex; align-items: baseline; gap: 8px; padding: 3px 0; font-size: 15px; }
-  .item-qty { font-weight: 900; color: var(--brick); min-width: 30px; font-family: 'Playfair Display', serif; font-size: 18px; }
+  .item-qty { font-weight: 900; color: var(--brick); min-width: 30px; font-family: 'Fraunces', Georgia, serif; font-size: 18px; }
   .item-name { flex: 1; font-weight: 600; }
   .item-pax { font-size: 11px; color: var(--text-muted); font-weight: 500; }
   .item-note { font-size: 11px; color: var(--amber); margin-left: 38px; font-style: italic; }
@@ -804,5 +811,6 @@ function showToast(msg) {
 }
 </script>
 <script src="modules/guide.js?v=20261017o"></script>
+<link rel="stylesheet" href="tpn-forms.css?v=20261022a">
 </body>
 </html>
