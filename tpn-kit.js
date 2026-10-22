@@ -21,6 +21,16 @@
 // Inside the TPN Counter / TPN Kitchen apps (user agent ends "TPNCounter/x" or
 // "TPNKitchen/x"), on POS-class GPUs: draw without glass and long motion there.
 try { if (/TPN(Counter|Kitchen)\//.test(navigator.userAgent)) document.documentElement.classList.add('tpn-lite'); } catch (e) {}
+// The apps are for staff: the portal sign-in, Floor & Counter and the
+// kitchen. The public website, the QR table menu and the rewards page
+// send the app back to its own station (owner, Oct 22).
+try {
+  const app = /TPN(Counter|Kitchen)\//.exec(navigator.userAgent);
+  const page = (location.pathname.split('/').pop() || '').replace(/\.html$/, '');
+  if (app && ['', 'index', 'tpn-table-menu', 'tpn-rewards'].includes(page)) {
+    location.replace(app[1] === 'Kitchen' ? 'tpn-kitchen-station' : 'tpn-dine-in-floor');
+  }
+} catch (e) {}
 
 (function () {
   'use strict';

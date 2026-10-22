@@ -150,7 +150,7 @@
     g.innerHTML = rows.map(it => `
       <button type="button" role="listitem" class="pos-tile ${it.is_available === false ? 'is-out' : ''}" ${it.is_available === false ? 'aria-disabled="true"' : ''}
         onclick="posPick('${JA(it.id)}')" aria-label="${E(it.name)}, ${E(priceLabel(it))}${it.is_available === false ? ', sold out' : ''}">
-        <span class="pos-tile-emoji" aria-hidden="true">${E(it.emoji || '🍽️')}</span>
+        ${window.TPN_PHOTO && TPN_PHOTO(it.name) ? `<img class="pos-tile-photo" src="${E(TPN_PHOTO(it.name))}" alt="" loading="lazy" decoding="async" width="72" height="72">` : `<span class="pos-tile-emoji" aria-hidden="true">${E(it.emoji || '🍽️')}</span>`}
         <span class="pos-tile-name">${E(it.name)}</span>
         <span class="pos-tile-price">${it.is_available === false ? 'Sold out' : E(priceLabel(it))}</span>
       </button>`).join('') || '<p class="tpn-muted" style="padding:20px">No dishes match.</p>';
@@ -304,6 +304,11 @@
   function printAtCounter(num, lines, type, where) {
     // iMin counter: straight to the built-in printer, no print window.
     if (window.TPN_PRINT && TPN_PRINT.kitchen(num, lines, type, where)) return;
+    if (window.TPN_SLIP) {   // the same picture, through the print window
+      TPN_SLIP.ready().then(() => TPN_SLIP.printWindow(TPN_SLIP.kitchen({ number: num, lines, type, where, at: Date.now() }), num))
+        .catch(e => console.warn('ticket picture', e));
+      return;
+    }
     // A print window, or a hidden frame where pop-ups are blocked.
     let w = window.open('', '_blank', 'width=360,height=520'), frame = null;
     if (!w) {
