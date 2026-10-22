@@ -68,10 +68,11 @@ The owner is setting up a separate thermal printer in the kitchen (so waiters st
 - **App (`CustomerScreenService`, counter flavor):** the loopback server on `127.0.0.1:8091` gains `POST /print?host=…&port=…`. It takes raw ESC/POS bytes (≤ 2 MB) from our own site's Origin and writes them to the printer over TCP (connect 4s, write 8s). Only private IPv4 hosts (10/8, 172.16/12, 192.168/16) and ports 9100–9109. `/ping` now says `"print":true`. Errors come back as 502 `{"ok":false,"error":…}`. **Needs TPN Counter 1.4** (release `apps-1.4.0`); `versionName` is now `1.4.<run>`.
 - **`modules/kprint.js` (`TPN_KPRINT`):** turns a `TPN_SLIP` picture into an ESC/POS raster image (`GS v 0`, 128-row bands, then feed + partial cut `GS V 66 0`), scaled to 384 dots for 58mm paper. Settings are per device in localStorage `tpn.kprint.host / port / paper`.
 - **Printer menu** (🖨 chip, now titled "Printers"): a "Counter printer" part (unchanged) and a "Kitchen printer" part: address, port (9100), paper (80/58mm), Save, Test kitchen ticket, Test receipt. Without app 1.4 it says to update the app.
+- **Printer tools are manager tools** (owner, Oct 22): new permission `printer.manage` (**sql/45**, Administration, min tier manager; screen accounts never). Without it the printer menu shows only the status and Reconnect: no test prints, no Open drawer (no sale), no auto-print toggle, no kitchen printer settings. `TPN_PRINT.testKitchen / testReceipt / noSale / toggleAuto` and `TPN_KPRINT.save / tests` refuse too. Cash payments still open the drawer for everyone (`TPN_PRINT.openDrawer`). The Open drawer button used to need `cash.drawer` (every staff tier). Test `tests/db/t_45_printer_perm.sql`. Until sql/45 is on production only the CEO sees the tools.
 - Portal CSP `connect-src` now also allows `http://127.0.0.1:8091` (the floor already did).
 - **Real kitchen tickets do not go to the kitchen printer yet** — only the tests. Next: a per-restaurant setting for where tickets go (kitchen printer / kitchen screen / both, counter printer as fallback).
 - Tested in a browser against a stand-in relay: address checks, both tests, and the captured bytes decoded back to the exact slip pictures. The Java was compiled by CI only. **Not yet tried with a real kitchen printer.**
-- Versions: `kprint.js` `?v=20261022a`, `imin.js` `?v=20261022b` (floor, portal); `tpn-i18n.js` `?v=20261022b`.
+- Versions: `kprint.js` `?v=20261022b`, `imin.js` `?v=20261022c` (floor, portal); `tpn-i18n.js` `?v=20261022b`.
 
 ## Rev 32 — printed slips in the v3 look; test buttons (Oct 22, 2026)
 

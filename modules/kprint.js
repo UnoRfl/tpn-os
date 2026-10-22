@@ -82,8 +82,10 @@
     }
   };
 
+  // Manager tools (printer.manage, sql/45), like the rest of the printer menu.
+  const boss = () => !!(window.TPN && TPN.can && TPN.can('printer.manage'));
   async function test(kind) {
-    if (!window.TPN_SLIP) return;
+    if (!window.TPN_SLIP || !boss()) return;
     await TPN_SLIP.ready();
     const c = kind === 'kitchen' ? TPN_SLIP.kitchen(TPN_SLIP.sample.kitchen()) : TPN_SLIP.receipt(TPN_SLIP.sample.receipt());
     try { await K.print(c); say('Sent to the kitchen printer.'); } catch (e) { say(e.message); }
@@ -92,6 +94,7 @@
   K.testReceipt = () => test('receipt');
 
   K.save = function () {
+    if (!boss()) return false;
     const h = (document.getElementById('kpHost') || {}).value || '';
     const p = (document.getElementById('kpPort') || {}).value || '9100';
     const w = (document.getElementById('kpPaper') || {}).value || '80';

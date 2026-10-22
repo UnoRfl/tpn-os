@@ -25,6 +25,9 @@
   const PREF = (k, d) => { try { const v = localStorage.getItem('tpn.imin.' + k); return v === null ? d : v; } catch (e) { return d; } };
   const SETP = (k, v) => { try { localStorage.setItem('tpn.imin.' + k, v); } catch (e) {} };
   const peso = (v) => '₱' + Number(v || 0).toFixed(2);
+  // Test prints, no-sale drawer, auto-print and the kitchen printer are
+  // manager tools (printer.manage, sql/45); staff see status + Reconnect.
+  const boss = () => !!(window.TPN && TPN.can && TPN.can('printer.manage'));
   const T = { ready: false, type: PREF('type', 'USB'), status: 'off', autoReceipt: PREF('auto', 'on') === 'on' };
   let p = null;
 
@@ -183,13 +186,13 @@
 
   // Test buttons: the same slips with made-up dishes, marked TEST.
   T.testKitchen = function () {
-    if (!T.ready || !window.TPN_SLIP) return false;
+    if (!T.ready || !window.TPN_SLIP || !boss()) return false;
     const t = TPN_SLIP.sample.kitchen();
     job(() => picture(() => TPN_SLIP.kitchen(t), () => textKitchen(t.number, t.lines, t.type, t.where)));
     return true;
   };
   T.testReceipt = function () {
-    if (!T.ready || !window.TPN_SLIP) return false;
+    if (!T.ready || !window.TPN_SLIP || !boss()) return false;
     job(() => picture(() => TPN_SLIP.receipt(TPN_SLIP.sample.receipt()), () => {
       line('Tyo Paeng Nyo', { align: 1, size: 34, bold: true });
       line('Printer test · ' + new Date().toLocaleString('en-PH'), { align: 1, size: 22 });
@@ -241,21 +244,25 @@
     chip.dataset.state = T.status;
   }
   async function menu() {
-    if (window.TPN_KPRINT) await TPN_KPRINT.ping();
-    const canDrawer = !!(window.TPN && TPN.can && TPN.can('cash.drawer'));
-    const html = `${window.TPN_KPRINT ? '<h3 style="margin:0 0 8px;font-size:15px">Counter printer</h3>' : ''}<p style="margin:0 0 10px">${T.ready ? 'Receipts print on the built-in printer.' :
+    if (window.TPN_KPRINT && boss()) await TPN_KPRINT.ping();
+    const mgr = boss();
+    const kp = mgr && window.TPN_KPRINT;
+    const html = `${kp ? '<h3 style="margin:0 0 8px;font-size:15px">Counter printer</h3>' : ''}<p style="margin:0 0 10px">${T.ready ? 'Receipts print on the built-in printer.' :
       'Install <strong>iMinprinterplugin</strong> from the iMin App Store on this device, then tap Reconnect.'}</p>
       <div style="display:flex;flex-wrap:wrap;gap:8px">
-        ${T.ready ? '<button class="modal-btn secondary" onclick="TPN_PRINT.testKitchen()">Test kitchen ticket</button><button class="modal-btn secondary" onclick="TPN_PRINT.testReceipt()">Test receipt</button>' : ''}
-        ${T.ready && canDrawer ? '<button class="modal-btn secondary" onclick="TPN_PRINT.openDrawer(\'no sale\')">Open drawer</button>' : ''}
+        ${T.ready && mgr ? '<button class="modal-btn secondary" onclick="TPN_PRINT.testKitchen()">Test kitchen ticket</button><button class="modal-btn secondary" onclick="TPN_PRINT.testReceipt()">Test receipt</button>' : ''}
+        ${T.ready && mgr ? '<button class="modal-btn secondary" onclick="TPN_PRINT.noSale()">Open drawer</button>' : ''}
         <button class="modal-btn secondary" onclick="TPN_PRINT.reconnect()">Reconnect</button>
-        ${T.ready ? `<button class="modal-btn secondary" onclick="TPN_PRINT.toggleAuto()">Auto-print receipts: ${T.autoReceipt ? 'On' : 'Off'}</button>` : ''}
-      </div>${window.TPN_KPRINT ? TPN_KPRINT.section() : ''}`;
+        ${T.ready && mgr ? `<button class="modal-btn secondary" onclick="TPN_PRINT.toggleAuto()">Auto-print receipts: ${T.autoReceipt ? 'On' : 'Off'}</button>` : ''}
+      </div>${kp ? TPN_KPRINT.section() : ''}`;
     if (typeof openModal === 'function') openModal('Printers', html, [{ label: 'Close', cls: 'primary', fn: 'closeModal()' }]);
     else if (typeof showModal === 'function') showModal(`<div class="modal-title">Printers</div><div class="modal-content">${html}</div><div class="modal-actions"><button class="btn-next" onclick="closeModal()">Close</button></div>`);
   }
+  // The menu's Open drawer (no sale): managers only. Cash payments still
+  // open the drawer for everyone through T.openDrawer.
+  T.noSale = () => boss() && T.openDrawer('no sale');
   T.reconnect = () => { T.ready = false; T.status = 'off'; try { p && p.close(); } catch (e) {} connect(); };
-  T.toggleAuto = () => { T.autoReceipt = !T.autoReceipt; SETP('auto', T.autoReceipt ? 'on' : 'off'); menu(); };
+  T.toggleAuto = () => { if (!boss()) return; T.autoReceipt = !T.autoReceipt; SETP('auto', T.autoReceipt ? 'on' : 'off'); menu(); };
 
   window.TPN_PRINT = T;
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', connect); else connect();
