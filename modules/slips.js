@@ -104,7 +104,7 @@
     };
     // Shrink a one-line heading until it fits.
     s.fit = (text, w, px, fam, maxW, min) => { let n = px; do { s.font(w, n, fam); } while (x.measureText(text).width > maxW && (n -= 2) > min); return n; };
-    s.rule = (h = 2, gap = 16) => { s.y += gap; x.fillRect(PAD, s.y, W - PAD * 2, h); s.y += h + gap; };
+    s.rule = (h = 2, gap = 24) => { s.y += gap; x.fillRect(PAD, s.y, W - PAD * 2, h); s.y += h + gap; };
     s.round = (rx, ry, w, h, r, fill) => {
       x.beginPath(); x.moveTo(rx + r, ry); x.arcTo(rx + w, ry, rx + w, ry + h, r); x.arcTo(rx + w, ry + h, rx, ry + h, r);
       x.arcTo(rx, ry + h, rx, ry, r); x.arcTo(rx, ry, rx + w, ry, r); x.closePath();
@@ -161,16 +161,16 @@
     const s = sheet(), x = s.x;
     const where = t.where || t.number;
     panel(s, where, [TYPE[t.type] || t.type || '', clock(t.at || Date.now())]);
-    if (t.where) { s.y += 6; s.row('#' + String(t.number).replace(/^#/, ''), '', { w: 600, px: 25, gap: 4 }); }
-    s.y += 10;
+    if (t.where) { s.y += 10; s.row('#' + String(t.number).replace(/^#/, ''), '', { w: 600, px: 25, gap: 6 }); }
+    s.y += 14;
     // Quantities share one column, as wide as the widest of them.
     s.font(700, 46, SERIF);
     const nx = PAD + Math.max(66, ...(t.lines || []).map(l => x.measureText(String(l.qty)).width + 20)), nw = W - PAD - nx;
     (t.lines || []).forEach(l => {
       x.fillRect(PAD, s.y, W - PAD * 2, 2); s.y += 2;
-      s.font(700, 46, SERIF); x.fillText(String(l.qty), PAD, s.y + 52);
+      s.font(700, 46, SERIF); x.fillText(String(l.qty), PAD, s.y + 56);
       s.font(800, 31);
-      s.wrap(l.name, nw).forEach((ln, i) => { s.y += i ? 38 : 48; x.fillText(ln, nx, s.y); });
+      s.wrap(l.name, nw).forEach((ln, i) => { s.y += i ? 38 : 54; x.fillText(ln, nx, s.y); });
       const subs = [];
       if (l.size) subs.push(l.size);
       if (l.modNames && l.modNames.length) subs.push('+ ' + l.modNames.join(', '));
@@ -182,11 +182,11 @@
         ls.forEach((ln, i) => x.fillText(ln, nx + 14, s.y + 34 + i * 33));
         s.y += h;
       }
-      s.y += 18;
+      s.y += 26;
     });
     if (t.note) {   // the guest's note for the whole order
       s.font(600, 25); const ls = s.wrap(t.note, W - PAD * 2 - 28), h = ls.length * 33 + 18;
-      x.fillRect(PAD, s.y, W - PAD * 2, 2); s.y += 16; x.lineWidth = 3; s.round(PAD, s.y, W - PAD * 2, h, 16, false);
+      x.fillRect(PAD, s.y, W - PAD * 2, 2); s.y += 22; x.lineWidth = 3; s.round(PAD, s.y, W - PAD * 2, h, 16, false);
       ls.forEach((ln, i) => x.fillText(ln, PAD + 14, s.y + 34 + i * 33));
       s.y += h;
     }
@@ -196,69 +196,70 @@
   /* ── Customer receipt ───────────────────────────────────────── */
   function receipt(r) {
     const s = sheet(), x = s.x;
-    s.y += 6;
-    s.center(r.brand || 'Tyo Paeng Nyo', 700, 50, SERIF, 4);
-    if (r.address) s.center(r.address, 400, 22, SANS, 0);
-    if (r.phone) s.center(r.phone, 400, 22);
+    s.y += 16;
+    s.center(r.brand || 'Tyo Paeng Nyo', 700, 50, SERIF, 10);
+    if (r.address) s.center(r.address, 400, 22, SANS, 2);
+    if (r.phone) s.center(r.phone, 400, 22, SANS, 6);
     s.rule();
-    if (r.bill) s.row('Bill', r.where || '', { w: 800, px: 30, gap: 0 });
+    if (r.bill) s.row('Bill', r.where || '', { w: 800, px: 30, gap: 8 });
     const nums = r.numbers && r.numbers.length ? r.numbers : [r.number];
-    s.row((nums.length > 1 ? 'Orders ' : 'Order ') + nums.join(', '), r.bill ? '' : (r.where || ''), { w: 600, px: 25, gap: 0 });
-    s.row([day(r.at), clock(r.at)].join(' · '), '', { px: 23, gap: 0 });
-    if (r.deliverTo) s.row('Deliver to: ' + r.deliverTo, '', { px: 23, gap: 0 });
+    s.row((nums.length > 1 ? 'Orders ' : 'Order ') + nums.join(', '), r.bill ? '' : (r.where || ''), { w: 600, px: 25, gap: 6 });
+    s.row([day(r.at), clock(r.at)].join(' · '), '', { px: 23, gap: 4 });
+    if (r.deliverTo) s.row('Deliver to: ' + r.deliverTo, '', { px: 23, gap: 4 });
     s.rule();
     (r.items || []).forEach(i => {
       const price = money(i.total);
       s.font(400, 25); const pW = x.measureText(price).width, nx = PAD + 40;
       s.wrap(i.name + (i.size ? ' ' + i.size : ''), W - PAD - nx - pW - 16).forEach((ln, k) => {
-        s.y += 33;
+        s.y += k ? 32 : 36;
         if (!k) { x.fillText(String(i.qty), PAD, s.y); x.textAlign = 'right'; x.fillText(price, W - PAD, s.y); x.textAlign = 'left'; }
         x.fillText(ln, nx, s.y);
       });
-      s.y += 4;
+      s.y += 14;
     });
+    s.y -= 8;
     s.rule();
-    s.row('Subtotal', money(r.subtotal), { gap: 0 });
-    if (Number(r.discount)) s.row(r.discountLabel || 'Less discounts', '−' + money(r.discount), { gap: 0 });
-    if (Number(r.service)) s.row('Service charge', money(r.service), { gap: 0 });
-    if (Number(r.delivery)) s.row('Delivery fee', money(r.delivery), { gap: 0 });
-    s.y += 18;
+    s.row('Subtotal', money(r.subtotal), { gap: 6 });
+    if (Number(r.discount)) s.row(r.discountLabel || 'Less discounts', '−' + money(r.discount), { gap: 6 });
+    if (Number(r.service)) s.row('Service charge', money(r.service), { gap: 6 });
+    if (Number(r.delivery)) s.row('Delivery fee', money(r.delivery), { gap: 6 });
+    s.y += 22;
     // A bill shows what's still owed; a receipt shows the total.
     const paidSome = r.bill && (r.payments || []).length;
     const big = r.bill ? r.balance : r.total;
-    if (paidSome) s.row('Total', money(r.total), { gap: 0 });
+    if (paidSome) s.row('Total', money(r.total), { gap: 14 });
     panel(s, r.bill ? 'Amount due' : 'Total', [], { px: 27, fam: SANS });
     // The amount sits on the right of the same panel, in the display face.
     s.font(700, 46, SERIF); x.fillStyle = PAPER; x.textAlign = 'right'; x.textBaseline = 'middle';
     const ph = 27 * 1.15 + 24 * 1.4; x.fillText('₱' + money(big), W - PAD - 24, s.y - ph / 2 + 2);
     x.textAlign = 'left'; x.textBaseline = 'alphabetic'; x.fillStyle = INK;
-    s.y += 8;
+    s.y += 18;
     (r.payments || []).forEach(p => {
-      s.row(p.label, (p.refund ? '−' : '') + money(p.amount), { gap: 0 });
-      if (Number(p.change)) s.row('Change', money(p.change), { w: 800, gap: 0 });
+      s.row(p.label, (p.refund ? '−' : '') + money(p.amount), { gap: 6 });
+      if (Number(p.change)) s.row('Change', money(p.change), { w: 800, gap: 6 });
     });
-    if (!r.bill && Number(r.balance) > 0) s.row('Balance', money(r.balance), { w: 800, gap: 0 });
-    if (r.bill && r.method) s.row('Paying by ' + r.method, '', { w: 600, gap: 0 });
+    if (!r.bill && Number(r.balance) > 0) s.row('Balance', money(r.balance), { w: 800, gap: 6 });
+    if (r.bill && r.method) s.row('Paying by ' + r.method, '', { w: 600, gap: 6 });
     if (r.qr && typeof window.qrcode === 'function') {
       s.rule();
       const q = qrcode(0, 'M'); q.addData(r.qr); q.make();
       // At least 4 dots a module (0.5mm) and a quiet margin, so a phone
       // reads it off thermal paper.
       const n = q.getModuleCount(), cell = Math.max(4, Math.floor(210 / n)), size = n * cell, qx = PAD + cell * 2;
-      s.y += cell * 2;
+      s.y += cell * 3;
       for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) if (q.isDark(i, j)) x.fillRect(qx + j * cell, s.y + i * cell, cell, cell);
       s.font(600, 25); s.wrap('Scan to collect your stamp', W - qx - size - 22 - PAD)
         .forEach((ln, i, all) => x.fillText(ln, qx + size + 22, s.y + size / 2 + 9 + (i - (all.length - 1) / 2) * 33));
-      s.y += size + cell * 2;
+      s.y += size + cell * 3;
     }
     s.rule();
     if (logo) {
       // Thanks on the left, the badge small at the bottom right.
-      const top = s.y + 4, mid = top + LOGO / 2;
+      const top = s.y + 10, mid = top + LOGO / 2;
       x.drawImage(logo, W - PAD - LOGO, top);
       s.font(700, 38, SERIF); x.fillText('Salamat po!', PAD, mid - 4);
       s.font(400, 21); x.fillText('This is not an official receipt.', PAD, mid + 28);
-      s.y = top + LOGO;
+      s.y = top + LOGO + 12;
     } else {
       s.center('Salamat po!', 700, 38, SERIF, 2);
       s.center('This is not an official receipt.', 400, 21);
@@ -267,34 +268,46 @@
   }
 
   /* ── Test data for the printer's test buttons ─────────────── */
+  // Filler only, so a test print can never be mistaken for a real order.
   const sample = {
     kitchen: () => ({
-      number: 'TEST', where: 'Table 5', type: 'dine_in', at: Date.now(),
+      number: 'TEST-0000', where: 'Test table', type: 'dine_in', at: Date.now(),
       lines: [
-        { qty: 2, name: 'Tapsilog', modNames: ['Extra egg'] },
-        { qty: 1, name: 'Sinigang na Baboy', size: '3–4 pax', modNames: [], note: 'Less sour, no siling haba' },
-        { qty: 1, name: 'Pancit Canton', size: 'Bilao S', modNames: [] },
-        { qty: 3, name: 'Iced Tea', modNames: [] },
+        { qty: 2, name: 'Sample dish one', modNames: ['Sample add-on'] },
+        { qty: 1, name: 'Sample dish two', size: 'Big size', modNames: [], note: 'Sample note for the kitchen' },
+        { qty: 12, name: 'A sample dish with a long name to check wrapping', modNames: [] },
+        { qty: 3, name: 'Sample drink', modNames: [] },
       ],
+      note: 'Sample order note',
     }),
     receipt: () => ({
-      number: 'TEST', where: 'Table 5', at: Date.now(),
+      number: 'TEST-0000', where: 'Test table', at: Date.now(),
       address: 'KM 19, 316 Real St., Talon Uno, Las Piñas', phone: '0999 888 7817',
       items: [
-        { qty: 2, name: 'Tapsilog', total: 370 },
-        { qty: 1, name: 'Sinigang na Baboy', size: '3–4 pax', total: 420 },
-        { qty: 1, name: 'Pancit Canton', size: 'Bilao S', total: 350 },
-        { qty: 3, name: 'Iced Tea', total: 150 },
+        { qty: 2, name: 'Sample dish one', total: 200 },
+        { qty: 1, name: 'Sample dish two', size: 'Big size', total: 450 },
+        { qty: 1, name: 'A sample dish with a long name to check wrapping', total: 1234.5 },
+        { qty: 3, name: 'Sample drink', total: 150 },
       ],
-      subtotal: 1290, discount: 74, total: 1216,
-      payments: [{ label: 'Cash', amount: 1500, change: 284 }], balance: 0,
+      subtotal: 2034.5, discount: 100, total: 1934.5,
+      payments: [{ label: 'Cash', amount: 2000, change: 65.5 }], balance: 0,
       qr: new URL('tpn-rewards', location.href).toString(),
+    }),
+    bill: () => ({
+      bill: true, method: 'GCash', number: 'TEST-0000', numbers: ['TEST-0000', 'TEST-0001'], where: 'Test table', at: Date.now(),
+      address: 'KM 19, 316 Real St., Talon Uno, Las Piñas', phone: '0999 888 7817',
+      items: [
+        { qty: 2, name: 'Sample dish one', total: 200 },
+        { qty: 1, name: 'Sample dish two', size: 'Big size', total: 450 },
+        { qty: 3, name: 'Sample drink', total: 150 },
+      ],
+      subtotal: 800, discount: 0, total: 800, payments: [], balance: 800, qr: null,
     }),
   };
 
   async function preview(kind) {
     await ready();
-    const c = kind === 'kitchen' ? kitchen(sample.kitchen()) : receipt(sample.receipt());
+    const c = kind === 'kitchen' ? kitchen(sample.kitchen()) : receipt(kind === 'bill' ? sample.bill() : sample.receipt());
     const w = window.open('', '_blank', 'width=420,height=760');
     if (!w) return c;
     w.document.write(`<!doctype html><meta charset="utf-8"><title>${kind}</title><body style="margin:0;background:#ddd;display:flex;justify-content:center;padding:20px"><img src="${c.toDataURL('image/png')}" style="width:300px;background:#fff">`);

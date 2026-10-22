@@ -17,7 +17,7 @@
    TPN_PRINT.tableReceipt(ids)   a table's receipt after paying (auto)
    TPN_PRINT.kitchen(..)  print a kitchen ticket
    TPN_PRINT.openDrawer() pop the cash drawer (logged in the audit trail)
-   TPN_PRINT.testKitchen() / testReceipt()  sample slips, marked TEST
+   TPN_PRINT.testKitchen() / testReceipt() / testBill()  sample slips, filler only
 
    Both slips print as one picture in the v3 look (modules/slips.js),
    one job at a time; if a picture fails, the plain text slip prints.
@@ -183,6 +183,14 @@
     job(() => picture(() => TPN_SLIP.kitchen(t), () => textKitchen(t.number, t.lines, t.type, t.where)));
     return true;
   };
+  T.testBill = function () {
+    if (!T.ready || !window.TPN_SLIP || !boss()) return false;
+    job(() => picture(() => TPN_SLIP.receipt(TPN_SLIP.sample.bill()), () => {
+      line('Tyo Paeng Nyo', { align: 1, size: 34, bold: true });
+      line('Bill test · ' + new Date().toLocaleString('en-PH'), { align: 1, size: 22 });
+    }));
+    return true;
+  };
   T.testReceipt = function () {
     if (!T.ready || !window.TPN_SLIP || !boss()) return false;
     job(() => picture(() => TPN_SLIP.receipt(TPN_SLIP.sample.receipt()), () => {
@@ -198,7 +206,7 @@
      is recorded, so: check the socket is open, never throw, and return
      false so a kitchen ticket falls back to the browser print window. */
   const live = () => T.ready && !!p && !!p.ws && p.ws.readyState === 1;
-  ['kitchen', 'openDrawer', 'testKitchen', 'testReceipt'].forEach(k => {
+  ['kitchen', 'openDrawer', 'testKitchen', 'testReceipt', 'testBill'].forEach(k => {
     const f = T[k];
     T[k] = function () {
       if (!live()) return false;
@@ -244,7 +252,7 @@
     const html = `${kp ? '<h3 style="margin:0 0 8px;font-size:15px">Counter printer</h3>' : ''}<p style="margin:0 0 10px">${T.ready ? 'Receipts print on the built-in printer.' :
       'Install <strong>iMinprinterplugin</strong> from the iMin App Store on this device, then tap Reconnect.'}</p>
       <div style="display:flex;flex-wrap:wrap;gap:8px">
-        ${T.ready && mgr ? '<button class="modal-btn secondary" onclick="TPN_PRINT.testKitchen()">Test kitchen ticket</button><button class="modal-btn secondary" onclick="TPN_PRINT.testReceipt()">Test receipt</button>' : ''}
+        ${T.ready && mgr ? '<button class="modal-btn secondary" onclick="TPN_PRINT.testKitchen()">Test kitchen ticket</button><button class="modal-btn secondary" onclick="TPN_PRINT.testReceipt()">Test receipt</button><button class="modal-btn secondary" onclick="TPN_PRINT.testBill()">Test bill</button>' : ''}
         ${T.ready && mgr ? '<button class="modal-btn secondary" onclick="TPN_PRINT.noSale()">Open drawer</button>' : ''}
         <button class="modal-btn secondary" onclick="TPN_PRINT.reconnect()">Reconnect</button>
         ${T.ready && mgr ? `<button class="modal-btn secondary" onclick="TPN_PRINT.toggleAuto()">Auto-print receipts: ${T.autoReceipt ? 'On' : 'Off'}</button>` : ''}

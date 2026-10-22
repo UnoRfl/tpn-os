@@ -1309,6 +1309,7 @@
     "Paper": "Papel",
     "Test print": "Subukang mag-print",
     "Test receipt": "Subukan ang resibo",
+    "Test bill": "Subukan ang bill",
     "Testimonials": "Mga testimonial",
     "Thank you,": "Salamat,",
     "That code is already in use.": "Gamit na ang code na iyan.",
