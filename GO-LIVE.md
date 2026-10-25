@@ -52,6 +52,10 @@ Run each file **on its own**, in this order. All are safe to re-run.
 | `sql/46-my-notifications-only.sql` | the bell lists only my notifications and the shared ones, so read ones stay read. Applied to production Oct 22 as `46_my_notifications_only` |
 | `sql/47-orders-one-door.sql` | no direct inserts into orders for staff or guests; every order goes through `submit_order`. Applied to production Oct 22 as `47_orders_one_door` |
 | `sql/48-counter-money-locks.sql` | a paid bill can't change (refund first); hand-entered bank waits for a second person; no cash without an open shift (offline replays keep their shift); `my_shift()`. Applied to production Oct 22 as `48_counter_money_locks` |
+| 49, 50 | manager PIN, menu engineering: on production since Oct 22 (from the Mac checkout); the files are not in this repo yet (HANDOFF Rev 41) |
+| `sql/51-manila-days.sql` | reports, payroll days and order numbers use the Manila day (the database runs on UTC); schedule weeks moved from Sunday to Monday. Applied Oct 25 as `51_manila_days` |
+| `sql/52-close-the-day.sql` | `close_day_checklist`: what is still open before the day can be closed (Daily close). Applied Oct 25 as `52_close_the_day` |
+| `sql/53-sold-out-stays-listed.sql` | `menu_items.is_listed`: a sold-out dish stays on the menu marked sold out; unlisted dishes are hidden and never orderable. Applied Oct 25 as `53_sold_out_stays_listed` |
 
 Then: Supabase → Advisors → Security. Expected warnings only: the customer functions (`submit_order`, `track_order`, `claim_stamp_card`, `my_stamp_card`, `stamp_card_code`, `my_guest_profile`, `addon_suggestions`, `signal_*`) are public on purpose.
 

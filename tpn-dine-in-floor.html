@@ -16,9 +16,9 @@
   if (!window.supabase) document.write('<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js" integrity="sha384-Rj26LVGvoeRVR6+mwQmFfcR3QOBEwT+ZmuCWpuiqeTzJpCs0ER4ITAWGb4Hiy3Ok" crossorigin="anonymous"><' + '/script>');
 </script>
 <script src="config.js?v=20261017o"></script>
-<script src="tpn-supabase.js?v=20261022m"></script>
+<script src="tpn-supabase.js?v=20261025a"></script>
 <script src="tpn-kit.js?v=20261022b"></script>
-<script src="modules/offline.js?v=20261022m"></script>
+<script src="modules/offline.js?v=20261025a"></script>
 <script src="tpn-i18n.js?v=20261022m"></script>
 <link rel="stylesheet" href="tpn-glass.css?v=20261022m">
 <link rel="stylesheet" href="tpn-signin.css?v=20261021b">
@@ -167,6 +167,7 @@
   .close-shift { padding: 4px 0 2px; }
   .close-shift-btn { width: 100%; min-height: 64px; font-size: 20px; white-space: nowrap; }
   .floor-paid-note { font-size: 13px; color: var(--text-muted); margin: 0 0 10px; }
+  .close-offline-note { font-size: 13px; line-height: 1.45; margin: 0 0 12px; padding: 10px 12px; border-radius: 10px; background: color-mix(in srgb, var(--gold, #c8922a) 14%, transparent); }
   .table-card.bill-requested { border-color: var(--blue); animation: borderPulse 1.5s infinite; }
   @keyframes borderPulse { 0%,100%{border-color:var(--blue)} 50%{border-color:#5090d0} }
 
@@ -513,12 +514,22 @@ async function requestVoid(orderDbId, itemId) {
     showToast('⚠️ Give a reason of at least 3 characters.');
     return;
   }
+  // No internet: the request waits on this device and goes out when it's back.
+  const offline = async () => {
+    const o = dineInOrders.find(x => x.dbId === orderDbId);
+    await TPN_OFFLINE.queueVoid({ orderId: orderDbId, orderNumber: o && o.ref, itemId, itemLabel: _voidItemLabel(orderDbId, itemId).replace(/&amp;/g, '&'), reason: reason.trim() });
+    _pendingVoidItemIds.add(itemId);
+    showToast('📴 No internet: the request is saved and goes to the managers when the connection is back.');
+    closeModal();
+  };
+  if (window.TPN_OFFLINE && TPN_OFFLINE.isOffline()) return offline();
   try {
     await TPN.requestVoid({ orderId: orderDbId, itemId, reason: reason.trim() });
     _pendingVoidItemIds.add(itemId);
     showToast('📨 Sent — waiting for a manager to approve.');
     closeModal();
   } catch (e) {
+    if (window.TPN_OFFLINE && TPN_OFFLINE.isNetError(e) && !(await TPN_OFFLINE.check(true))) return offline();
     showToast('⚠️ ' + TPN.voidRequestErrorText(e));
   }
 }
@@ -1172,10 +1183,10 @@ function renderMenuStatus() {
   let html = `
   <div class="stat-grid" style="grid-template-columns:repeat(3,1fr)">
     <div class="stat-tile green"><div class="stat-label">Available</div><div class="stat-value">${avail}</div></div>
-    <div class="stat-tile red"><div class="stat-label">Unavailable</div><div class="stat-value">${unavail}</div></div>
+    <div class="stat-tile red"><div class="stat-label">Sold out</div><div class="stat-value">${unavail}</div></div>
     <div class="stat-tile"><div class="stat-label">Total Items</div><div class="stat-value">${menuAvailability.length}</div></div>
   </div>
-  <div class="section-header"><div class="section-title">Menu Availability</div><div style="font-size:12px;color:var(--text-muted)">Toggle items on/off instantly — updates customer menu</div></div>
+  <div class="section-header"><div class="section-title">Menu Availability</div><div style="font-size:12px;color:var(--text-muted)">Sold-out dishes stay on the guests' menu, greyed out, until you switch them back</div></div>
   <div class="menu-manager-list">`;
   menuAvailability.forEach((item, idx) => {
     html += `<div class="menu-item-row">
@@ -1185,7 +1196,7 @@ function renderMenuStatus() {
         <div style="font-size:11px;color:var(--text-muted)">${E(item.cat)} · ${E(item.price)}</div>
       </div>
       <button class="avail-toggle ${item.available ? 'on' : 'off'}" onclick="toggleMenuItem(${idx})">
-        ${item.available ? '✓ Available' : '✗ Hidden'}
+        ${item.available ? '✓ Available' : '✗ Sold out'}
       </button>
     </div>`;
   });
@@ -1398,6 +1409,8 @@ async function closeTable(tableNum, branchId) {
   const key = branchId + '_' + tableNum;
   const tbl = tableStates[key];
   if (!tbl) return;
+  // No internet: cash only, from what this screen already knows (modules/offline.js).
+  if (window.TPN_OFFLINE && (TPN_OFFLINE.isOffline() || !(await TPN_OFFLINE.check()))) return closeTableOffline(tableNum, branchId);
 
   // Pull the live DB numbers for every active order at this table so subtotal /
   // discount / total reflect any voids or discounts applied since page load,
@@ -1504,6 +1517,69 @@ async function closeTable(tableNum, branchId) {
   const PICK = { cash: 'cash', gcash: 'gcash', maya: 'maya', qr: 'qrph', qrph: 'qrph', card: 'card', bank: 'bank' };
   if (owes && asked && PICK[asked.method] && PICK[asked.method] !== 'cash') setTimeout(() => floorCloseMethod(PICK[asked.method]), 0);
 }
+/* Close table with no internet. The total comes from this screen (and the
+   counter's outbox for rounds rung up offline); the server checks it when
+   the close syncs and asks for more cash if it was short. Only cash: every
+   other method needs its reference checked on the server. */
+function closeTableOffline(tableNum, branchId) {
+  const key = branchId + '_' + tableNum, tbl = tableStates[key];
+  if (!tbl) return;
+  const live = (tbl.orders || []).filter(o => o.dbId && o.status !== 'done');
+  const tableId = window.posTableId ? posTableId(tableNum) : null;
+  const local = tableId ? TPN_OFFLINE.waitingForTable(tableId) : [];
+  const due = Math.round((live.filter(o => !o.paid).reduce((a, o) => a + Number(o.total || 0), 0)
+    + local.reduce((a, e) => a + Number(e.estTotal || 0), 0)) * 100) / 100;
+  const shift = window.tpnCashSessionId || TPN_OFFLINE.lastCashSession();
+  window._floorClose = { tableNum, branchId, orderIds: live.map(o => o.dbId), localIds: local.map(e => e.id), tableId, due, offline: true, method: 'cash' };
+  const chips = due > 0 ? (window.tpnCashQuick ? tpnCashQuick(due) : [{ v: due, label: 'Exact' }]) : [];
+  const pay = due <= 0 ? `<p style="font-size:14px;margin-bottom:10px">Nothing left to collect on this screen.</p>`
+    : !shift ? `<div class="close-shift" role="note"><strong>No shift is open.</strong>
+        <p style="font-size:13px;color:var(--text-muted);margin:4px 0 10px">Cash goes into a counted drawer. A shift can be opened offline too.</p>
+        ${TPN.can && TPN.can('cash.drawer') ? `<button type="button" class="topbar-btn close-shift-btn" onclick="floorOpenShift(${tableNum}, '${branchId}')">Open shift</button>` : '<p style="font-size:13px">Ask someone who can open the drawer to open a shift.</p>'}</div>`
+    : `<div class="close-pay"><div id="closeCashBox">
+        <label for="closeTendered" style="display:block;font-size:13px;font-weight:600;margin-bottom:6px">Cash received</label>
+        <input id="closeTendered" class="close-pay-input" type="number" inputmode="decimal" min="0" step="0.01" placeholder="₱" oninput="floorCloseCalc()">
+        <div class="close-pay-chips">${chips.map(c => `<button type="button" onclick="floorCloseChip(${c.v})">${E(c.label)}</button>`).join('')}</div></div>
+        <label for="closeTip" style="display:block;font-size:12px;color:var(--text-muted);margin:8px 0 4px">Tip (optional)</label>
+        <input id="closeTip" class="close-pay-input small" type="number" inputmode="decimal" min="0" step="0.01" value="" oninput="floorCloseCalc()">
+        <div id="closeChange" class="close-pay-change" aria-live="polite"></div></div>`;
+  openModal('Close Table ' + tableNum + ' · offline', `
+    <p class="close-offline-note" role="note">📴 No internet. Cash only: GCash, Maya, QR Ph, card and bank need the connection. The close is saved on this device and sent by itself when the internet is back; the receipt prints then.</p>
+    <div style="background:var(--cream);border-radius:12px;padding:16px;margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;margin-bottom:8px;font-size:14px"><span>Guest</span><strong>${E(tbl.guest || '—')}</strong></div>
+      ${live.map(o => `<div style="display:flex;justify-content:space-between;font-size:13px;color:var(--text-muted)"><span>${E(o.ref)}${o.paid ? ' · paid' : ''}</span><span>₱${N(o.total)}</span></div>`).join('')}
+      ${local.map(e => `<div style="display:flex;justify-content:space-between;font-size:13px;color:var(--text-muted)"><span>${E(e.localNo)} · rung up offline</span><span>₱${N(e.estTotal)}</span></div>`).join('')}
+      <div style="display:flex;justify-content:space-between;font-size:18px;margin-top:8px"><span>To collect</span><strong style="color:var(--brick)">₱${N(due)}</strong></div>
+      <div style="font-size:12px;color:var(--text-muted);margin-top:4px">From this screen. Discounts or voids made since it lost the connection aren't in it.</div>
+    </div>
+    ${pay}`, [
+    { label: 'Cancel', cls: 'secondary', fn: 'closeModal()' },
+    ...(due > 0 && !shift ? [] : [{ label: due > 0 ? '✓ Paid in cash · Close table' : '✓ Close table', cls: 'primary', fn: `confirmCloseTableOffline(${tableNum}, '${branchId}')` }])
+  ]);
+  if (due > 0 && shift) setTimeout(() => document.getElementById('closeTendered')?.focus(), 50);
+}
+async function confirmCloseTableOffline(tableNum, branchId) {
+  const c = window._floorClose;
+  if (!c || !c.offline || _closingTable) return;
+  const tip = Number(document.getElementById('closeTip')?.value || 0);
+  const tendered = Number(document.getElementById('closeTendered')?.value || 0);
+  if (c.due > 0) {
+    if (!tendered) { showToast('Enter the cash received.'); document.getElementById('closeTendered')?.focus(); return; }
+    if (tendered + 0.001 < c.due + tip) { showToast(`Not enough cash: need ₱${(c.due + tip).toFixed(2)}.`); return; }
+  }
+  _closingTable = true;
+  try {
+    await TPN_OFFLINE.queueTable({ tableNum, tableId: c.tableId, orderIds: c.orderIds, localIds: c.localIds, estTotal: c.due, tendered, tip });
+    if (c.due > 0 && window.TPN_PRINT) TPN_PRINT.openDrawer('table ' + tableNum + ' (offline)');
+    removeRequest(branchId + '_' + tableNum, 'call');
+    removeRequest(branchId + '_' + tableNum, 'bill');
+    closeModal();
+    clearTable(tableNum, branchId);
+    showToast(c.due > 0 ? `💵 Change ₱${(tendered - c.due - tip).toFixed(2)}. Table ${tableNum} closed offline; it syncs when the internet is back.` : `Table ${tableNum} closed offline; it syncs when the internet is back.`);
+  } catch (e) { showToast('⚠️ Could not save on this device: ' + (e.message || e)); }
+  finally { _closingTable = false; }
+}
+
 // Every non-cash payment is taken by hand: staff show the shop's QR or run
 // the card terminal, check it went through, and type the reference.
 const FLOOR_METHODS = [['cash', '💵 Cash'], ['gcash', '📱 GCash'], ['maya', '📲 Maya'], ['qrph', '🔳 QR Ph'], ['card', '💳 Card'], ['bank', '🏦 Bank']];
@@ -1759,10 +1835,16 @@ async function toggleMenuItem(idx) {
   item.available = newState;
   renderTab();
   try {
-    const { error } = await sb.from('menu_items').update({ is_available: newState }).eq('id', item.id);
-    if (error) throw error;
-    await TPN.logAudit('menu.toggle_availability', 'menu_item', item.id, { available: newState });
-    showToast(`${E(item.name)} marked as ${newState ? 'available' : 'unavailable'}.`);
+    // The same door as the 86 panel (sql/32): kitchen tier and up, audited
+    // on the server. A direct write needed a manager.
+    const why = newState ? 'back in stock' : 'ran out';
+    if (window.TPN_OFFLINE && TPN_OFFLINE.isOffline()) {
+      await TPN_OFFLINE.queueAvail({ itemId: item.id, name: item.name, available: newState, reason: why });
+      showToast(`📴 No internet: ${item.name} saved as ${newState ? 'available' : 'sold out'}. Guests see it when the connection is back.`);
+      return;
+    }
+    await TPN.setItemAvailable(item.id, newState, why);
+    showToast(`${item.name} is ${newState ? 'available again' : 'sold out'}.`);
   } catch(e) {
     console.error('toggleMenuItem:', e);
     item.available = !newState;   // rollback
@@ -1776,6 +1858,7 @@ async function loadMenuFromDB() {
   try {
     const { data, error } = await sb.from('menu_items')
       .select('id, name, emoji, price, is_available, pax_options, menu_categories(name)')
+      .eq('is_listed', true)
       .order('display_order', { ascending: true });
     if (error) throw error;
     menuAvailability = (data || []).map(i => ({
@@ -2189,7 +2272,7 @@ window.onPosSent = function (o, type) {
 <script src="modules/payments.js?v=20261022m"></script>
 <script src="modules/invoices.js?v=20261022a"></script>
 <script src="modules/photos.js?v=20261022a"></script>
-<script src="modules/pos.js?v=20261022m"></script>
+<script src="modules/pos.js?v=20261025a"></script>
 <script src="vendor/imin-printer-1.4.0.min.js"></script>
 <script src="modules/slips.js?v=20261022f"></script>
 <script src="modules/kprint.js?v=20261022c"></script>

@@ -11,7 +11,7 @@
   'use strict';
   const can = (k) => !!(window.TPN && TPN.can && TPN.can(k));
   const today = () => (TPN.today ? TPN.today() : new Date().toISOString().slice(0, 10));
-  const daysAgo = (n) => { const d = new Date(today() + 'T00:00:00+08:00'); d.setDate(d.getDate() - n); return d.toISOString().slice(0, 10); };
+  const daysAgo = (n) => { const d = new Date(today() + 'T00:00:00+08:00'); d.setDate(d.getDate() - n); return TPN.today(d); };   // toISOString() was the UTC day: one day early
   const human = (k) => k.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
   const guessType = (k, v) => /amount|price|cost|total|rate|pay|spend|gross|net|allowance|deduction|cash|sales/i.test(k) && !isNaN(+v) ? 'money'
     : /_at$|date|_on$/i.test(k) ? (String(v || '').length > 10 ? 'datetime' : 'date')

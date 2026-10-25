@@ -16,7 +16,7 @@
   if (!window.supabase) document.write('<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js" integrity="sha384-Rj26LVGvoeRVR6+mwQmFfcR3QOBEwT+ZmuCWpuiqeTzJpCs0ER4ITAWGb4Hiy3Ok" crossorigin="anonymous"><' + '/script>');
 </script>
 <script src="config.js?v=20261017o"></script>
-<script src="tpn-supabase.js?v=20261022m"></script>
+<script src="tpn-supabase.js?v=20261025a"></script>
 <script src="tpn-kit.js?v=20261022b"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
 <meta name="theme-color" content="#FBF6EC">
@@ -30,7 +30,7 @@
      the order page (cards, engraved title, tray, receipt printer). -->
 <link rel="stylesheet" href="tpn-app.css?v=20261017o">
 <link rel="stylesheet" href="tpn-glass.css?v=20261022m">
-<link rel="stylesheet" href="tpn-site-v3.css?v=20261017v30">
+<link rel="stylesheet" href="tpn-site-v3.css?v=20261025a">
 <script>
   // UnoSys: global error boundary for the customer surface.
   window.addEventListener('error', function(ev){ console.error('[Menu uncaught]', ev.error || ev.message); });
@@ -393,6 +393,8 @@ const TPN_STRINGS = {
   s_card_3:    { en: '<b>Tap or insert your card</b> and keep the slip.', tl: '<b>I-tap o ipasok ang card</b> at itago ang resibo.' },
   changeMind:  { en: 'Changed your mind about how to pay? Just tell the staff when they arrive.', tl: 'Nagbago ang isip sa pagbabayad? Sabihin lang sa staff pagdating nila.' },
   billAsked:   { en: 'Staff coming', tl: 'Papunta na' },
+  paidTitle:   { en: 'Paid. Salamat po!', tl: 'Bayad na. Salamat po!' },
+  paidSub:     { en: 'Your table’s bill of {p} is settled. Hungry again? A new order starts a new bill.', tl: 'Bayad na ang bill ng mesa ninyo na {p}. Gutom pa? Bagong bill ang bagong order.' },
   backMenu:    { en: 'Back to the menu', tl: 'Bumalik sa menu' },
   payment:     { en: 'Payment', tl: 'Bayad' },
   noOrders:    { en: 'Order something first!', tl: 'Umorder muna!' },
@@ -1003,6 +1005,36 @@ function renderBillSent(again) {
     </div>`;
 }
 
+/* ── paid: once staff close the table, this phone stops saying "staff
+      will be right with you" and the next order starts a fresh bill.
+      track_order (polled; guests can't read orders) carries payment_status. ── */
+let paidTotal = null, _paidTimer = null;
+async function checkPaid() {
+  if (!sessionOrders.length) return;
+  const watching = billSent || sessionOrders.every(o => o.status === 'served');
+  if (!watching || document.visibilityState !== 'visible') return;
+  try {
+    const rows = await Promise.all(sessionOrders.map(o => TPN.getOrderByNumber(o.id).catch(() => null)));
+    if (!rows.every(r => r && (r.payment_status === 'paid' || r.status === 'cancelled'))) return;
+  } catch (e) { return; }
+  paidTotal = tableTotalKnown() || sessionTotal;
+  billSent = null; saveBillSent();
+  sessionOrders = []; sessionTotal = 0; saveSessionOrders();
+  _orderSubscriptions.forEach(u => typeof u === 'function' && u()); _orderSubscriptions.clear();
+  updateDock(); updateCartUI();
+  if (view === 'bill' || view === 'sent') { view = 'bill'; document.querySelectorAll('.page').forEach(p => p.classList.toggle('active', p.id === 'page-bill')); renderPaid(); }
+  else toast('✅ ' + T('paidTitle'));
+}
+function renderPaid() {
+  const card = document.getElementById('billCard');
+  card.className = 'checkout-card confirm-card';
+  card.innerHTML = `<h2 class="confirm-title">${E(T('paidTitle'))}</h2>
+    <p class="confirm-sub">${E(T('paidSub', { p: peso(paidTotal || 0) }))}</p>
+    <div class="tm-actions-col"><button class="btn-next" onclick="go('menu')">${E(T('backMenu'))}</button></div>`;
+}
+_paidTimer = setInterval(checkPaid, 10000);
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkPaid(); });
+
 async function callStaff() {
   if (!(await tableReady())) { toast(T('noTable')); return; }
   try {
@@ -1054,7 +1086,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 </script>
 <script src="modules/photos.js?v=20261022a"></script>
-<script src="tpn-home.js?v=20261022a"></script>
+<script src="tpn-home.js?v=20261025a"></script>
 <script>
   // tpn-home.js has now added its strings and built the engraved title; the
   // menu renders once it exists.

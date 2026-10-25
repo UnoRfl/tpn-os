@@ -167,6 +167,7 @@ body::after { display: none; }                               /* old mesh glow */
 .v3-card h4 { font-family: var(--v3-display); font-weight: 700; font-size: 21px; line-height: 1.15; font-variation-settings: "SOFT" 100; color: var(--v3-ink); }
 .v3-card .d { font-size: 14px; color: var(--v3-ink-2); line-height: 1.5; }
 .v3-card.off { opacity: .55; }
+.v3-soldout { margin-left: 10px; font: 600 12px var(--v3-ui); color: var(--v3-ink-3); white-space: nowrap; }
 .v3-sizes { margin-top: auto; padding-top: 16px; display: grid; gap: 4px; }
 .v3-size { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid var(--v3-hair); font-size: 13px; color: var(--v3-ink-3); }
 .v3-size .p { margin-left: auto; font-family: var(--v3-display); font-weight: 700; font-size: 19px; color: var(--v3-ink); font-variation-settings: "SOFT" 100; }

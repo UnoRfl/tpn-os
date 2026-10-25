@@ -20,7 +20,7 @@
    outbox with their idempotency key and replays them (sql/41).
    ═══════════════════════════════════════════════════════════════ */
 'use strict';
-const VERSION = 'tpn-counter-20261021b';
+const VERSION = 'tpn-counter-20261025a';
 const SHELL = VERSION + '-shell';
 const DATA = VERSION + '-data';
 const PAGE = 'tpn-dine-in-floor.html';

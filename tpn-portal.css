@@ -117,3 +117,29 @@ input[type="number"], input[type="tel"], input[type="date"], input[type="time"],
   .perf-daily-bar { min-width: 0; }
   .perf-daily-chart { gap: 2px; }
 }
+
+/* ── Close the day (Daily close, sql/52) ──────────────────────────
+   One row per thing that must be finished; open rows say how many and
+   list them, done rows collapse to a tick. */
+.cd-box { padding: 18px 18px 8px; }
+.cd-top { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
+.cd-title { font-family: 'Playfair Display', Georgia, serif; font-size: 22px; font-weight: 700; color: var(--ink); margin: 0; }
+.cd-summary { font-size: 14px; font-weight: 600; }
+.cd-summary.is-open { color: var(--danger); }
+.cd-summary.is-done { color: var(--success); }
+.cd-row { border-top: 1px solid var(--line-soft); padding: 12px 0; }
+.cd-row-head { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; }
+.cd-row-title { font-weight: 600; color: var(--ink); }
+.cd-row.is-done .cd-row-title { color: var(--ink-muted); font-weight: 500; }
+.cd-row-state { font-size: 13px; white-space: nowrap; }
+.cd-row.is-open .cd-row-state { color: var(--danger); font-weight: 700; }
+.cd-row.is-done .cd-row-state { color: var(--success); }
+.cd-list { list-style: none; margin: 8px 0 6px; padding: 0; }
+.cd-list li { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; padding: 7px 0; border-bottom: 1px dashed var(--line-soft); font-size: 13px; }
+.cd-list li:last-child { border-bottom: 0; }
+.cd-side { color: var(--ink-muted); margin-left: auto; }
+.cd-act { display: flex; gap: 6px; }
+.cd-btn { padding: 6px 12px; font-size: 12px; margin: 4px 0; }
+.cd-sub { font-size: 13px; color: var(--ink-muted); margin-top: 8px; }
+.cd-neg { color: var(--danger); font-weight: 600; }
+@media (max-width: 600px) { .cd-side { margin-left: 0; width: 100%; } }

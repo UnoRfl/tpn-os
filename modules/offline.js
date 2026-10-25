@@ -20,15 +20,30 @@
         real session when the outbox syncs, and nothing is sent without
         one.
 
-   Needs the server, so not offline: GCash/Maya/QR Ph/card/bank (the
-   reference is checked and recorded there), opening or closing a shift,
-   Close table, voids, the 86 list.
+   Also offline since Oct 25 (each replays through the same server
+   function as online, so every rule still applies when it lands):
+     opening a shift   open_cash_session; until it syncs the drawer is
+                       "pending:<id>", and cash taken on it is moved to the
+                       real shift when it lands
+     Close table       cash only; settle_table_cash for the rounds on the
+                       table (orders taken offline for it included), then
+                       each round completed and the table's flags cleared
+     void requests     request_void; a manager approves them as usual
+     sold out / back   set_item_available (86)
+
+   Still needs the server: GCash/Maya/QR Ph/card/bank (the reference is
+   checked and recorded there), closing a shift (the Z read counts what the
+   server holds), X reads, cash in/out, discounts, refunds.
 
    TPN_OFFLINE.isOffline()       last known state (navigator + probe)
    TPN_OFFLINE.check()           probe now if the last answer is stale
    TPN_OFFLINE.isNetError(e)     a failure that may not have reached the server
    TPN_OFFLINE.queueOrder(..)    save an order (returns the outbox entry)
    TPN_OFFLINE.queueCash(..)     save cash for an order that already exists
+   TPN_OFFLINE.queueShift(..)    open a drawer shift (returns its pending id)
+   TPN_OFFLINE.queueTable(..)    close a table with cash
+   TPN_OFFLINE.queueVoid(..)     ask a manager to void a line
+   TPN_OFFLINE.queueAvail(..)    mark a dish sold out / available
    TPN_OFFLINE.openPayment(id)   offline payment panel for a queued order
    TPN_OFFLINE.sync()            replay now (also runs by itself)
    ═══════════════════════════════════════════════════════════════ */
@@ -212,6 +227,103 @@
     return e;
   };
   const tagOf = (e) => 'offline ' + e.localNo + ' ' + e.id.slice(0, 8);
+  const who = () => { const u = (window.TPN && TPN.currentUser && TPN.currentUser()) || {}; return u.full_name || u.name || ''; };
+  async function queue(kind, fields) {
+    const seq = await nextSeq();
+    const e = Object.assign({ id: uuid(), kind, seq, localNo: 'OFF-' + String(seq).padStart(3, '0'), createdAt: Date.now(), by: who(),
+      state: 'waiting', stage: kind, error: '', attempts: 0 }, fields);
+    await putEntry(e); await load();
+    if (T.online) T.sync();
+    return e;
+  }
+
+  /* A shift opened offline is "pending:<entry id>" until it syncs; then the
+     real id is kept under that name so cash taken on it lands on it. */
+  const PENDING = 'pending:';
+  T.isPendingShift = (id) => typeof id === 'string' && id.startsWith(PENDING);
+  const kvGet = (k) => req('kv', 'readonly', s => s.get(k));
+  const kvPut = (k, v) => req('kv', 'readwrite', s => s.put(v, k));
+  async function realShift(id) {
+    if (!T.isPendingShift(id)) return id || null;
+    const real = await kvGet('shift:' + id);
+    if (!real) throw new Error('The shift opened offline has not reached the server yet. Sync it first (it is higher in this list).');
+    return real;
+  }
+  T.queueShift = async function ({ float, register }) {
+    const e = await queue('shift', { float: Number(float) || 0, register: register || 'Counter', estTotal: Number(float) || 0 });
+    const id = PENDING + e.id;
+    e.shiftKey = id; await putEntry(e);
+    T.lastCashSession(id);
+    return id;
+  };
+  T.queueTable = function ({ tableNum, tableId, orderIds, localIds, estTotal, tendered, tip }) {
+    return queue('table', { tableNum, tableId: tableId || null, orderIds: orderIds || [], localIds: localIds || [], estTotal,
+      cash: { tendered, tip: tip || 0, cashSession: window.tpnCashSessionId || T.lastCashSession() } });
+  };
+  T.queueVoid = function ({ orderId, orderNumber, itemId, itemLabel, reason }) {
+    return queue('void', { orderId, orderNumber, itemId, itemLabel, reason, estTotal: 0 });
+  };
+  // Only the last tap per dish counts: sold out then back again sends one call.
+  T.queueAvail = async function ({ itemId, name, available, reason }) {
+    for (const old of T.entries.filter(x => x.kind === 'avail' && x.itemId === itemId && x.state !== 'synced')) await delEntry(old.id);
+    return queue('avail', { itemId, name, available: !!available, reason: reason || null, estTotal: 0 });
+  };
+  // Orders rung up offline for a table that hasn't been closed yet.
+  T.waitingForTable = (tableId) => T.entries.filter(e => e.kind === 'order' && e.type === 'dine_in' && tableId && e.order && e.order.tableId === tableId
+    && !T.entries.some(t => t.kind === 'table' && (t.localIds || []).includes(e.id)));
+
+  async function syncShift(e) {
+    let real;
+    try { real = await timed(TPN.openCashSession(e.float, e.register), 15000); }
+    catch (err) {
+      // Opened already: by this device on a try whose answer was lost, or by someone else meanwhile.
+      if (!/already_open/.test(err.message || '')) throw err;
+      real = await timed(TPN.myOpenCashSession(e.register), 15000);
+      if (!real) throw err;
+      e.note = 'A shift was already open on this register; the offline cash went to it.';
+    }
+    await kvPut('shift:' + e.shiftKey, real);
+    if (T.lastCashSession() === e.shiftKey) T.lastCashSession(real);
+    if (window.tpnCashSessionId === e.shiftKey) window.tpnCashSessionId = real;
+    window.dispatchEvent(new CustomEvent('tpn:shift-synced', { detail: { from: e.shiftKey, to: real } }));
+  }
+  async function syncTable(e) {
+    const ids = e.orderIds.slice();
+    for (const lid of e.localIds || []) {
+      const o = T.entries.find(x => x.id === lid);
+      if (o && o.orderId) ids.push(o.orderId);
+      else throw new Error(`${o ? o.localNo : 'An offline order'} for this table has not synced yet.`);
+    }
+    if (e.stage === 'table') {
+      // One transaction (sql/35): it either paid everything or nothing, so a
+      // table that owes nothing now was paid on an earlier try or by hand.
+      const dues = await timed(TPN.ordersAmountDue(ids), 15000);
+      const due = Math.round(dues.reduce((a, d) => a + Number(d.amount_due || 0), 0) * 100) / 100;
+      if (due <= 0) e.note = 'Already paid when it synced; the cash was not recorded twice.';
+      else {
+        if (due + (e.cash.tip || 0) > e.cash.tendered + 0.001) {
+          throw new Error(`The server's total is ${P(due)} but ${P(e.cash.tendered)} cash was taken, so nothing was recorded. Collect ${P(due + (e.cash.tip || 0) - e.cash.tendered)} more, close table ${e.tableNum} again with the full amount, then remove this line.`);
+        }
+        await timed(TPN.settleTableCash(ids, e.cash.tendered, { tip: e.cash.tip || 0, cashSession: await realShift(e.cash.cashSession), note: tagOf(e) }), 20000);
+      }
+      e.stage = 'complete'; await putEntry(e);
+    }
+    for (const id of ids) {
+      try { await timed(TPN.advanceOrderStatus(id, 'completed', 'floor_panel'), 15000); }
+      catch (err) { if (T.isNetError(err)) throw err; }   // already completed: fine
+    }
+    if (e.tableId) {
+      try { await TPN.ackBillRequest(e.tableId); await TPN.ackCallStaff(e.tableId); } catch (err) { /* flags only */ }
+    }
+    if (window.TPN_PRINT && TPN_PRINT.tableReceipt) TPN_PRINT.tableReceipt(ids).catch(() => {});
+  }
+  async function syncVoid(e) {
+    try { await timed(TPN.requestVoid({ orderId: e.orderId, itemId: e.itemId, reason: e.reason }), 15000); }
+    catch (err) {
+      if (/already.*pending|duplicate/i.test(err.message || '')) { e.note = 'A request for this line was already waiting.'; return; }
+      throw new Error(TPN.voidRequestErrorText ? TPN.voidRequestErrorText(err) : err.message);
+    }
+  }
 
   T.sync = async function () {
     // Asked again mid-run (Try again, the connection coming back): run once
@@ -231,6 +343,10 @@
       for (const e of T.entries.filter(x => x.state === 'waiting')) {
         e.attempts++;
         try {
+          if (e.kind === 'shift') await syncShift(e);
+          else if (e.kind === 'table') await syncTable(e);
+          else if (e.kind === 'void') await syncVoid(e);
+          else if (e.kind === 'avail') await timed(TPN.setItemAvailable(e.itemId, e.available, e.reason), 15000);
           if (e.stage === 'order') {
             const o = await timed(TPN.createOrder(Object.assign({}, e.order, { clientKey: e.id })), 20000);
             e.orderId = o.id; e.orderNumber = o.order_number; e.serverTotal = o.total;
@@ -271,7 +387,7 @@
       // collect the difference.
       await timed(TPN.recordCash(e.orderId, e.cash.tendered, {
         amount: e.kind === 'cash' ? e.cash.amount : null, tip: e.cash.tip || 0,
-        cashSession: e.cash.cashSession || null, note: tag }), 15000);
+        cashSession: await realShift(e.cash.cashSession), note: tag }), 15000);
     } catch (err) {
       if (/already fully paid|nothing_due/.test(err.message)) { e.note = 'Already paid when it synced; the cash was not recorded twice.'; return; }
       if (/Not enough cash/.test(err.message)) {
@@ -297,10 +413,12 @@
     const waiting = T.entries.filter(e => e.state === 'waiting').length;
     const failed = T.entries.filter(e => e.state === 'failed').length;
     const s = (n) => n === 1 ? '' : 's';
+    // "orders" while only orders wait (the common case); "items" once a shift, table, void or 86 is in there too.
+    const noun = (n) => (T.entries.some(e => e.state === 'waiting' && e.kind !== 'order' && e.kind !== 'cash') ? 'item' : 'order') + s(n);
     let text = '', state = '';
-    if (!T.online) { state = 'off'; text = waiting ? `📴 Offline: ${waiting} order${s(waiting)} waiting to sync` : '📴 Offline: orders are kept on this device'; }
-    else if (T.authProblem && waiting) { state = 'bad'; text = `🔑 Sign in again to sync ${waiting} order${s(waiting)}`; }
-    else if (waiting) { state = 'sync'; text = `⟳ Syncing ${waiting} order${s(waiting)}…`; }
+    if (!T.online) { state = 'off'; text = waiting ? `📴 Offline: ${waiting} ${noun(waiting)} waiting to sync` : '📴 Offline: orders are kept on this device'; }
+    else if (T.authProblem && waiting) { state = 'bad'; text = `🔑 Sign in again to sync ${waiting} ${noun(waiting)}`; }
+    else if (waiting) { state = 'sync'; text = `⟳ Syncing ${waiting} ${noun(waiting)}…`; }
     if (failed) { state = 'bad'; text = (text ? text + ' · ' : '⚠ ') + `${failed} failed to sync`; }
     chip.hidden = !text;
     chip.textContent = text;
@@ -313,7 +431,7 @@
   const STATE = { waiting: ['warn', 'Waiting'], synced: ['ok', 'Synced'], failed: ['bad', 'Failed'] };
   T.openPanel = function () {
     if (typeof showModal !== 'function') return;
-    showModal('<div class="modal-title">Offline orders</div><div class="modal-content" id="offlinePanel"></div>'
+    showModal('<div class="modal-title">Saved offline</div><div class="modal-content" id="offlinePanel"></div>'
       + '<div class="modal-actions"><button class="btn-ghost" onclick="TPN_OFFLINE.sync()">↻ Sync now</button><button class="btn-next" onclick="closeModal()">Close</button></div>');
     drawPanel();
   };
@@ -321,19 +439,25 @@
     const box = document.getElementById('offlinePanel'); if (!box) return;
     const when = (t) => new Date(t).toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit' });
     box.innerHTML = `
-      <p class="pref-row-hint">${T.online ? 'Connected.' : 'No internet. New counter orders are saved here, their kitchen tickets print on this counter, and they go to the server by themselves when the connection is back.'}
+      <p class="pref-row-hint">${T.online ? 'Connected.' : 'No internet. Counter orders, cash, opening a shift, Close table (cash), void requests and sold-out changes are saved here. Kitchen tickets print on this counter. Everything goes to the server by itself, in this order, when the connection is back.'}
         ${T.authProblem ? ' <strong>This device has to sign in again before it can sync.</strong>' : ''}</p>
       ${T.entries.length ? `<ul class="pay-list">${T.entries.slice().reverse().map(e => {
         const [cls, lab] = STATE[e.state] || ['warn', e.state];
+        const what = e.kind === 'cash' ? 'Cash for ' + esc(e.orderNumber || 'an order')
+          : e.kind === 'shift' ? 'Shift opened · float ' + esc(P(e.float))
+          : e.kind === 'table' ? 'Table ' + esc(e.tableNum) + ' closed · cash ' + esc(P(e.cash.tendered))
+          : e.kind === 'void' ? 'Void request · ' + esc(e.itemLabel || 'a line') + (e.orderNumber ? ' on ' + esc(e.orderNumber) : '')
+          : e.kind === 'avail' ? esc(e.name || 'A dish') + (e.available ? ' back on' : ' sold out')
+          : esc(TYPE[e.type] || e.type || '');
         return `<li class="pay-row">
-          <div><strong>${esc(e.localNo)}</strong> ${e.kind === 'cash' ? 'Cash for ' + esc(e.orderNumber || 'an order') : esc(TYPE[e.type] || e.type || '')}
+          <div><strong>${esc(e.localNo)}</strong> ${what}
             <span class="tpn-pill ${cls}">${esc(lab)}${e.state === 'synced' && e.orderNumber ? ' as ' + esc(e.orderNumber) : ''}</span>
             <div class="pref-row-hint">${esc(when(e.createdAt))}${e.by ? ' · ' + esc(e.by) : ''}
               ${e.lines ? ' · ' + esc(e.lines.map(l => l.qty + '× ' + l.name).join(', ')) : ''}
-              ${e.cash ? ' · cash ' + esc(P(e.cash.tendered)) : e.kind === 'order' && e.type !== 'dine_in' ? ' · not paid yet' : ''}</div>
+              ${e.cash && e.kind !== 'table' ? ' · cash ' + esc(P(e.cash.tendered)) : e.kind === 'order' && e.type !== 'dine_in' ? ' · not paid yet' : ''}</div>
             ${e.error ? `<div class="form-error" role="alert">${e.stage === 'payment' ? 'The order went through' + (e.orderNumber ? ' as ' + esc(e.orderNumber) : '') + ', the cash did not: ' : ''}${esc(e.error)}</div>` : ''}
             ${e.note ? `<div class="pref-row-hint">${esc(e.note)}</div>` : ''}</div>
-          <div class="pay-row-amt">${esc(P(e.serverTotal != null ? e.serverTotal : e.estTotal))}</div>
+          <div class="pay-row-amt">${e.kind === 'void' || e.kind === 'avail' ? '' : esc(P(e.serverTotal != null ? e.serverTotal : e.estTotal))}</div>
           <div class="pay-row-act">
             ${e.state === 'failed' ? `<button class="table-btn" onclick="TPN_OFFLINE.retry('${esc(e.id)}')">Try again</button>` : ''}
             ${e.state === 'failed' && e.orderId && window.openPaymentPanel ? `<button class="table-btn" onclick="openPaymentPanel('${esc(e.orderId)}')">Payment</button>` : ''}
