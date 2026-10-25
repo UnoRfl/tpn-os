@@ -109,7 +109,9 @@ const TPN = {
   async loadMenu(branchCode = null) {
     const [cats, items] = await Promise.all([
       sb.from('menu_categories').select('*').eq('is_active', true).order('display_order'),
-      sb.from('menu_items').select('*').eq('is_available', true).order('display_order')
+      // Every dish on the menu, sold-out ones included (sql/53): they show
+      // as "Sold out" instead of vanishing. is_listed = false is off the menu.
+      sb.from('menu_items').select('*').eq('is_listed', true).order('display_order')
     ]);
     if (cats.error) throw cats.error;
     if (items.error) throw items.error;
@@ -538,7 +540,7 @@ const TPN = {
     const diff = (day === 0 ? -6 : 1 - day);
     x.setDate(x.getDate() + diff);
     x.setHours(0, 0, 0, 0);
-    return x.toISOString().slice(0, 10);
+    return TPN.today(x);   // Manila date; toISOString() gave the Sunday before (sql/51)
   },
 
   // Get one staff's schedule for a given week (null if none set).
@@ -1078,6 +1080,34 @@ TPN.today = function (d) {
 TPN.dayStartISO = function (ymd) {
   // Manila has no DST, so midnight there is always 16:00 UTC the day before.
   return new Date((ymd || TPN.today()) + 'T00:00:00+08:00').toISOString();
+};
+
+// ─── Kitchen ticket ages ─────────────────────────────────────
+// menu_items.prep_minutes (sql/28, set in Menu → edit dish) is how long a
+// dish should take from order to ready. A ticket goes by its slowest dish;
+// with no targets set it falls back to the old 20 / 35 minutes. Used by the
+// kitchen station and the portal's kitchen queue.
+let _prep = { at: 0, map: new Map(), p: null };
+TPN.prepTargets = function () {
+  if (Date.now() - _prep.at < 300000) return Promise.resolve(_prep.map);
+  return _prep.p || (_prep.p = sb.from('menu_items').select('id, prep_minutes').not('prep_minutes', 'is', null)
+    .then(({ data, error }) => {
+      if (!error) _prep.map = new Map((data || []).map(r => [r.id, Number(r.prep_minutes)]));
+      return _prep.map;
+    }).catch(() => _prep.map).finally(() => { _prep.at = Date.now(); _prep.p = null; }));   // a failure retries in 5 min, not on every render
+};
+TPN.prepTarget = function (menuItemIds) {
+  let t = 0;
+  for (const id of menuItemIds || []) t = Math.max(t, _prep.map.get(id) || 0);
+  return t;
+};
+// lane: received | preparing | ready. Minutes since the order was placed.
+TPN.ticketAge = function (lane, placedAt, target) {
+  const mins = Math.floor((Date.now() - (placedAt || Date.now())) / 60000);
+  const cook = target || 20;
+  const [warn, urgent] = lane === 'received' ? [5, 15] : lane === 'ready' ? [10, 20] : [cook, cook + 15];
+  return { mins, label: mins < 1 ? 'just now' : mins + ' min ago', target: lane === 'preparing' ? cook : 0,
+           level: mins >= urgent ? 'urgent' : mins >= warn ? 'warn' : 'fresh' };
 };
 
 // Every order placed since Manila midnight, cancelled ones excluded.
@@ -2185,6 +2215,13 @@ TPN.recordDailyClose = async function (date, countedCash, notes) {
   const { data, error } = await sb.rpc('record_daily_close', {
     p_date: date, p_counted_cash: Number(countedCash || 0), p_notes: notes || null
   });
+  if (error) throw error;
+  return data;
+};
+
+// Everything still open before the day can be closed (sql/52).
+TPN.closeDayChecklist = async function (date) {
+  const { data, error } = await sb.rpc('close_day_checklist', { p_date: date || null });
   if (error) throw error;
   return data;
 };

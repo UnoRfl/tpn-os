@@ -16,7 +16,7 @@
   if (!window.supabase) document.write('<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js" integrity="sha384-Rj26LVGvoeRVR6+mwQmFfcR3QOBEwT+ZmuCWpuiqeTzJpCs0ER4ITAWGb4Hiy3Ok" crossorigin="anonymous"><' + '/script>');
 </script>
 <script src="config.js?v=20261017o"></script>
-<script src="tpn-supabase.js?v=20261022m"></script>
+<script src="tpn-supabase.js?v=20261025a"></script>
 <script src="tpn-kit.js?v=20261022b"></script>
 <script src="tpn-site.js?v=20261017o"></script>
 <script src="tpn-i18n.js?v=20261022m"></script>
@@ -52,7 +52,7 @@
 <!-- fonts: tpn-portal.css serves the website's faces under the old family names -->
 <link rel="stylesheet" href="tpn-app.css?v=20261021c">
 <link rel="stylesheet" href="tpn-glass.css?v=20261022m">
-<link rel="stylesheet" href="tpn-portal.css?v=20261022a">
+<link rel="stylesheet" href="tpn-portal.css?v=20261025a">
 </head>
 <body>
 <a class="skip-link" href="#main-content" onclick="event.preventDefault();var t=document.querySelector('.page.active h1, .portal-page.active main');if(t){t.setAttribute('tabindex','-1');t.focus();}">Skip to content</a>
@@ -605,6 +605,32 @@ const TPN_STRINGS = {
   'close.short':      { en: 'short',               tl: 'kulang' },
   'close.recent':     { en: 'RECENT CLOSES',       tl: 'MGA NAKARAANG PAGSARA' },
   'close.notesPlaceholder': { en: 'Checked twice · ₱20 note torn', tl: 'Dalawang beses binilang · punit ang ₱20' },
+  'cd.title':         { en: 'Close the day',       tl: 'Isara ang araw' },
+  'cd.ready':         { en: 'Everything is closed. Count the drawer and the day is done.', tl: 'Sarado na lahat. Bilangin ang kahon at tapos na ang araw.' },
+  'cd.left':          { en: '{n} left before the day is closed', tl: '{n} pa bago maisara ang araw' },
+  'cd.done':          { en: 'Done',                tl: 'Tapos na' },
+  'cd.open':          { en: '{n} open',            tl: '{n} bukas pa' },
+  'cd.orders':        { en: 'Tables and orders still open', tl: 'Mga mesa at order na bukas pa' },
+  'cd.ordersHint':    { en: 'Close each table on the floor (Close table), or finish the order in Live Orders.', tl: 'Isara ang bawat mesa sa floor (Close table), o tapusin ang order sa Live Orders.' },
+  'cd.unpaid':        { en: 'Finished but not paid', tl: 'Tapos na pero hindi pa bayad' },
+  'cd.drawers':       { en: 'Cash drawers still open', tl: 'Kahon ng cash na bukas pa' },
+  'cd.drawersHint':   { en: 'On the counter: Drawer ▾ → Close shift (Z read), then Switch user.', tl: 'Sa counter: Drawer ▾ → Close shift (Z read), saka Switch user.' },
+  'cd.zreads':        { en: 'Z reads today',       tl: 'Mga Z read ngayon' },
+  'cd.bank':          { en: 'Bank transfers waiting', tl: 'Bank transfer na hinihintay' },
+  'cd.bankHint':      { en: 'Check the bank app, then confirm. The person who typed it in can\'t confirm it.', tl: 'Tingnan sa bank app, saka kumpirmahin. Hindi puwedeng kumpirmahin ng naglagay.' },
+  'cd.clock':         { en: 'Still clocked in',    tl: 'Naka-clock in pa' },
+  'cd.clockHint':     { en: 'Closing the app without Switch user leaves people on the clock. Clock them out at the time they really left.', tl: 'Kapag isinara ang app nang walang Switch user, naka-clock in pa rin. I-clock out sa oras na talagang umalis.' },
+  'cd.invoices':      { en: 'BIR booklet invoices', tl: 'BIR booklet invoice' },
+  'cd.invoicesHint':  { en: 'Write them in the booklet, then record the numbers in the BIR box below.', tl: 'Isulat sa booklet, saka itala ang numero sa BIR box sa ibaba.' },
+  'cd.count':         { en: 'Drawer count',        tl: 'Bilang ng kahon' },
+  'cd.countHint':     { en: 'The last step: Count the drawer below.', tl: 'Huling hakbang: Bilangin ang kahon sa ibaba.' },
+  'cd.clockOut':      { en: 'Clock out',           tl: 'I-clock out' },
+  'cd.clockOutAsk':   { en: 'What time did {name} leave?', tl: 'Anong oras umalis si {name}?' },
+  'cd.received':      { en: 'Received',            tl: 'Natanggap' },
+  'cd.notReceived':   { en: 'Not received',        tl: 'Hindi natanggap' },
+  'cd.takePay':       { en: 'Take payment',        tl: 'Kunin ang bayad' },
+  'cd.openFloor':     { en: 'Open the floor',      tl: 'Buksan ang floor' },
+  'cd.countAnyway':   { en: '{n} things are still open (see Close the day). Record the count anyway?', tl: '{n} pa ang bukas (tingnan ang Isara ang araw). Itala pa rin ang bilang?' },
 
   /* ── stock variance ──────────────────────────────── */
   'nav.variance':     { en: 'Stock Variance',      tl: 'Pagkakaiba ng Stock' },
@@ -2398,7 +2424,7 @@ function dbOrderToPortalOrder(o) {
     type: o.order_type === 'dine_in' ? 'dine-in' : o.order_type,
     table: o.restaurant_tables?.table_number || null,
     items: (o.order_items || []).map(i => `${i.quantity}× ${E(i.name_snapshot)}`).join(', '),
-    itemsList: (o.order_items || []).map(i => ({ qty: i.quantity, name: i.name_snapshot, pax: i.pax_size, notes: i.notes })),
+    itemsList: (o.order_items || []).map(i => ({ menuItemId: i.menu_item_id, qty: i.quantity, name: i.name_snapshot, pax: i.pax_size, notes: i.notes })),
     total: Number(o.total),
     subtotal: Number(o.subtotal || 0),
     discountAmount: Number(o.discount_amount || 0),
@@ -2557,33 +2583,14 @@ function renderOrders(main) {
   html += '</div>';
   main.innerHTML = html;
 }
-/* Prep targets: menu_items.prep_minutes (sql/28) says how long a dish
-   should take, and a ticket is judged against its SLOWEST item. Until those
-   are filled in, prepTarget is 0 and getOrderAge falls back to the generic
-   thresholds exactly as before — so this changes nothing for an unconfigured
-   menu, and gets sharper as the kitchen fills the numbers in. */
-function orderPrepTarget(o) {
-  const items = o.itemsList || [];
-  let target = 0;
-  for (const it of items) {
-    const m = menuData.flatMap(c => c.items || []).find(x => x.id === it.menuItemId);
-    if (m && m.prepMinutes) target = Math.max(target, Number(m.prepMinutes));
-  }
-  return target;
-}
-
+/* Prep targets: menu_items.prep_minutes (sql/28, Menu → edit dish) says how
+   long a dish should take, and a ticket is judged against its SLOWEST item
+   (TPN.ticketAge, shared with the kitchen station). With none set it keeps
+   the old 20 / 35 minutes. */
 function getOrderAge(o) {
   if (!o.placedAt) return { label: o.time || '—', level: 'fresh' };
-  const mins = Math.floor((Date.now() - o.placedAt) / 60000);
-  const label = mins < 1 ? 'just now' : mins + ' min ago';
-  let level = 'fresh';
-  if (o.status === 'received' && mins >= 5) level = 'warn';
-  if (o.status === 'received' && mins >= 15) level = 'urgent';
-  if (o.status === 'preparing' && mins >= 20) level = 'warn';
-  if (o.status === 'preparing' && mins >= 35) level = 'urgent';
-  if (o.status === 'ready' && mins >= 10) level = 'warn';
-  if (o.status === 'ready' && mins >= 20) level = 'urgent';
-  return { label, mins, level };
+  TPN.prepTargets();   // cached for 5 minutes
+  return TPN.ticketAge(o.status, o.placedAt, TPN.prepTarget((o.itemsList || []).map(i => i.menuItemId)));
 }
 
 // Auto-refresh order board every 30s
@@ -3244,7 +3251,8 @@ async function refreshMenuManager() {
           <td><div style="font-weight:600;color:var(--ink);">${E(it.name)}</div><div style="font-size:11px;color:var(--ink-muted);">${E(it.description || '')}</div></td>
           <td>${price}</td>
           <td>${it.is_featured ? `<span style="font-size:11px;background:var(--gold);color:#fff;padding:2px 8px;border-radius:10px;">${E(it.featured_tag||'Featured')}</span>` : '—'}</td>
-          <td>${it.is_available ? '<span style="color:var(--success);">✓ Available</span>' : '<span style="color:var(--danger);">✗ Off menu</span>'}</td>
+          <td>${it.is_listed === false ? '<span style="color:var(--ink-muted);">Off the menu</span>'
+               : it.is_available ? '<span style="color:var(--success);">✓ Available</span>' : '<span style="color:var(--danger);">✗ Sold out</span>'}</td>
           <td class="table-actions">
             <button class="btn-secondary" onclick="showMenuItemModal('${JA(it.id)}')">✎ Edit</button>
             <button class="btn-secondary" onclick="toggleMenuAvail('${JA(it.id)}', ${!it.is_available})">${it.is_available ? '✕ Sold Out' : '↻ Restock'}</button>
@@ -3300,7 +3308,13 @@ async function showMenuItemModal(itemId) {
         <div><label class="form-label"><input type="checkbox" id="miFeat" ${item?.is_featured ? 'checked' : ''}> Featured on homepage</label></div>
         <div><label class="form-label">Featured tag</label><input type="text" class="form-input" id="miFeatTag" value="${E(item?.featured_tag || '')}" placeholder="Bestseller"></div>
       </div>
-      <div style="margin-top:12px;"><label class="form-label"><input type="checkbox" id="miAvail" ${item?.is_available !== false ? 'checked' : ''}> Available for order</label></div>
+      <div style="margin-top:12px;"><label class="form-label" for="miPrep">Kitchen target (minutes from order to ready)</label>
+        <input type="number" class="form-input" id="miPrep" min="1" max="180" step="1" inputmode="numeric" value="${E(item?.prep_minutes || '')}" placeholder="Blank = the usual 20 min">
+        <div class="pref-row-hint">The kitchen screen turns a ticket amber at this time and red 15 minutes later. A ticket goes by its slowest dish.</div></div>
+      <div style="margin-top:12px;"><label class="form-label"><input type="checkbox" id="miListed" ${item?.is_listed !== false ? 'checked' : ''}> On the menu</label>
+        <div class="pref-row-hint">Untick to take the dish off every menu (website, table QR, counter).</div></div>
+      <div style="margin-top:12px;"><label class="form-label"><input type="checkbox" id="miAvail" ${item?.is_available !== false ? 'checked' : ''}> Available today</label>
+        <div class="pref-row-hint">Untick when it runs out: guests still see it, marked sold out.</div></div>
       <div id="miErr" style="display:none;margin-top:12px;padding:10px;background:rgba(200,40,40,0.08);border:1px solid rgba(200,40,40,0.25);border-radius:6px;color:#c02828;font-size:13px;"></div>
     </div>
     <div class="modal-actions">
@@ -3329,8 +3343,12 @@ async function saveMenuItem(itemId) {
     is_featured:  document.getElementById('miFeat').checked,
     featured_tag: document.getElementById('miFeatTag').value.trim() || null,
     is_available: document.getElementById('miAvail').checked,
+    is_listed:    document.getElementById('miListed').checked,
     branch_availability: { laspinas: true }
   };
+  const prep = document.getElementById('miPrep').value.trim();
+  payload.prep_minutes = prep ? Math.round(Number(prep)) : null;
+  if (prep && !(payload.prep_minutes >= 1 && payload.prep_minutes <= 180)) return showErr('Kitchen target must be 1 to 180 minutes, or blank.');
   if (isShare) {
     try {
       payload.pax_options = JSON.parse(document.getElementById('miPax').value);
@@ -7699,12 +7717,14 @@ function setCloseDate(d) { _closeState.date = d; _loadClose(); }
 
 async function _loadClose() {
   try {
-    const [report, history] = await Promise.all([
+    const [report, history, checklist] = await Promise.all([
       TPN.getDailyCloseReport(_closeState.date),
-      TPN.listDailyCloses(14).catch(() => [])
+      TPN.listDailyCloses(14).catch(() => []),
+      TPN.closeDayChecklist(_closeState.date).catch(e => { console.warn('close_day_checklist:', e); return null; })
     ]);
     _closeState.report = report;
     _closeState.history = history;
+    _closeState.checklist = checklist;
     _renderClose();
   } catch (e) {
     const el = document.getElementById('closeBody');
@@ -7720,7 +7740,7 @@ function _renderClose() {
   const canClose = TPN.can('finance.view');
 
   if (!Number(r.order_count)) {
-    el.innerHTML = `<div class="panel tpn-empty">
+    el.innerHTML = _closeDayHtml() + `<div class="panel tpn-empty">
       <div class="tpn-empty-icon">🧾</div>
       <div class="tpn-empty-title">${E(T('close.noSales'))}</div>
       <div class="tpn-empty-hint">${E(T('close.noSalesHint'))}</div>
@@ -7753,7 +7773,7 @@ function _renderClose() {
   const declaredCash = Number(r.received_cash ?? r.declared_cash ?? 0);
   const unpaid = r.unpaid || {}; const pendingBank = r.pending_bank || {};
 
-  el.innerHTML = `
+  el.innerHTML = _closeDayHtml() + `
     <div class="fin-grid">
       <div class="fin-tile"><div class="fin-tile-label">${E(T('fin.net'))}</div>
         <div class="fin-tile-value">₱${M(r.net_sales,2)}</div>
@@ -7809,6 +7829,101 @@ function _renderClose() {
   if (window.TPN_INVOICES) TPN_INVOICES.dayBox(_closeState.date, document.getElementById('birInvoiceBox'));
 }
 
+/* ════════════════════════════════════════════════════════════════
+   CLOSE THE DAY (sql/52)
+   Ending the day was four jobs in three places (tables on the floor, each
+   cashier's Z read on the counter, this count, the end-of-day booklet
+   invoice) and nothing said what was still missing. close_day_checklist
+   lists all of it; each row says where it gets done, and the quick ones
+   (confirm a transfer, clock someone out, take a payment) are done here.
+   ════════════════════════════════════════════════════════════════ */
+const _cdV = (key, vars) => Object.entries(vars || {}).reduce((s, [k, v]) => s.split('{' + k + '}').join(v), T(key));
+const _cdTime = (t) => t ? new Date(t).toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit' }) : '';
+const _cdDay = (t) => t && TPN.today(new Date(t)) !== _closeState.date ? new Date(t).toLocaleDateString('en-PH', { month: 'short', day: 'numeric' }) + ' ' : '';
+
+function _closeDayHtml() {
+  const c = _closeState.checklist;
+  if (!c) return '';
+  const inv = c.invoices || {};
+  const missing = (inv.missing || []).length;
+  const smallLeft = Number(inv.small_count) > 0 && !(inv.day_invoices || []).length;
+  const row = (title, items, hint, body, alwaysOpen) => {
+    const n = items;
+    return `<div class="cd-row ${n ? 'is-open' : 'is-done'}">
+      <div class="cd-row-head"><span class="cd-row-title">${E(title)}</span>
+        <span class="cd-row-state">${n ? E(_cdV('cd.open', { n })) : '✓ ' + E(T('cd.done'))}</span></div>
+      ${n || alwaysOpen ? `${body || ''}${hint ? `<div class="pref-row-hint">${E(hint)}</div>` : ''}` : ''}
+    </div>`;
+  };
+  const li = (main, side, actions) => `<li><span>${main}</span>${side ? `<span class="cd-side">${side}</span>` : ''}${actions ? `<span class="cd-act">${actions}</span>` : ''}</li>`;
+  const list = (rows) => rows.length ? `<ul class="cd-list">${rows.join('')}</ul>` : '';
+  const canConfirm = TPN.can('payments.confirm'), mgr = TPN.hasRole && TPN.hasRole('manager');
+
+  const orders = list((c.open_orders || []).map(o => li(
+    `${o.table_number ? 'Table ' + E(o.table_number) + ' · ' : E(String(o.order_type || '').replace('_', ' ')) + ' · '}${E(o.order_number)}${o.customer_name ? ' · ' + E(o.customer_name) : ''}`,
+    `${E(_cdDay(o.placed_at))}${E(String(o.status))} · ${Number(o.amount_due) ? '₱' + M(o.amount_due, 2) + ' due' : 'paid'}`)));
+  const unpaid = list((c.unpaid || []).map(o => li(
+    `${E(o.order_number)}${o.customer_name ? ' · ' + E(o.customer_name) : ''}`,
+    o.bank_waiting ? 'bank transfer waiting' : '₱' + M(o.amount_due, 2) + ' due',
+    window.openPaymentPanel && !o.bank_waiting ? `<button class="btn-ghost cd-btn" onclick="openPaymentPanel('${JA(o.id)}')">${E(T('cd.takePay'))}</button>` : '')));
+  const drawers = list((c.open_drawers || []).map(d => li(
+    `${E(d.register)} · ${E(d.opened_by || '—')}`,
+    `${E(_cdDay(d.opened_at))}since ${E(_cdTime(d.opened_at))} · ₱${M(d.expected_cash, 2)} should be in it`)));
+  const zreads = (c.z_reads || []).length ? `<div class="cd-sub">${E(T('cd.zreads'))}</div>` + list(c.z_reads.map(z => {
+    const v = Number(z.variance || 0);
+    return li(`${E(z.register)} · ${E(z.closed_by || '—')} · ${E(_cdTime(z.closed_at))}`,
+      v === 0 ? 'exact' : `<span class="${v < 0 ? 'cd-neg' : ''}">${v > 0 ? 'over' : 'short'} ₱${M(Math.abs(v), 2)}</span>`);
+  })) : '';
+  const bank = list((c.pending_bank || []).map(p => li(
+    `${E(p.order_number)} · ₱${M(p.amount, 2)}${p.reference ? ' · ref ' + E(p.reference) : ''}`,
+    `${E(p.recorded_by || '—')} · ${E(_cdTime(p.created_at))}`,
+    canConfirm && (!p.recorded_by_me || mgr)
+      ? `<button class="btn-ghost cd-btn" onclick="cdBank('${JA(p.id)}', true)">${E(T('cd.received'))}</button><button class="btn-ghost cd-btn" onclick="cdBank('${JA(p.id)}', false)">${E(T('cd.notReceived'))}</button>` : '')));
+  const clock = list((c.clocked_in || []).map(a => li(
+    `${E(a.name || '—')}`, `${E(_cdDay(a.clock_in_at))}since ${E(_cdTime(a.clock_in_at))}`,
+    `<button class="btn-ghost cd-btn" onclick="cdClockOut('${JA(a.id)}', '${JA(a.name || '')}', '${JA(a.clock_in_at)}')">${E(T('cd.clockOut'))}</button>`)));
+  const invBody = (missing ? `<div class="pref-row-hint">${missing} sale${missing > 1 ? 's' : ''} need${missing > 1 ? '' : 's'} its own invoice: ${(inv.missing || []).slice(0, 6).map(m => E(m.order_number)).join(', ')}${missing > 6 ? '…' : ''}</div>` : '')
+    + (smallLeft ? `<div class="pref-row-hint">${E(inv.small_count)} small sale${inv.small_count > 1 ? 's' : ''} (₱${M(inv.small_total, 2)}) go${inv.small_count > 1 ? '' : 'es'} on one end-of-day invoice.</div>` : '');
+
+  const left = Number(c.blocking) || 0;
+  return `<div class="pref-group cd-box" id="closeDayBox">
+    <div class="cd-top"><h2 class="cd-title">${E(T('cd.title'))}</h2>
+      <span class="cd-summary ${left ? 'is-open' : 'is-done'}">${left ? E(_cdV('cd.left', { n: left })) : E(T('cd.ready'))}</span></div>
+    ${row(T('cd.orders'), (c.open_orders || []).length, T('cd.ordersHint'), orders
+        + (TPN.can('floor.view') ? `<button class="btn-ghost cd-btn" onclick="location.href='tpn-dine-in-floor'">${E(T('cd.openFloor'))}</button>` : ''))}
+    ${row(T('cd.unpaid'), (c.unpaid || []).length, '', unpaid)}
+    ${row(T('cd.drawers'), (c.open_drawers || []).length, T('cd.drawersHint'), drawers + zreads, !!zreads)}
+    ${row(T('cd.bank'), (c.pending_bank || []).length, T('cd.bankHint'), bank)}
+    ${row(T('cd.clock'), (c.clocked_in || []).length, T('cd.clockHint'), clock)}
+    ${row(T('cd.invoices'), Number(c.invoices_left) || 0, T('cd.invoicesHint'), invBody)}
+    ${row(T('cd.count'), c.daily_close ? 0 : 1, T('cd.countHint'), '')}
+  </div>`;
+}
+
+async function cdBank(paymentId, received) {
+  if (!received && !(await tpnConfirm('Mark this transfer as not received? The bill goes back to unpaid.', { title: T('cd.notReceived'), confirmText: T('cd.notReceived'), danger: true }))) return;
+  try { await TPN.confirmBankTransfer(paymentId, received); toast(received ? 'Confirmed.' : 'Marked not received.'); _loadClose(); }
+  catch (e) { toast('⚠️ ' + (/needs_second_person/.test(e.message) ? 'Someone else has to confirm a transfer you typed in.' : e.message)); }
+}
+
+async function cdClockOut(attendanceId, name, clockInAt) {
+  const now = new Date(), pad = (n) => String(n).padStart(2, '0');
+  const t = await tpnAsk(_cdV('cd.clockOutAsk', { name: name || '—' }), {
+    message: 'Clocked in ' + _cdTime(clockInAt) + '. The correction is recorded with your name.',
+    input: { type: 'time', value: pad(now.getHours()) + ':' + pad(now.getMinutes()) }, confirmText: T('cd.clockOut') });
+  if (!t) return;
+  // The time is on the day they clocked in, or the next one if it is earlier (past midnight).
+  const start = new Date(clockInAt), out = new Date(start);
+  const [h, m] = t.split(':').map(Number); out.setHours(h, m, 0, 0);
+  if (out <= start) out.setDate(out.getDate() + 1);
+  if (out > new Date(Date.now() + 60000)) { toast('⚠️ That time is still to come.'); return; }
+  try {
+    await TPN.correctAttendance(attendanceId, { clock_out_at: out.toISOString(), correction_note: 'Clocked out at close of day' });
+    toast((name || 'They') + ' clocked out at ' + _cdTime(out) + '.');
+    _loadClose();
+  } catch (e) { toast('⚠️ ' + (e.message || 'Could not save')); }
+}
+
 function _closeHistory() {
   const h = _closeState.history;
   if (!h.length) return '';
@@ -7834,7 +7949,15 @@ function _closeHistory() {
   </div>`;
 }
 
-function openCloseTill() {
+async function openCloseTill() {
+  // Counting with tables or drawers still open gives a number that changes
+  // again before the night is over. Allowed, but said out loud.
+  const c = _closeState.checklist;
+  const left = c ? (Number(c.blocking) || 0) - (c.daily_close ? 0 : 1) : 0;
+  if (left > 0 && !(await tpnConfirm(_cdV('cd.countAnyway', { n: left }), { title: T('close.countDrawer'), confirmText: T('close.countDrawer') }))) {
+    const box = document.getElementById('closeDayBox'); if (box) box.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    return;
+  }
   const r = _closeState.report || {};
   const expected = Number(r.received_cash ?? r.declared_cash ?? 0);
   const m = document.getElementById('modal');
@@ -8219,7 +8342,9 @@ function fmtWeekRange(monday) {
   const right = sun.toLocaleDateString(undefined, sameMonth ? { day: 'numeric' } : mFmt);
   return `${left} – ${right}, ${sun.getFullYear()}`;
 }
-function isoDay(monday) { return monday.toISOString().slice(0, 10); }
+// The Manila date, not toISOString(): local midnight Monday is still Sunday
+// in UTC, so weeks used to be saved under the Sunday before (fixed with sql/51).
+function isoDay(monday) { return TPN.today(monday); }
 
 // Per-staff week navigation cursor (staff view)
 let _staffScheduleCursor = null;   // Date object (Monday)
@@ -8856,7 +8981,7 @@ function guardAsync(name) {
 <script src="modules/payments.js?v=20261022m"></script>
 <script src="modules/invoices.js?v=20261022a"></script>
 <script src="modules/photos.js?v=20261022a"></script>
-<script src="modules/pos.js?v=20261022m"></script>
+<script src="modules/pos.js?v=20261025a"></script>
 <script src="vendor/imin-printer-1.4.0.min.js"></script>
 <script src="modules/slips.js?v=20261022f"></script>
 <script src="modules/kprint.js?v=20261022c"></script>
@@ -8864,7 +8989,7 @@ function guardAsync(name) {
 <script src="modules/modifiers.js?v=20261017o"></script>
 <script src="modules/clockin.js?v=20261017o"></script>
 <script src="modules/stamps.js?v=20261017o"></script>
-<script src="modules/excel-io.js?v=20261017o"></script>
+<script src="modules/excel-io.js?v=20261025a"></script>
 <script src="modules/delivery.js?v=20261017o"></script>
 <script src="modules/guide.js?v=20261017o"></script>
 <script src="modules/search.js?v=20261017o"></script>

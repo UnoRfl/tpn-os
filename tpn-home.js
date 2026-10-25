@@ -42,6 +42,7 @@
     'v3.pax':           { en: 'pax', tl: 'katao' },
     'v3.single':        { en: 'Single', tl: 'Isahan' },
     'v3.add':           { en: 'Add {name}, {size}', tl: 'Idagdag ang {name}, {size}' },
+    'v3.soldOut':       { en: 'Sold out today', tl: 'Ubos na ngayon' },
     'v3.loading':       { en: 'Loading the menu…', tl: 'Nilo-load ang menu…' },
     'v3.empty.title':   { en: 'Nothing on the menu matches “{q}”.', tl: 'Walang tugma sa “{q}” sa menu.' },
     'v3.empty.body':    { en: 'Maybe a typo? Try sinigang, sisig or pancit.', tl: 'Baka may typo? Subukan ang sinigang, sisig o pancit.' },
@@ -151,13 +152,16 @@
     const stage = opts.feature
       ? `<div class="v3-stage">${img ? `<div class="spin"><img data-spin="7" src="${img}" alt="${esc(name)}" decoding="async"></div>` : `<div class="big-emoji">${esc(it.emoji || '')}</div>`}</div>`
       : '';
-    return `<article class="v3-shell v3-card v3-reveal" style="--i:${i % 6}"><div class="v3-core">
+    // Sold out (86'd today): still on the menu, dimmed, no add button.
+    const out = it.available === false;
+    return `<article class="v3-shell v3-card${out ? ' off' : ''} v3-reveal" style="--i:${i % 6}"><div class="v3-core">
       ${stage}
       <div class="top">${lead}<span class="v3-tags">${badges}</span></div>
       <h4>${esc(name)}</h4>${it.desc ? `<p class="d">${esc(it.desc)}</p>` : ''}
       <div class="v3-sizes">${sizes.map(([key, label, price]) => `
         <div class="v3-size">${esc(label)}<span class="p">₱${esc(price)}</span>
-          <button class="v3-add" onclick="addToCart('${jsq(it.id)}','${jsq(key)}');tpnHome.pop(this)" aria-label="${esc(tr('v3.add', { name, size: label }))}">${plus}</button></div>`).join('')}
+          ${out ? `<span class="v3-soldout">${esc(tr('v3.soldOut'))}</span>`
+                : `<button class="v3-add" onclick="addToCart('${jsq(it.id)}','${jsq(key)}');tpnHome.pop(this)" aria-label="${esc(tr('v3.add', { name, size: label }))}">${plus}</button>`}</div>`).join('')}
       </div></div></article>`;
   }
 
@@ -168,6 +172,7 @@
       if (activeCategory !== 'all' && activeCategory !== cat.cat) return;
       const items = cat.items.filter(it => !q || (it.name + ' ' + (it.nameTl || '') + ' ' + (it.desc || '')).toLowerCase().includes(q));
       if (!items.length) return;
+      items.sort((a, b) => (b.available !== false) - (a.available !== false));   // sold out sinks to the end
       const title = (lang() === 'tl' && cat.catNameTl) ? cat.catNameTl : cat.catName;
       html += `<div class="v3-cat"><h3>${esc(title)}<small>${esc(tr('v3.count', { n: items.length }))}</small></h3>
         <div class="v3-grid">${items.map(it => card(it, cat.catName)).join('')}</div></div>`;

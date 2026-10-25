@@ -29,7 +29,7 @@
     st.branch = st.branch || await TPN.getBranchByCode('laspinas');
     const [c, i, m, t, s] = await Promise.all([
       sb.from('menu_categories').select('*').eq('is_active', true).order('display_order'),
-      sb.from('menu_items').select('*').order('display_order'),
+      sb.from('menu_items').select('*').eq('is_listed', true).order('display_order'),
       TPN.loadModifiers().catch(() => ({ groups: [], byItem: {} })),       // works before sql/32 too
       TPN.getTablesForBranch(st.branch.id).catch(() => []),
       can('cash.drawer') ? TPN.myOpenCashSession().then(id => OFF() ? OFF().lastCashSession(id) : id)
@@ -74,7 +74,11 @@
   function drawDrawer() {
     const el = document.getElementById('posDrawer'); if (!el) return;
     if (!can('cash.drawer')) { el.innerHTML = ''; return; }
-    el.innerHTML = st.session
+    // Opened offline: cash works, the rest needs the server to know the shift.
+    const pending = OFF() && OFF().isPendingShift(st.session);
+    el.innerHTML = pending
+      ? `<span class="tpn-pill warn">Drawer open · syncs when online</span>`
+      : st.session
       ? `<span class="tpn-pill ok">Drawer open</span>
          <details class="tpn-menu"><summary class="btn-ghost tpn-menu-btn">Drawer ▾</summary>
            <div class="tpn-menu-list glass" role="menu">
@@ -88,10 +92,28 @@
   window.posOpenShift = async function () {
     const f = await tpnAsk('Opening cash (float) in the drawer', { chips: ['1000', '2000', '3000'], input: { type: 'number', min: 0, step: '0.01', inputmode: 'decimal', placeholder: '₱' }, confirmText: 'Open drawer' });
     if (f === null) return;
+    const offline = async () => {
+      st.session = await OFF().queueShift({ float: +f, register: 'Counter' });
+      window.tpnCashSessionId = st.session;
+      toast('No internet: drawer open with ' + peso(+f) + '. Cash works; the shift syncs when the connection is back.');
+      drawDrawer();
+    };
+    if (OFF() && OFF().isOffline()) return offline();
     try { st.session = await TPN.openCashSession(+f); window.tpnCashSessionId = st.session; if (OFF()) OFF().lastCashSession(st.session); toast('Drawer open with ' + peso(+f)); drawDrawer(); }
-    catch (e) { toast(/already_open/.test(e.message) ? 'A drawer is already open on this register.' : e.message); }
+    catch (e) {
+      if (OFF() && OFF().isNetError(e) && !(await OFF().check(true))) return offline();
+      toast(/already_open/.test(e.message) ? 'A drawer is already open on this register.' : e.message);
+    }
   };
+  // The offline shift reached the server: from now on it is a normal shift.
+  window.addEventListener('tpn:shift-synced', (ev) => {
+    if (st.session === ev.detail.from) { st.session = ev.detail.to; drawDrawer(); }
+  });
+  const needsServer = () => { if (OFF() && OFF().isPendingShift(st.session)) { toast('This shift was opened offline. It needs the internet to sync before this works.'); return true; } return false; };
+  // A table needs its uuid to find orders rung up for it offline.
+  window.posTableId = (num) => (st.tables.find(x => Number(x.table_number) === Number(num)) || {}).id || null;
   window.posCashMove = async function (kind) {
+    if (needsServer()) return;
     const amt = await tpnAsk(kind === 'cash_in' ? 'Cash put INTO the drawer' : 'Cash taken OUT of the drawer', { input: { type: 'number', min: 0.01, step: '0.01', inputmode: 'decimal' }, confirmText: 'Next' });
     if (amt === null) return;
     const why = await tpnAsk('What for?', { chips: kind === 'cash_in' ? ['Change top-up from safe', 'Owner deposit'] : ['Bought ice', 'Bought gas/LPG', 'Rider fare', 'Supplies', 'To safe'], input: { placeholder: 'Reason' } });
@@ -108,11 +130,13 @@
       <div class="pref-row-hint" style="margin-top:10px">Other methods this shift: ${Object.entries(r.other_methods || {}).map(([k, v]) => E(k) + ' ' + peso(v)).join(' · ') || 'none'}</div></div>`;
   }
   window.posXRead = async function () {
+    if (needsServer()) return;
     try { const r = await TPN.cashSessionReport(st.session); showModal(reportHtml(r, 'X read — ' + new Date().toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit' })) + `<div class="modal-actions"><button class="btn-ghost" onclick="window.print()">🖨 Print</button><button class="btn-next" onclick="closeModal()">Done</button></div>`); }
     catch (e) { toast(e.message); }
   };
   const DENOMS = [1000, 500, 200, 100, 50, 20, 10, 5, 1, 0.25];
   window.posCloseShift = async function () {
+    if (needsServer()) return;
     let r; try { r = await TPN.cashSessionReport(st.session); } catch (e) { toast(e.message); return; }
     showModal(`<div class="modal-title">Close shift — count the drawer</div>
       <div class="modal-content"><p class="pref-row-hint">Count each bill and coin. Expected in the drawer: <strong>${peso(r.expected_cash)}</strong>.</p>
@@ -423,7 +447,7 @@
   // QR menu and POS stop offering it straight away.
   window.open86Panel = async function () {
     let items;
-    try { const r = await sb.from('menu_items').select('id,name,emoji,is_available').order('display_order'); if (r.error) throw r.error; items = r.data; }
+    try { const r = await sb.from('menu_items').select('id,name,emoji,is_available').eq('is_listed', true).order('display_order'); if (r.error) throw r.error; items = r.data; }
     catch (e) { toast('Could not load the menu: ' + e.message); return; }
     const draw = () => `<div class="modal-title">Sold out today?</div>
       <div class="modal-content"><p class="pref-row-hint">Tap a dish to switch it. Customers stop seeing it immediately.</p>
@@ -433,8 +457,18 @@
     showModal(draw());
     window.toggle86 = async (id) => {
       const it = items.find(x => x.id === id);
-      try { await TPN.setItemAvailable(id, !it.is_available, it.is_available ? 'ran out' : 'back in stock'); it.is_available = !it.is_available; showModal(draw()); }
-      catch (e) { toast(/permission/.test(e.message) ? 'Your account cannot change this.' : e.message); }
+      const next = !it.is_available, why = it.is_available ? 'ran out' : 'back in stock';
+      const done = () => {
+        it.is_available = next; showModal(draw());
+        const tile = st.items.find(x => x.id === id); if (tile) { tile.is_available = next; drawGrid(); }
+      };
+      const offline = async () => { await OFF().queueAvail({ itemId: id, name: it.name, available: next, reason: why }); done(); toast('No internet: saved. Guests see it when the connection is back.'); };
+      if (OFF() && OFF().isOffline()) return offline();
+      try { await TPN.setItemAvailable(id, next, why); done(); }
+      catch (e) {
+        if (OFF() && OFF().isNetError(e) && !(await OFF().check(true))) return offline();
+        toast(/permission/.test(e.message) ? 'Your account cannot change this.' : e.message);
+      }
     };
   };
 
