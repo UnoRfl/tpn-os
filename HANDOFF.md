@@ -69,7 +69,7 @@ tpn-os/
 - **`ops/migration/after-restore.sql`** puts back what a dump leaves out (auth trigger `on_auth_user_created`, the `attendance-photos` bucket and its 3 policies, the 10 realtime tables, pgcrypto) and ends in 11 checks. The checks were run on production Nov 7: all true. **`ops/migration/count-rows.sql`** gives exact row counts to compare old and new.
 - **sql/49-manager-pin.sql, sql/50-menu-engineering.sql recovered** from production's `supabase_migrations.schema_migrations`, byte for byte (md5 in each header), each with its follow-up fix as Part 2. Only the SQL: the screens that call them (manager PIN at the counter, menu engineering report) are still only wherever the Oct 22 checkout was.
 - **Tests:** `tests/db/run.mjs` loads PGlite's bundled pgcrypto (sql/49 needs `crypt()`). All 60 files replay; 220/220 pass.
-- **Not done:** no move has happened. Production is unchanged; nothing was written to it. Open on production Nov 7: 1 drawer open, 1 person clocked in, 10 orders not both completed and paid.
+- **Not done:** no move has happened. Production is unchanged; nothing was written to it. Open on production Nov 7: 1 drawer open, 1 person clocked in, 10 orders not both completed and paid. Every order on production is test data (owner, Nov 7): ignore them in the move.
 - Next free migration: **54**.
 
 ## Rev 41 — close the day, Manila days, sold out stays listed, more offline (Oct 25, 2026)

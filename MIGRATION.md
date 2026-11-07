@@ -30,7 +30,7 @@ Written Nov 7, 2026 against production as it was that day (main = Rev 41, plus t
 
 - 1 cash drawer still open (the Counter, since Oct 22).
 - 1 person still clocked in (since Oct 22).
-- 10 orders that are not both completed and paid, including "Testing 2" (₱145).
+- 10 orders that are not both completed and paid, including "Testing 2" (₱145). **All orders on production are test orders (owner, Nov 7), so ignore them.** They can move as they are; nobody needs to settle or cancel them.
 
 ## Choose the path
 
@@ -77,7 +77,7 @@ You need:
 
 ### B1. Freeze and record
 
-1. Close the open drawer, clock out whoever is still in, and settle or cancel the open test orders (Daily close → Close the day lists them).
+1. Close the open drawer and clock out whoever is still in (Daily close → Close the day lists both). The open orders are test data: leave them.
 2. Take a backup by hand: on the headless PC, run the `TPN OS Backup (nightly)` task now (HANDOFF.md → Backups).
 3. Run `ops/migration/count-rows.sql` on the **old** project and save the result as `counts-old.txt`.
 4. From here until B8, nobody uses the system. Put a note on the counter.
