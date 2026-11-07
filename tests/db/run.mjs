@@ -24,7 +24,13 @@ const args = process.argv.slice(2);
 const tests = (args.length ? args : fs.readdirSync(here).filter(f => /^t_.*\.sql$/.test(f)).sort())
   .map(f => path.isAbsolute(f) ? f : path.join(here, f));
 
-const db = new PGlite();
+// pgcrypto ships as a bundle in PGlite 0.3.7 without a contrib wrapper;
+// sql/49 (manager PIN) needs crypt()/gen_salt().
+const pgcrypto = {
+  name: 'pgcrypto',
+  setup: async () => ({ bundlePath: new URL('./node_modules/@electric-sql/pglite/dist/pgcrypto.tar.gz', import.meta.url) }),
+};
+const db = new PGlite({ extensions: { pgcrypto } });
 await db.exec(fs.readFileSync(path.join(here, 'supabase-stub.sql'), 'utf8'));
 
 let ok = true;

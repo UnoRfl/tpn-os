@@ -52,7 +52,8 @@ Run each file **on its own**, in this order. All are safe to re-run.
 | `sql/46-my-notifications-only.sql` | the bell lists only my notifications and the shared ones, so read ones stay read. Applied to production Oct 22 as `46_my_notifications_only` |
 | `sql/47-orders-one-door.sql` | no direct inserts into orders for staff or guests; every order goes through `submit_order`. Applied to production Oct 22 as `47_orders_one_door` |
 | `sql/48-counter-money-locks.sql` | a paid bill can't change (refund first); hand-entered bank waits for a second person; no cash without an open shift (offline replays keep their shift); `my_shift()`. Applied to production Oct 22 as `48_counter_money_locks` |
-| 49, 50 | manager PIN, menu engineering: on production since Oct 22 (from the Mac checkout); the files are not in this repo yet (HANDOFF Rev 41) |
+| `sql/49-manager-pin.sql` | manager PIN at the counter: a manager's 4–6 digit PIN approves voids, discounts and refunds without them signing in. Applied Oct 22 as `49_manager_pin` + `49_manager_pin_no_pin_set`; file recovered from production Nov 7 (HANDOFF Rev 42) |
+| `sql/50-menu-engineering.sql` | food cost per dish and the stars/plowhorses/puzzles/dogs report. Applied Oct 22 as `50_menu_engineering` + `50_menu_engineering_size_names`; file recovered from production Nov 7 |
 | `sql/51-manila-days.sql` | reports, payroll days and order numbers use the Manila day (the database runs on UTC); schedule weeks moved from Sunday to Monday. Applied Oct 25 as `51_manila_days` |
 | `sql/52-close-the-day.sql` | `close_day_checklist`: what is still open before the day can be closed (Daily close). Applied Oct 25 as `52_close_the_day` |
 | `sql/53-sold-out-stays-listed.sql` | `menu_items.is_listed`: a sold-out dish stays on the menu marked sold out; unlisted dishes are hidden and never orderable. Applied Oct 25 as `53_sold_out_stays_listed` |
