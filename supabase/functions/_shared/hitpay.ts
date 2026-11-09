@@ -5,7 +5,7 @@
 //   HITPAY_API_KEY   business API key (sandbox or live)
 //   HITPAY_SALT      webhook salt from the HitPay dashboard
 //   HITPAY_MODE      'sandbox' (default) or 'live'
-//   SITE_URL         e.g. https://unorfl.github.io/tpn-os/  (where customers return)
+//   SITE_URL         e.g. https://tyopaengnyo.com/  (where customers return)
 //   HITPAY_METHODS   optional, comma list passed as payment_methods[];
 //                    leave unset to offer every method enabled on the account
 import { createClient, SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.117.2'

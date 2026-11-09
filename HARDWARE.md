@@ -135,7 +135,7 @@ Android settings worth setting once on the iMin:
 
 | What | Where | Notes |
 |---|---|---|
-| Which site the app opens | `TPN_SITE_URL` when building (default `https://unorfl.github.io/tpn-os/`) | Point a test build at another copy (section 7.3) |
+| Which site the app opens | `TPN_SITE_URL` when building (default `https://tyopaengnyo.com/`) | Point a test build at another copy (section 7.3) |
 | Start page per app | `START_PATH` in each flavor | `tpn-dine-in-floor` / `tpn-kitchen-station` |
 | Rear screen on or off | `CUSTOMER_SCREEN` | Counter only |
 | User agent tag | `UA_TAG` | The pages look for `TPNCounter/` and `TPNKitchen/` |

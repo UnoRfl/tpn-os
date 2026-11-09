@@ -15,7 +15,7 @@
    made offline (tpn.kitchen.queue), and sends those when it reconnects.
    ═══════════════════════════════════════════════════════════════ */
 'use strict';
-const VERSION = 'tpn-kitchen-20261025a';
+const VERSION = 'tpn-kitchen-20261109a';
 const PAGE = 'tpn-kitchen-station.html';
 
 self.addEventListener('install', (e) => {

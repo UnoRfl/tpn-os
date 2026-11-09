@@ -42,7 +42,7 @@ Deno.serve(async (req) => {
 
     if (begin.reused && begin.checkout_url) return json({ checkout_url: begin.checkout_url, amount: begin.amount })
 
-    const site = env('SITE_URL', 'https://unorfl.github.io/tpn-os/')
+    const site = env('SITE_URL', 'https://tyopaengnyo.com/')
     const back = new URL(body.return_path === 'table' ? 'tpn-table-menu' : '', site)
     back.searchParams.set('paid', begin.order_number)
     if (body.return_query && typeof body.return_query === 'string') {
