@@ -48,7 +48,7 @@ if (flag('help') || flag('h')) {
 
   --local [dir]        serve a working copy (default: this repo) at http://127.0.0.1:7071/
                        and open that instead of the live site
-  --site URL           site to open (default https://unorfl.github.io/tpn-os/)
+  --site URL           site to open (default https://tyopaengnyo.com/)
   --screen 1080|720    counter window: 1920x1080 (default) or 1280x720 (density 1.5)
   --browser chrome|edge|firefox|none   which browser to open (default: chrome, else edge)
   --browser-path PATH  exact browser program
@@ -64,7 +64,7 @@ const LOCAL = flag('local');
 const LOCAL_DIR = (() => { const v = opt('local', ''); return v ? path.resolve(v) : ROOT; })();
 const SITE = (() => {
   if (LOCAL) return 'http://127.0.0.1:7071/';
-  let s = opt('site', 'https://unorfl.github.io/tpn-os/');
+  let s = opt('site', 'https://tyopaengnyo.com/');
   return s.endsWith('/') ? s : s + '/';
 })();
 const SCREEN = opt('screen', '1080') === '720' ? { w: 1280, h: 720, dpr: 1.5 } : { w: 1920, h: 1080, dpr: 1 };
@@ -98,7 +98,7 @@ function allowedOrigin(o) {
     const u = new URL(o);
     if (u.hostname === '127.0.0.1' || u.hostname === 'localhost') return o;
     if (o === new URL(SITE).origin) return o;
-    if (o === 'https://unorfl.github.io') return o;
+    if (o === 'https://unorfl.github.io' || o === 'https://www.tyopaengnyo.com') return o;
   } catch (e) {}
   return null;
 }

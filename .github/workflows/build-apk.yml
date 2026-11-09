@@ -13,7 +13,7 @@ on:
     inputs:
       site_url:
         description: Site the app opens (ends with /)
-        default: https://unorfl.github.io/tpn-os/
+        default: https://tyopaengnyo.com/
   push:
     paths: ['android/**', '.github/workflows/build-apk.yml']
 
@@ -42,7 +42,7 @@ jobs:
           fi
       - name: Build
         env:
-          TPN_SITE_URL: ${{ inputs.site_url || 'https://unorfl.github.io/tpn-os/' }}
+          TPN_SITE_URL: ${{ inputs.site_url || 'https://tyopaengnyo.com/' }}
           TPN_VERSION_CODE: ${{ github.run_number }}
           TPN_KEYSTORE_PASSWORD: ${{ secrets.TPN_KEYSTORE_PASSWORD }}
         run: gradle -p android assembleCounterRelease assembleKitchenRelease --no-daemon

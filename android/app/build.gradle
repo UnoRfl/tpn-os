@@ -7,7 +7,7 @@
 plugins { id 'com.android.application' }
 
 def env = { String k, String d -> System.getenv(k) ?: d }
-def site = env('TPN_SITE_URL', 'https://unorfl.github.io/tpn-os/')
+def site = env('TPN_SITE_URL', 'https://tyopaengnyo.com/')
 if (!site.endsWith('/')) site += '/'
 def ks = System.getenv('TPN_KEYSTORE')
 
