@@ -1,3 +1,5 @@
+<p align="center"><img src=".github/assets/banner.png" alt="tpn-os banner" width="100%"></p>
+
 # TPN OS
 
 Production-ready MVP of the Tyo Paeng Nyo three-surface web system. All data lives in Supabase; menu, staff, orders, and inquiries load dynamically. No hardcoded content.
